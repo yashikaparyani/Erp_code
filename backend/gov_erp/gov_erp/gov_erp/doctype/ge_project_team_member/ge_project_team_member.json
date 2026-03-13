@@ -1,0 +1,154 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-03-13 15:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "linked_project",
+  "user",
+  "cb_role",
+  "role_in_project",
+  "linked_site",
+  "sb_dates",
+  "start_date",
+  "end_date",
+  "cb_active",
+  "is_active",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "options": "PTM-.#####",
+   "reqd": 0
+  },
+  {
+   "fieldname": "linked_project",
+   "fieldtype": "Link",
+   "label": "Linked Project",
+   "reqd": 1,
+   "options": "Project"
+  },
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "label": "User",
+   "reqd": 1,
+   "options": "User"
+  },
+  {
+   "fieldname": "cb_role",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "role_in_project",
+   "fieldtype": "Select",
+   "label": "Role in Project",
+   "reqd": 1,
+   "options": "PROJECT_MANAGER\nENGINEER\nTECHNICIAN\nSITE_SUPERVISOR\nINSPECTOR\nACCOUNTS\nOTHER"
+  },
+  {
+   "fieldname": "linked_site",
+   "fieldtype": "Link",
+   "label": "Linked Site",
+   "reqd": 0,
+   "options": "GE Site"
+  },
+  {
+   "fieldname": "sb_dates",
+   "fieldtype": "Section Break",
+   "label": "Assignment Period"
+  },
+  {
+   "fieldname": "start_date",
+   "fieldtype": "Date",
+   "label": "Start Date",
+   "reqd": 0
+  },
+  {
+   "fieldname": "end_date",
+   "fieldtype": "Date",
+   "label": "End Date",
+   "reqd": 0
+  },
+  {
+   "fieldname": "cb_active",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Is Active",
+   "reqd": 0,
+   "default": "1"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks",
+   "reqd": 0
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-03-13 15:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE Project Team Member",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Project Manager",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Engineering Head",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Engineer",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Department Head"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Top Management"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "desc",
+ "track_changes": 1,
+ "naming_rule": "By \"Naming Series\" field",
+ "autoname": "naming_series:"
+}

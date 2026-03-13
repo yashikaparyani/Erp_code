@@ -1,0 +1,186 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-03-13 15:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "linked_project",
+  "linked_invoice",
+  "cb_pen_src",
+  "penalty_source",
+  "penalty_date",
+  "sb_pen_amt",
+  "amount",
+  "reason",
+  "cb_pen_stage",
+  "applied_at_stage",
+  "status",
+  "sb_pen_approval",
+  "approved_by",
+  "reversal_reason",
+  "sb_pen_remarks",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "reqd": 0,
+   "options": "PEN-.#####"
+  },
+  {
+   "fieldname": "linked_project",
+   "fieldtype": "Link",
+   "label": "Linked Project",
+   "reqd": 1,
+   "options": "Project"
+  },
+  {
+   "fieldname": "linked_invoice",
+   "fieldtype": "Link",
+   "label": "Linked Invoice",
+   "reqd": 0,
+   "options": "GE Invoice"
+  },
+  {
+   "fieldname": "cb_pen_src",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "penalty_source",
+   "fieldtype": "Select",
+   "label": "Penalty Source",
+   "reqd": 1,
+   "options": "SLA_BREACH\nLD\nQUALITY_ISSUE\nSCHEDULE_DELAY\nOTHER"
+  },
+  {
+   "fieldname": "penalty_date",
+   "fieldtype": "Date",
+   "label": "Penalty Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "sb_pen_amt",
+   "fieldtype": "Section Break",
+   "label": "Amount"
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "label": "Amount",
+   "reqd": 1
+  },
+  {
+   "fieldname": "reason",
+   "fieldtype": "Small Text",
+   "label": "Reason",
+   "reqd": 1
+  },
+  {
+   "fieldname": "cb_pen_stage",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "applied_at_stage",
+   "fieldtype": "Select",
+   "label": "Applied At Stage",
+   "reqd": 0,
+   "options": "INVOICE\nPAYMENT\nMANUAL"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "reqd": 1,
+   "options": "PENDING\nAPPROVED\nAPPLIED\nREVERSED",
+   "default": "PENDING"
+  },
+  {
+   "fieldname": "sb_pen_approval",
+   "fieldtype": "Section Break",
+   "label": "Approval"
+  },
+  {
+   "fieldname": "approved_by",
+   "fieldtype": "Link",
+   "label": "Approved By",
+   "reqd": 0,
+   "options": "User"
+  },
+  {
+   "fieldname": "reversal_reason",
+   "fieldtype": "Small Text",
+   "label": "Reversal Reason",
+   "reqd": 0
+  },
+  {
+   "fieldname": "sb_pen_remarks",
+   "fieldtype": "Section Break",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks",
+   "reqd": 0
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-03-13 15:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE Penalty Deduction",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Department Head",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Top Management"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Project Manager"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Presales Tendering Head"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "desc",
+ "track_changes": 1,
+ "naming_rule": "By \"Naming Series\" field",
+ "autoname": "naming_series:"
+}

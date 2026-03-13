@@ -1,0 +1,244 @@
+{
+ "actions": [],
+ "autoname": "naming_series:",
+ "creation": "2026-03-13 18:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "linked_tender",
+  "linked_project",
+  "linked_boq",
+  "column_break_meta",
+  "version",
+  "status",
+  "margin_percent",
+  "section_break_approval",
+  "created_by_user",
+  "approved_by",
+  "approved_at",
+  "column_break_rejection",
+  "rejected_by",
+  "rejection_reason",
+  "section_break_totals",
+  "base_cost",
+  "sell_value",
+  "total_items",
+  "section_break_items",
+  "items",
+  "section_break_notes",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "COST-.#####"
+  },
+  {
+   "fieldname": "linked_tender",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Linked Tender",
+   "options": "GE Tender",
+   "reqd": 1
+  },
+  {
+   "fieldname": "linked_project",
+   "fieldtype": "Link",
+   "label": "Linked Project",
+   "options": "Project"
+  },
+  {
+   "fieldname": "linked_boq",
+   "fieldtype": "Link",
+   "label": "Linked BOQ",
+   "options": "GE BOQ"
+  },
+  {
+   "fieldname": "column_break_meta",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "version",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Version",
+   "reqd": 1
+  },
+  {
+   "default": "DRAFT",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "DRAFT\nPENDING_APPROVAL\nAPPROVED\nREJECTED",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "margin_percent",
+   "fieldtype": "Percent",
+   "label": "Margin Percent"
+  },
+  {
+   "fieldname": "section_break_approval",
+   "fieldtype": "Section Break",
+   "label": "Approval Details"
+  },
+  {
+   "fieldname": "created_by_user",
+   "fieldtype": "Link",
+   "label": "Created By",
+   "options": "User"
+  },
+  {
+   "fieldname": "approved_by",
+   "fieldtype": "Link",
+   "depends_on": "eval:doc.status=='APPROVED'",
+   "label": "Approved By",
+   "options": "User"
+  },
+  {
+   "fieldname": "approved_at",
+   "fieldtype": "Datetime",
+   "depends_on": "eval:doc.status=='APPROVED'",
+   "label": "Approved At"
+  },
+  {
+   "fieldname": "column_break_rejection",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "rejected_by",
+   "fieldtype": "Link",
+   "depends_on": "eval:doc.status=='REJECTED'",
+   "label": "Rejected By",
+   "options": "User"
+  },
+  {
+   "fieldname": "rejection_reason",
+   "fieldtype": "Small Text",
+   "depends_on": "eval:doc.status=='REJECTED'",
+   "label": "Rejection Reason"
+  },
+  {
+   "fieldname": "section_break_totals",
+   "fieldtype": "Section Break",
+   "label": "Totals"
+  },
+  {
+   "default": "0",
+   "fieldname": "base_cost",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Base Cost",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "sell_value",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Sell Value",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "total_items",
+   "fieldtype": "Int",
+   "label": "Total Items",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_items",
+   "fieldtype": "Section Break",
+   "label": "Cost Items"
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Items",
+   "options": "GE Cost Sheet Item",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_notes",
+   "fieldtype": "Section Break",
+   "label": "Notes"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Text Editor",
+   "label": "Notes"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-03-13 18:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE Cost Sheet",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Presales Tendering Head",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Presales Executive",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Engineering Head"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Accounts"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Top Management"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Department Head",
+   "write": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "linked_tender",
+ "track_changes": 1
+}

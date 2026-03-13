@@ -1,0 +1,171 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-03-13 15:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "profile_name",
+  "linked_project",
+  "cb_sla_times",
+  "response_minutes",
+  "resolution_minutes",
+  "sb_hours",
+  "working_hours_type",
+  "business_hours_json",
+  "cb_excl",
+  "exclude_holidays",
+  "excluded_days",
+  "sb_escalation",
+  "escalation_enabled",
+  "escalation_user",
+  "is_active"
+ ],
+ "fields": [
+  {
+   "fieldname": "profile_name",
+   "fieldtype": "Data",
+   "label": "Profile Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "linked_project",
+   "fieldtype": "Link",
+   "label": "Linked Project",
+   "reqd": 0,
+   "options": "Project"
+  },
+  {
+   "fieldname": "cb_sla_times",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "response_minutes",
+   "fieldtype": "Int",
+   "label": "Response Time (minutes)",
+   "reqd": 1
+  },
+  {
+   "fieldname": "resolution_minutes",
+   "fieldtype": "Int",
+   "label": "Resolution Time (minutes)",
+   "reqd": 1
+  },
+  {
+   "fieldname": "sb_hours",
+   "fieldtype": "Section Break",
+   "label": "Working Hours"
+  },
+  {
+   "fieldname": "working_hours_type",
+   "fieldtype": "Select",
+   "label": "Working Hours Type",
+   "reqd": 1,
+   "options": "24x7\nBUSINESS_HOURS\nCUSTOM",
+   "default": "24x7"
+  },
+  {
+   "fieldname": "business_hours_json",
+   "fieldtype": "Code",
+   "label": "Business Hours JSON",
+   "reqd": 0
+  },
+  {
+   "fieldname": "cb_excl",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "exclude_holidays",
+   "fieldtype": "Check",
+   "label": "Exclude Holidays",
+   "reqd": 0
+  },
+  {
+   "fieldname": "excluded_days",
+   "fieldtype": "Small Text",
+   "label": "Excluded Days",
+   "reqd": 0
+  },
+  {
+   "fieldname": "sb_escalation",
+   "fieldtype": "Section Break",
+   "label": "Escalation"
+  },
+  {
+   "fieldname": "escalation_enabled",
+   "fieldtype": "Check",
+   "label": "Escalation Enabled",
+   "reqd": 0
+  },
+  {
+   "fieldname": "escalation_user",
+   "fieldtype": "Link",
+   "label": "Escalation User",
+   "reqd": 0,
+   "options": "User"
+  },
+  {
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Is Active",
+   "reqd": 0,
+   "default": "1"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-03-13 15:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE SLA Profile",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Project Manager",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Engineer",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Engineering Head",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Department Head",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Top Management"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "desc",
+ "track_changes": 1
+}

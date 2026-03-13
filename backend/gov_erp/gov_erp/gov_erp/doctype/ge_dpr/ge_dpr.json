@@ -1,0 +1,220 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-03-13 15:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "linked_project",
+  "linked_site",
+  "cb_date",
+  "report_date",
+  "submitted_by",
+  "sb_summary",
+  "summary",
+  "weather_conditions",
+  "cb_manpower",
+  "manpower_on_site",
+  "equipment_count",
+  "sb_details",
+  "work_done",
+  "issues_faced",
+  "next_day_plan",
+  "sb_items",
+  "items",
+  "sb_photos",
+  "photos",
+  "sb_remarks",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "reqd": 0,
+   "options": "DPR-.#####"
+  },
+  {
+   "fieldname": "linked_project",
+   "fieldtype": "Link",
+   "label": "Linked Project",
+   "reqd": 1,
+   "options": "Project"
+  },
+  {
+   "fieldname": "linked_site",
+   "fieldtype": "Link",
+   "label": "Linked Site",
+   "reqd": 0,
+   "options": "GE Site"
+  },
+  {
+   "fieldname": "cb_date",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "report_date",
+   "fieldtype": "Date",
+   "label": "Report Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "submitted_by",
+   "fieldtype": "Link",
+   "label": "Submitted By",
+   "reqd": 0,
+   "options": "User"
+  },
+  {
+   "fieldname": "sb_summary",
+   "fieldtype": "Section Break",
+   "label": "Summary"
+  },
+  {
+   "fieldname": "summary",
+   "fieldtype": "Small Text",
+   "label": "Summary",
+   "reqd": 0
+  },
+  {
+   "fieldname": "weather_conditions",
+   "fieldtype": "Data",
+   "label": "Weather Conditions",
+   "reqd": 0
+  },
+  {
+   "fieldname": "cb_manpower",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "manpower_on_site",
+   "fieldtype": "Int",
+   "label": "Manpower On Site",
+   "reqd": 0
+  },
+  {
+   "fieldname": "equipment_count",
+   "fieldtype": "Int",
+   "label": "Equipment Count",
+   "reqd": 0
+  },
+  {
+   "fieldname": "sb_details",
+   "fieldtype": "Section Break",
+   "label": "Details"
+  },
+  {
+   "fieldname": "work_done",
+   "fieldtype": "Text Editor",
+   "label": "Work Done",
+   "reqd": 0
+  },
+  {
+   "fieldname": "issues_faced",
+   "fieldtype": "Text Editor",
+   "label": "Issues Faced",
+   "reqd": 0
+  },
+  {
+   "fieldname": "next_day_plan",
+   "fieldtype": "Text Editor",
+   "label": "Next Day Plan",
+   "reqd": 0
+  },
+  {
+   "fieldname": "sb_items",
+   "fieldtype": "Section Break",
+   "label": "Progress Items"
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Progress Items",
+   "reqd": 0,
+   "options": "GE DPR Item"
+  },
+  {
+   "fieldname": "sb_photos",
+   "fieldtype": "Section Break",
+   "label": "Photos"
+  },
+  {
+   "fieldname": "photos",
+   "fieldtype": "Table",
+   "label": "Photos",
+   "reqd": 0,
+   "options": "GE DPR Photo"
+  },
+  {
+   "fieldname": "sb_remarks",
+   "fieldtype": "Section Break",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Text Editor",
+   "label": "Remarks",
+   "reqd": 0
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-03-13 15:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE DPR",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Project Manager",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Engineering Head",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Engineer",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Department Head"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Top Management"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "desc",
+ "track_changes": 1,
+ "naming_rule": "By \"Naming Series\" field",
+ "autoname": "naming_series:"
+}

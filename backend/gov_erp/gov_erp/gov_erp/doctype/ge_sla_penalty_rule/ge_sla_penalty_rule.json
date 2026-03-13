@@ -1,0 +1,139 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-03-13 15:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "sla_profile",
+  "breach_type",
+  "cb_slab",
+  "time_slab_from_minutes",
+  "time_slab_to_minutes",
+  "sb_penalty_calc",
+  "penalty_type",
+  "penalty_value",
+  "penalty_currency",
+  "is_active"
+ ],
+ "fields": [
+  {
+   "fieldname": "sla_profile",
+   "fieldtype": "Link",
+   "label": "SLA Profile",
+   "reqd": 1,
+   "options": "GE SLA Profile"
+  },
+  {
+   "fieldname": "breach_type",
+   "fieldtype": "Select",
+   "label": "Breach Type",
+   "reqd": 1,
+   "options": "RESPONSE\nRESOLUTION\nBOTH"
+  },
+  {
+   "fieldname": "cb_slab",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "time_slab_from_minutes",
+   "fieldtype": "Int",
+   "label": "Time Slab From (minutes)",
+   "reqd": 1
+  },
+  {
+   "fieldname": "time_slab_to_minutes",
+   "fieldtype": "Int",
+   "label": "Time Slab To (minutes)",
+   "reqd": 0
+  },
+  {
+   "fieldname": "sb_penalty_calc",
+   "fieldtype": "Section Break",
+   "label": "Penalty Calculation"
+  },
+  {
+   "fieldname": "penalty_type",
+   "fieldtype": "Select",
+   "label": "Penalty Type",
+   "reqd": 1,
+   "options": "FIXED\nPERCENTAGE\nPER_HOUR"
+  },
+  {
+   "fieldname": "penalty_value",
+   "fieldtype": "Float",
+   "label": "Penalty Value",
+   "reqd": 1
+  },
+  {
+   "fieldname": "penalty_currency",
+   "fieldtype": "Data",
+   "label": "Penalty Currency",
+   "reqd": 0,
+   "default": "INR"
+  },
+  {
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Is Active",
+   "reqd": 0,
+   "default": "1"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-03-13 15:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE SLA Penalty Rule",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Project Manager",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Engineer",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Engineering Head",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Department Head",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Top Management"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "desc",
+ "track_changes": 1
+}

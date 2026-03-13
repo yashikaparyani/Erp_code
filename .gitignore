@@ -2,3 +2,6 @@ node_modules
 .env
 dist    
 build
+erp_frontend/.next
+erp_frontend/.env.local
+backend/gov_erp/**/__pycache__

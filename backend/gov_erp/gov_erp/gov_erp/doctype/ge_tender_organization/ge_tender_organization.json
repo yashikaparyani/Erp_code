@@ -1,0 +1,125 @@
+{
+ "actions": [],
+ "autoname": "hash",
+ "creation": "2026-03-13 14:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "linked_tender",
+  "organization",
+  "column_break_role",
+  "role_in_tender",
+  "section_break_details",
+  "share_percentage",
+  "scope_of_work",
+  "is_lead"
+ ],
+ "fields": [
+  {
+   "fieldname": "linked_tender",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Linked Tender",
+   "options": "GE Tender",
+   "reqd": 1
+  },
+  {
+   "fieldname": "organization",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Organization",
+   "options": "GE Party",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_role",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Lead Bidder",
+   "fieldname": "role_in_tender",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Role in Tender",
+   "options": "Lead Bidder\nJV Partner\nSub-contractor\nConsultant\nOEM\nOther",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_details",
+   "fieldtype": "Section Break",
+   "label": "Details"
+  },
+  {
+   "default": "0",
+   "fieldname": "share_percentage",
+   "fieldtype": "Percent",
+   "label": "Share Percentage"
+  },
+  {
+   "fieldname": "scope_of_work",
+   "fieldtype": "Small Text",
+   "label": "Scope of Work"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_lead",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Lead"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-03-13 14:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE Tender Organization",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Presales Tendering Head",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Presales Executive",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Department Head"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Top Management"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

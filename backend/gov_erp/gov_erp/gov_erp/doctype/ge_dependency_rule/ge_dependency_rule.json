@@ -1,0 +1,152 @@
+{
+ "actions": [],
+ "autoname": "naming_series:",
+ "creation": "2026-03-14 00:15:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "linked_task",
+  "prerequisite_type",
+  "active",
+  "hard_block",
+  "linked_project",
+  "linked_site",
+  "prerequisite_reference_doctype",
+  "prerequisite_reference_name",
+  "required_status",
+  "block_message"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "DEP-.#####"
+  },
+  {
+   "fieldname": "linked_task",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Linked Task",
+   "options": "Task",
+   "reqd": 1
+  },
+  {
+   "fieldname": "prerequisite_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Prerequisite Type",
+   "options": "TASK\nMATERIAL\nDOCUMENT\nAPPROVAL\nIP\nSURVEY\nBOQ\nDISPATCH",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "active",
+   "fieldtype": "Check",
+   "label": "Active"
+  },
+  {
+   "default": "1",
+   "fieldname": "hard_block",
+   "fieldtype": "Check",
+   "label": "Hard Block"
+  },
+  {
+   "fieldname": "linked_project",
+   "fieldtype": "Link",
+   "label": "Linked Project",
+   "options": "Project"
+  },
+  {
+   "fieldname": "linked_site",
+   "fieldtype": "Link",
+   "label": "Linked Site",
+   "options": "GE Site"
+  },
+  {
+   "fieldname": "prerequisite_reference_doctype",
+   "fieldtype": "Link",
+   "label": "Prerequisite Reference DocType",
+   "options": "DocType",
+   "reqd": 1
+  },
+  {
+   "fieldname": "prerequisite_reference_name",
+   "fieldtype": "Dynamic Link",
+   "label": "Prerequisite Reference Name",
+   "options": "prerequisite_reference_doctype",
+   "reqd": 1
+  },
+  {
+   "default": "Completed",
+   "fieldname": "required_status",
+   "fieldtype": "Data",
+   "label": "Required Status",
+   "reqd": 1
+  },
+  {
+   "fieldname": "block_message",
+   "fieldtype": "Small Text",
+   "label": "Block Message"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-03-14 00:15:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE Dependency Rule",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Project Manager",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Engineering Head",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Engineer"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Department Head"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Top Management"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

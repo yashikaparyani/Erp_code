@@ -1,0 +1,417 @@
+{
+ "actions": [],
+ "autoname": "naming_series:",
+ "creation": "2026-03-13 20:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "onboarding_status",
+  "employee_reference",
+  "column_break_meta",
+  "form_source",
+  "submitted_by",
+  "section_break_employment",
+  "company",
+  "date_of_joining",
+  "designation",
+  "column_break_location",
+  "project_state",
+  "project_location",
+  "project_city",
+  "section_break_personal",
+  "salutation",
+  "employee_name",
+  "gender",
+  "date_of_birth",
+  "column_break_personal2",
+  "blood_group",
+  "marital_status",
+  "spouse_name",
+  "father_name",
+  "mother_name",
+  "section_break_contact",
+  "contact_number",
+  "alternate_contact_number",
+  "personal_email",
+  "column_break_address",
+  "permanent_address",
+  "local_address",
+  "section_break_statutory",
+  "aadhar_number",
+  "pan_number",
+  "column_break_statutory2",
+  "epf_number",
+  "esic_number",
+  "section_break_education",
+  "education",
+  "section_break_experience",
+  "experience",
+  "section_break_certifications",
+  "certifications",
+  "section_break_documents",
+  "documents",
+  "section_break_approval",
+  "reviewed_by",
+  "approved_by",
+  "approved_at",
+  "column_break_rejection",
+  "rejected_by",
+  "rejection_reason",
+  "section_break_remarks",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "ONB-.#####"
+  },
+  {
+   "default": "DRAFT",
+   "fieldname": "onboarding_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "DRAFT\nSUBMITTED\nUNDER_REVIEW\nAPPROVED\nREJECTED\nMAPPED_TO_EMPLOYEE",
+   "reqd": 1
+  },
+  {
+   "fieldname": "employee_reference",
+   "fieldtype": "Link",
+   "label": "Linked Employee",
+   "options": "Employee",
+   "depends_on": "eval:doc.onboarding_status=='MAPPED_TO_EMPLOYEE'"
+  },
+  {
+   "fieldname": "column_break_meta",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Manual",
+   "fieldname": "form_source",
+   "fieldtype": "Select",
+   "label": "Form Source",
+   "options": "Manual\nBulk Import\nField App"
+  },
+  {
+   "fieldname": "submitted_by",
+   "fieldtype": "Link",
+   "label": "Submitted By",
+   "options": "User"
+  },
+  {
+   "fieldname": "section_break_employment",
+   "fieldtype": "Section Break",
+   "label": "Employment Details"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "fieldname": "date_of_joining",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Date of Joining"
+  },
+  {
+   "fieldname": "designation",
+   "fieldtype": "Link",
+   "label": "Designation",
+   "options": "Designation"
+  },
+  {
+   "fieldname": "column_break_location",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "project_state",
+   "fieldtype": "Data",
+   "label": "Project State"
+  },
+  {
+   "fieldname": "project_location",
+   "fieldtype": "Data",
+   "label": "Project Location"
+  },
+  {
+   "fieldname": "project_city",
+   "fieldtype": "Data",
+   "label": "Project City"
+  },
+  {
+   "fieldname": "section_break_personal",
+   "fieldtype": "Section Break",
+   "label": "Personal Details"
+  },
+  {
+   "fieldname": "salutation",
+   "fieldtype": "Link",
+   "label": "Salutation",
+   "options": "Salutation"
+  },
+  {
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Employee Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "gender",
+   "fieldtype": "Link",
+   "label": "Gender",
+   "options": "Gender"
+  },
+  {
+   "fieldname": "date_of_birth",
+   "fieldtype": "Date",
+   "label": "Date of Birth"
+  },
+  {
+   "fieldname": "column_break_personal2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "blood_group",
+   "fieldtype": "Select",
+   "label": "Blood Group",
+   "options": "\nA+\nA-\nB+\nB-\nO+\nO-\nAB+\nAB-"
+  },
+  {
+   "fieldname": "marital_status",
+   "fieldtype": "Select",
+   "label": "Marital Status",
+   "options": "\nSingle\nMarried\nDivorced\nWidowed"
+  },
+  {
+   "fieldname": "spouse_name",
+   "fieldtype": "Data",
+   "depends_on": "eval:doc.marital_status=='Married'",
+   "label": "Spouse Name"
+  },
+  {
+   "fieldname": "father_name",
+   "fieldtype": "Data",
+   "label": "Father's Name"
+  },
+  {
+   "fieldname": "mother_name",
+   "fieldtype": "Data",
+   "label": "Mother's Name"
+  },
+  {
+   "fieldname": "section_break_contact",
+   "fieldtype": "Section Break",
+   "label": "Contact Details"
+  },
+  {
+   "fieldname": "contact_number",
+   "fieldtype": "Data",
+   "label": "Contact Number"
+  },
+  {
+   "fieldname": "alternate_contact_number",
+   "fieldtype": "Data",
+   "label": "Alternate Contact Number"
+  },
+  {
+   "fieldname": "personal_email",
+   "fieldtype": "Data",
+   "label": "Personal Email",
+   "options": "Email"
+  },
+  {
+   "fieldname": "column_break_address",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "permanent_address",
+   "fieldtype": "Small Text",
+   "label": "Permanent Address"
+  },
+  {
+   "fieldname": "local_address",
+   "fieldtype": "Small Text",
+   "label": "Local Address"
+  },
+  {
+   "fieldname": "section_break_statutory",
+   "fieldtype": "Section Break",
+   "label": "Statutory Details"
+  },
+  {
+   "fieldname": "aadhar_number",
+   "fieldtype": "Data",
+   "label": "Aadhar Number"
+  },
+  {
+   "fieldname": "pan_number",
+   "fieldtype": "Data",
+   "label": "PAN Number"
+  },
+  {
+   "fieldname": "column_break_statutory2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "epf_number",
+   "fieldtype": "Data",
+   "label": "EPF Number"
+  },
+  {
+   "fieldname": "esic_number",
+   "fieldtype": "Data",
+   "label": "ESIC Number"
+  },
+  {
+   "fieldname": "section_break_education",
+   "fieldtype": "Section Break",
+   "label": "Education History"
+  },
+  {
+   "fieldname": "education",
+   "fieldtype": "Table",
+   "label": "Education",
+   "options": "Employee Education"
+  },
+  {
+   "fieldname": "section_break_experience",
+   "fieldtype": "Section Break",
+   "label": "Work Experience"
+  },
+  {
+   "fieldname": "experience",
+   "fieldtype": "Table",
+   "label": "Experience",
+   "options": "Employee External Work History"
+  },
+  {
+   "fieldname": "section_break_certifications",
+   "fieldtype": "Section Break",
+   "label": "Certifications"
+  },
+  {
+   "fieldname": "certifications",
+   "fieldtype": "Table",
+   "label": "Certifications",
+   "options": "GE Employee Certification"
+  },
+  {
+   "fieldname": "section_break_documents",
+   "fieldtype": "Section Break",
+   "label": "Documents"
+  },
+  {
+   "fieldname": "documents",
+   "fieldtype": "Table",
+   "label": "Documents",
+   "options": "GE Employee Document"
+  },
+  {
+   "fieldname": "section_break_approval",
+   "fieldtype": "Section Break",
+   "label": "Approval Details"
+  },
+  {
+   "fieldname": "reviewed_by",
+   "fieldtype": "Link",
+   "depends_on": "eval:['UNDER_REVIEW','APPROVED','REJECTED','MAPPED_TO_EMPLOYEE'].includes(doc.onboarding_status)",
+   "label": "Reviewed By",
+   "options": "User"
+  },
+  {
+   "fieldname": "approved_by",
+   "fieldtype": "Link",
+   "depends_on": "eval:doc.onboarding_status=='APPROVED' || doc.onboarding_status=='MAPPED_TO_EMPLOYEE'",
+   "label": "Approved By",
+   "options": "User"
+  },
+  {
+   "fieldname": "approved_at",
+   "fieldtype": "Datetime",
+   "depends_on": "eval:doc.onboarding_status=='APPROVED' || doc.onboarding_status=='MAPPED_TO_EMPLOYEE'",
+   "label": "Approved At"
+  },
+  {
+   "fieldname": "column_break_rejection",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "rejected_by",
+   "fieldtype": "Link",
+   "depends_on": "eval:doc.onboarding_status=='REJECTED'",
+   "label": "Rejected By",
+   "options": "User"
+  },
+  {
+   "fieldname": "rejection_reason",
+   "fieldtype": "Small Text",
+   "depends_on": "eval:doc.onboarding_status=='REJECTED'",
+   "label": "Rejection Reason"
+  },
+  {
+   "fieldname": "section_break_remarks",
+   "fieldtype": "Section Break",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Text Editor",
+   "label": "Remarks"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-03-13 20:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE Employee Onboarding",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Top Management"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Department Head",
+   "write": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "employee_name",
+ "track_changes": 1
+}

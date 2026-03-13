@@ -1,0 +1,285 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-03-13 15:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "linked_project",
+  "linked_site",
+  "cb_inv_meta",
+  "invoice_date",
+  "invoice_type",
+  "status",
+  "sb_amounts",
+  "amount",
+  "gst_percent",
+  "gst_amount",
+  "cb_tds",
+  "tds_percent",
+  "tds_amount",
+  "net_receivable",
+  "sb_milestone_flag",
+  "milestone_complete",
+  "audit_note",
+  "cb_link_sales",
+  "linked_sales_invoice",
+  "sb_lines",
+  "items",
+  "sb_approval",
+  "submitted_by",
+  "approved_by",
+  "approved_at",
+  "cb_reject",
+  "rejected_by",
+  "rejection_reason",
+  "sb_remarks_inv",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "reqd": 0,
+   "options": "GINV-.#####"
+  },
+  {
+   "fieldname": "linked_project",
+   "fieldtype": "Link",
+   "label": "Linked Project",
+   "reqd": 1,
+   "options": "Project"
+  },
+  {
+   "fieldname": "linked_site",
+   "fieldtype": "Link",
+   "label": "Linked Site",
+   "reqd": 0,
+   "options": "GE Site"
+  },
+  {
+   "fieldname": "cb_inv_meta",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "invoice_date",
+   "fieldtype": "Date",
+   "label": "Invoice Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "invoice_type",
+   "fieldtype": "Select",
+   "label": "Invoice Type",
+   "reqd": 1,
+   "options": "MILESTONE\nRA\nO_AND_M"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "reqd": 1,
+   "options": "DRAFT\nSUBMITTED\nAPPROVED\nPAYMENT_RECEIVED\nCANCELLED",
+   "default": "DRAFT"
+  },
+  {
+   "fieldname": "sb_amounts",
+   "fieldtype": "Section Break",
+   "label": "Amounts"
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "label": "Amount",
+   "reqd": 0,
+   "default": "0"
+  },
+  {
+   "fieldname": "gst_percent",
+   "fieldtype": "Percent",
+   "label": "GST %",
+   "reqd": 0
+  },
+  {
+   "fieldname": "gst_amount",
+   "fieldtype": "Currency",
+   "label": "GST Amount",
+   "reqd": 0,
+   "default": "0"
+  },
+  {
+   "fieldname": "cb_tds",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "tds_percent",
+   "fieldtype": "Percent",
+   "label": "TDS %",
+   "reqd": 0
+  },
+  {
+   "fieldname": "tds_amount",
+   "fieldtype": "Currency",
+   "label": "TDS Amount",
+   "reqd": 0,
+   "default": "0"
+  },
+  {
+   "fieldname": "net_receivable",
+   "fieldtype": "Currency",
+   "label": "Net Receivable",
+   "reqd": 0,
+   "default": "0"
+  },
+  {
+   "fieldname": "sb_milestone_flag",
+   "fieldtype": "Section Break",
+   "label": "Milestone"
+  },
+  {
+   "fieldname": "milestone_complete",
+   "fieldtype": "Check",
+   "label": "Milestone Complete",
+   "reqd": 0
+  },
+  {
+   "fieldname": "audit_note",
+   "fieldtype": "Small Text",
+   "label": "Audit Note (if raised before milestone)",
+   "reqd": 0
+  },
+  {
+   "fieldname": "cb_link_sales",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "linked_sales_invoice",
+   "fieldtype": "Link",
+   "label": "Linked Sales Invoice",
+   "reqd": 0,
+   "options": "Sales Invoice"
+  },
+  {
+   "fieldname": "sb_lines",
+   "fieldtype": "Section Break",
+   "label": "Invoice Lines"
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Invoice Lines",
+   "reqd": 1,
+   "options": "GE Invoice Line"
+  },
+  {
+   "fieldname": "sb_approval",
+   "fieldtype": "Section Break",
+   "label": "Approval"
+  },
+  {
+   "fieldname": "submitted_by",
+   "fieldtype": "Link",
+   "label": "Submitted By",
+   "reqd": 0,
+   "options": "User"
+  },
+  {
+   "fieldname": "approved_by",
+   "fieldtype": "Link",
+   "label": "Approved By",
+   "reqd": 0,
+   "options": "User"
+  },
+  {
+   "fieldname": "approved_at",
+   "fieldtype": "Datetime",
+   "label": "Approved At",
+   "reqd": 0
+  },
+  {
+   "fieldname": "cb_reject",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "rejected_by",
+   "fieldtype": "Link",
+   "label": "Rejected By",
+   "reqd": 0,
+   "options": "User"
+  },
+  {
+   "fieldname": "rejection_reason",
+   "fieldtype": "Small Text",
+   "label": "Rejection Reason",
+   "reqd": 0
+  },
+  {
+   "fieldname": "sb_remarks_inv",
+   "fieldtype": "Section Break",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Text Editor",
+   "label": "Remarks",
+   "reqd": 0
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-03-13 15:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE Invoice",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Department Head",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Top Management"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Project Manager"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Presales Tendering Head"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "desc",
+ "track_changes": 1,
+ "naming_rule": "By \"Naming Series\" field",
+ "autoname": "naming_series:"
+}

@@ -1,0 +1,177 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-03-13 15:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "linked_ticket",
+  "sla_penalty_rule",
+  "cb_breach",
+  "breach_type",
+  "calculated_penalty",
+  "calculated_on",
+  "sb_approval_slap",
+  "approval_status",
+  "approved_by",
+  "cb_applied",
+  "applied_to_invoice",
+  "applied_to_penalty",
+  "sb_slap_remarks",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "reqd": 0,
+   "options": "SLAP-.#####"
+  },
+  {
+   "fieldname": "linked_ticket",
+   "fieldtype": "Link",
+   "label": "Linked Ticket",
+   "reqd": 1,
+   "options": "GE Ticket"
+  },
+  {
+   "fieldname": "sla_penalty_rule",
+   "fieldtype": "Link",
+   "label": "SLA Penalty Rule",
+   "reqd": 1,
+   "options": "GE SLA Penalty Rule"
+  },
+  {
+   "fieldname": "cb_breach",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "breach_type",
+   "fieldtype": "Select",
+   "label": "Breach Type",
+   "reqd": 1,
+   "options": "RESPONSE\nRESOLUTION"
+  },
+  {
+   "fieldname": "calculated_penalty",
+   "fieldtype": "Currency",
+   "label": "Calculated Penalty",
+   "reqd": 1
+  },
+  {
+   "fieldname": "calculated_on",
+   "fieldtype": "Datetime",
+   "label": "Calculated On",
+   "reqd": 0
+  },
+  {
+   "fieldname": "sb_approval_slap",
+   "fieldtype": "Section Break",
+   "label": "Approval"
+  },
+  {
+   "fieldname": "approval_status",
+   "fieldtype": "Select",
+   "label": "Approval Status",
+   "reqd": 1,
+   "options": "PENDING\nAPPROVED\nREJECTED\nWAIVED",
+   "default": "PENDING"
+  },
+  {
+   "fieldname": "approved_by",
+   "fieldtype": "Link",
+   "label": "Approved By",
+   "reqd": 0,
+   "options": "User"
+  },
+  {
+   "fieldname": "cb_applied",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "applied_to_invoice",
+   "fieldtype": "Link",
+   "label": "Applied to Invoice",
+   "reqd": 0,
+   "options": "GE Invoice"
+  },
+  {
+   "fieldname": "applied_to_penalty",
+   "fieldtype": "Link",
+   "label": "Applied to Penalty Deduction",
+   "reqd": 0,
+   "options": "GE Penalty Deduction"
+  },
+  {
+   "fieldname": "sb_slap_remarks",
+   "fieldtype": "Section Break",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks",
+   "reqd": 0
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-03-13 15:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE SLA Penalty Record",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Project Manager",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Engineer",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Engineering Head",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Department Head",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Top Management"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "desc",
+ "track_changes": 1,
+ "naming_rule": "By \"Naming Series\" field",
+ "autoname": "naming_series:"
+}

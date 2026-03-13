@@ -1,0 +1,268 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-03-13 15:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "linked_project",
+  "linked_site",
+  "cb_ticket_meta",
+  "category",
+  "priority",
+  "status",
+  "sb_ticket_desc",
+  "title",
+  "description",
+  "sb_assignment",
+  "raised_by",
+  "raised_on",
+  "cb_assign_to",
+  "assigned_to",
+  "asset_serial_no",
+  "sb_resolution",
+  "resolved_on",
+  "closed_on",
+  "resolution_notes",
+  "cb_rma_flag",
+  "is_rma",
+  "linked_rma",
+  "sb_ticket_actions",
+  "actions",
+  "sb_sla_link",
+  "sla_profile",
+  "linked_sla_timer"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "reqd": 0,
+   "options": "TICKET-.#####"
+  },
+  {
+   "fieldname": "linked_project",
+   "fieldtype": "Link",
+   "label": "Linked Project",
+   "reqd": 0,
+   "options": "Project"
+  },
+  {
+   "fieldname": "linked_site",
+   "fieldtype": "Link",
+   "label": "Linked Site",
+   "reqd": 0,
+   "options": "GE Site"
+  },
+  {
+   "fieldname": "cb_ticket_meta",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "category",
+   "fieldtype": "Select",
+   "label": "Category",
+   "reqd": 1,
+   "options": "HARDWARE_ISSUE\nSOFTWARE_ISSUE\nNETWORK_ISSUE\nPERFORMANCE\nMAINTENANCE\nOTHER"
+  },
+  {
+   "fieldname": "priority",
+   "fieldtype": "Select",
+   "label": "Priority",
+   "reqd": 1,
+   "options": "CRITICAL\nHIGH\nMEDIUM\nLOW",
+   "default": "MEDIUM"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "reqd": 1,
+   "options": "NEW\nASSIGNED\nIN_PROGRESS\nON_HOLD\nRESOLVED\nCLOSED",
+   "default": "NEW"
+  },
+  {
+   "fieldname": "sb_ticket_desc",
+   "fieldtype": "Section Break",
+   "label": "Description"
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "label": "Title",
+   "reqd": 1
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Text Editor",
+   "label": "Description",
+   "reqd": 0
+  },
+  {
+   "fieldname": "sb_assignment",
+   "fieldtype": "Section Break",
+   "label": "Assignment"
+  },
+  {
+   "fieldname": "raised_by",
+   "fieldtype": "Link",
+   "label": "Raised By",
+   "reqd": 0,
+   "options": "User"
+  },
+  {
+   "fieldname": "raised_on",
+   "fieldtype": "Datetime",
+   "label": "Raised On",
+   "reqd": 0
+  },
+  {
+   "fieldname": "cb_assign_to",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "assigned_to",
+   "fieldtype": "Link",
+   "label": "Assigned To",
+   "reqd": 0,
+   "options": "User"
+  },
+  {
+   "fieldname": "asset_serial_no",
+   "fieldtype": "Data",
+   "label": "Asset Serial No",
+   "reqd": 0
+  },
+  {
+   "fieldname": "sb_resolution",
+   "fieldtype": "Section Break",
+   "label": "Resolution"
+  },
+  {
+   "fieldname": "resolved_on",
+   "fieldtype": "Datetime",
+   "label": "Resolved On",
+   "reqd": 0
+  },
+  {
+   "fieldname": "closed_on",
+   "fieldtype": "Datetime",
+   "label": "Closed On",
+   "reqd": 0
+  },
+  {
+   "fieldname": "resolution_notes",
+   "fieldtype": "Text Editor",
+   "label": "Resolution Notes",
+   "reqd": 0
+  },
+  {
+   "fieldname": "cb_rma_flag",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "is_rma",
+   "fieldtype": "Check",
+   "label": "Is RMA",
+   "reqd": 0
+  },
+  {
+   "fieldname": "linked_rma",
+   "fieldtype": "Link",
+   "label": "Linked RMA",
+   "reqd": 0,
+   "options": "GE RMA Tracker"
+  },
+  {
+   "fieldname": "sb_ticket_actions",
+   "fieldtype": "Section Break",
+   "label": "Actions"
+  },
+  {
+   "fieldname": "actions",
+   "fieldtype": "Table",
+   "label": "Actions",
+   "reqd": 0,
+   "options": "GE Ticket Action"
+  },
+  {
+   "fieldname": "sb_sla_link",
+   "fieldtype": "Section Break",
+   "label": "SLA"
+  },
+  {
+   "fieldname": "sla_profile",
+   "fieldtype": "Link",
+   "label": "SLA Profile",
+   "reqd": 0,
+   "options": "GE SLA Profile"
+  },
+  {
+   "fieldname": "linked_sla_timer",
+   "fieldtype": "Link",
+   "label": "Linked SLA Timer",
+   "reqd": 0,
+   "options": "GE SLA Timer"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-03-13 15:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE Ticket",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Project Manager",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Engineer",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Engineering Head",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Department Head",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Top Management"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "desc",
+ "track_changes": 1,
+ "naming_rule": "By \"Naming Series\" field",
+ "autoname": "naming_series:"
+}

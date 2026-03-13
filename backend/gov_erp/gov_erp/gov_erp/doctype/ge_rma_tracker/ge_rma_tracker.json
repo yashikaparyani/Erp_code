@@ -1,0 +1,288 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-03-13 15:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "linked_ticket",
+  "linked_project",
+  "cb_rma_item",
+  "item_link",
+  "asset_serial_number",
+  "sb_rma_status",
+  "rma_status",
+  "failure_reason",
+  "sb_inspection",
+  "initial_inspection_by",
+  "initial_inspection_date",
+  "cb_rework",
+  "rework_required",
+  "rework_description",
+  "rework_date",
+  "rework_completed_on",
+  "sb_replacement",
+  "replaced_serial_number",
+  "replacement_issued_date",
+  "cb_refund",
+  "refund_approved",
+  "refund_amount",
+  "refund_approved_by",
+  "sb_rma_dates",
+  "return_location_code",
+  "estimated_resolution_date",
+  "cb_rma_actual",
+  "actual_resolution_date",
+  "closed_on",
+  "sb_rma_remarks",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "reqd": 0,
+   "options": "RMA-.#####"
+  },
+  {
+   "fieldname": "linked_ticket",
+   "fieldtype": "Link",
+   "label": "Linked Ticket",
+   "reqd": 0,
+   "options": "GE Ticket"
+  },
+  {
+   "fieldname": "linked_project",
+   "fieldtype": "Link",
+   "label": "Linked Project",
+   "reqd": 0,
+   "options": "Project"
+  },
+  {
+   "fieldname": "cb_rma_item",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "item_link",
+   "fieldtype": "Link",
+   "label": "Item",
+   "reqd": 0,
+   "options": "Item"
+  },
+  {
+   "fieldname": "asset_serial_number",
+   "fieldtype": "Data",
+   "label": "Asset Serial Number",
+   "reqd": 0
+  },
+  {
+   "fieldname": "sb_rma_status",
+   "fieldtype": "Section Break",
+   "label": "Status"
+  },
+  {
+   "fieldname": "rma_status",
+   "fieldtype": "Select",
+   "label": "RMA Status",
+   "reqd": 1,
+   "options": "PENDING\nAPPROVED\nIN_TRANSIT\nRECEIVED_AT_SERVICE_CENTER\nUNDER_REPAIR\nREPAIRED\nREJECTED\nREPLACED",
+   "default": "PENDING"
+  },
+  {
+   "fieldname": "failure_reason",
+   "fieldtype": "Text Editor",
+   "label": "Failure Reason",
+   "reqd": 0
+  },
+  {
+   "fieldname": "sb_inspection",
+   "fieldtype": "Section Break",
+   "label": "Inspection"
+  },
+  {
+   "fieldname": "initial_inspection_by",
+   "fieldtype": "Link",
+   "label": "Initial Inspection By",
+   "reqd": 0,
+   "options": "User"
+  },
+  {
+   "fieldname": "initial_inspection_date",
+   "fieldtype": "Date",
+   "label": "Initial Inspection Date",
+   "reqd": 0
+  },
+  {
+   "fieldname": "cb_rework",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "rework_required",
+   "fieldtype": "Check",
+   "label": "Rework Required",
+   "reqd": 0
+  },
+  {
+   "fieldname": "rework_description",
+   "fieldtype": "Small Text",
+   "label": "Rework Description",
+   "reqd": 0
+  },
+  {
+   "fieldname": "rework_date",
+   "fieldtype": "Date",
+   "label": "Rework Date",
+   "reqd": 0
+  },
+  {
+   "fieldname": "rework_completed_on",
+   "fieldtype": "Date",
+   "label": "Rework Completed On",
+   "reqd": 0
+  },
+  {
+   "fieldname": "sb_replacement",
+   "fieldtype": "Section Break",
+   "label": "Replacement"
+  },
+  {
+   "fieldname": "replaced_serial_number",
+   "fieldtype": "Data",
+   "label": "Replaced Serial Number",
+   "reqd": 0
+  },
+  {
+   "fieldname": "replacement_issued_date",
+   "fieldtype": "Date",
+   "label": "Replacement Issued Date",
+   "reqd": 0
+  },
+  {
+   "fieldname": "cb_refund",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "refund_approved",
+   "fieldtype": "Check",
+   "label": "Refund Approved",
+   "reqd": 0
+  },
+  {
+   "fieldname": "refund_amount",
+   "fieldtype": "Currency",
+   "label": "Refund Amount",
+   "reqd": 0
+  },
+  {
+   "fieldname": "refund_approved_by",
+   "fieldtype": "Link",
+   "label": "Refund Approved By",
+   "reqd": 0,
+   "options": "User"
+  },
+  {
+   "fieldname": "sb_rma_dates",
+   "fieldtype": "Section Break",
+   "label": "Dates"
+  },
+  {
+   "fieldname": "return_location_code",
+   "fieldtype": "Data",
+   "label": "Return Location Code",
+   "reqd": 0
+  },
+  {
+   "fieldname": "estimated_resolution_date",
+   "fieldtype": "Date",
+   "label": "Estimated Resolution Date",
+   "reqd": 0
+  },
+  {
+   "fieldname": "cb_rma_actual",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "actual_resolution_date",
+   "fieldtype": "Date",
+   "label": "Actual Resolution Date",
+   "reqd": 0
+  },
+  {
+   "fieldname": "closed_on",
+   "fieldtype": "Date",
+   "label": "Closed On",
+   "reqd": 0
+  },
+  {
+   "fieldname": "sb_rma_remarks",
+   "fieldtype": "Section Break",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Text Editor",
+   "label": "Remarks",
+   "reqd": 0
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-03-13 15:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE RMA Tracker",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Project Manager",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Engineer",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Engineering Head",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Department Head",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Top Management"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "desc",
+ "track_changes": 1,
+ "naming_rule": "By \"Naming Series\" field",
+ "autoname": "naming_series:"
+}

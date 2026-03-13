@@ -1,0 +1,219 @@
+{
+ "actions": [],
+ "autoname": "field:tender_number",
+ "creation": "2026-03-13 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "tender_number",
+  "title",
+  "client",
+  "column_break_dates",
+  "submission_date",
+  "status",
+  "section_break_value",
+  "estimated_value",
+  "emd_required",
+  "emd_amount",
+  "column_break_pbg",
+  "pbg_required",
+  "pbg_amount",
+  "section_break_docs",
+  "rfp_document",
+  "tender_document",
+  "column_break_project",
+  "linked_project",
+  "section_break_compliance",
+  "compliance_items",
+  "section_break_clarifications",
+  "clarifications"
+ ],
+ "fields": [
+  {
+   "fieldname": "tender_number",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Tender Number",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title",
+   "reqd": 1
+  },
+  {
+   "fieldname": "client",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Client",
+   "options": "GE Party",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_dates",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "submission_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Submission Date"
+  },
+  {
+   "default": "DRAFT",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "DRAFT\nSUBMITTED\nUNDER_EVALUATION\nWON\nLOST\nCANCELLED\nDROPPED",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_value",
+   "fieldtype": "Section Break",
+   "label": "Value & EMD/PBG"
+  },
+  {
+   "default": "0",
+   "fieldname": "estimated_value",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Estimated Value"
+  },
+  {
+   "default": "0",
+   "fieldname": "emd_required",
+   "fieldtype": "Check",
+   "label": "EMD Required"
+  },
+  {
+   "default": "0",
+   "fieldname": "emd_amount",
+   "fieldtype": "Currency",
+   "depends_on": "emd_required",
+   "label": "EMD Amount"
+  },
+  {
+   "fieldname": "column_break_pbg",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "pbg_required",
+   "fieldtype": "Check",
+   "label": "PBG Required"
+  },
+  {
+   "default": "0",
+   "fieldname": "pbg_amount",
+   "fieldtype": "Currency",
+   "depends_on": "pbg_required",
+   "label": "PBG Amount"
+  },
+  {
+   "fieldname": "section_break_docs",
+   "fieldtype": "Section Break",
+   "label": "Documents & Project"
+  },
+  {
+   "fieldname": "rfp_document",
+   "fieldtype": "Attach",
+   "label": "RFP Document"
+  },
+  {
+   "fieldname": "tender_document",
+   "fieldtype": "Attach",
+   "label": "Tender Document"
+  },
+  {
+   "fieldname": "column_break_project",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "linked_project",
+   "fieldtype": "Link",
+   "label": "Linked Project",
+   "options": "Project"
+  },
+  {
+   "fieldname": "section_break_compliance",
+   "fieldtype": "Section Break",
+   "label": "Compliance Checklist"
+  },
+  {
+   "fieldname": "compliance_items",
+   "fieldtype": "Table",
+   "label": "Compliance Items",
+   "options": "GE Tender Compliance Item"
+  },
+  {
+   "fieldname": "section_break_clarifications",
+   "fieldtype": "Section Break",
+   "label": "Clarifications"
+  },
+  {
+   "fieldname": "clarifications",
+   "fieldtype": "Table",
+   "label": "Clarifications",
+   "options": "GE Tender Clarification"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-03-13 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE Tender",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Presales Tendering Head",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Presales Executive",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Department Head"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Top Management"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "title",
+ "track_changes": 1
+}

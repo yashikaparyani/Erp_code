@@ -1,0 +1,180 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-03-13 15:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "linked_ticket",
+  "sla_profile",
+  "cb_sla_start",
+  "started_on",
+  "closed_on",
+  "sb_deadlines",
+  "response_deadline",
+  "resolution_deadline",
+  "cb_met",
+  "response_sla_met",
+  "resolution_sla_met",
+  "sb_pause",
+  "paused_intervals",
+  "total_pause_minutes",
+  "current_elapsed_minutes"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "reqd": 0,
+   "options": "SLAT-.#####"
+  },
+  {
+   "fieldname": "linked_ticket",
+   "fieldtype": "Link",
+   "label": "Linked Ticket",
+   "reqd": 1,
+   "options": "GE Ticket"
+  },
+  {
+   "fieldname": "sla_profile",
+   "fieldtype": "Link",
+   "label": "SLA Profile",
+   "reqd": 1,
+   "options": "GE SLA Profile"
+  },
+  {
+   "fieldname": "cb_sla_start",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "started_on",
+   "fieldtype": "Datetime",
+   "label": "Started On",
+   "reqd": 1
+  },
+  {
+   "fieldname": "closed_on",
+   "fieldtype": "Datetime",
+   "label": "Closed On",
+   "reqd": 0
+  },
+  {
+   "fieldname": "sb_deadlines",
+   "fieldtype": "Section Break",
+   "label": "Deadlines"
+  },
+  {
+   "fieldname": "response_deadline",
+   "fieldtype": "Datetime",
+   "label": "Response Deadline",
+   "reqd": 0
+  },
+  {
+   "fieldname": "resolution_deadline",
+   "fieldtype": "Datetime",
+   "label": "Resolution Deadline",
+   "reqd": 0
+  },
+  {
+   "fieldname": "cb_met",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "response_sla_met",
+   "fieldtype": "Check",
+   "label": "Response SLA Met",
+   "reqd": 0
+  },
+  {
+   "fieldname": "resolution_sla_met",
+   "fieldtype": "Check",
+   "label": "Resolution SLA Met",
+   "reqd": 0
+  },
+  {
+   "fieldname": "sb_pause",
+   "fieldtype": "Section Break",
+   "label": "Pause Tracking"
+  },
+  {
+   "fieldname": "paused_intervals",
+   "fieldtype": "Code",
+   "label": "Paused Intervals (JSON)",
+   "reqd": 0
+  },
+  {
+   "fieldname": "total_pause_minutes",
+   "fieldtype": "Int",
+   "label": "Total Pause Minutes",
+   "reqd": 0,
+   "default": "0"
+  },
+  {
+   "fieldname": "current_elapsed_minutes",
+   "fieldtype": "Int",
+   "label": "Current Elapsed Minutes",
+   "reqd": 0,
+   "default": "0"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-03-13 15:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE SLA Timer",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Project Manager",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Engineer",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Engineering Head",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Department Head",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Top Management"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "desc",
+ "track_changes": 1,
+ "naming_rule": "By \"Naming Series\" field",
+ "autoname": "naming_series:"
+}
