@@ -1,106 +1,49 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Search, ChevronDown, ChevronUp, Download, Eye, Heart, Clock, 
   User, MapPin, Filter, SortDesc 
 } from 'lucide-react';
 
-// Mock data for tenders
-const mockTenders = [
-  {
-    id: 70592,
-    value: 724.86,
-    unit: 'CR',
-    date: '09-03-2026',
-    daysStatus: 'Ending Today',
-    isUrgent: true,
-    emd: 72500000,
-    hasPQ: false,
-    platform: 'GEM',
-    description: 'supply of - sitc of type-b atm automation system along with accessories for various airports -',
-    quantity: 1,
-    mseExemption: true,
-    startupExemption: true,
-    organization: 'Airports Authority Of India',
-    location: 'New Delhi, Delhi, India',
-    isViewed: true,
-    isFavorite: false,
-  },
-  {
-    id: 71847,
-    value: 718.87,
-    unit: 'CR',
-    date: '12-03-2026',
-    daysStatus: '3 Days Left',
-    isUrgent: false,
-    emd: 143774000,
-    hasPQ: false,
-    platform: 'GEM',
-    description: 'replacement/upgradation of scada/ems system at western region load despatch centre (wrldc) and state load despatch centres (sldcs) of western region.',
-    quantity: 7,
-    mseExemption: true,
-    startupExemption: true,
-    organization: 'Grid Controller Of India Limited',
-    location: 'New Delhi, Delhi, India',
-    isViewed: false,
-    isFavorite: false,
-  },
-  {
-    id: 82450,
-    value: 657.02,
-    unit: 'CR',
-    date: '10-03-2026',
-    daysStatus: '1 Days Left',
-    isUrgent: false,
-    emd: 131404465,
-    hasPQ: false,
-    platform: null,
-    description: 'engineering, procurement & construction pertaining to establishment of rail coach factory at latur, maharashtra.',
-    quantity: 1,
-    mseExemption: true,
-    startupExemption: true,
-    organization: 'Ministry of Railways',
-    location: 'Latur, Maharashtra, India',
-    isViewed: false,
-    isFavorite: true,
-  },
-  {
-    id: 83124,
-    value: 542.35,
-    unit: 'CR',
-    date: '15-03-2026',
-    daysStatus: '6 Days Left',
-    isUrgent: false,
-    emd: 108470000,
-    hasPQ: true,
-    platform: 'GEM',
-    description: 'supply, installation, testing and commissioning of automated fare collection system for metro rail project phase 2.',
-    quantity: 1,
-    mseExemption: false,
-    startupExemption: true,
-    organization: 'Delhi Metro Rail Corporation',
-    location: 'New Delhi, Delhi, India',
-    isViewed: false,
-    isFavorite: false,
-  },
-];
+interface Tender {
+  name: string;
+  tender_number?: string;
+  title: string;
+  client?: string;
+  organization?: string;
+  submission_date?: string;
+  status?: string;
+  estimated_value?: number;
+  emd_amount?: number;
+  creation?: string;
+}
 
 type TabType = 'fresh' | 'live' | 'archive' | 'interested';
 
 export default function TenderPage() {
+  const [tenders, setTenders] = useState<Tender[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('live');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [sortBy, setSortBy] = useState('value');
-  const [favorites, setFavorites] = useState<number[]>([83124]); // Track favorites by id
+  const [favorites, setFavorites] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetch('/api/tenders')
+      .then(r => r.json())
+      .then(res => setTenders(res.data || []))
+      .catch(() => setTenders([]))
+      .finally(() => setLoading(false));
+  }, []);
 
   const tabs: { key: TabType; label: string; count?: number }[] = [
     { key: 'fresh', label: 'Fresh' },
-    { key: 'live', label: 'Live', count: 1270 },
+    { key: 'live', label: 'Live', count: tenders.length },
     { key: 'archive', label: 'Archive' },
     { key: 'interested', label: 'Interested' },
   ];
 
-  const toggleFavorite = (id: number) => {
+  const toggleFavorite = (id: string) => {
     setFavorites(prev => 
       prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]
     );
@@ -108,11 +51,17 @@ export default function TenderPage() {
 
   const formatCurrency = (amount: number) => {
     if (amount >= 10000000) {
-      return `₹ ${(amount / 10000000).toFixed(0)} Cr`;
+      return `\u20B9 ${(amount / 10000000).toFixed(2)} Cr`;
     } else if (amount >= 100000) {
-      return `₹ ${(amount / 100000).toFixed(0)} Lacs`;
+      return `\u20B9 ${(amount / 100000).toFixed(0)} Lacs`;
     }
-    return `₹ ${amount.toLocaleString('en-IN')}`;
+    return `\u20B9 ${amount.toLocaleString('en-IN')}`;
+  };
+
+  const getDaysLeft = (dateStr?: string) => {
+    if (!dateStr) return null;
+    const diff = Math.ceil((new Date(dateStr).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    return diff;
   };
 
   return (
@@ -224,9 +173,16 @@ export default function TenderPage() {
 
       {/* Tender List */}
       <div className="space-y-3">
-        {mockTenders.map((tender, index) => (
+        {loading ? (
+          <div className="p-8 text-center text-gray-400">Loading tenders...</div>
+        ) : tenders.length === 0 ? (
+          <div className="p-8 text-center text-gray-400">No tenders found</div>
+        ) : tenders.map((tender, index) => {
+          const daysLeft = getDaysLeft(tender.submission_date);
+          const isUrgent = daysLeft !== null && daysLeft <= 1;
+          return (
           <div 
-            key={tender.id}
+            key={tender.name}
             className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
           >
             <div className="flex justify-between items-start">
@@ -235,78 +191,63 @@ export default function TenderPage() {
                 {/* Header Row */}
                 <div className="flex items-center gap-3 flex-wrap mb-2">
                   <span className="text-blue-600 font-semibold">
-                    {index + 1} | ₹ {tender.value.toFixed(2)} {tender.unit}.
+                    {index + 1} | {formatCurrency(tender.estimated_value || 0)}
                   </span>
-                  <span className="text-gray-500 text-sm flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5" />
-                    {tender.date}
-                  </span>
-                  <span className={`text-sm font-medium ${tender.isUrgent ? 'text-red-500' : 'text-blue-500'}`}>
-                    {tender.daysStatus}
-                  </span>
-                  <span className="text-gray-600 text-sm">
-                    EMD: <span className="text-blue-600 font-medium">₹ {tender.emd.toLocaleString('en-IN')}</span>
-                  </span>
-                  <button className="px-3 py-0.5 border border-gray-300 rounded text-xs text-gray-500">
-                    N/A
-                  </button>
-                  {tender.platform && (
-                    <span className="px-2 py-0.5 border border-blue-400 text-blue-600 rounded text-xs font-medium">
-                      {tender.platform}
+                  {tender.submission_date && (
+                    <span className="text-gray-500 text-sm flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" />
+                      {new Date(tender.submission_date).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                     </span>
                   )}
+                  {daysLeft !== null && (
+                    <span className={`text-sm font-medium ${isUrgent ? 'text-red-500' : 'text-blue-500'}`}>
+                      {daysLeft <= 0 ? 'Ending Today' : `${daysLeft} Days Left`}
+                    </span>
+                  )}
+                  {tender.emd_amount ? (
+                    <span className="text-gray-600 text-sm">
+                      EMD: <span className="text-blue-600 font-medium">{formatCurrency(tender.emd_amount)}</span>
+                    </span>
+                  ) : null}
                 </div>
 
                 {/* Description */}
                 <p className="text-gray-600 text-sm mb-2">
-                  <span className="text-gray-700">corrigendum</span> : {tender.description} | quantity - {tender.quantity}
+                  {tender.title}
                 </p>
 
-                {/* Exemptions */}
+                {/* Status */}
                 <div className="flex items-center gap-4 text-sm text-gray-500 mb-2">
                   <span>
-                    <span className="font-medium">MSE Exemption:</span>{' '}
-                    <span className={tender.mseExemption ? 'text-green-600' : 'text-gray-400'}>
-                      {tender.mseExemption ? 'Yes' : 'No'}
-                    </span>
-                  </span>
-                  <span className="text-gray-300">|</span>
-                  <span>
-                    <span className="font-medium">Startup Exemption:</span>{' '}
-                    <span className={tender.startupExemption ? 'text-green-600' : 'text-gray-400'}>
-                      {tender.startupExemption ? 'Yes' : 'No'}
-                    </span>
-                  </span>
-                  <span className="text-gray-300">|</span>
-                  <span>
-                    <span className="font-medium">Qty:</span> {tender.quantity}
+                    <span className="font-medium">Status:</span>{' '}
+                    <span className="text-blue-600">{tender.status || 'N/A'}</span>
                   </span>
                 </div>
 
                 {/* Location */}
                 <div className="flex items-center gap-1 text-sm text-gray-500">
                   <MapPin className="w-3.5 h-3.5 text-blue-500" />
-                  <span>{tender.organization} - {tender.location}</span>
+                  <span>{tender.organization || tender.client || 'N/A'}</span>
                 </div>
               </div>
 
               {/* Right Content */}
               <div className="text-right ml-4">
-                <p className="text-gray-700 font-medium mb-4">Tender Id - {tender.id}</p>
+                <p className="text-gray-700 font-medium mb-4">{tender.tender_number || tender.name}</p>
                 <div className="flex items-center gap-3 text-gray-400">
                   <button 
-                    className={`hover:text-blue-500 transition-colors ${tender.isViewed ? 'text-blue-500' : ''}`}
+                    className="hover:text-blue-500 transition-colors"
                     title="View"
                   >
                     <Eye className="w-5 h-5" />
                   </button>
                   <span className="text-gray-200">|</span>
                   <button 
-                    onClick={() => toggleFavorite(tender.id)}
-                    className={`hover:text-red-500 transition-colors ${favorites.includes(tender.id) ? 'text-red-500' : ''}`}
+                    onClick={() => toggleFavorite(tender.name)}
+                    className={`hover:text-red-500 transition-colors ${favorites.includes(tender.name) ? 'text-red-500' : ''}`}
                     title="Favorite"
                   >
-                    <Heart className={`w-5 h-5 ${favorites.includes(tender.id) ? 'fill-current' : ''}`} />
+                    <Heart className={`w-5 h-5 ${favorites.includes(tender.name) ? 'fill-current' : ''}`} />
                   </button>
                   <span className="text-gray-200">|</span>
                   <button className="hover:text-blue-500 transition-colors" title="History">
@@ -324,7 +265,8 @@ export default function TenderPage() {
               </div>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Pagination placeholder */}

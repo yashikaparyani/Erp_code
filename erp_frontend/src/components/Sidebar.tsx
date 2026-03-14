@@ -26,7 +26,8 @@ import {
   PieChart,
   Files,
   CheckSquare,
-  Cog
+  Cog,
+  Users2
 } from 'lucide-react';
 import { useRole } from '../context/RoleContext';
 
@@ -152,18 +153,6 @@ const navLinks: NavLink[] = [
     ]
   },
   {
-    name: 'Settings',
-    href: '/pre-sales/settings',
-    icon: Cog,
-    children: [
-      { name: 'Department', href: '/pre-sales/settings/department' },
-      { name: 'Designation', href: '/pre-sales/settings/designation' },
-      { name: 'Role', href: '/pre-sales/settings/role' },
-      { name: 'User Management', href: '/pre-sales/settings/user-management' },
-      { name: 'Check List', href: '/pre-sales/settings/checklist' },
-    ]
-  },
-  {
     name: 'Engineering',
     href: '/engineering',
     icon: Settings,
@@ -175,7 +164,6 @@ const navLinks: NavLink[] = [
   { name: 'Procurement', href: '/procurement', icon: ShoppingCart },
   { name: 'Inventory', href: '/inventory', icon: Package },
   { name: 'Execution (I&C)', href: '/execution', icon: Wrench },
-  { name: 'O&M & Helpdesk', href: '/om-helpdesk', icon: HeadphonesIcon },
   {
     name: 'Finance',
     href: '/finance',
@@ -185,9 +173,27 @@ const navLinks: NavLink[] = [
       { name: 'Billing', href: '/finance/billing', icon: CreditCard },
     ]
   },
+  {
+    name: 'HR',
+    href: '/hr',
+    icon: Users2,
+  },
+  { name: 'O&M & Helpdesk', href: '/om-helpdesk', icon: HeadphonesIcon },
   { name: 'Reports', href: '/reports', icon: BarChart3 },
   { name: 'Document Management', href: '/documents', icon: FolderOpen },
   { name: 'Master Data', href: '/master-data', icon: Database },
+  {
+    name: 'Settings',
+    href: '/pre-sales/settings',
+    icon: Cog,
+    children: [
+      { name: 'Department', href: '/pre-sales/settings/department' },
+      { name: 'Designation', href: '/pre-sales/settings/designation' },
+      { name: 'Role', href: '/pre-sales/settings/role' },
+      { name: 'User Management', href: '/pre-sales/settings/user-management' },
+      { name: 'Check List', href: '/pre-sales/settings/checklist' },
+    ]
+  },
 ];
 
 // Recursive SubMenu Component

@@ -1,66 +1,32 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Filter, Download, ChevronDown, Calendar, Eye, FileCheck, CheckCircle2, Clock, User, Building2, IndianRupee } from 'lucide-react';
 
-interface SubmittedTender {
-  id: string;
-  tenderNo: string;
+interface Tender {
+  name: string;
+  tender_number?: string;
   title: string;
-  client: string;
-  submissionDate: string;
-  submittedOn: string;
-  resultExpected: string;
-  bidAmount: number;
-  emdAmount: number;
-  submittedBy: string;
-  documents: number;
+  client?: string;
+  submission_date?: string;
+  status?: string;
+  estimated_value?: number;
+  emd_amount?: number;
+  creation?: string;
 }
 
-const mockSubmittedTenders: SubmittedTender[] = [
-  {
-    id: '1',
-    tenderNo: 'TEN-2026-003',
-    title: 'Network Security Implementation',
-    client: 'State Bank of India',
-    submissionDate: '2026-03-20',
-    submittedOn: '2026-03-18',
-    resultExpected: '2026-04-15',
-    bidAmount: 15000000,
-    emdAmount: 150000,
-    submittedBy: 'Rahul Sharma',
-    documents: 12,
-  },
-  {
-    id: '2',
-    tenderNo: 'TEN-2026-006',
-    title: 'Cloud Infrastructure Migration',
-    client: 'BHEL',
-    submissionDate: '2026-03-10',
-    submittedOn: '2026-03-09',
-    resultExpected: '2026-04-05',
-    bidAmount: 28000000,
-    emdAmount: 280000,
-    submittedBy: 'Priya Singh',
-    documents: 18,
-  },
-  {
-    id: '3',
-    tenderNo: 'TEN-2026-007',
-    title: 'IT Support Services Annual Contract',
-    client: 'LIC',
-    submissionDate: '2026-03-05',
-    submittedOn: '2026-03-04',
-    resultExpected: '2026-03-30',
-    bidAmount: 8500000,
-    emdAmount: 85000,
-    submittedBy: 'Amit Kumar',
-    documents: 8,
-  },
-];
-
 export default function SubmittedTenderPage() {
+  const [tenders, setTenders] = useState<Tender[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'New' | 'Live' | 'Archive'>('Live');
   const [showFilters, setShowFilters] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/tenders?status=SUBMITTED')
+      .then(r => r.json())
+      .then(res => setTenders(res.data || []))
+      .catch(() => setTenders([]))
+      .finally(() => setLoading(false));
+  }, []);
 
   const tabs = [
     { name: 'New', count: 0 },
@@ -84,14 +50,6 @@ export default function SubmittedTenderPage() {
     });
   };
 
-  const getDaysUntilResult = (dateString: string) => {
-    const resultDate = new Date(dateString);
-    const today = new Date();
-    const diffTime = resultDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
-  };
-
   return (
     <div className="p-3 sm:p-4 md:p-6 bg-gray-50 min-h-screen">
       {/* Header */}
@@ -108,7 +66,7 @@ export default function SubmittedTenderPage() {
               <CheckCircle2 className="w-5 h-5 text-green-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-800">15</p>
+              <p className="text-2xl font-bold text-gray-800">{tenders.length}</p>
               <p className="text-sm text-gray-500">Total Submitted</p>
             </div>
           </div>
@@ -119,7 +77,7 @@ export default function SubmittedTenderPage() {
               <IndianRupee className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-800">₹51.5 Cr</p>
+              <p className="text-2xl font-bold text-gray-800">{formatCurrency(tenders.reduce((s, t) => s + (t.estimated_value || 0), 0))}</p>
               <p className="text-sm text-gray-500">Total Bid Value</p>
             </div>
           </div>
@@ -130,7 +88,7 @@ export default function SubmittedTenderPage() {
               <Clock className="w-5 h-5 text-yellow-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-800">8</p>
+              <p className="text-2xl font-bold text-gray-800">{tenders.length}</p>
               <p className="text-sm text-gray-500">Awaiting Result</p>
             </div>
           </div>
@@ -141,7 +99,7 @@ export default function SubmittedTenderPage() {
               <FileCheck className="w-5 h-5 text-purple-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-800">₹5.15 L</p>
+              <p className="text-2xl font-bold text-gray-800">{formatCurrency(tenders.reduce((s, t) => s + (t.emd_amount || 0), 0))}</p>
               <p className="text-sm text-gray-500">EMD Blocked</p>
             </div>
           </div>
@@ -251,51 +209,43 @@ export default function SubmittedTenderPage() {
       {/* Submitted Tender List */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="divide-y divide-gray-100">
-          {mockSubmittedTenders.map((tender) => {
-            const daysUntilResult = getDaysUntilResult(tender.resultExpected);
+          {loading ? (
+            <div className="p-8 text-center text-gray-400">Loading...</div>
+          ) : tenders.length === 0 ? (
+            <div className="p-8 text-center text-gray-400">No submitted tenders found</div>
+          ) : tenders.map((tender) => {
             return (
-              <div key={tender.id} className="p-4 hover:bg-gray-50 transition-colors">
+              <div key={tender.name} className="p-4 hover:bg-gray-50 transition-colors">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                      <span className="text-sm font-medium text-blue-600">{tender.tenderNo}</span>
+                      <span className="text-sm font-medium text-blue-600">{tender.tender_number || tender.name}</span>
                       <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
                         Submitted
-                      </span>
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                        daysUntilResult <= 7 ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700'
-                      }`}>
-                        Result in {daysUntilResult} days
                       </span>
                     </div>
                     <h3 className="text-gray-800 font-medium mb-1">{tender.title}</h3>
                     <div className="flex items-center gap-4 text-sm text-gray-500">
                       <span className="flex items-center gap-1">
                         <Building2 className="w-3.5 h-3.5" />
-                        {tender.client}
+                        {tender.client || 'N/A'}
                       </span>
-                      <span className="flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5" />
-                        Submitted: {formatDate(tender.submittedOn)}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <User className="w-3.5 h-3.5" />
-                        By: {tender.submittedBy}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <FileCheck className="w-3.5 h-3.5" />
-                        {tender.documents} docs
-                      </span>
+                      {tender.submission_date && (
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-3.5 h-3.5" />
+                          Submitted: {formatDate(tender.submission_date)}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-6 ml-4">
                     <div className="text-right">
                       <p className="text-sm text-gray-400">Bid Amount</p>
-                      <p className="text-lg font-semibold text-gray-800">{formatCurrency(tender.bidAmount)}</p>
+                      <p className="text-lg font-semibold text-gray-800">{formatCurrency(tender.estimated_value || 0)}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-gray-400">EMD</p>
-                      <p className="text-sm font-medium text-gray-600">{formatCurrency(tender.emdAmount)}</p>
+                      <p className="text-sm font-medium text-gray-600">{formatCurrency(tender.emd_amount || 0)}</p>
                     </div>
                     <button className="px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg border border-blue-200">
                       <Eye className="w-4 h-4" />

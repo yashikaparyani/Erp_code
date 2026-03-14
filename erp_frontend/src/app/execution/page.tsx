@@ -1,84 +1,71 @@
 'use client';
+import { useEffect, useState } from 'react';
 import { Plus, Wrench, Camera, Activity, CheckCircle2, Clock, Eye, AlertTriangle } from 'lucide-react';
 
-const siteExecutions = [
-  {
-    id: 'EXE-001',
-    name: 'Rajwada Square Junction',
-    siteId: 'SITE-001',
-    surveyId: 'SUR-001',
-    engineer: 'Amit Patel',
-    progress: 85,
-    camerasInstalled: 7,
-    camerasTotal: 8,
-    fiberLaid: 1.1,
-    fiberTotal: 1.2,
-    startDate: '1/3/2024',
-    targetDate: '15/4/2024',
-    status: 'In Progress',
-  },
-  {
-    id: 'EXE-002',
-    name: 'Treasure Island Mall Area',
-    siteId: 'SITE-002',
-    surveyId: 'SUR-002',
-    engineer: 'Vikram Singh',
-    progress: 45,
-    camerasInstalled: 5,
-    camerasTotal: 12,
-    fiberLaid: 1.2,
-    fiberTotal: 2.5,
-    startDate: '10/3/2024',
-    targetDate: '20/5/2024',
-    status: 'In Progress',
-  },
-  {
-    id: 'EXE-003',
-    name: 'MR 10 Traffic Signal',
-    siteId: 'SITE-004',
-    surveyId: 'SUR-004',
-    engineer: 'Amit Patel',
-    progress: 0,
-    camerasInstalled: 0,
-    camerasTotal: 4,
-    fiberLaid: 0,
-    fiberTotal: 0.5,
-    startDate: '1/4/2024',
-    targetDate: '10/5/2024',
-    status: 'Not Started',
-  },
-];
+interface Site {
+  name: string;
+  site_code?: string;
+  site_name?: string;
+  status?: string;
+  linked_project?: string;
+  linked_tender?: string;
+  latitude?: string;
+  longitude?: string;
+}
 
-const activityLog = [
-  {
-    type: 'camera',
-    title: 'Rajwada Square - Camera 7 Installed',
-    details: 'Site EXE-001',
-    by: 'Amit Patel',
-    time: '11:45 AM',
-  },
-  {
-    type: 'network',
-    title: 'Treasure Island - Network Testing Started',
-    details: 'Site EXE-002',
-    by: 'Vikram Singh',
-    time: '10:30 AM',
-  },
-  {
-    type: 'alert',
-    title: 'Material Shortage - PoE Switches',
-    details: 'Site EXE-002',
-    by: 'Site Engineer',
-    time: '09:15 AM',
-  },
-];
+interface DPR {
+  name: string;
+  linked_project?: string;
+  linked_site?: string;
+  report_date?: string;
+  summary?: string;
+  manpower_on_site?: number;
+  equipment_count?: number;
+  submitted_by?: string;
+}
+
+interface DPRStats {
+  total_reports?: number;
+  total_manpower_logged?: number;
+  total_equipment_logged?: number;
+}
 
 export default function ExecutionPage() {
-  const totalCameras = siteExecutions.reduce((sum, s) => sum + s.camerasTotal, 0);
-  const installedCameras = siteExecutions.reduce((sum, s) => sum + s.camerasInstalled, 0);
-  const totalFiber = siteExecutions.reduce((sum, s) => sum + s.fiberTotal, 0);
-  const laidFiber = siteExecutions.reduce((sum, s) => sum + s.fiberLaid, 0);
-  const avgProgress = (siteExecutions.reduce((sum, s) => sum + s.progress, 0) / siteExecutions.length).toFixed(1);
+  const [sites, setSites] = useState<Site[]>([]);
+  const [dprs, setDprs] = useState<DPR[]>([]);
+  const [dprStats, setDprStats] = useState<DPRStats>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/sites').then(r => r.json()).catch(() => ({ data: [] })),
+      fetch('/api/dprs').then(r => r.json()).catch(() => ({ data: [] })),
+    ]).then(([sitesRes, dprsRes]) => {
+      setSites(sitesRes.data || []);
+      setDprs(dprsRes.data || []);
+      // Derive DPR stats from raw data
+      const d = dprsRes.data || [];
+      setDprStats({
+        total_reports: d.length,
+        total_manpower_logged: d.reduce((s: number, r: DPR) => s + (r.manpower_on_site || 0), 0),
+        total_equipment_logged: d.reduce((s: number, r: DPR) => s + (r.equipment_count || 0), 0),
+      });
+    }).finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  const statusCounts = sites.reduce((acc, s) => {
+    const st = s.status || 'Unknown';
+    acc[st] = (acc[st] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
 
   return (
     <div>
@@ -102,11 +89,11 @@ export default function ExecutionPage() {
               <Wrench className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <div className="stat-value">{avgProgress}%</div>
-              <div className="stat-label">Overall Progress</div>
+              <div className="stat-value">{sites.length}</div>
+              <div className="stat-label">Total Sites</div>
             </div>
           </div>
-          <div className="text-xs text-gray-500 mt-2">0 sites completed</div>
+          <div className="text-xs text-gray-500 mt-2">{statusCounts['COMPLETED'] || 0} completed</div>
         </div>
         
         <div className="stat-card">
@@ -115,11 +102,11 @@ export default function ExecutionPage() {
               <Camera className="w-5 h-5 text-green-600" />
             </div>
             <div>
-              <div className="stat-value">{installedCameras} / {totalCameras}</div>
-              <div className="stat-label">Cameras Installed</div>
+              <div className="stat-value">{dprStats.total_reports ?? 0}</div>
+              <div className="stat-label">DPR Reports</div>
             </div>
           </div>
-          <div className="text-xs text-green-600 mt-2">{((installedCameras/totalCameras)*100).toFixed(1)}% complete</div>
+          <div className="text-xs text-green-600 mt-2">Total submitted</div>
         </div>
         
         <div className="stat-card">
@@ -128,11 +115,11 @@ export default function ExecutionPage() {
               <Activity className="w-5 h-5 text-purple-600" />
             </div>
             <div>
-              <div className="stat-value">{laidFiber.toFixed(1)} KM</div>
-              <div className="stat-label">Fiber Laid</div>
+              <div className="stat-value">{dprStats.total_manpower_logged ?? 0}</div>
+              <div className="stat-label">Manpower Logged</div>
             </div>
           </div>
-          <div className="text-xs text-gray-500 mt-2">of {totalFiber.toFixed(1)} KM total</div>
+          <div className="text-xs text-gray-500 mt-2">{dprStats.total_equipment_logged ?? 0} equipment</div>
         </div>
         
         <div className="stat-card">
@@ -143,101 +130,61 @@ export default function ExecutionPage() {
             <div>
               <div className="stat-label">Site Status</div>
               <div className="text-xs mt-1">
-                <span className="text-blue-600">In Progress: 2</span> • 
-                <span className="text-yellow-600 ml-1">Testing: 0</span> • 
-                <span className="text-gray-600 ml-1">Not Started: 1</span>
+                {Object.entries(statusCounts).map(([st, cnt], i) => (
+                  <span key={st} className={`${i > 0 ? 'ml-1' : ''} text-gray-600`}>
+                    {st}: {cnt}{i < Object.entries(statusCounts).length - 1 ? ' •' : ''}
+                  </span>
+                ))}
+                {sites.length === 0 && <span className="text-gray-400">No sites yet</span>}
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="flex gap-2 mb-4">
-        {['All', 'In Progress', 'Testing', 'Not Started', 'Completed'].map(tab => (
-          <button 
-            key={tab} 
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              tab === 'All' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
-
-      {/* Site Execution Table */}
+      {/* Site Table */}
       <div className="card mb-6">
         <div className="card-header">
-          <h3 className="font-semibold text-gray-900">Site Execution Status</h3>
+          <h3 className="font-semibold text-gray-900">Execution Sites</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="data-table">
             <thead>
               <tr>
-                <th>Execution ID</th>
+                <th>Site ID</th>
                 <th>Site Name</th>
-                <th>Survey ID</th>
-                <th>Engineer</th>
-                <th>Progress</th>
-                <th>Cameras</th>
-                <th>Fiber</th>
-                <th>Timeline</th>
+                <th>Project</th>
+                <th>Coordinates</th>
                 <th>Status</th>
                 <th>Action</th>
               </tr>
             </thead>
             <tbody>
-              {siteExecutions.map(site => (
-                <tr key={site.id}>
-                  <td>
-                    <div className="font-medium text-gray-900">{site.id}</div>
-                  </td>
+              {sites.length === 0 ? (
+                <tr><td colSpan={6} className="text-center py-8 text-gray-500">No execution sites found</td></tr>
+              ) : sites.map(site => (
+                <tr key={site.name}>
                   <td>
                     <div className="font-medium text-gray-900">{site.name}</div>
-                    <div className="text-xs text-gray-500">{site.siteId}</div>
+                    <div className="text-xs text-gray-500">{site.site_code}</div>
                   </td>
                   <td>
-                    <div className="text-gray-600">{site.surveyId}</div>
+                    <div className="font-medium text-gray-900">{site.site_name}</div>
                   </td>
                   <td>
-                    <div className="text-gray-900">{site.engineer}</div>
+                    <div className="text-sm text-gray-900">{site.linked_project || '-'}</div>
+                    <div className="text-xs text-gray-500">{site.linked_tender || ''}</div>
                   </td>
                   <td>
-                    <div className="flex items-center gap-2">
-                      <div className="progress-bar w-20">
-                        <div 
-                          className={`progress-fill ${
-                            site.progress >= 75 ? 'bg-green-500' : 
-                            site.progress >= 25 ? 'bg-blue-500' : 
-                            'bg-gray-300'
-                          }`}
-                          style={{ width: `${site.progress}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-sm text-gray-600">{site.progress}%</span>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="text-sm text-gray-900">{site.camerasInstalled} / {site.camerasTotal}</div>
-                    <div className="text-xs text-gray-500">{site.camerasTotal > 0 ? Math.round((site.camerasInstalled/site.camerasTotal)*100) : 0}% done</div>
-                  </td>
-                  <td>
-                    <div className="text-sm text-gray-900">{site.fiberLaid} / {site.fiberTotal}</div>
-                    <div className="text-xs text-gray-500">{site.fiberTotal > 0 ? Math.round((site.fiberLaid/site.fiberTotal)*100) : 0}% laid</div>
-                  </td>
-                  <td>
-                    <div className="text-xs text-gray-600">Start: {site.startDate}</div>
-                    <div className="text-xs text-orange-600 flex items-center gap-1">
-                      <AlertTriangle className="w-3 h-3" />
-                      Target: {site.targetDate}
+                    <div className="text-sm text-gray-600 font-mono">
+                      {site.latitude && site.longitude ? `${site.latitude}, ${site.longitude}` : '-'}
                     </div>
                   </td>
                   <td>
                     <span className={`badge ${
-                      site.status === 'In Progress' ? 'badge-info' : 
-                      site.status === 'Not Started' ? 'badge-gray' :
-                      site.status === 'Completed' ? 'badge-success' : 
+                      site.status === 'ACTIVE' || site.status === 'IN_PROGRESS' ? 'badge-info' : 
+                      site.status === 'NOT_STARTED' ? 'badge-gray' :
+                      site.status === 'COMPLETED' ? 'badge-success' : 
                       'badge-warning'
                     }`}>
                       {site.status}
@@ -246,7 +193,7 @@ export default function ExecutionPage() {
                   <td>
                     <button className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1">
                       <Eye className="w-4 h-4" />
-                      View Site Details
+                      View Details
                     </button>
                   </td>
                 </tr>
@@ -256,28 +203,27 @@ export default function ExecutionPage() {
         </div>
       </div>
 
-      {/* Today's Activity Log */}
+      {/* Recent DPRs */}
       <div className="card">
         <div className="card-header">
-          <h3 className="font-semibold text-gray-900">Today&apos;s Activity Log</h3>
-          <p className="text-sm text-gray-500">Tuesday 3 March, 2026</p>
+          <h3 className="font-semibold text-gray-900">Recent Daily Progress Reports</h3>
         </div>
         <div className="card-body">
           <div className="space-y-4">
-            {activityLog.map((activity, idx) => (
-              <div key={idx} className="flex items-start gap-4 p-3 bg-gray-50 rounded-lg">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                  activity.type === 'camera' ? 'bg-green-100' :
-                  activity.type === 'network' ? 'bg-blue-100' :
-                  'bg-red-100'
-                }`}>
-                  {activity.type === 'camera' && <Camera className="w-5 h-5 text-green-600" />}
-                  {activity.type === 'network' && <Activity className="w-5 h-5 text-blue-600" />}
-                  {activity.type === 'alert' && <AlertTriangle className="w-5 h-5 text-red-600" />}
+            {dprs.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">No DPR reports yet</div>
+            ) : dprs.slice(0, 5).map(dpr => (
+              <div key={dpr.name} className="flex items-start gap-4 p-3 bg-gray-50 rounded-lg">
+                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <Activity className="w-5 h-5 text-blue-600" />
                 </div>
                 <div className="flex-1">
-                  <div className="font-medium text-gray-900">{activity.title}</div>
-                  <div className="text-sm text-gray-600">{activity.details} • By {activity.by} • {activity.time}</div>
+                  <div className="font-medium text-gray-900">{dpr.linked_site} — {dpr.report_date}</div>
+                  <div className="text-sm text-gray-600">{dpr.summary || 'No summary'}</div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Manpower: {dpr.manpower_on_site ?? 0} • Equipment: {dpr.equipment_count ?? 0}
+                    {dpr.submitted_by ? ` • By ${dpr.submitted_by}` : ''}
+                  </div>
                 </div>
               </div>
             ))}

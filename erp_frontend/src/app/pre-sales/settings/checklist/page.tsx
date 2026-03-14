@@ -1,29 +1,46 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Plus, Search, Edit2, Trash2, ChevronsLeft, ChevronsRight, X } from 'lucide-react';
 
 interface CheckListData {
-  id: number;
+  id: string;
   checkListName: string;
   createdBy: string;
   createdDateTime: string;
 }
 
-const mockCheckLists: CheckListData[] = [
-  { id: 1, checkListName: 'Pre-Bid Checklist', createdBy: 'Purnima Nigam', createdDateTime: '18-01-2025' },
-  { id: 2, checkListName: 'Technical Evaluation Checklist', createdBy: 'Purnima Nigam', createdDateTime: '18-01-2025' },
-  { id: 3, checkListName: 'Document Verification Checklist', createdBy: 'Purnima Nigam', createdDateTime: '18-01-2025' },
-  { id: 4, checkListName: 'Submission Checklist', createdBy: 'Purnima Nigam', createdDateTime: '07-01-2025' },
-  { id: 5, checkListName: 'Quality Assurance Checklist', createdBy: 'Rahul Sharma', createdDateTime: '05-01-2025' },
-];
-
 export default function CheckListPage() {
-  const [data, setData] = useState<CheckListData[]>(mockCheckLists);
+  const [data, setData] = useState<CheckListData[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [showModal, setShowModal] = useState(false);
   const [newCheckList, setNewCheckList] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  const loadChecklists = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/tender-checklists');
+      const payload = await response.json();
+      if (payload.success) {
+        setData((payload.data || []).map((row: any) => ({
+          id: row.name,
+          checkListName: row.checklist_name,
+          createdBy: row.owner || 'System',
+          createdDateTime: row.creation ? new Date(row.creation).toLocaleDateString('en-GB').replace(/\//g, '-') : '-',
+        })));
+      }
+    } catch (error) {
+      console.error('Failed to fetch checklists:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadChecklists();
+  }, []);
 
   const totalPages = Math.ceil(data.length / itemsPerPage) || 1;
 
@@ -33,21 +50,52 @@ export default function CheckListPage() {
 
   const handleCreate = () => {
     if (newCheckList.trim()) {
-      const newItem: CheckListData = {
-        id: data.length + 1,
-        checkListName: newCheckList,
-        createdBy: 'Current User',
-        createdDateTime: new Date().toLocaleDateString('en-GB').replace(/\//g, '-'),
-      };
-      setData(prev => [...prev, newItem]);
-      setNewCheckList('');
-      setShowModal(false);
+      (async () => {
+        try {
+          const response = await fetch('/api/tender-checklists', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              checklist_name: newCheckList,
+              checklist_type: 'Compliance',
+              status: 'Active',
+              items: [],
+            }),
+          });
+          const payload = await response.json();
+          if (!payload.success) {
+            alert(payload.message || 'Failed to create checklist');
+            return;
+          }
+          setNewCheckList('');
+          setShowModal(false);
+          loadChecklists();
+        } catch (error) {
+          console.error('Failed to create checklist:', error);
+          alert('Failed to create checklist');
+        }
+      })();
     }
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = (id: string) => {
     if (confirm('Are you sure you want to delete this checklist?')) {
-      setData(prev => prev.filter(item => item.id !== id));
+      (async () => {
+        try {
+          const response = await fetch(`/api/tender-checklists/${encodeURIComponent(id)}`, {
+            method: 'DELETE',
+          });
+          const payload = await response.json();
+          if (!payload.success) {
+            alert(payload.message || 'Failed to delete checklist');
+            return;
+          }
+          loadChecklists();
+        } catch (error) {
+          console.error('Failed to delete checklist:', error);
+          alert('Failed to delete checklist');
+        }
+      })();
     }
   };
 
@@ -94,7 +142,13 @@ export default function CheckListPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {filteredData.length === 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                    Loading checklists...
+                  </td>
+                </tr>
+              ) : filteredData.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
                     No data found.

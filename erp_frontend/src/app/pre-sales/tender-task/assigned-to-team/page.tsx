@@ -1,82 +1,31 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Filter, Download, ChevronDown, Calendar, Eye, Edit2, MoreVertical, Users, Clock, User, Mail, Phone } from 'lucide-react';
 
-interface TeamAssignment {
-  id: string;
-  tenderNo: string;
+interface Tender {
+  name: string;
+  tender_number?: string;
   title: string;
-  client: string;
-  submissionDate: string;
-  daysLeft: number;
-  team: {
-    name: string;
-    members: { name: string; role: string; avatar?: string }[];
-  };
-  value: number;
-  status: 'ACTIVE' | 'PENDING' | 'COMPLETED';
+  client?: string;
+  submission_date?: string;
+  status?: string;
+  estimated_value?: number;
+  creation?: string;
 }
 
-const mockAssignments: TeamAssignment[] = [
-  {
-    id: '1',
-    tenderNo: 'TEN-2026-001',
-    title: 'Smart City Surveillance System - Phase II',
-    client: 'Indore Municipal Corporation',
-    submissionDate: '2026-03-25',
-    daysLeft: 16,
-    team: {
-      name: 'Technical Team A',
-      members: [
-        { name: 'Rahul Sharma', role: 'Lead Engineer' },
-        { name: 'Priya Singh', role: 'Solution Architect' },
-        { name: 'Amit Kumar', role: 'Technical Writer' },
-      ],
-    },
-    value: 45000000,
-    status: 'ACTIVE',
-  },
-  {
-    id: '2',
-    tenderNo: 'TEN-2026-004',
-    title: 'Highway Toll Management System',
-    client: 'NHAI',
-    submissionDate: '2026-03-30',
-    daysLeft: 21,
-    team: {
-      name: 'Project Team B',
-      members: [
-        { name: 'Vikram Desai', role: 'Project Manager' },
-        { name: 'Neha Gupta', role: 'Business Analyst' },
-      ],
-    },
-    value: 82000000,
-    status: 'PENDING',
-  },
-  {
-    id: '3',
-    tenderNo: 'TEN-2026-005',
-    title: 'Enterprise Resource Planning Implementation',
-    client: 'ONGC',
-    submissionDate: '2026-04-05',
-    daysLeft: 27,
-    team: {
-      name: 'ERP Team',
-      members: [
-        { name: 'Suresh Patel', role: 'ERP Consultant' },
-        { name: 'Meera Joshi', role: 'Functional Lead' },
-        { name: 'Karan Malhotra', role: 'Technical Lead' },
-        { name: 'Anita Rao', role: 'Documentation' },
-      ],
-    },
-    value: 35000000,
-    status: 'ACTIVE',
-  },
-];
-
 export default function AssignedToTeamPage() {
+  const [tenders, setTenders] = useState<Tender[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'New' | 'Live' | 'Archive'>('Live');
   const [showFilters, setShowFilters] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/tenders')
+      .then(r => r.json())
+      .then(res => setTenders((res.data || []).filter((t: Tender) => t.status === 'IN_PROGRESS' || t.status === 'SUBMITTED')))
+      .catch(() => setTenders([]))
+      .finally(() => setLoading(false));
+  }, []);
 
   const tabs = [
     { name: 'New', count: 2 },
@@ -84,15 +33,16 @@ export default function AssignedToTeamPage() {
     { name: 'Archive', count: 18 },
   ];
 
-  const getStatusBadge = (status: TeamAssignment['status']) => {
-    const styles = {
-      ACTIVE: 'bg-green-100 text-green-700',
-      PENDING: 'bg-yellow-100 text-yellow-700',
-      COMPLETED: 'bg-blue-100 text-blue-700',
+  const getStatusBadge = (status?: string) => {
+    const styles: Record<string, string> = {
+      IN_PROGRESS: 'bg-green-100 text-green-700',
+      SUBMITTED: 'bg-blue-100 text-blue-700',
+      DRAFT: 'bg-yellow-100 text-yellow-700',
+      NEW: 'bg-blue-100 text-blue-700',
     };
     return (
-      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${styles[status]}`}>
-        {status}
+      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${styles[status || ''] || 'bg-gray-100 text-gray-700'}`}>
+        {status || 'Unknown'}
       </span>
     );
   };
@@ -111,6 +61,12 @@ export default function AssignedToTeamPage() {
       month: 'short',
       year: 'numeric',
     });
+  };
+
+  const getDaysLeft = (dateStr?: string) => {
+    if (!dateStr) return null;
+    const diff = Math.ceil((new Date(dateStr).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    return diff;
   };
 
   const getDaysLeftColor = (days: number) => {
@@ -229,75 +185,49 @@ export default function AssignedToTeamPage() {
 
       {/* Assignment List */}
       <div className="space-y-4">
-        {mockAssignments.map((assignment) => (
-          <div key={assignment.id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        {loading ? (
+          <div className="p-8 text-center text-gray-400">Loading...</div>
+        ) : tenders.length === 0 ? (
+          <div className="p-8 text-center text-gray-400">No assigned tenders found</div>
+        ) : tenders.map((tender) => {
+          const daysLeft = getDaysLeft(tender.submission_date);
+          return (
+          <div key={tender.name} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
             <div className="p-4">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
-                    <span className="text-sm font-medium text-blue-600">{assignment.tenderNo}</span>
-                    {getStatusBadge(assignment.status)}
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${getDaysLeftColor(assignment.daysLeft)}`}>
-                      {assignment.daysLeft} days left
-                    </span>
+                    <span className="text-sm font-medium text-blue-600">{tender.tender_number || tender.name}</span>
+                    {getStatusBadge(tender.status)}
+                    {daysLeft !== null && (
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${getDaysLeftColor(daysLeft)}`}>
+                        {daysLeft} days left
+                      </span>
+                    )}
                   </div>
-                  <h3 className="text-gray-800 font-medium mb-1">{assignment.title}</h3>
+                  <h3 className="text-gray-800 font-medium mb-1">{tender.title}</h3>
                   <div className="flex items-center gap-4 text-sm text-gray-500">
                     <span className="flex items-center gap-1">
                       <User className="w-3.5 h-3.5" />
-                      {assignment.client}
+                      {tender.client || 'N/A'}
                     </span>
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-3.5 h-3.5" />
-                      Due: {formatDate(assignment.submissionDate)}
-                    </span>
+                    {tender.submission_date && (
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-3.5 h-3.5" />
+                        Due: {formatDate(tender.submission_date)}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-gray-400">Estimated Value</p>
-                  <p className="text-lg font-semibold text-gray-800">{formatCurrency(assignment.value)}</p>
-                </div>
-              </div>
-            </div>
-            
-            {/* Team Section */}
-            <div className="px-4 py-3 bg-gray-50 border-t border-gray-100">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <Users className="w-4 h-4 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-800">{assignment.team.name}</p>
-                    <p className="text-xs text-gray-500">{assignment.team.members.length} members</p>
-                  </div>
-                </div>
-                <div className="flex items-center">
-                  {/* Team Member Avatars */}
-                  <div className="flex -space-x-2">
-                    {assignment.team.members.slice(0, 4).map((member, index) => (
-                      <div
-                        key={index}
-                        className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 border-2 border-white flex items-center justify-center text-white text-xs font-medium"
-                        title={`${member.name} - ${member.role}`}
-                      >
-                        {member.name.split(' ').map(n => n[0]).join('')}
-                      </div>
-                    ))}
-                    {assignment.team.members.length > 4 && (
-                      <div className="w-8 h-8 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-gray-600 text-xs font-medium">
-                        +{assignment.team.members.length - 4}
-                      </div>
-                    )}
-                  </div>
-                  <button className="ml-4 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg">
-                    View Team
-                  </button>
+                  <p className="text-lg font-semibold text-gray-800">{formatCurrency(tender.estimated_value || 0)}</p>
                 </div>
               </div>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

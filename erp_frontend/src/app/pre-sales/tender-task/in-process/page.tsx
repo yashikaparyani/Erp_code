@@ -1,62 +1,31 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Filter, Download, ChevronDown, Calendar, Eye, Edit2, MoreVertical, FileText, Clock, User, AlertCircle, ArrowRight } from 'lucide-react';
 
 interface Tender {
-  id: string;
-  tenderNo: string;
+  name: string;
+  tender_number?: string;
   title: string;
-  client: string;
-  submissionDate: string;
-  daysLeft: number;
-  stage: string;
-  assignee: string;
-  value: number;
-  progress: number;
+  client?: string;
+  submission_date?: string;
+  status?: string;
+  estimated_value?: number;
+  creation?: string;
 }
 
-const mockTenders: Tender[] = [
-  {
-    id: '1',
-    tenderNo: 'TEN-2026-001',
-    title: 'Smart City Surveillance System - Phase II',
-    client: 'Indore Municipal Corporation',
-    submissionDate: '2026-03-25',
-    daysLeft: 16,
-    stage: 'Technical Evaluation',
-    assignee: 'Rahul Sharma',
-    value: 45000000,
-    progress: 65,
-  },
-  {
-    id: '2',
-    tenderNo: 'TEN-2026-004',
-    title: 'Highway Toll Management System',
-    client: 'NHAI',
-    submissionDate: '2026-03-30',
-    daysLeft: 21,
-    stage: 'Document Preparation',
-    assignee: 'Priya Singh',
-    value: 82000000,
-    progress: 40,
-  },
-  {
-    id: '3',
-    tenderNo: 'TEN-2026-005',
-    title: 'Enterprise Resource Planning Implementation',
-    client: 'ONGC',
-    submissionDate: '2026-04-05',
-    daysLeft: 27,
-    stage: 'BOQ Preparation',
-    assignee: 'Amit Kumar',
-    value: 35000000,
-    progress: 25,
-  },
-];
-
 export default function InProcessTenderPage() {
+  const [tenders, setTenders] = useState<Tender[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'New' | 'Live' | 'Archive'>('Live');
   const [showFilters, setShowFilters] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/tenders?status=IN_PROGRESS')
+      .then(r => r.json())
+      .then(res => setTenders(res.data || []))
+      .catch(() => setTenders([]))
+      .finally(() => setLoading(false));
+  }, []);
 
   const tabs = [
     { name: 'New', count: 3 },
@@ -78,6 +47,12 @@ export default function InProcessTenderPage() {
       month: 'short',
       year: 'numeric',
     });
+  };
+
+  const getDaysLeft = (dateStr?: string) => {
+    if (!dateStr) return null;
+    const diff = Math.ceil((new Date(dateStr).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    return diff;
   };
 
   const getDaysLeftColor = (days: number) => {
@@ -198,49 +173,45 @@ export default function InProcessTenderPage() {
       {/* Tender List */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="divide-y divide-gray-100">
-          {mockTenders.map((tender) => (
-            <div key={tender.id} className="p-4 hover:bg-gray-50 transition-colors">
+          {loading ? (
+            <div className="p-8 text-center text-gray-400">Loading...</div>
+          ) : tenders.length === 0 ? (
+            <div className="p-8 text-center text-gray-400">No in-process tenders found</div>
+          ) : tenders.map((tender) => {
+            const daysLeft = getDaysLeft(tender.submission_date);
+            return (
+            <div key={tender.name} className="p-4 hover:bg-gray-50 transition-colors">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
-                    <span className="text-sm font-medium text-blue-600">{tender.tenderNo}</span>
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${getDaysLeftColor(tender.daysLeft)}`}>
-                      {tender.daysLeft} days left
-                    </span>
+                    <span className="text-sm font-medium text-blue-600">{tender.tender_number || tender.name}</span>
+                    {daysLeft !== null && (
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${getDaysLeftColor(daysLeft)}`}>
+                        {daysLeft} days left
+                      </span>
+                    )}
                     <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
-                      {tender.stage}
+                      {tender.status || 'In Progress'}
                     </span>
                   </div>
                   <h3 className="text-gray-800 font-medium mb-1">{tender.title}</h3>
                   <div className="flex items-center gap-4 text-sm text-gray-500">
                     <span className="flex items-center gap-1">
                       <User className="w-3.5 h-3.5" />
-                      {tender.client}
+                      {tender.client || 'N/A'}
                     </span>
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-3.5 h-3.5" />
-                      Due: {formatDate(tender.submissionDate)}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <User className="w-3.5 h-3.5" />
-                      Assignee: {tender.assignee}
-                    </span>
-                  </div>
-                  {/* Progress Bar */}
-                  <div className="mt-3 flex items-center gap-3">
-                    <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-blue-500 rounded-full transition-all"
-                        style={{ width: `${tender.progress}%` }}
-                      />
-                    </div>
-                    <span className="text-sm font-medium text-gray-600">{tender.progress}%</span>
+                    {tender.submission_date && (
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-3.5 h-3.5" />
+                        Due: {formatDate(tender.submission_date)}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-4 ml-4">
                   <div className="text-right">
                     <p className="text-sm text-gray-400">Estimated Value</p>
-                    <p className="text-lg font-semibold text-gray-800">{formatCurrency(tender.value)}</p>
+                    <p className="text-lg font-semibold text-gray-800">{formatCurrency(tender.estimated_value || 0)}</p>
                   </div>
                   <div className="flex items-center gap-1">
                     <button className="p-2 hover:bg-gray-100 rounded-lg" title="View">
@@ -256,7 +227,8 @@ export default function InProcessTenderPage() {
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

@@ -1,68 +1,48 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { 
   Search, ChevronDown, ChevronUp, Download, Clock, MapPin, FileText 
 } from 'lucide-react';
 
-// Mock data for tender results
-const mockResults = [
-  {
-    id: 15310628,
-    value: 2.22,
-    unit: 'Lacs',
-    stage: 'AOC',
-    referDocument: true,
-    description: '432012910018: electrically operated doorbell, wall-mounted type ding dong bell working on single phase 230v ac, 50 hz. as per gem specification - 5116877-3070104764 confirming to...',
-    organization: 'Western Railway',
-    location: 'Mumbai, Maharashtra',
-  },
-  {
-    id: 15334170,
-    value: 1.12,
-    unit: 'CR',
-    stage: 'AOC',
-    referDocument: true,
-    description: '29500308: supply, installation, testing and commissioning of ip based video surveillance system for rolling stock of indian railways for wag-9hc, wap-7, wap-5 & wag-9hc twin locos consisting ...',
-    organization: 'Chittaranjan Locomotive Works',
-    location: 'Chittaranjan, West Bengal',
-  },
-  {
-    id: 15334430,
-    value: 1.49,
-    unit: 'Lacs',
-    stage: 'AOC',
-    referDocument: true,
-    description: '509041406069: portable data extractor specification as per annexure attached. make- hp, lenovo, dell or similar.',
-    organization: 'Eastern Railway',
-    location: 'Bardhaman, West Bengal',
-  },
-  {
-    id: 15334891,
-    value: 45.67,
-    unit: 'Lacs',
-    stage: 'LoI Issued',
-    referDocument: true,
-    description: '783921045: supply and installation of network switches and routers for smart city command center infrastructure upgrade project phase 3.',
-    organization: 'Indore Smart City Development Corporation',
-    location: 'Indore, Madhya Pradesh',
-  },
-  {
-    id: 15335012,
-    value: 8.92,
-    unit: 'CR',
-    stage: 'Work Order',
-    referDocument: true,
-    description: '456789012: design, supply, installation, testing and commissioning of integrated traffic management system including adaptive signal control.',
-    organization: 'Bhopal Municipal Corporation',
-    location: 'Bhopal, Madhya Pradesh',
-  },
-];
+interface TenderResultRow {
+  name: string;
+  result_id: string;
+  winning_amount: number;
+  result_stage: string;
+  reference_no: string;
+  winner_company: string;
+  tender: string;
+  organization_name: string;
+  site_location: string;
+  publication_date: string;
+}
 
 type TabType = 'fresh' | 'result';
 
 export default function TenderResultPage() {
   const [activeTab, setActiveTab] = useState<TabType>('result');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [results, setResults] = useState<TenderResultRow[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch('/api/tender-results');
+        const payload = await response.json();
+        if (payload.success) {
+          setResults(payload.data || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch tender results:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    load();
+  }, []);
 
   const tabs: { key: TabType; label: string; count?: number }[] = [
     { key: 'fresh', label: 'Fresh Result' },
@@ -77,9 +57,19 @@ export default function TenderResultPage() {
         return 'text-green-600';
       case 'Work Order':
         return 'text-purple-600';
+      case 'Technical Evaluation':
+      case 'Financial Evaluation':
+        return 'text-amber-600';
       default:
         return 'text-gray-600';
     }
+  };
+
+  const formatCurrency = (amount: number) => {
+    if (!amount) return '₹ 0';
+    if (amount >= 10000000) return `₹ ${(amount / 10000000).toFixed(2)} Cr`;
+    if (amount >= 100000) return `₹ ${(amount / 100000).toFixed(2)} Lacs`;
+    return `₹ ${amount.toLocaleString('en-IN')}`;
   };
 
   return (
@@ -186,9 +176,17 @@ export default function TenderResultPage() {
 
       {/* Results List */}
       <div className="space-y-3">
-        {mockResults.map((result, index) => (
+        {isLoading ? (
+          <div className="bg-white border border-gray-200 rounded-lg p-6 text-sm text-gray-500">
+            Loading tender results...
+          </div>
+        ) : results.length === 0 ? (
+          <div className="bg-white border border-gray-200 rounded-lg p-6 text-sm text-gray-500">
+            No tender results found.
+          </div>
+        ) : results.map((result, index) => (
           <div 
-            key={result.id}
+            key={result.name}
             className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
           >
             <div className="flex justify-between items-start">
@@ -197,39 +195,45 @@ export default function TenderResultPage() {
                 {/* Header Row */}
                 <div className="flex items-center gap-3 flex-wrap mb-2">
                   <span className="text-blue-600 font-semibold">
-                    {index + 1} | ₹ {result.value.toFixed(2)} {result.unit}
+                    {index + 1} | {formatCurrency(result.winning_amount)}
                   </span>
                   <span className="text-gray-500 text-sm flex items-center gap-1">
                     <Clock className="w-3.5 h-3.5" />
-                    Refer Document
+                    {result.publication_date || 'Refer Document'}
                   </span>
                   <span className="text-gray-300">|</span>
                   <span className="text-sm">
                     <span className="text-gray-500">Stage:</span>{' '}
-                    <span className={`font-medium ${getStageColor(result.stage)}`}>
-                      {result.stage}
+                    <span className={`font-medium ${getStageColor(result.result_stage)}`}>
+                      {result.result_stage}
                     </span>
                   </span>
-                  <span className="text-blue-600 text-sm hover:underline cursor-pointer">
-                    Refer To Document
-                  </span>
+                  {result.reference_no ? (
+                    <span className="text-blue-600 text-sm">
+                      Ref: {result.reference_no}
+                    </span>
+                  ) : null}
                 </div>
 
                 {/* Description */}
                 <p className="text-gray-600 text-sm mb-2 line-clamp-2">
-                  {result.description}
+                  {result.winner_company
+                    ? `Winner: ${result.winner_company}`
+                    : result.tender
+                      ? `Tender: ${result.tender}`
+                      : 'No tender result summary available.'}
                 </p>
 
                 {/* Location */}
                 <div className="flex items-center gap-1 text-sm text-gray-500">
                   <MapPin className="w-3.5 h-3.5 text-blue-500" />
-                  <span>{result.organization} - {result.location}</span>
+                  <span>{result.organization_name || 'Unknown Organization'} - {result.site_location || 'Location not set'}</span>
                 </div>
               </div>
 
               {/* Right Content */}
               <div className="text-right ml-4">
-                <p className="text-gray-700 font-medium mb-4">Result ID- {result.id}</p>
+                <p className="text-gray-700 font-medium mb-4">Result ID- {result.result_id || result.name}</p>
                 <div className="flex items-center gap-3 text-gray-400">
                   <button 
                     className="hover:text-blue-500 transition-colors"

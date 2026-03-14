@@ -14,11 +14,17 @@ interface Party {
   party_type: string;
 }
 
+interface Organization {
+  name: string;
+  organization_name: string;
+}
+
 interface TenderFormData {
   // Step 1: Basic Info
   tender_number: string;
   title: string;
   client: string;
+  organization: string;
   
   // Step 2: Dates & Status
   submission_date: string;
@@ -36,6 +42,7 @@ const initialFormData: TenderFormData = {
   tender_number: '',
   title: '',
   client: '',
+  organization: '',
   submission_date: '',
   status: 'DRAFT',
   estimated_value: 0,
@@ -59,6 +66,7 @@ export default function CreateTenderModal({ isOpen, onClose, onSuccess }: Create
   
   // Master data state
   const [clients, setClients] = useState<Party[]>([]);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [isLoadingMaster, setIsLoadingMaster] = useState(false);
   const [showQuickAddClient, setShowQuickAddClient] = useState(false);
   const [quickAddName, setQuickAddName] = useState('');
@@ -73,11 +81,19 @@ export default function CreateTenderModal({ isOpen, onClose, onSuccess }: Create
   const fetchMasterData = async () => {
     setIsLoadingMaster(true);
     try {
-      const response = await fetch('/api/parties?type=CLIENT&active=1');
-      const clientsData = await response.json();
-      
+      const [clientsResponse, organizationsResponse] = await Promise.all([
+        fetch('/api/parties?type=CLIENT&active=1'),
+        fetch('/api/organizations?active=1'),
+      ]);
+
+      const clientsData = await clientsResponse.json();
+      const organizationsData = await organizationsResponse.json();
+
       if (clientsData.success) {
         setClients(clientsData.data);
+      }
+      if (organizationsData.success) {
+        setOrganizations(organizationsData.data);
       }
     } catch (error) {
       console.error('Error fetching master data:', error);
@@ -359,6 +375,25 @@ export default function CreateTenderModal({ isOpen, onClose, onSuccess }: Create
                 )}
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Organization
+                </label>
+                <select
+                  value={formData.organization}
+                  onChange={(e) => updateFormData('organization', e.target.value)}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={isLoadingMaster}
+                >
+                  <option value="">Select Organization</option>
+                  {organizations.map((organization) => (
+                    <option key={organization.name} value={organization.name}>
+                      {organization.organization_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
             </div>
           )}
 
@@ -393,9 +428,11 @@ export default function CreateTenderModal({ isOpen, onClose, onSuccess }: Create
                 >
                   <option value="DRAFT">Draft</option>
                   <option value="SUBMITTED">Submitted</option>
+                  <option value="UNDER_EVALUATION">Under Evaluation</option>
                   <option value="WON">Won</option>
                   <option value="LOST">Lost</option>
                   <option value="CANCELLED">Cancelled</option>
+                  <option value="DROPPED">Dropped</option>
                 </select>
               </div>
             </div>

@@ -9,6 +9,7 @@ interface Tender {
   tender_number: string;
   title: string;
   client: string;
+  organization: string;
   submission_date: string;
   status: string;
   estimated_value: number;
@@ -82,9 +83,11 @@ export default function PreSalesPage() {
     const statusMap: Record<string, { class: string; label: string }> = {
       'DRAFT': { class: 'badge-gray', label: 'Draft' },
       'SUBMITTED': { class: 'badge-info', label: 'Submitted' },
+      'UNDER_EVALUATION': { class: 'badge-warning', label: 'Under Evaluation' },
       'WON': { class: 'badge-success', label: 'Won' },
       'LOST': { class: 'badge-error', label: 'Lost' },
       'CANCELLED': { class: 'badge-gray', label: 'Cancelled' },
+      'DROPPED': { class: 'badge-gray', label: 'Dropped' },
     };
     return statusMap[status] || { class: 'badge-gray', label: status };
   };
@@ -93,9 +96,11 @@ export default function PreSalesPage() {
     const percentMap: Record<string, number> = {
       'DRAFT': 25,
       'SUBMITTED': 75,
+      'UNDER_EVALUATION': 85,
       'WON': 100,
       'LOST': 100,
       'CANCELLED': 0,
+      'DROPPED': 0,
     };
     return percentMap[status] || 0;
   };
@@ -209,7 +214,7 @@ export default function PreSalesPage() {
                 <tr>
                   <th>TENDER ID</th>
                   <th>PROJECT DETAILS</th>
-                  <th>CLIENT</th>
+                  <th>CLIENT / ORG</th>
                   <th>ESTIMATED VALUE</th>
                   <th>PROBABILITY</th>
                   <th>STATUS</th>
@@ -233,6 +238,9 @@ export default function PreSalesPage() {
                       </td>
                       <td>
                         <div className="text-gray-600 max-w-xs truncate">{tender.client || '-'}</div>
+                        {tender.organization ? (
+                          <div className="text-xs text-gray-400 max-w-xs truncate">{tender.organization}</div>
+                        ) : null}
                       </td>
                       <td>
                         <div className="font-semibold text-gray-900">{formatCurrency(tender.estimated_value)}</div>
@@ -252,6 +260,7 @@ export default function PreSalesPage() {
                         <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
                           tender.status === 'WON' ? 'bg-green-100 text-green-700' :
                           tender.status === 'SUBMITTED' ? 'bg-blue-100 text-blue-700' :
+                          tender.status === 'UNDER_EVALUATION' ? 'bg-amber-100 text-amber-700' :
                           tender.status === 'DRAFT' ? 'bg-gray-100 text-gray-700' :
                           tender.status === 'LOST' ? 'bg-red-100 text-red-700' :
                           'bg-gray-100 text-gray-700'

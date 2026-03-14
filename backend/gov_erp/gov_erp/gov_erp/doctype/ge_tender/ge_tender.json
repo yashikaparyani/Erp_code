@@ -8,6 +8,7 @@
   "tender_number",
   "title",
   "client",
+  "organization",
   "column_break_dates",
   "submission_date",
   "status",
@@ -53,6 +54,12 @@
    "label": "Client",
    "options": "GE Party",
    "reqd": 1
+  },
+  {
+   "fieldname": "organization",
+   "fieldtype": "Link",
+   "label": "Organization",
+   "options": "GE Organization"
   },
   {
    "fieldname": "column_break_dates",
@@ -208,7 +215,7 @@
   {
    "read": 1,
    "report": 1,
-   "role": "Top Management"
+   "role": "Director"
   }
  ],
  "sort_field": "creation",

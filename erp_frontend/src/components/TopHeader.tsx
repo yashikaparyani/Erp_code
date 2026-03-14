@@ -18,8 +18,8 @@ export default function TopHeader() {
   const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     router.replace('/login');
   };
 

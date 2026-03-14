@@ -13,6 +13,7 @@ interface Tender {
   tender_number: string;
   title: string;
   client: string;
+  organization: string;
   submission_date: string;
   status: string;
   estimated_value: number;
@@ -31,6 +32,11 @@ interface Tender {
 interface Party {
   name: string;
   party_name: string;
+}
+
+interface Organization {
+  name: string;
+  organization_name: string;
 }
 
 interface Instrument {
@@ -58,6 +64,7 @@ export default function TenderDetailPage() {
   const [editFormData, setEditFormData] = useState<Partial<Tender>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [clients, setClients] = useState<Party[]>([]);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
   
   // EMD/PBG Instruments state
   const [instruments, setInstruments] = useState<Instrument[]>([]);
@@ -141,12 +148,25 @@ export default function TenderDetailPage() {
 
   const fetchMasterData = async () => {
     try {
-      const clientsRes = await fetch('/api/parties?type=CLIENT');
+      const [clientsRes, organizationsRes] = await Promise.all([
+        fetch('/api/parties?type=CLIENT'),
+        fetch('/api/organizations?active=1'),
+      ]);
       const clientsData = await clientsRes.json();
+      const organizationsData = await organizationsRes.json();
       if (clientsData.success) setClients(clientsData.data);
+      if (organizationsData.success) setOrganizations(organizationsData.data);
     } catch (err) {
       console.error('Error fetching master data:', err);
     }
+  };
+
+  const getClientLabel = (name: string) => {
+    return clients.find((client) => client.name === name)?.party_name || name || '-';
+  };
+
+  const getOrganizationLabel = (name: string) => {
+    return organizations.find((organization) => organization.name === name)?.organization_name || name || '-';
   };
 
   const fetchTender = async () => {
@@ -243,20 +263,22 @@ export default function TenderDetailPage() {
 
   const getStatusBadge = (status: string) => {
     const statusConfig: { [key: string]: { bg: string; text: string; icon: typeof CheckCircle } } = {
-      'Draft': { bg: 'bg-gray-100', text: 'text-gray-700', icon: Clock },
-      'Submitted': { bg: 'bg-blue-100', text: 'text-blue-700', icon: FileCheck },
-      'Under Evaluation': { bg: 'bg-yellow-100', text: 'text-yellow-700', icon: AlertCircle },
-      'Won': { bg: 'bg-green-100', text: 'text-green-700', icon: CheckCircle },
-      'Lost': { bg: 'bg-red-100', text: 'text-red-700', icon: XCircle },
-      'Cancelled': { bg: 'bg-gray-100', text: 'text-gray-500', icon: XCircle },
+      'DRAFT': { bg: 'bg-gray-100', text: 'text-gray-700', icon: Clock },
+      'SUBMITTED': { bg: 'bg-blue-100', text: 'text-blue-700', icon: FileCheck },
+      'UNDER_EVALUATION': { bg: 'bg-yellow-100', text: 'text-yellow-700', icon: AlertCircle },
+      'WON': { bg: 'bg-green-100', text: 'text-green-700', icon: CheckCircle },
+      'LOST': { bg: 'bg-red-100', text: 'text-red-700', icon: XCircle },
+      'CANCELLED': { bg: 'bg-gray-100', text: 'text-gray-500', icon: XCircle },
+      'DROPPED': { bg: 'bg-gray-100', text: 'text-gray-500', icon: XCircle },
     };
-    const config = statusConfig[status] || statusConfig['Draft'];
+    const config = statusConfig[status] || statusConfig['DRAFT'];
     const Icon = config.icon;
+    const label = status.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
     
     return (
       <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium ${config.bg} ${config.text}`}>
         <Icon className="w-4 h-4" />
-        {status}
+        {label}
       </span>
     );
   };
@@ -317,6 +339,7 @@ export default function TenderDetailPage() {
                 title: tender?.title,
                 tender_number: tender?.tender_number,
                 client: tender?.client,
+                organization: tender?.organization,
                 submission_date: tender?.submission_date,
                 status: tender?.status,
                 estimated_value: tender?.estimated_value,
@@ -364,7 +387,14 @@ export default function TenderDetailPage() {
                 <label className="text-sm text-gray-500">Client</label>
                 <p className="font-medium text-gray-900 mt-1 flex items-center gap-2">
                   <Building2 className="w-4 h-4 text-gray-400" />
-                  {tender.client || '-'}
+                  {getClientLabel(tender.client)}
+                </p>
+              </div>
+              <div>
+                <label className="text-sm text-gray-500">Organization</label>
+                <p className="font-medium text-gray-900 mt-1 flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-gray-400" />
+                  {getOrganizationLabel(tender.organization)}
                 </p>
               </div>
               <div>
@@ -915,6 +945,22 @@ export default function TenderDetailPage() {
                   <option value="">Select Client</option>
                   {clients.map(c => (
                     <option key={c.name} value={c.name}>{c.party_name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Organization</label>
+                <select
+                  value={editFormData.organization || ''}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, organization: e.target.value }))}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select Organization</option>
+                  {organizations.map((organization) => (
+                    <option key={organization.name} value={organization.name}>
+                      {organization.organization_name}
+                    </option>
                   ))}
                 </select>
               </div>

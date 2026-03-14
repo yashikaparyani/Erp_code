@@ -5,11 +5,14 @@ import { useAuth } from './AuthContext';
 export type Role = 
   | 'Director'
   | 'Department Head'
-  | 'HR Head'
+  | 'HR Manager'
   | 'Presales Tendering Head'
+  | 'Presales Executive'
   | 'Engineering Head'
   | 'Engineer'
+  | 'Procurement Manager'
   | 'Purchase'
+  | 'Store Manager'
   | 'Stores Logistics Head'
   | 'Project Manager'
   | 'Accounts'
@@ -19,11 +22,14 @@ export type Role =
 export const roles: Role[] = [
   'Director',
   'Department Head',
-  'HR Head',
+  'HR Manager',
   'Presales Tendering Head',
+  'Presales Executive',
   'Engineering Head',
   'Engineer',
+  'Procurement Manager',
   'Purchase',
+  'Store Manager',
   'Stores Logistics Head',
   'Project Manager',
   'Accounts',
@@ -35,6 +41,7 @@ export const roles: Role[] = [
 export const roleAccess: Record<Role, string[]> = {
   'Director': [
     '/',
+    '/hr',
     '/pre-sales',
     '/survey',
     '/engineering',
@@ -49,6 +56,7 @@ export const roleAccess: Record<Role, string[]> = {
   ],
   'Department Head': [
     '/',
+    '/hr',
     '/pre-sales',
     '/survey',
     '/engineering',
@@ -60,8 +68,9 @@ export const roleAccess: Record<Role, string[]> = {
     '/reports',
     '/documents',
   ],
-  'HR Head': [
+  'HR Manager': [
     '/',
+    '/hr',
     '/reports',
     '/documents',
     '/master-data',
@@ -72,6 +81,12 @@ export const roleAccess: Record<Role, string[]> = {
     '/survey',
     '/finance',
     '/reports',
+    '/documents',
+  ],
+  'Presales Executive': [
+    '/',
+    '/pre-sales',
+    '/survey',
     '/documents',
   ],
   'Engineering Head': [
@@ -91,12 +106,27 @@ export const roleAccess: Record<Role, string[]> = {
     '/execution',
     '/documents',
   ],
+  'Procurement Manager': [
+    '/',
+    '/procurement',
+    '/inventory',
+    '/finance',
+    '/reports',
+    '/documents',
+  ],
   'Purchase': [
     '/',
     '/procurement',
     '/inventory',
     '/finance',
     '/reports',
+    '/documents',
+  ],
+  'Store Manager': [
+    '/',
+    '/procurement',
+    '/inventory',
+    '/execution',
     '/documents',
   ],
   'Stores Logistics Head': [
@@ -150,11 +180,14 @@ export const getRoleInitials = (role: Role): string => {
   const initialsMap: Record<Role, string> = {
     'Director': 'DI',
     'Department Head': 'DH',
-    'HR Head': 'HR',
+    'HR Manager': 'HR',
     'Presales Tendering Head': 'PT',
+    'Presales Executive': 'PE',
     'Engineering Head': 'EH',
     'Engineer': 'EN',
+    'Procurement Manager': 'PR',
     'Purchase': 'PU',
+    'Store Manager': 'SM',
     'Stores Logistics Head': 'SL',
     'Project Manager': 'PM',
     'Accounts': 'AC',

@@ -85,5 +85,7 @@ def test_business_role_list_matches_backend_plan():
 		"Project Manager",
 		"Store Manager",
 		"Stores Logistics Head",
-		"Top Management",
+		"Director",
+		"Field Technician",
+		"OM Operator",
 	]

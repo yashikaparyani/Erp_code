@@ -1,0 +1,148 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-03-14 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "organization",
+  "company_name",
+  "specialization",
+  "strength_areas",
+  "weakness_areas",
+  "typical_bid_range_min",
+  "typical_bid_range_max",
+  "win_count",
+  "loss_count",
+  "win_rate",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "default": "COMP-.YYYY.-.#####",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "COMP-.YYYY.-.#####",
+   "reqd": 1
+  },
+  {
+   "fieldname": "organization",
+   "fieldtype": "Link",
+   "label": "Organization",
+   "options": "GE Organization"
+  },
+  {
+   "fieldname": "company_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Company Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "specialization",
+   "fieldtype": "Small Text",
+   "label": "Specialization"
+  },
+  {
+   "fieldname": "strength_areas",
+   "fieldtype": "Small Text",
+   "label": "Strength Areas"
+  },
+  {
+   "fieldname": "weakness_areas",
+   "fieldtype": "Small Text",
+   "label": "Weakness Areas"
+  },
+  {
+   "fieldname": "typical_bid_range_min",
+   "fieldtype": "Currency",
+   "label": "Typical Bid Range Min"
+  },
+  {
+   "fieldname": "typical_bid_range_max",
+   "fieldtype": "Currency",
+   "label": "Typical Bid Range Max"
+  },
+  {
+   "default": "0",
+   "fieldname": "win_count",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Win Count"
+  },
+  {
+   "default": "0",
+   "fieldname": "loss_count",
+   "fieldtype": "Int",
+   "label": "Loss Count"
+  },
+  {
+   "fieldname": "win_rate",
+   "fieldtype": "Percent",
+   "in_list_view": 1,
+   "label": "Win Rate"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-03-14 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE Competitor",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Presales Tendering Head",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Presales Executive",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Department Head"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Director"
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

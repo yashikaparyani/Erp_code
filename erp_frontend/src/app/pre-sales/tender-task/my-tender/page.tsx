@@ -1,55 +1,32 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Filter, Download, ChevronDown, Calendar, Eye, Edit2, MoreVertical, FileText, Clock, User } from 'lucide-react';
 
 interface Tender {
-  id: string;
-  tenderNo: string;
+  name: string;
+  tender_number?: string;
   title: string;
-  client: string;
-  submissionDate: string;
-  status: 'NEW' | 'IN_PROGRESS' | 'SUBMITTED' | 'DROPPED';
-  value: number;
-  createdDate: string;
+  client?: string;
+  submission_date?: string;
+  status?: string;
+  estimated_value?: number;
+  creation?: string;
 }
 
-const mockTenders: Tender[] = [
-  {
-    id: '1',
-    tenderNo: 'TEN-2026-001',
-    title: 'Smart City Surveillance System - Phase II',
-    client: 'Indore Municipal Corporation',
-    submissionDate: '2026-03-25',
-    status: 'IN_PROGRESS',
-    value: 45000000,
-    createdDate: '2026-03-01',
-  },
-  {
-    id: '2',
-    tenderNo: 'TEN-2026-002',
-    title: 'Data Center Infrastructure Upgrade',
-    client: 'BSNL',
-    submissionDate: '2026-04-10',
-    status: 'NEW',
-    value: 28000000,
-    createdDate: '2026-03-05',
-  },
-  {
-    id: '3',
-    tenderNo: 'TEN-2026-003',
-    title: 'Network Security Implementation',
-    client: 'State Bank of India',
-    submissionDate: '2026-03-20',
-    status: 'SUBMITTED',
-    value: 15000000,
-    createdDate: '2026-02-28',
-  },
-];
-
 export default function MyTenderPage() {
+  const [tenders, setTenders] = useState<Tender[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'New' | 'Live' | 'Archive'>('Live');
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/tenders')
+      .then(r => r.json())
+      .then(res => setTenders(res.data || []))
+      .catch(() => setTenders([]))
+      .finally(() => setLoading(false));
+  }, []);
 
   const tabs = [
     { name: 'New', count: 5 },
@@ -57,22 +34,19 @@ export default function MyTenderPage() {
     { name: 'Archive', count: 45 },
   ];
 
-  const getStatusBadge = (status: Tender['status']) => {
-    const styles = {
+  const getStatusBadge = (status?: string) => {
+    const styles: Record<string, string> = {
       NEW: 'bg-blue-100 text-blue-700',
+      DRAFT: 'bg-gray-100 text-gray-700',
       IN_PROGRESS: 'bg-yellow-100 text-yellow-700',
       SUBMITTED: 'bg-green-100 text-green-700',
       DROPPED: 'bg-red-100 text-red-700',
-    };
-    const labels = {
-      NEW: 'New',
-      IN_PROGRESS: 'In Progress',
-      SUBMITTED: 'Submitted',
-      DROPPED: 'Dropped',
+      WON: 'bg-emerald-100 text-emerald-700',
+      LOST: 'bg-red-100 text-red-700',
     };
     return (
-      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${styles[status]}`}>
-        {labels[status]}
+      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${styles[status || ''] || 'bg-gray-100 text-gray-700'}`}>
+        {status || 'Unknown'}
       </span>
     );
   };
@@ -203,7 +177,11 @@ export default function MyTenderPage() {
 
       {/* Tender List */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        {mockTenders.length === 0 ? (
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full" />
+          </div>
+        ) : tenders.length === 0 ? (
           <div className="py-12 text-center">
             <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
             <p className="text-gray-500 font-medium">No Record Found.</p>
@@ -211,34 +189,34 @@ export default function MyTenderPage() {
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
-            {mockTenders.map((tender) => (
-              <div key={tender.id} className="p-4 hover:bg-gray-50 transition-colors">
+            {tenders.map((tender) => (
+              <div key={tender.name} className="p-4 hover:bg-gray-50 transition-colors">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                      <span className="text-sm font-medium text-blue-600">{tender.tenderNo}</span>
+                      <span className="text-sm font-medium text-blue-600">{tender.tender_number || tender.name}</span>
                       {getStatusBadge(tender.status)}
                     </div>
                     <h3 className="text-gray-800 font-medium mb-1">{tender.title}</h3>
                     <div className="flex items-center gap-4 text-sm text-gray-500">
                       <span className="flex items-center gap-1">
                         <User className="w-3.5 h-3.5" />
-                        {tender.client}
+                        {tender.client || '-'}
                       </span>
                       <span className="flex items-center gap-1">
                         <Calendar className="w-3.5 h-3.5" />
-                        Due: {formatDate(tender.submissionDate)}
+                        Due: {tender.submission_date ? formatDate(tender.submission_date) : '-'}
                       </span>
                       <span className="flex items-center gap-1">
                         <Clock className="w-3.5 h-3.5" />
-                        Created: {formatDate(tender.createdDate)}
+                        Created: {tender.creation ? formatDate(tender.creation) : '-'}
                       </span>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="text-right">
                       <p className="text-sm text-gray-400">Estimated Value</p>
-                      <p className="text-lg font-semibold text-gray-800">{formatCurrency(tender.value)}</p>
+                      <p className="text-lg font-semibold text-gray-800">{formatCurrency(tender.estimated_value || 0)}</p>
                     </div>
                     <div className="flex items-center gap-1">
                       <button className="p-2 hover:bg-gray-100 rounded-lg" title="View">

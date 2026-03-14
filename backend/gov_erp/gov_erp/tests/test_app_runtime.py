@@ -22,8 +22,13 @@ from gov_erp.api import (
 	create_dispatch_challan,
 	create_invoice,
 	create_onboarding,
+	create_organization,
 	create_payment_receipt,
+	create_competitor,
 	create_po_from_comparison,
+	create_tender_checklist,
+	create_tender_reminder,
+	create_tender_result,
 	create_rma_tracker,
 	create_sla_profile,
 	create_sla_timer,
@@ -97,6 +102,81 @@ class TestAppRuntime(FrappeTestCase):
 		self.assertTrue(manual_result["success"])
 		self.assertTrue(manual_result["data"]["project"])
 		self._track_doc("Project", manual_result["data"]["project"])
+
+	def test_extended_tendering_runtime_flow(self):
+		party = self._make_party()
+		org_result = create_organization(
+			{
+				"organization_name": self._unique("Runtime Org"),
+				"city": "Indore",
+				"state": "Madhya Pradesh",
+				"active": 1,
+			}
+		)
+		org_name = org_result["data"]["name"]
+		self._track_doc("GE Organization", org_name)
+
+		tender_result = create_tender(
+			{
+				"tender_number": self._unique("TNX"),
+				"title": self._unique("Tender Port Runtime"),
+				"client": party.name,
+				"organization": org_name,
+				"status": "DRAFT",
+			}
+		)
+		tender_name = tender_result["data"]["name"]
+		self._track_doc("GE Tender", tender_name)
+
+		checklist_result = create_tender_checklist(
+			{
+				"checklist_name": self._unique("Checklist"),
+				"checklist_type": "Technical",
+				"status": "Active",
+				"items": [{"item_name": "Bid Document", "is_mandatory": 1}],
+			}
+		)
+		self.assertTrue(checklist_result["success"])
+		self._track_doc("GE Tender Checklist", checklist_result["data"]["name"])
+
+		reminder_result = create_tender_reminder(
+			{
+				"tender": tender_name,
+				"reminder_date": today(),
+				"status": "Pending",
+			}
+		)
+		self.assertTrue(reminder_result["success"])
+		self._track_doc("GE Tender Reminder", reminder_result["data"]["name"])
+
+		competitor_result = create_competitor(
+			{
+				"organization": org_name,
+				"company_name": self._unique("Competitor"),
+				"win_count": 2,
+				"loss_count": 1,
+				"win_rate": 66.7,
+			}
+		)
+		self.assertTrue(competitor_result["success"])
+		self._track_doc("GE Competitor", competitor_result["data"]["name"])
+
+		tender_result_doc = create_tender_result(
+			{
+				"tender": tender_name,
+				"organization_name": "Runtime Authority",
+				"result_stage": "AOC",
+				"publication_date": today(),
+				"winning_amount": 120000,
+				"winner_company": "Runtime Winner",
+				"bidders": [
+					{"bidder_name": "Runtime Winner", "bid_amount": 120000, "rank": 1, "is_winner": 1},
+					{"bidder_name": "Backup Bidder", "bid_amount": 130000, "rank": 2},
+				],
+			}
+		)
+		self.assertTrue(tender_result_doc["success"])
+		self._track_doc("GE Tender Result", tender_result_doc["data"]["name"])
 
 	def test_boq_and_cost_sheet_runtime_flow(self):
 		tender = self._make_tender()

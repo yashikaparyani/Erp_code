@@ -1,9 +1,8 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, Building2, ChevronDown, ChevronUp, LogIn, Shield } from 'lucide-react';
-import { useAuth, demoUsers } from '../../context/AuthContext';
-import { getRoleInitials } from '../../context/RoleContext';
+import { Eye, EyeOff, LogIn, Shield } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -11,7 +10,6 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showCreds, setShowCreds] = useState(false);
   const { login } = useAuth();
   const router = useRouter();
 
@@ -19,25 +17,11 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     setIsSubmitting(true);
-    await new Promise(r => setTimeout(r, 300)); // small delay for UX
-    const success = login(username, password);
+    const success = await login(username, password);
     if (success) {
       router.replace('/');
     } else {
-      setError('Invalid username or password. Please check and retry.');
-      setIsSubmitting(false);
-    }
-  };
-
-  const quickLogin = async (u: string, p: string) => {
-    setError('');
-    setIsSubmitting(true);
-    await new Promise(r => setTimeout(r, 200));
-    const success = login(u, p);
-    if (success) {
-      router.replace('/');
-    } else {
-      setError('Quick login failed. Please try manually.');
+      setError('Invalid username, password, or role access. Please check and retry.');
       setIsSubmitting(false);
     }
   };
@@ -49,7 +33,6 @@ export default function LoginPage() {
         background: 'radial-gradient(circle at top, #ffe8d9 0, #f8fafc 55%, #edf2f7 100%)',
       }}
     >
-      {/* Background decoration */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-96 h-96 bg-orange-200/30 rounded-full blur-3xl" />
         <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-white/40 rounded-full blur-3xl" />
@@ -137,47 +120,10 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Demo Credentials Toggle */}
-          <div className="border-t border-gray-100">
-            <button
-              type="button"
-              onClick={() => setShowCreds(!showCreds)}
-              className="w-full flex items-center justify-between px-6 py-3.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
-            >
-              <span className="flex items-center gap-2">
-                <span className="w-5 h-5 bg-amber-100 rounded-full flex items-center justify-center text-xs font-bold text-amber-600">D</span>
-                Demo Accounts — Quick Login
-              </span>
-              {showCreds ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
-            </button>
-
-            {showCreds && (
-              <div className="max-h-72 overflow-y-auto divide-y divide-gray-100">
-                {demoUsers.map(user => (
-                  <div
-                    key={user.username}
-                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-semibold"
-                      style={{ backgroundColor: 'var(--brand-orange)' }}>
-                      {getRoleInitials(user.role)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-gray-800 truncate">{user.role}</div>
-                      <div className="text-xs text-gray-400 font-mono">{user.username} · {user.password}</div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => quickLogin(user.username, user.password)}
-                      disabled={isSubmitting}
-                      className="flex-shrink-0 px-2.5 py-1 text-xs font-medium text-orange-600 hover:bg-orange-50 rounded-md transition-colors border border-orange-200 disabled:opacity-50"
-                    >
-                      Use →
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+          <div className="border-t border-gray-100 px-6 py-3.5 bg-gray-50">
+            <p className="text-xs text-gray-500">
+              Use your assigned ERP login. POC role accounts are maintained separately for the demo team.
+            </p>
           </div>
         </div>
 

@@ -1,6 +1,7 @@
 import json
 
 import frappe
+from frappe.sessions import delete_session
 from gov_erp.gov_erp.doctype.ge_dependency_rule.ge_dependency_rule import (
 	evaluate_dependency_state,
 	resolve_reference_status,
@@ -8,9 +9,12 @@ from gov_erp.gov_erp.doctype.ge_dependency_rule.ge_dependency_rule import (
 from gov_erp.role_utils import (
 	ROLE_ACCOUNTS,
 	ROLE_DEPARTMENT_HEAD,
+	ROLE_DIRECTOR,
 	ROLE_ENGINEERING_HEAD,
 	ROLE_ENGINEER,
+	ROLE_FIELD_TECHNICIAN,
 	ROLE_HR_MANAGER,
+	ROLE_OM_OPERATOR,
 	ROLE_PRESALES_EXECUTIVE,
 	ROLE_PRESALES_HEAD,
 	ROLE_PROCUREMENT_MANAGER,
@@ -19,8 +23,26 @@ from gov_erp.role_utils import (
 	ROLE_SYSTEM_MANAGER,
 	ROLE_STORE_MANAGER,
 	ROLE_STORES_LOGISTICS_HEAD,
-	ROLE_TOP_MANAGEMENT,
 )
+
+
+FRONTEND_ROLE_PRIORITY = [
+	ROLE_DIRECTOR,
+	ROLE_DEPARTMENT_HEAD,
+	ROLE_HR_MANAGER,
+	ROLE_PRESALES_HEAD,
+	ROLE_PRESALES_EXECUTIVE,
+	ROLE_ENGINEERING_HEAD,
+	ROLE_ENGINEER,
+	ROLE_PROCUREMENT_MANAGER,
+	ROLE_PURCHASE,
+	ROLE_STORE_MANAGER,
+	ROLE_STORES_LOGISTICS_HEAD,
+	ROLE_PROJECT_MANAGER,
+	ROLE_ACCOUNTS,
+	ROLE_FIELD_TECHNICIAN,
+	ROLE_OM_OPERATOR,
+]
 
 
 def _require_authenticated_user():
@@ -42,7 +64,7 @@ def _require_tender_read_access():
 		ROLE_PRESALES_HEAD,
 		ROLE_PRESALES_EXECUTIVE,
 		ROLE_DEPARTMENT_HEAD,
-		ROLE_TOP_MANAGEMENT,
+		ROLE_DIRECTOR,
 	)
 
 
@@ -61,7 +83,7 @@ def _require_survey_read_access():
 		ROLE_ENGINEERING_HEAD,
 		ROLE_ENGINEER,
 		ROLE_DEPARTMENT_HEAD,
-		ROLE_TOP_MANAGEMENT,
+		ROLE_DIRECTOR,
 	)
 
 
@@ -76,7 +98,7 @@ def _require_boq_read_access():
 		ROLE_ENGINEERING_HEAD,
 		ROLE_DEPARTMENT_HEAD,
 		ROLE_ACCOUNTS,
-		ROLE_TOP_MANAGEMENT,
+		ROLE_DIRECTOR,
 	)
 
 
@@ -95,7 +117,7 @@ def _require_cost_sheet_read_access():
 		ROLE_ENGINEERING_HEAD,
 		ROLE_DEPARTMENT_HEAD,
 		ROLE_ACCOUNTS,
-		ROLE_TOP_MANAGEMENT,
+		ROLE_DIRECTOR,
 	)
 
 
@@ -114,7 +136,7 @@ def _require_procurement_read_access():
 		ROLE_PRESALES_HEAD,
 		ROLE_ACCOUNTS,
 		ROLE_DEPARTMENT_HEAD,
-		ROLE_TOP_MANAGEMENT,
+		ROLE_DIRECTOR,
 	)
 
 
@@ -133,7 +155,7 @@ def _require_store_read_access():
 		ROLE_PROCUREMENT_MANAGER,
 		ROLE_PURCHASE,
 		ROLE_DEPARTMENT_HEAD,
-		ROLE_TOP_MANAGEMENT,
+		ROLE_DIRECTOR,
 	)
 
 
@@ -151,7 +173,7 @@ def _require_execution_read_access():
 		ROLE_ENGINEERING_HEAD,
 		ROLE_ENGINEER,
 		ROLE_DEPARTMENT_HEAD,
-		ROLE_TOP_MANAGEMENT,
+		ROLE_DIRECTOR,
 	)
 
 
@@ -163,7 +185,7 @@ def _require_hr_read_access():
 	_require_roles(
 		ROLE_HR_MANAGER,
 		ROLE_DEPARTMENT_HEAD,
-		ROLE_TOP_MANAGEMENT,
+		ROLE_DIRECTOR,
 	)
 
 
@@ -179,11 +201,57 @@ def _require_dependency_override_approval_access():
 	_require_roles(ROLE_DEPARTMENT_HEAD)
 
 
+def _get_primary_frontend_role(user_roles):
+	for role in FRONTEND_ROLE_PRIORITY:
+		if role in user_roles:
+			return role
+
+	if ROLE_SYSTEM_MANAGER in user_roles:
+		return ROLE_DIRECTOR
+
+	return None
+
+
+@frappe.whitelist()
+def get_session_context():
+	"""Return the authenticated user's basic context for the frontend shell."""
+	_require_authenticated_user()
+	user = frappe.get_cached_doc("User", frappe.session.user)
+	user_roles = set(frappe.get_roles(user.name))
+	frontend_roles = [role for role in FRONTEND_ROLE_PRIORITY if role in user_roles]
+
+	return {
+		"success": True,
+		"data": {
+			"user": user.name,
+			"email": user.email,
+			"full_name": user.full_name,
+			"roles": sorted(user_roles),
+			"frontend_roles": frontend_roles,
+			"primary_role": _get_primary_frontend_role(user_roles),
+		},
+	}
+
+
+@frappe.whitelist()
+def logout_current_session():
+	"""Force-clear the authenticated user's current session."""
+	_require_authenticated_user()
+	sid = frappe.session.sid
+	user = frappe.session.user
+	frappe.local.login_manager.run_trigger("on_logout")
+	delete_session(sid, user=user, reason="User Manually Logged Out")
+	frappe.local.login_manager.clear_cookies()
+	if frappe.request:
+		frappe.local.login_manager.login_as_guest()
+	return {"success": True, "message": "Logged out successfully"}
+
+
 def _require_billing_read_access():
 	_require_roles(
 		ROLE_ACCOUNTS,
 		ROLE_DEPARTMENT_HEAD,
-		ROLE_TOP_MANAGEMENT,
+		ROLE_DIRECTOR,
 		ROLE_PROJECT_MANAGER,
 		ROLE_PRESALES_HEAD,
 	)
@@ -203,7 +271,7 @@ def _require_om_read_access():
 		ROLE_ENGINEERING_HEAD,
 		ROLE_ENGINEER,
 		ROLE_DEPARTMENT_HEAD,
-		ROLE_TOP_MANAGEMENT,
+		ROLE_DIRECTOR,
 	)
 
 
@@ -212,7 +280,7 @@ def _require_om_write_access():
 
 
 def _require_om_approval_access():
-	_require_roles(ROLE_DEPARTMENT_HEAD, ROLE_TOP_MANAGEMENT)
+	_require_roles(ROLE_DEPARTMENT_HEAD, ROLE_DIRECTOR)
 
 
 def get_health_payload():
@@ -254,7 +322,7 @@ def get_tenders(filters=None, limit_page_length=50, limit_start=0):
 		"GE Tender",
 		filters=parsed_filters,
 		fields=[
-			"name", "tender_number", "title", "client",
+			"name", "tender_number", "title", "client", "organization",
 			"submission_date", "status", "emd_amount",
 			"pbg_amount", "estimated_value", "creation", "modified",
 		],
@@ -428,10 +496,414 @@ def get_parties(party_type=None, active=None):
 
 
 @frappe.whitelist()
-def get_organizations():
-	"""Alias for get_parties — returns all active parties."""
+def create_party(data):
+	"""Create a party (client/vendor) for tendering and master data flows."""
+	_require_tender_write_access()
+	values = json.loads(data) if isinstance(data, str) else data
+	doc = frappe.get_doc({"doctype": "GE Party", **values})
+	doc.insert()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Party created"}
+
+
+@frappe.whitelist()
+def update_party(name, data):
+	"""Update a party."""
+	_require_tender_write_access()
+	values = json.loads(data) if isinstance(data, str) else data
+	doc = frappe.get_doc("GE Party", name)
+	doc.update(values)
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Party updated"}
+
+
+@frappe.whitelist()
+def delete_party(name):
+	"""Delete a party."""
+	_require_tender_write_access()
+	frappe.delete_doc("GE Party", name)
+	frappe.db.commit()
+	return {"success": True, "message": "Party deleted"}
+
+
+@frappe.whitelist()
+def get_organizations(active=None):
+	"""Return list of organizations for tendering flows."""
 	_require_tender_read_access()
-	return get_parties(active="1")
+	filters = {}
+	if active:
+		filters["active"] = 1
+	data = frappe.get_all(
+		"GE Organization",
+		filters=filters,
+		fields=[
+			"name", "organization_name", "gstin",
+			"pan", "phone", "email", "city", "state", "active",
+		],
+		order_by="organization_name asc",
+	)
+	return {"success": True, "data": data}
+
+
+@frappe.whitelist()
+def create_organization(data):
+	"""Create an organization master used by tendering flows."""
+	_require_tender_write_access()
+	values = json.loads(data) if isinstance(data, str) else data
+	doc = frappe.get_doc({"doctype": "GE Organization", **values})
+	doc.insert()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Organization created"}
+
+
+@frappe.whitelist()
+def get_emd_pbg_instruments(tender=None, instrument_type=None, status=None):
+	"""Return EMD/PBG instruments, optionally filtered by tender and type."""
+	_require_tender_read_access()
+	filters = {}
+	if tender:
+		filters["linked_tender"] = tender
+	if instrument_type:
+		filters["instrument_type"] = instrument_type
+	if status:
+		filters["status"] = status
+	data = frappe.get_all(
+		"GE EMD PBG Instrument",
+		filters=filters,
+		fields=[
+			"name", "instrument_type", "linked_tender", "instrument_number",
+			"amount", "status", "bank_name", "issue_date", "expiry_date", "remarks",
+			"creation", "modified",
+		],
+		order_by="creation desc",
+	)
+	return {"success": True, "data": data}
+
+
+@frappe.whitelist()
+def create_emd_pbg_instrument(data):
+	"""Create an EMD/PBG instrument row."""
+	_require_tender_write_access()
+	values = json.loads(data) if isinstance(data, str) else data
+	doc = frappe.get_doc({"doctype": "GE EMD PBG Instrument", **values})
+	doc.insert()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Instrument created"}
+
+
+@frappe.whitelist()
+def get_tender_results(tender=None, result_stage=None, is_fresh=None):
+	"""Return tender result rows."""
+	_require_tender_read_access()
+	filters = {}
+	if tender:
+		filters["tender"] = tender
+	if result_stage:
+		filters["result_stage"] = result_stage
+	if is_fresh is not None and str(is_fresh) != "":
+		filters["is_fresh"] = int(is_fresh)
+	data = frappe.get_all(
+		"GE Tender Result",
+		filters=filters,
+		fields=[
+			"name", "result_id", "tender", "reference_no", "organization_name",
+			"result_stage", "publication_date", "winning_amount", "winner_company",
+			"is_fresh", "site_location", "creation", "modified",
+		],
+		order_by="publication_date desc, creation desc",
+	)
+	return {"success": True, "data": data}
+
+
+@frappe.whitelist()
+def get_tender_result(name):
+	"""Return one tender result row with bidders."""
+	_require_tender_read_access()
+	doc = frappe.get_doc("GE Tender Result", name)
+	return {"success": True, "data": doc.as_dict()}
+
+
+@frappe.whitelist()
+def create_tender_result(data):
+	"""Create a tender result row."""
+	_require_tender_write_access()
+	values = json.loads(data) if isinstance(data, str) else data
+	doc = frappe.get_doc({"doctype": "GE Tender Result", **values})
+	doc.insert()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Tender result created"}
+
+
+@frappe.whitelist()
+def update_tender_result(name, data):
+	"""Update a tender result row."""
+	_require_tender_write_access()
+	values = json.loads(data) if isinstance(data, str) else data
+	doc = frappe.get_doc("GE Tender Result", name)
+	doc.update(values)
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Tender result updated"}
+
+
+@frappe.whitelist()
+def delete_tender_result(name):
+	"""Delete a tender result row."""
+	_require_tender_write_access()
+	frappe.delete_doc("GE Tender Result", name)
+	frappe.db.commit()
+	return {"success": True, "message": "Tender result deleted"}
+
+
+@frappe.whitelist()
+def get_tender_result_stats():
+	"""Aggregate tender result stats."""
+	_require_tender_read_access()
+	rows = frappe.get_all("GE Tender Result", fields=["result_stage", "winning_amount", "is_fresh"])
+	return {
+		"success": True,
+		"data": {
+			"total": len(rows),
+			"fresh": sum(1 for row in rows if row.is_fresh),
+			"aoc": sum(1 for row in rows if row.result_stage == "AOC"),
+			"loi_issued": sum(1 for row in rows if row.result_stage == "LoI Issued"),
+			"work_order": sum(1 for row in rows if row.result_stage == "Work Order"),
+			"total_winning_amount": sum(row.winning_amount or 0 for row in rows),
+		},
+	}
+
+
+@frappe.whitelist()
+def get_tender_checklists(status=None, checklist_type=None):
+	"""Return tender checklist templates."""
+	_require_tender_read_access()
+	filters = {}
+	if status:
+		filters["status"] = status
+	if checklist_type:
+		filters["checklist_type"] = checklist_type
+	data = frappe.get_all(
+		"GE Tender Checklist",
+		filters=filters,
+		fields=["name", "checklist_name", "description", "checklist_type", "status", "creation", "modified"],
+		order_by="checklist_name asc",
+	)
+	return {"success": True, "data": data}
+
+
+@frappe.whitelist()
+def get_tender_checklist(name):
+	"""Return one tender checklist template."""
+	_require_tender_read_access()
+	doc = frappe.get_doc("GE Tender Checklist", name)
+	return {"success": True, "data": doc.as_dict()}
+
+
+@frappe.whitelist()
+def create_tender_checklist(data):
+	"""Create a tender checklist template."""
+	_require_tender_write_access()
+	values = json.loads(data) if isinstance(data, str) else data
+	doc = frappe.get_doc({"doctype": "GE Tender Checklist", **values})
+	doc.insert()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Tender checklist created"}
+
+
+@frappe.whitelist()
+def update_tender_checklist(name, data):
+	"""Update a tender checklist template."""
+	_require_tender_write_access()
+	values = json.loads(data) if isinstance(data, str) else data
+	doc = frappe.get_doc("GE Tender Checklist", name)
+	doc.update(values)
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Tender checklist updated"}
+
+
+@frappe.whitelist()
+def delete_tender_checklist(name):
+	"""Delete a tender checklist template."""
+	_require_tender_write_access()
+	frappe.delete_doc("GE Tender Checklist", name)
+	frappe.db.commit()
+	return {"success": True, "message": "Tender checklist deleted"}
+
+
+@frappe.whitelist()
+def get_tender_reminders(tender=None, status=None, remind_user=None):
+	"""Return tender reminders."""
+	_require_tender_read_access()
+	filters = {}
+	if tender:
+		filters["tender"] = tender
+	if status:
+		filters["status"] = status
+	if remind_user:
+		filters["remind_user"] = remind_user
+	data = frappe.get_all(
+		"GE Tender Reminder",
+		filters=filters,
+		fields=[
+			"name", "tender", "reminder_date", "reminder_time",
+			"remind_user", "status", "sent_on", "creation", "modified",
+		],
+		order_by="reminder_date asc, reminder_time asc, creation asc",
+	)
+	return {"success": True, "data": data}
+
+
+@frappe.whitelist()
+def get_tender_reminder(name):
+	"""Return one tender reminder."""
+	_require_tender_read_access()
+	doc = frappe.get_doc("GE Tender Reminder", name)
+	return {"success": True, "data": doc.as_dict()}
+
+
+@frappe.whitelist()
+def create_tender_reminder(data):
+	"""Create a tender reminder."""
+	_require_tender_write_access()
+	values = json.loads(data) if isinstance(data, str) else data
+	doc = frappe.get_doc({"doctype": "GE Tender Reminder", **values})
+	doc.insert()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Tender reminder created"}
+
+
+@frappe.whitelist()
+def update_tender_reminder(name, data):
+	"""Update a tender reminder."""
+	_require_tender_write_access()
+	values = json.loads(data) if isinstance(data, str) else data
+	doc = frappe.get_doc("GE Tender Reminder", name)
+	doc.update(values)
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Tender reminder updated"}
+
+
+@frappe.whitelist()
+def delete_tender_reminder(name):
+	"""Delete a tender reminder."""
+	_require_tender_write_access()
+	frappe.delete_doc("GE Tender Reminder", name)
+	frappe.db.commit()
+	return {"success": True, "message": "Tender reminder deleted"}
+
+
+@frappe.whitelist()
+def mark_tender_reminder_sent(name):
+	"""Mark a tender reminder as sent."""
+	_require_tender_write_access()
+	doc = frappe.get_doc("GE Tender Reminder", name)
+	doc.status = "Sent"
+	doc.sent_on = frappe.utils.now_datetime()
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Tender reminder marked sent"}
+
+
+@frappe.whitelist()
+def dismiss_tender_reminder(name):
+	"""Dismiss a tender reminder."""
+	_require_tender_write_access()
+	doc = frappe.get_doc("GE Tender Reminder", name)
+	doc.status = "Dismissed"
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Tender reminder dismissed"}
+
+
+@frappe.whitelist()
+def get_tender_reminder_stats():
+	"""Aggregate tender reminder stats."""
+	_require_tender_read_access()
+	rows = frappe.get_all("GE Tender Reminder", fields=["status"])
+	return {
+		"success": True,
+		"data": {
+			"total": len(rows),
+			"pending": sum(1 for row in rows if row.status == "Pending"),
+			"sent": sum(1 for row in rows if row.status == "Sent"),
+			"dismissed": sum(1 for row in rows if row.status == "Dismissed"),
+		},
+	}
+
+
+@frappe.whitelist()
+def get_competitors():
+	"""Return competitor master rows."""
+	_require_tender_read_access()
+	data = frappe.get_all(
+		"GE Competitor",
+		fields=[
+			"name", "organization", "company_name", "win_count",
+			"loss_count", "win_rate", "typical_bid_range_min",
+			"typical_bid_range_max", "creation", "modified",
+		],
+		order_by="company_name asc",
+	)
+	return {"success": True, "data": data}
+
+
+@frappe.whitelist()
+def get_competitor(name):
+	"""Return one competitor master row."""
+	_require_tender_read_access()
+	doc = frappe.get_doc("GE Competitor", name)
+	return {"success": True, "data": doc.as_dict()}
+
+
+@frappe.whitelist()
+def create_competitor(data):
+	"""Create a competitor master row."""
+	_require_tender_write_access()
+	values = json.loads(data) if isinstance(data, str) else data
+	doc = frappe.get_doc({"doctype": "GE Competitor", **values})
+	doc.insert()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Competitor created"}
+
+
+@frappe.whitelist()
+def update_competitor(name, data):
+	"""Update a competitor master row."""
+	_require_tender_write_access()
+	values = json.loads(data) if isinstance(data, str) else data
+	doc = frappe.get_doc("GE Competitor", name)
+	doc.update(values)
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Competitor updated"}
+
+
+@frappe.whitelist()
+def delete_competitor(name):
+	"""Delete a competitor master row."""
+	_require_tender_write_access()
+	frappe.delete_doc("GE Competitor", name)
+	frappe.db.commit()
+	return {"success": True, "message": "Competitor deleted"}
+
+
+@frappe.whitelist()
+def get_competitor_stats():
+	"""Aggregate competitor stats."""
+	_require_tender_read_access()
+	rows = frappe.get_all("GE Competitor", fields=["win_count", "loss_count", "win_rate"])
+	return {
+		"success": True,
+		"data": {
+			"total": len(rows),
+			"total_wins": sum(row.win_count or 0 for row in rows),
+			"total_losses": sum(row.loss_count or 0 for row in rows),
+			"average_win_rate": (sum(row.win_rate or 0 for row in rows) / len(rows)) if rows else 0,
+		},
+	}
 
 
 # ── Survey APIs ──────────────────────────────────────────────

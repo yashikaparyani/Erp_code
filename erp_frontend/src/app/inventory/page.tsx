@@ -1,105 +1,72 @@
 'use client';
+import { useEffect, useState } from 'react';
 import { Package, CheckCircle2, AlertTriangle, Truck, Eye, ArrowDownCircle, ArrowUpCircle, ArrowRightCircle } from 'lucide-react';
 
-const inventoryItems = [
-  {
-    id: 'INV-001',
-    name: '5MP Bullet Camera',
-    category: 'Surveillance',
-    source: 'PO-2024-001',
-    vendor: 'Hikvision India Pvt Ltd',
-    total: 480,
-    used: 328,
-    usedPercent: 68,
-    available: 152,
-    location: 'Warehouse A - Zone 1',
-    status: 'In Stock',
-  },
-  {
-    id: 'INV-002',
-    name: '2MP PTZ Camera',
-    category: 'Surveillance',
-    source: 'PO-2024-001',
-    vendor: 'Hikvision India Pvt Ltd',
-    total: 120,
-    used: 98,
-    usedPercent: 82,
-    available: 22,
-    location: 'Warehouse A - Zone 1',
-    status: 'Low Stock',
-  },
-  {
-    id: 'INV-003',
-    name: 'Single Mode Fiber 24 Core',
-    category: 'Network',
-    source: 'PO-2024-002',
-    vendor: 'Sterlite Technologies',
-    total: 15000,
-    used: 8500,
-    usedPercent: 57,
-    available: 6500,
-    location: 'Warehouse B - Zone 2',
-    status: 'In Stock',
-  },
-  {
-    id: 'INV-004',
-    name: '24 Port PoE Switch',
-    category: 'Network',
-    source: 'PO-2024-002',
-    vendor: 'Sterlite Technologies',
-    total: 85,
-    used: 62,
-    usedPercent: 73,
-    available: 23,
-    location: 'Warehouse A - Zone 3',
-    status: 'In Stock',
-  },
-  {
-    id: 'INV-005',
-    name: '4MP Dome Camera',
-    category: 'Surveillance',
-    source: 'PO-2024-003',
-    vendor: 'Hikvision India Pvt Ltd',
-    total: 0,
-    used: 0,
-    usedPercent: 0,
-    available: 0,
-    location: 'In Transit',
-    status: 'In Transit',
-  },
-];
+interface DispatchChallan {
+  name: string;
+  dispatch_date?: string;
+  dispatch_type?: string;
+  status?: string;
+  from_warehouse?: string;
+  to_warehouse?: string;
+  target_site_name?: string;
+  linked_project?: string;
+  total_items?: number;
+  total_qty?: number;
+  creation?: string;
+}
 
-const stockMovements = [
-  {
-    type: 'in',
-    title: 'Stock In - PO-2024-001',
-    description: '480 × 5MP Bullet Camera • Warehouse A',
-    time: 'Today, 10:30 AM',
-    by: 'Sunil Kumar',
-  },
-  {
-    type: 'out',
-    title: 'Stock Out - EXE-001',
-    description: '8 × 5MP Bullet Camera • Rajwada Square',
-    time: 'Today, 09:15 AM',
-    by: 'Amit Patel',
-  },
-  {
-    type: 'transfer',
-    title: 'Transfer - WH-A to WH-B',
-    description: '50 × PoE Switch • Internal Transfer',
-    time: 'Yesterday, 04:45 PM',
-    by: 'Warehouse Manager',
-  },
-];
+interface DCStats {
+  total?: number;
+  draft?: number;
+  pending_approval?: number;
+  approved?: number;
+  dispatched?: number;
+  cancelled?: number;
+  total_qty?: number;
+}
+
+interface StockBin {
+  warehouse?: string;
+  item_code?: string;
+  actual_qty?: number;
+  reserved_qty?: number;
+  ordered_qty?: number;
+  projected_qty?: number;
+}
 
 export default function InventoryPage() {
+  const [challans, setChallans] = useState<DispatchChallan[]>([]);
+  const [stats, setStats] = useState<DCStats>({});
+  const [stockBins, setStockBins] = useState<StockBin[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/dispatch-challans').then(r => r.json()).catch(() => ({ data: [] })),
+      fetch('/api/dispatch-challans/stats').then(r => r.json()).catch(() => ({ data: {} })),
+      fetch('/api/stock-snapshot').then(r => r.json()).catch(() => ({ data: [] })),
+    ]).then(([challansRes, statsRes, stockRes]) => {
+      setChallans(challansRes.data || []);
+      setStats(statsRes.data || {});
+      setStockBins(stockRes.data || []);
+    }).finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
   return (
     <div>
       {/* Header */}
       <div className="mb-4 sm:mb-6">
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Inventory & Logistics</h1>
-        <p className="text-xs sm:text-sm text-gray-500 mt-1">Stock management and warehouse operations</p>
+        <p className="text-xs sm:text-sm text-gray-500 mt-1">Dispatch challans, stock, and warehouse operations</p>
       </div>
 
       {/* Stats Cards */}
@@ -110,11 +77,11 @@ export default function InventoryPage() {
               <Package className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <div className="stat-value">₹11.7 Cr</div>
-              <div className="stat-label">Total Inventory Value</div>
+              <div className="stat-value">{stats.total ?? challans.length}</div>
+              <div className="stat-label">Total Challans</div>
             </div>
           </div>
-          <div className="text-xs text-gray-500 mt-2">5 total items</div>
+          <div className="text-xs text-gray-500 mt-2">{stats.total_qty ?? 0} total qty</div>
         </div>
         
         <div className="stat-card">
@@ -123,24 +90,24 @@ export default function InventoryPage() {
               <CheckCircle2 className="w-5 h-5 text-green-600" />
             </div>
             <div>
-              <div className="stat-value">3</div>
-              <div className="stat-label">In Stock</div>
+              <div className="stat-value">{stats.dispatched ?? 0}</div>
+              <div className="stat-label">Dispatched</div>
             </div>
           </div>
-          <div className="text-xs text-green-600 mt-2">Available for allocation</div>
+          <div className="text-xs text-green-600 mt-2">Delivered</div>
         </div>
         
         <div className="stat-card">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-              <AlertTriangle className="w-5 h-5 text-red-600" />
+            <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+              <AlertTriangle className="w-5 h-5 text-yellow-600" />
             </div>
             <div>
-              <div className="stat-value">1</div>
-              <div className="stat-label">Low Stock</div>
+              <div className="stat-value">{stats.pending_approval ?? 0}</div>
+              <div className="stat-label">Pending Approval</div>
             </div>
           </div>
-          <div className="text-xs text-red-600 mt-2">Requires restocking</div>
+          <div className="text-xs text-yellow-600 mt-2">Awaiting sign-off</div>
         </div>
         
         <div className="stat-card">
@@ -149,85 +116,75 @@ export default function InventoryPage() {
               <Truck className="w-5 h-5 text-orange-600" />
             </div>
             <div>
-              <div className="stat-value">1</div>
-              <div className="stat-label">In Transit</div>
+              <div className="stat-value">{stockBins.length}</div>
+              <div className="stat-label">Stock Items</div>
             </div>
           </div>
-          <div className="text-xs text-gray-500 mt-2">Expected delivery soon</div>
+          <div className="text-xs text-gray-500 mt-2">In warehouse</div>
         </div>
       </div>
 
-      {/* Inventory Table */}
+      {/* Dispatch Challans Table */}
       <div className="card mb-6">
         <div className="card-header">
-          <h3 className="font-semibold text-gray-900">Inventory Items</h3>
+          <h3 className="font-semibold text-gray-900">Dispatch Challans</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="data-table">
             <thead>
               <tr>
-                <th>Item ID</th>
-                <th>Name</th>
-                <th>Category</th>
-                <th>Source</th>
-                <th>Total</th>
-                <th>Used</th>
-                <th>Available</th>
-                <th>Location</th>
+                <th>Challan ID</th>
+                <th>Date</th>
+                <th>Type</th>
+                <th>From</th>
+                <th>To</th>
+                <th>Items</th>
+                <th>Qty</th>
                 <th>Status</th>
                 <th>Action</th>
               </tr>
             </thead>
             <tbody>
-              {inventoryItems.map(item => (
-                <tr key={item.id}>
+              {challans.length === 0 ? (
+                <tr><td colSpan={9} className="text-center py-8 text-gray-500">No dispatch challans found</td></tr>
+              ) : challans.map(ch => (
+                <tr key={ch.name}>
                   <td>
-                    <div className="font-medium text-gray-900">{item.id}</div>
+                    <div className="font-medium text-gray-900">{ch.name}</div>
                   </td>
                   <td>
-                    <div className="font-medium text-gray-900">{item.name}</div>
+                    <div className="text-gray-600">{ch.dispatch_date || '-'}</div>
                   </td>
                   <td>
-                    <span className="badge badge-info">{item.category}</span>
+                    <span className="badge badge-info">{ch.dispatch_type || '-'}</span>
                   </td>
                   <td>
-                    <div className="text-sm text-gray-900">{item.source}</div>
-                    <div className="text-xs text-gray-500">{item.vendor}</div>
+                    <div className="text-sm text-gray-900">{ch.from_warehouse || '-'}</div>
                   </td>
                   <td>
-                    <div className="text-gray-900">{item.total.toLocaleString()}</div>
+                    <div className="text-sm text-gray-900">{ch.to_warehouse || ch.target_site_name || '-'}</div>
                   </td>
                   <td>
-                    <div className="flex items-center gap-2">
-                      <div className="progress-bar w-16">
-                        <div 
-                          className={`progress-fill ${item.usedPercent > 75 ? 'bg-red-500' : 'bg-blue-500'}`}
-                          style={{ width: `${item.usedPercent}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-sm text-gray-600">{item.used.toLocaleString()} <span className="text-xs text-gray-400">{item.usedPercent}% used</span></span>
-                    </div>
+                    <div className="text-gray-600">{ch.total_items ?? 0}</div>
                   </td>
                   <td>
-                    <div className="font-semibold text-gray-900">{item.available.toLocaleString()}</div>
-                  </td>
-                  <td>
-                    <div className="text-sm text-gray-600">{item.location}</div>
+                    <div className="text-gray-600">{ch.total_qty ?? 0}</div>
                   </td>
                   <td>
                     <span className={`badge ${
-                      item.status === 'In Stock' ? 'badge-success' : 
-                      item.status === 'Low Stock' ? 'badge-error' :
-                      item.status === 'In Transit' ? 'badge-warning' : 
+                      ch.status === 'DISPATCHED' ? 'badge-success' : 
+                      ch.status === 'APPROVED' ? 'badge-info' :
+                      ch.status === 'PENDING_APPROVAL' ? 'badge-warning' : 
+                      ch.status === 'CANCELLED' ? 'badge-error' :
                       'badge-gray'
                     }`}>
-                      {item.status}
+                      {ch.status}
                     </span>
                   </td>
                   <td>
                     <button className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1">
                       <Eye className="w-4 h-4" />
-                      View Item Details
+                      View Details
                     </button>
                   </td>
                 </tr>
@@ -237,32 +194,50 @@ export default function InventoryPage() {
         </div>
       </div>
 
-      {/* Recent Stock Movements */}
+      {/* Stock Snapshot */}
       <div className="card">
         <div className="card-header">
-          <h3 className="font-semibold text-gray-900">Recent Stock Movements</h3>
+          <h3 className="font-semibold text-gray-900">Stock Snapshot</h3>
         </div>
-        <div className="card-body">
-          <div className="space-y-4">
-            {stockMovements.map((movement, idx) => (
-              <div key={idx} className="flex items-start gap-4 p-3 bg-gray-50 rounded-lg">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                  movement.type === 'in' ? 'bg-green-100' :
-                  movement.type === 'out' ? 'bg-red-100' :
-                  'bg-blue-100'
-                }`}>
-                  {movement.type === 'in' && <ArrowDownCircle className="w-5 h-5 text-green-600" />}
-                  {movement.type === 'out' && <ArrowUpCircle className="w-5 h-5 text-red-600" />}
-                  {movement.type === 'transfer' && <ArrowRightCircle className="w-5 h-5 text-blue-600" />}
-                </div>
-                <div className="flex-1">
-                  <div className="font-medium text-gray-900">{movement.title}</div>
-                  <div className="text-sm text-gray-600">{movement.description}</div>
-                  <div className="text-xs text-gray-500 mt-1">{movement.time} • By {movement.by}</div>
-                </div>
-              </div>
-            ))}
-          </div>
+        <div className="overflow-x-auto">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Item Code</th>
+                <th>Warehouse</th>
+                <th>Actual Qty</th>
+                <th>Reserved</th>
+                <th>Ordered</th>
+                <th>Projected</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stockBins.length === 0 ? (
+                <tr><td colSpan={6} className="text-center py-8 text-gray-500">No stock data available</td></tr>
+              ) : stockBins.map((bin, idx) => (
+                <tr key={idx}>
+                  <td>
+                    <div className="font-medium text-gray-900">{bin.item_code}</div>
+                  </td>
+                  <td>
+                    <div className="text-gray-600">{bin.warehouse}</div>
+                  </td>
+                  <td>
+                    <div className="text-gray-900">{bin.actual_qty ?? 0}</div>
+                  </td>
+                  <td>
+                    <div className="text-gray-600">{bin.reserved_qty ?? 0}</div>
+                  </td>
+                  <td>
+                    <div className="text-gray-600">{bin.ordered_qty ?? 0}</div>
+                  </td>
+                  <td>
+                    <div className="font-semibold text-gray-900">{bin.projected_qty ?? 0}</div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

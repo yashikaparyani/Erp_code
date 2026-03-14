@@ -1,62 +1,51 @@
 'use client';
+import { useEffect, useState } from 'react';
 import { Plus, MapPin, CheckCircle2, Clock, FileText, Eye } from 'lucide-react';
 
-const surveys = [
-  {
-    id: 'SUR-001',
-    siteId: 'SITE-001',
-    location: 'Rajwada Square Junction',
-    tender: 'TEN-2024-001',
-    tenderName: 'Indore Smart City Surveillance Phase II',
-    coordinates: '22.7196° N, 75.8577° E',
-    surveyor: 'Amit Patel',
-    date: '15/1/2024',
-    cameras: 8,
-    fiber: '1.2 KM',
-    status: 'Approved',
-  },
-  {
-    id: 'SUR-002',
-    siteId: 'SITE-002',
-    location: 'Treasure Island Mall Area',
-    tender: 'TEN-2024-001',
-    tenderName: 'Indore Smart City Surveillance Phase II',
-    coordinates: '22.7533° N, 75.8937° E',
-    surveyor: 'Amit Patel',
-    date: '18/1/2024',
-    cameras: 12,
-    fiber: '2.5 KM',
-    status: 'Approved',
-  },
-  {
-    id: 'SUR-003',
-    siteId: 'SITE-003',
-    location: 'Geeta Bhawan Square',
-    tender: 'TEN-2024-001',
-    tenderName: 'Indore Smart City Surveillance Phase II',
-    coordinates: '22.7242° N, 75.8721° E',
-    surveyor: 'Rahul Singh',
-    date: '22/1/2024',
-    cameras: 6,
-    fiber: '0.8 KM',
-    status: 'Pending Review',
-  },
-  {
-    id: 'SUR-004',
-    siteId: 'SITE-004',
-    location: 'MR 10 Traffic Signal',
-    tender: 'TEN-2024-001',
-    tenderName: 'Indore Smart City Surveillance Phase II',
-    coordinates: '22.7482° N, 75.9063° E',
-    surveyor: 'Amit Patel',
-    date: '25/1/2024',
-    cameras: 4,
-    fiber: '0.5 KM',
-    status: 'Approved',
-  },
-];
+interface Survey {
+  name: string;
+  site_name?: string;
+  location?: string;
+  tender?: string;
+  tender_title?: string;
+  coordinates?: string;
+  surveyor?: string;
+  survey_date?: string;
+  camera_count?: number;
+  fiber_length?: number;
+  status?: string;
+}
+
+interface SurveyStats {
+  total?: number;
+  approved?: number;
+  pending?: number;
+  draft?: number;
+}
 
 export default function SurveyPage() {
+  const [surveys, setSurveys] = useState<Survey[]>([]);
+  const [stats, setStats] = useState<SurveyStats>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/surveys').then(r => r.json()).catch(() => ({ data: [] })),
+      fetch('/api/surveys/stats').then(r => r.json()).catch(() => ({ data: {} })),
+    ]).then(([surveyRes, statsRes]) => {
+      setSurveys(surveyRes.data || []);
+      setStats(statsRes.data || {});
+    }).finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
   return (
     <div>
       {/* Header */}
@@ -79,7 +68,7 @@ export default function SurveyPage() {
               <MapPin className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <div className="stat-value">4</div>
+              <div className="stat-value">{stats.total ?? surveys.length}</div>
               <div className="stat-label">Total Surveys</div>
             </div>
           </div>
@@ -92,7 +81,7 @@ export default function SurveyPage() {
               <CheckCircle2 className="w-5 h-5 text-green-600" />
             </div>
             <div>
-              <div className="stat-value">3</div>
+              <div className="stat-value">{stats.approved ?? 0}</div>
               <div className="stat-label">Approved</div>
             </div>
           </div>
@@ -105,7 +94,7 @@ export default function SurveyPage() {
               <Clock className="w-5 h-5 text-yellow-600" />
             </div>
             <div>
-              <div className="stat-value">1</div>
+              <div className="stat-value">{stats.pending ?? 0}</div>
               <div className="stat-label">Pending Review</div>
             </div>
           </div>
@@ -118,7 +107,7 @@ export default function SurveyPage() {
               <FileText className="w-5 h-5 text-gray-600" />
             </div>
             <div>
-              <div className="stat-value">0</div>
+              <div className="stat-value">{stats.draft ?? 0}</div>
               <div className="stat-label">Draft</div>
             </div>
           </div>
@@ -147,18 +136,20 @@ export default function SurveyPage() {
               </tr>
             </thead>
             <tbody>
-              {surveys.map(survey => (
-                <tr key={survey.id}>
+              {surveys.length === 0 ? (
+                <tr><td colSpan={9} className="text-center py-8 text-gray-500">No surveys found</td></tr>
+              ) : surveys.map(survey => (
+                <tr key={survey.name}>
                   <td>
-                    <div className="font-medium text-gray-900">{survey.id}</div>
-                    <div className="text-xs text-gray-500">{survey.siteId}</div>
+                    <div className="font-medium text-gray-900">{survey.name}</div>
+                    <div className="text-xs text-gray-500">{survey.site_name}</div>
                   </td>
                   <td>
                     <div className="font-medium text-gray-900">{survey.location}</div>
                   </td>
                   <td>
                     <div className="text-sm text-gray-900">{survey.tender}</div>
-                    <div className="text-xs text-gray-500 max-w-xs truncate">{survey.tenderName}</div>
+                    <div className="text-xs text-gray-500 max-w-xs truncate">{survey.tender_title}</div>
                   </td>
                   <td>
                     <div className="text-sm text-gray-600 font-mono">{survey.coordinates}</div>
@@ -167,11 +158,11 @@ export default function SurveyPage() {
                     <div className="text-gray-900">{survey.surveyor}</div>
                   </td>
                   <td>
-                    <div className="text-gray-600">{survey.date}</div>
+                    <div className="text-gray-600">{survey.survey_date}</div>
                   </td>
                   <td>
-                    <div className="text-sm text-gray-900">{survey.cameras} cameras</div>
-                    <div className="text-xs text-gray-500">{survey.fiber}</div>
+                    <div className="text-sm text-gray-900">{survey.camera_count} cameras</div>
+                    <div className="text-xs text-gray-500">{survey.fiber_length ? `${survey.fiber_length} KM` : '-'}</div>
                   </td>
                   <td>
                     <span className={`badge ${

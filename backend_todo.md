@@ -1,5 +1,19 @@
 # Backend Task Split
 
+## BMD Tendering Port
+
+- Use the absorbed BMD tendering design as input only; the `BMD` folder is now removed.
+- Keep `backend/gov_erp` as the only runtime backend app.
+- Tendering compatibility port completed:
+  - `GE Organization`
+  - `GE Tender.organization`
+  - `GE Tender Result`
+  - `GE Tender Checklist`
+  - `GE Tender Reminder`
+  - `GE Competitor`
+  - tendering APIs for all of the above
+  - runtime verification on `dev.localhost`
+
 ## Current Queue
 
 ### Immediate
