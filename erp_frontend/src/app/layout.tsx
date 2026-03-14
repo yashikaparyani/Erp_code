@@ -4,14 +4,14 @@ import { RoleProvider } from '../context/RoleContext';
 import AppShell from '../components/AppShell';
 
 export const metadata = {
-  title: 'City Surveillance - ITMS ERP Platform',
-  description: 'Integrated Traffic Management System ERP Platform',
+  title: 'Technosys ERP',
+  description: 'tailored for your needs and as per experiences',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="bg-gray-50">
+      <body className="bg-gray-50 windows-erp-theme">
         <AuthProvider>
           <RoleProvider>
             <AppShell>

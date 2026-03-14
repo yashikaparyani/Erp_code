@@ -43,25 +43,34 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-blue-950 flex items-center justify-center p-4">
+    <div
+      className="min-h-screen flex items-center justify-center p-4"
+      style={{
+        background: 'radial-gradient(circle at top, #ffe8d9 0, #f8fafc 55%, #edf2f7 100%)',
+      }}
+    >
       {/* Background decoration */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-slate-500/10 rounded-full blur-3xl" />
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-orange-200/30 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-white/40 rounded-full blur-3xl" />
       </div>
 
       <div className="w-full max-w-md relative z-10">
         {/* Logo & Brand */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl shadow-lg shadow-blue-900/50 mb-4">
-            <Building2 className="w-9 h-9 text-white" />
+          <div className="inline-flex items-center justify-center w-24 h-24 mb-4 bg-white/50 rounded-2xl shadow-xl shadow-black/5 p-2">
+            <img src="/logo.png" alt="Technosys Logo" className="object-contain w-full h-full" />
           </div>
-          <h1 className="text-2xl font-bold text-white">City Surveillance</h1>
-          <p className="text-slate-400 text-sm mt-1">ITMS ERP Platform</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+            Technosys ERP
+          </h1>
+          <p className="text-gray-600 text-sm mt-1">
+            tailored for your needs and as per experiences
+          </p>
         </div>
 
         {/* Login Card */}
-        <div className="bg-white rounded-2xl shadow-2xl shadow-black/40 overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-2xl shadow-black/30 overflow-hidden">
           <div className="px-6 py-5 border-b border-gray-100">
             <h2 className="text-lg font-semibold text-gray-900">Sign in to your account</h2>
             <p className="text-sm text-gray-500 mt-0.5">Enter your credentials to continue</p>
@@ -117,7 +126,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg text-sm transition-colors shadow-sm"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 btn-primary disabled:opacity-60 rounded-lg text-sm"
             >
               {isSubmitting ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -149,7 +158,8 @@ export default function LoginPage() {
                     key={user.username}
                     className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors"
                   >
-                    <div className="w-8 h-8 bg-blue-600 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-semibold">
+                    <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-semibold"
+                      style={{ backgroundColor: 'var(--brand-orange)' }}>
                       {getRoleInitials(user.role)}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -160,7 +170,7 @@ export default function LoginPage() {
                       type="button"
                       onClick={() => quickLogin(user.username, user.password)}
                       disabled={isSubmitting}
-                      className="flex-shrink-0 px-2.5 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded-md transition-colors border border-blue-200 disabled:opacity-50"
+                      className="flex-shrink-0 px-2.5 py-1 text-xs font-medium text-orange-600 hover:bg-orange-50 rounded-md transition-colors border border-orange-200 disabled:opacity-50"
                     >
                       Use →
                     </button>
@@ -172,7 +182,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-center text-xs text-slate-500 mt-6">
-          © 2026 ITMS Platform · City Surveillance ERP
+          © 2026 technosys ERP · City Surveillance ERP
         </p>
       </div>
     </div>

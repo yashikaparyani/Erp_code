@@ -26,14 +26,14 @@ export default function TopHeader() {
   if (!currentUser) return null;
 
   return (
-    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-6">
+    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-6 shadow-sm">
       {/* Left section - Project */}
       <div className="flex items-center gap-2 lg:gap-6 min-w-0 flex-1">
         {/* Project Dropdown */}
         <div className="relative min-w-0 flex-shrink">
           <button
             onClick={() => setProjectDropdownOpen(!projectDropdownOpen)}
-            className="flex items-center gap-2 px-2 lg:px-4 py-2 hover:bg-slate-100 rounded-lg transition-colors min-w-0"
+            className="flex items-center gap-2 px-2 lg:px-4 py-2 hover:bg-orange-50 rounded-full transition-colors min-w-0 border border-transparent"
           >
             <span className="text-sm text-gray-700 max-w-[140px] sm:max-w-[240px] lg:max-w-[360px] truncate">
               {currentProject}
@@ -67,7 +67,7 @@ export default function TopHeader() {
           <input
             type="text"
             placeholder="Search..."
-            className="pl-10 pr-4 py-2 w-40 lg:w-64 bg-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
+            className="pl-10 pr-4 py-2 w-40 lg:w-64 bg-gray-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white"
           />
         </div>
 
@@ -81,9 +81,10 @@ export default function TopHeader() {
         <div className="relative flex-shrink-0">
           <button
             onClick={() => setUserMenuOpen(!userMenuOpen)}
-            className="flex items-center gap-2 lg:gap-3 pl-2 lg:pl-4 border-l border-gray-200 hover:bg-gray-50 rounded-lg px-2 py-1.5 transition-colors"
+            className="flex items-center gap-2 lg:gap-3 pl-2 lg:pl-4 border-l border-gray-200 hover:bg-gray-50 rounded-full px-2 py-1.5 transition-colors"
           >
-            <div className="w-8 h-8 bg-blue-600 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-semibold">
+            <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-semibold"
+                 style={{ backgroundColor: 'var(--brand-orange)' }}>
               {getRoleInitials(currentUser.role)}
             </div>
             <div className="text-left min-w-0 hidden sm:block">
@@ -102,7 +103,8 @@ export default function TopHeader() {
               {/* User info header */}
               <div className="px-4 py-3 border-b border-gray-100">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
+                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0"
+                       style={{ backgroundColor: 'var(--brand-orange)' }}>
                     {getRoleInitials(currentUser.role)}
                   </div>
                   <div className="min-w-0">
@@ -110,7 +112,7 @@ export default function TopHeader() {
                     <div className="text-xs text-gray-500 truncate">{currentUser.email}</div>
                   </div>
                 </div>
-                <div className="mt-2.5 px-2 py-0.5 bg-blue-50 rounded text-xs text-blue-700 font-medium inline-block">
+                <div className="mt-2.5 px-2 py-0.5 bg-orange-50 rounded text-xs text-orange-700 font-medium inline-block">
                   {currentUser.role}
                 </div>
               </div>

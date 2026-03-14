@@ -2,17 +2,17 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
-import { 
-  LayoutDashboard, 
-  FileText, 
-  MapPin, 
-  Settings, 
-  ShoppingCart, 
-  Package, 
-  Wrench, 
-  HeadphonesIcon, 
-  DollarSign, 
-  BarChart3, 
+import {
+  LayoutDashboard,
+  FileText,
+  MapPin,
+  Settings,
+  ShoppingCart,
+  Package,
+  Wrench,
+  HeadphonesIcon,
+  DollarSign,
+  BarChart3,
   FolderOpen,
   Building2,
   Database,
@@ -86,15 +86,15 @@ const filterAccessibleNavLinks = (links: NavLink[], hasAccess: (path: string) =>
 
 const navLinks: NavLink[] = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { 
-    name: 'Pre-Sales & Budgeting', 
-    href: '/pre-sales', 
+  {
+    name: 'Pre-Sales & Budgeting',
+    href: '/pre-sales',
     icon: FileText,
     children: [
       { name: 'Tender', href: '/pre-sales/tender', icon: FileSearch },
       { name: 'Tender Result', href: '/pre-sales/tender-result', icon: Trophy },
-      { 
-        name: 'Analytics', 
+      {
+        name: 'Analytics',
         href: '/pre-sales/analytics',
         icon: TrendingUp,
         children: [
@@ -106,8 +106,8 @@ const navLinks: NavLink[] = [
           { name: 'Missed Opportunity', href: '/pre-sales/analytics/missed-opportunity' },
         ]
       },
-      { 
-        name: 'Tender Task', 
+      {
+        name: 'Tender Task',
         href: '/pre-sales/tender-task',
         icon: ListTodo,
         children: [
@@ -118,8 +118,8 @@ const navLinks: NavLink[] = [
           { name: 'Dropped Tender', href: '/pre-sales/tender-task/dropped' },
         ]
       },
-      { 
-        name: 'Finance Management', 
+      {
+        name: 'Finance Management',
         href: '/pre-sales/finance',
         icon: CreditCard,
         children: [
@@ -129,8 +129,8 @@ const navLinks: NavLink[] = [
           { name: 'Completed Request', href: '/pre-sales/finance/completed-request' },
         ]
       },
-      { 
-        name: 'MIS', 
+      {
+        name: 'MIS',
         href: '/pre-sales/mis',
         icon: PieChart,
         children: [
@@ -139,8 +139,8 @@ const navLinks: NavLink[] = [
           { name: 'Login MIS', href: '/pre-sales/mis/login' },
         ]
       },
-      { 
-        name: 'Document Management', 
+      {
+        name: 'Document Management',
         href: '/pre-sales/documents',
         icon: Files,
         children: [
@@ -216,14 +216,13 @@ function SubMenu({ items, level = 0, onNavigate }: { items: SubMenuItem[], level
 
         return (
           <li key={item.href}>
-            <div 
-              className={`flex items-center justify-between ${paddingLeft} pr-3 py-2 rounded-lg text-sm transition-all duration-200 cursor-pointer ${
-                isCurrentRoute && !hasChildren
-                  ? 'bg-blue-600/20 text-blue-400' 
-                  : hasChildren && (isCurrentRoute || isDescendantActive)
-                    ? 'bg-slate-800 text-slate-100'
+            <div
+              className={`flex items-center justify-between ${paddingLeft} pr-3 py-2 rounded-lg text-sm transition-all duration-200 cursor-pointer ${isCurrentRoute && !hasChildren
+                ? 'bg-blue-600/20 text-blue-400'
+                : hasChildren && (isCurrentRoute || isDescendantActive)
+                  ? 'bg-slate-800 text-slate-100'
                   : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-              }`}
+                }`}
               onClick={() => hasChildren ? toggleExpand(item.href, isExpanded) : null}
             >
               {hasChildren ? (
@@ -238,7 +237,7 @@ function SubMenu({ items, level = 0, onNavigate }: { items: SubMenuItem[], level
                 </Link>
               )}
               {hasChildren && (
-                isExpanded 
+                isExpanded
                   ? <ChevronDown className="w-4 h-4 text-slate-500" />
                   : <ChevronRight className="w-4 h-4 text-slate-500" />
               )}
@@ -258,7 +257,7 @@ export default function Sidebar() {
   const { hasAccess } = useRole();
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean | undefined>>({});
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  
+
   // Filter navigation links based on role access
   const accessibleLinks = filterAccessibleNavLinks(navLinks, hasAccess);
 
@@ -273,13 +272,14 @@ export default function Sidebar() {
   const handleLinkClick = () => {
     setIsMobileOpen(false);
   };
-  
+
   return (
     <>
       {/* Mobile Menu Button */}
       <button
         onClick={() => setIsMobileOpen(!isMobileOpen)}
-        className="lg:hidden fixed bottom-4 right-4 z-50 p-3 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-colors"
+        className="lg:hidden fixed bottom-4 right-4 z-50 p-3 text-white rounded-full shadow-lg transition-colors"
+        style={{ backgroundColor: 'var(--brand-orange)' }}
       >
         {isMobileOpen ? (
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -294,7 +294,7 @@ export default function Sidebar() {
 
       {/* Mobile Overlay */}
       {isMobileOpen && (
-        <div 
+        <div
           className="lg:hidden fixed inset-0 bg-black/50 z-40"
           onClick={() => setIsMobileOpen(false)}
         />
@@ -302,49 +302,52 @@ export default function Sidebar() {
 
       {/* Sidebar */}
       <aside className={`
-        w-72 min-w-[288px] flex-shrink-0 bg-slate-900 min-h-screen flex flex-col overflow-y-auto
-        fixed lg:static inset-y-0 left-0 z-50
+        w-72 min-w-[288px] flex-shrink-0 bg-white min-h-screen flex flex-col overflow-y-auto
+        fixed lg:static inset-y-0 left-0 z-50 border-r border-gray-200
         transform transition-transform duration-300 ease-in-out
         ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
-      {/* Logo Section */}
-      <div className="p-4 lg:p-6 border-b border-slate-700">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-            <Building2 className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold text-white">City Surveillance</h1>
-            <div className="text-xs text-slate-400">ITMS ERP Platform</div>
+        {/* Logo Section */}
+        <div className="p-4 lg:p-6 border-b border-gray-200 bg-white">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 flex items-center justify-center shrink-0">
+              <img src="/logo.png" alt="Technosys Logo" className="object-contain w-full h-full drop-shadow-sm" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-sm lg:text-base font-bold text-gray-900 leading-tight truncate">
+                Technosys ERP
+              </h1>
+              <div className="text-[11px] text-gray-500 truncate" title="tailored for your needs and as per experiences">
+                tailored for your needs and as per experiences
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-      
-      {/* Navigation */}
-      <nav className="flex-1 p-4">
-        <ul className="space-y-1">
-          {accessibleLinks.map(link => {
-            const isActive = matchesPath(pathname, link.href);
-            const isInSection = link.children?.some(child => isItemActive(pathname, child)) ?? false;
-            const hasChildren = link.children && link.children.length > 0;
-            const isExpanded = hasChildren ? expandedMenus[link.name] ?? (isActive || isInSection) : false;
-            const canAccessLink = hasAccess(link.href);
-            const Icon = link.icon;
 
-            return (
-              <li key={link.href}>
-                <div 
-                  className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    isActive 
-                      ? 'bg-blue-600 text-white'
+        {/* Navigation */}
+        <nav className="flex-1 p-4">
+          <ul className="space-y-1">
+            {accessibleLinks.map(link => {
+              const isActive = matchesPath(pathname, link.href);
+              const isInSection = link.children?.some(child => isItemActive(pathname, child)) ?? false;
+              const hasChildren = link.children && link.children.length > 0;
+              const isExpanded = hasChildren ? expandedMenus[link.name] ?? (isActive || isInSection) : false;
+              const canAccessLink = hasAccess(link.href);
+              const Icon = link.icon;
+
+              return (
+                <li key={link.href}>
+                  <div
+                    className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
+                      ? 'bg-[var(--brand-orange)] text-white'
                       : isInSection
-                        ? 'bg-slate-800 text-white'
-                        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                  }`}
-                >
+                        ? 'bg-orange-50 text-orange-700'
+                        : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                      }`}
+                  >
                     {canAccessLink ? (
-                      <Link 
-                        href={link.href} 
+                      <Link
+                        href={link.href}
                         className="flex items-center gap-3 flex-1"
                         onClick={() => {
                           if (hasChildren && !isExpanded) {
@@ -366,38 +369,38 @@ export default function Sidebar() {
                         <span>{link.name}</span>
                       </button>
                     )}
-                  {hasChildren && (
-                    <button 
+                    {hasChildren && (
+                      <button
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
                           toggleMenu(link.name, isExpanded);
                         }}
-                      className="p-1 hover:bg-slate-700 rounded"
-                    >
-                      {isExpanded 
-                        ? <ChevronDown className="w-4 h-4" />
-                        : <ChevronRight className="w-4 h-4" />
-                      }
-                    </button>
+                        className="p-1 hover:bg-gray-200 rounded"
+                      >
+                        {isExpanded
+                          ? <ChevronDown className="w-4 h-4" />
+                          : <ChevronRight className="w-4 h-4" />
+                        }
+                      </button>
+                    )}
+                  </div>
+                  {hasChildren && isExpanded && (
+                    <SubMenu items={link.children!} onNavigate={handleLinkClick} />
                   )}
-                </div>
-                {hasChildren && isExpanded && (
-                  <SubMenu items={link.children!} onNavigate={handleLinkClick} />
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
-      
-      {/* Footer */}
-      <div className="p-4 border-t border-slate-700">
-        <div className="text-xs text-slate-500 text-center">
-          © 2026 ITMS Platform
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-gray-200 bg-white">
+          <div className="text-xs text-gray-400 text-center">
+            © 2026 technosys ERP
+          </div>
         </div>
-      </div>
-    </aside>
+      </aside>
     </>
   );
 }
