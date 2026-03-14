@@ -53,7 +53,7 @@ No negative stock allowed
 Ledger-based movements (audit trail)
 Serialized tracking for IP devices (cameras, servers etc.)
 Module 6: 🔨 Project Execution + Dependency Engine
-Project types: ITMS / Surveillance / Solar / O&M / AMC
+Project types: erp / Surveillance / Solar / O&M / AMC
 Sites per project with status
 Milestones + Tasks (planned vs actual dates)
 Dependency Engine: Block progress if prerequisites incomplete → show blocking reason → override only by Dept Head with justification
@@ -167,4 +167,4 @@ Week 15-16: Billing + Payments + Retention
 Week 17-18: O&M + Ticketing + SLA
 Week 19-20: DMS + Alerts + Dashboards + Testing
 🎯 Summary — Ek Line Mein
-Tu ek Govt Project specific ERP bana raha hai jisme Tender se leke Commissioning aur O&M ticketing tak ka poora lifecycle cover hoga — ERPNext framework par custom DocTypes/Workflows use karke, primarily apni company ke CCTV/ITMS/Surveillance government projects manage karne ke liye.
+Tu ek Govt Project specific ERP bana raha hai jisme Tender se leke Commissioning aur O&M ticketing tak ka poora lifecycle cover hoga — ERPNext framework par custom DocTypes/Workflows use karke, primarily apni company ke CCTV/erp/Surveillance government projects manage karne ke liye.

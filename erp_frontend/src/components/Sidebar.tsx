@@ -44,6 +44,46 @@ interface NavLink {
   children?: SubMenuItem[];
 }
 
+const matchesPath = (pathname: string, href: string) => pathname === href || pathname.startsWith(href + '/');
+
+const isItemActive = (pathname: string, item: SubMenuItem) => {
+  if (matchesPath(pathname, item.href)) {
+    return true;
+  }
+
+  return item.children?.some(child => isItemActive(pathname, child)) ?? false;
+};
+
+const filterAccessibleItems = (items: SubMenuItem[], hasAccess: (path: string) => boolean): SubMenuItem[] => {
+  return items.reduce<SubMenuItem[]>((visibleItems, item) => {
+    const visibleChildren = item.children ? filterAccessibleItems(item.children, hasAccess) : undefined;
+
+    if (hasAccess(item.href) || (visibleChildren?.length ?? 0) > 0) {
+      visibleItems.push({
+        ...item,
+        children: visibleChildren,
+      });
+    }
+
+    return visibleItems;
+  }, []);
+};
+
+const filterAccessibleNavLinks = (links: NavLink[], hasAccess: (path: string) => boolean): NavLink[] => {
+  return links.reduce<NavLink[]>((visibleLinks, link) => {
+    const visibleChildren = link.children ? filterAccessibleItems(link.children, hasAccess) : undefined;
+
+    if (hasAccess(link.href) || (visibleChildren?.length ?? 0) > 0) {
+      visibleLinks.push({
+        ...link,
+        children: visibleChildren,
+      });
+    }
+
+    return visibleLinks;
+  }, []);
+};
+
 const navLinks: NavLink[] = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { 
@@ -109,51 +149,68 @@ const navLinks: NavLink[] = [
         ]
       },
       { name: "Approval's", href: '/pre-sales/approvals', icon: CheckSquare },
-      { 
-        name: 'Settings', 
-        href: '/pre-sales/settings',
-        icon: Cog,
-        children: [
-          { name: 'Department', href: '/pre-sales/settings/department' },
-          { name: 'Designation', href: '/pre-sales/settings/designation' },
-          { name: 'Role', href: '/pre-sales/settings/role' },
-          { name: 'User Management', href: '/pre-sales/settings/user-management' },
-          { name: 'Check List', href: '/pre-sales/settings/checklist' },
-        ]
-      },
     ]
   },
-  { name: 'Survey', href: '/survey', icon: MapPin },
-  { name: 'Engineering', href: '/engineering', icon: Settings },
+  {
+    name: 'Settings',
+    href: '/pre-sales/settings',
+    icon: Cog,
+    children: [
+      { name: 'Department', href: '/pre-sales/settings/department' },
+      { name: 'Designation', href: '/pre-sales/settings/designation' },
+      { name: 'Role', href: '/pre-sales/settings/role' },
+      { name: 'User Management', href: '/pre-sales/settings/user-management' },
+      { name: 'Check List', href: '/pre-sales/settings/checklist' },
+    ]
+  },
+  {
+    name: 'Engineering',
+    href: '/engineering',
+    icon: Settings,
+    children: [
+      { name: 'Survey', href: '/survey', icon: MapPin },
+      { name: 'BOQ', href: '/engineering/boq', icon: FileText },
+    ]
+  },
   { name: 'Procurement', href: '/procurement', icon: ShoppingCart },
   { name: 'Inventory', href: '/inventory', icon: Package },
   { name: 'Execution (I&C)', href: '/execution', icon: Wrench },
   { name: 'O&M & Helpdesk', href: '/om-helpdesk', icon: HeadphonesIcon },
-  { name: 'Finance', href: '/finance', icon: DollarSign },
+  {
+    name: 'Finance',
+    href: '/finance',
+    icon: DollarSign,
+    children: [
+      { name: 'Costing', href: '/finance/costing', icon: PieChart },
+      { name: 'Billing', href: '/finance/billing', icon: CreditCard },
+    ]
+  },
   { name: 'Reports', href: '/reports', icon: BarChart3 },
   { name: 'Document Management', href: '/documents', icon: FolderOpen },
   { name: 'Master Data', href: '/master-data', icon: Database },
 ];
 
 // Recursive SubMenu Component
-function SubMenu({ items, level = 0 }: { items: SubMenuItem[], level?: number }) {
+function SubMenu({ items, level = 0, onNavigate }: { items: SubMenuItem[], level?: number, onNavigate?: () => void }) {
   const pathname = usePathname();
-  const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const { hasAccess } = useRole();
+  const [expandedItems, setExpandedItems] = useState<Record<string, boolean | undefined>>({});
+  const accessibleItems = filterAccessibleItems(items, hasAccess);
 
-  const toggleExpand = (name: string) => {
-    setExpandedItems(prev => 
-      prev.includes(name) 
-        ? prev.filter(item => item !== name)
-        : [...prev, name]
-    );
+  const toggleExpand = (href: string, isExpanded: boolean) => {
+    setExpandedItems(prev => ({
+      ...prev,
+      [href]: !isExpanded,
+    }));
   };
 
   return (
     <ul className={`space-y-0.5 ${level === 0 ? 'mt-1' : 'mt-0.5'}`}>
-      {items.map(item => {
-        const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+      {accessibleItems.map(item => {
+        const isCurrentRoute = matchesPath(pathname, item.href);
         const hasChildren = item.children && item.children.length > 0;
-        const isExpanded = expandedItems.includes(item.name);
+        const isDescendantActive = item.children?.some(child => isItemActive(pathname, child)) ?? false;
+        const isExpanded = hasChildren ? expandedItems[item.href] ?? isDescendantActive : false;
         const Icon = item.icon;
         const paddingLeft = level === 0 ? 'pl-8' : level === 1 ? 'pl-12' : 'pl-16';
 
@@ -161,11 +218,13 @@ function SubMenu({ items, level = 0 }: { items: SubMenuItem[], level?: number })
           <li key={item.href}>
             <div 
               className={`flex items-center justify-between ${paddingLeft} pr-3 py-2 rounded-lg text-sm transition-all duration-200 cursor-pointer ${
-                isActive && !hasChildren
+                isCurrentRoute && !hasChildren
                   ? 'bg-blue-600/20 text-blue-400' 
+                  : hasChildren && (isCurrentRoute || isDescendantActive)
+                    ? 'bg-slate-800 text-slate-100'
                   : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
               }`}
-              onClick={() => hasChildren ? toggleExpand(item.name) : null}
+              onClick={() => hasChildren ? toggleExpand(item.href, isExpanded) : null}
             >
               {hasChildren ? (
                 <div className="flex items-center gap-2 flex-1">
@@ -173,7 +232,7 @@ function SubMenu({ items, level = 0 }: { items: SubMenuItem[], level?: number })
                   <span>{item.name}</span>
                 </div>
               ) : (
-                <Link href={item.href} className="flex items-center gap-2 flex-1">
+                <Link href={item.href} className="flex items-center gap-2 flex-1" onClick={onNavigate}>
                   {Icon && <Icon className="w-4 h-4" />}
                   <span>{item.name}</span>
                 </Link>
@@ -185,7 +244,7 @@ function SubMenu({ items, level = 0 }: { items: SubMenuItem[], level?: number })
               )}
             </div>
             {hasChildren && isExpanded && (
-              <SubMenu items={item.children!} level={level + 1} />
+              <SubMenu items={item.children!} level={level + 1} onNavigate={onNavigate} />
             )}
           </li>
         );
@@ -197,18 +256,17 @@ function SubMenu({ items, level = 0 }: { items: SubMenuItem[], level?: number })
 export default function Sidebar() {
   const pathname = usePathname();
   const { hasAccess } = useRole();
-  const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
+  const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean | undefined>>({});
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   
   // Filter navigation links based on role access
-  const accessibleLinks = navLinks.filter(link => hasAccess(link.href));
+  const accessibleLinks = filterAccessibleNavLinks(navLinks, hasAccess);
 
-  const toggleMenu = (name: string) => {
-    setExpandedMenus(prev => 
-      prev.includes(name) 
-        ? prev.filter(item => item !== name)
-        : [...prev, name]
-    );
+  const toggleMenu = (name: string, isExpanded: boolean) => {
+    setExpandedMenus(prev => ({
+      ...prev,
+      [name]: !isExpanded,
+    }));
   };
 
   // Close mobile menu when route changes
@@ -266,10 +324,11 @@ export default function Sidebar() {
       <nav className="flex-1 p-4">
         <ul className="space-y-1">
           {accessibleLinks.map(link => {
-            const isActive = pathname === link.href;
-            const isInSection = link.children && pathname.startsWith(link.href);
+            const isActive = matchesPath(pathname, link.href);
+            const isInSection = link.children?.some(child => isItemActive(pathname, child)) ?? false;
             const hasChildren = link.children && link.children.length > 0;
-            const isExpanded = expandedMenus.includes(link.name) || isInSection;
+            const isExpanded = hasChildren ? expandedMenus[link.name] ?? (isActive || isInSection) : false;
+            const canAccessLink = hasAccess(link.href);
             const Icon = link.icon;
 
             return (
@@ -283,17 +342,37 @@ export default function Sidebar() {
                         : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                   }`}
                 >
-                  <Link 
-                    href={link.href} 
-                    className="flex items-center gap-3 flex-1"
-                    onClick={() => hasChildren && !expandedMenus.includes(link.name) ? toggleMenu(link.name) : null}
-                  >
-                    <Icon className="w-5 h-5" />
-                    <span>{link.name}</span>
-                  </Link>
+                    {canAccessLink ? (
+                      <Link 
+                        href={link.href} 
+                        className="flex items-center gap-3 flex-1"
+                        onClick={() => {
+                          if (hasChildren && !isExpanded) {
+                            toggleMenu(link.name, isExpanded);
+                          }
+                          handleLinkClick();
+                        }}
+                      >
+                        <Icon className="w-5 h-5" />
+                        <span>{link.name}</span>
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        className="flex items-center gap-3 flex-1 text-left"
+                        onClick={() => hasChildren ? toggleMenu(link.name, isExpanded) : null}
+                      >
+                        <Icon className="w-5 h-5" />
+                        <span>{link.name}</span>
+                      </button>
+                    )}
                   {hasChildren && (
                     <button 
-                      onClick={(e) => { e.preventDefault(); toggleMenu(link.name); }}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          toggleMenu(link.name, isExpanded);
+                        }}
                       className="p-1 hover:bg-slate-700 rounded"
                     >
                       {isExpanded 
@@ -304,7 +383,7 @@ export default function Sidebar() {
                   )}
                 </div>
                 {hasChildren && isExpanded && (
-                  <SubMenu items={link.children!} />
+                  <SubMenu items={link.children!} onNavigate={handleLinkClick} />
                 )}
               </li>
             );

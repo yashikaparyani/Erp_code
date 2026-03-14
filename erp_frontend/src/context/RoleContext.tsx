@@ -1,9 +1,11 @@
 'use client';
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, ReactNode } from 'react';
+import { useAuth } from './AuthContext';
 
 export type Role = 
   | 'Director'
   | 'Department Head'
+  | 'HR Head'
   | 'Presales Tendering Head'
   | 'Engineering Head'
   | 'Engineer'
@@ -17,6 +19,7 @@ export type Role =
 export const roles: Role[] = [
   'Director',
   'Department Head',
+  'HR Head',
   'Presales Tendering Head',
   'Engineering Head',
   'Engineer',
@@ -56,6 +59,12 @@ export const roleAccess: Record<Role, string[]> = {
     '/finance',
     '/reports',
     '/documents',
+  ],
+  'HR Head': [
+    '/',
+    '/reports',
+    '/documents',
+    '/master-data',
   ],
   'Presales Tendering Head': [
     '/',
@@ -141,6 +150,7 @@ export const getRoleInitials = (role: Role): string => {
   const initialsMap: Record<Role, string> = {
     'Director': 'DI',
     'Department Head': 'DH',
+    'HR Head': 'HR',
     'Presales Tendering Head': 'PT',
     'Engineering Head': 'EH',
     'Engineer': 'EN',
@@ -156,21 +166,28 @@ export const getRoleInitials = (role: Role): string => {
 
 interface RoleContextType {
   currentRole: Role;
-  setCurrentRole: (role: Role) => void;
   hasAccess: (path: string) => boolean;
 }
 
 const RoleContext = createContext<RoleContextType | undefined>(undefined);
 
 export function RoleProvider({ children }: { children: ReactNode }) {
-  const [currentRole, setCurrentRole] = useState<Role>('Project Manager');
+  const { currentUser } = useAuth();
+  const currentRole: Role = currentUser?.role ?? 'Project Manager';
+  const settingsAllowedRoles: Role[] = ['Director', 'Department Head', 'Project Manager'];
 
   const hasAccess = (path: string): boolean => {
-    return roleAccess[currentRole].includes(path);
+    if (path === '/pre-sales/settings' || path.startsWith('/pre-sales/settings/')) {
+      return settingsAllowedRoles.includes(currentRole);
+    }
+
+    return roleAccess[currentRole].some(allowedPath => {
+      return path === allowedPath || path.startsWith(allowedPath + '/');
+    });
   };
 
   return (
-    <RoleContext.Provider value={{ currentRole, setCurrentRole, hasAccess }}>
+    <RoleContext.Provider value={{ currentRole, hasAccess }}>
       {children}
     </RoleContext.Provider>
   );

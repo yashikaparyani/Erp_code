@@ -1,83 +1,52 @@
 'use client';
 import { useState } from 'react';
-import { ChevronDown, Bell, Search, User } from 'lucide-react';
-import { useRole, roles, getRoleInitials, Role } from '../context/RoleContext';
+import { useRouter } from 'next/navigation';
+import { ChevronDown, Bell, Search, LogOut, User } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { getRoleInitials } from '../context/RoleContext';
 
 const projects = [
   'Indore Smart City Surveillance Phase II',
   'Bhopal Traffic Management System',
-  'Gwalior Police Surveillance Network'
+  'Gwalior Police Surveillance Network',
 ];
 
 export default function TopHeader() {
-  const { currentRole, setCurrentRole } = useRole();
+  const { currentUser, logout } = useAuth();
+  const router = useRouter();
   const [currentProject, setCurrentProject] = useState('Indore Smart City Surveillance Phase II');
-  const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
   const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
-  const handleRoleChange = (role: Role) => {
-    setCurrentRole(role);
-    setRoleDropdownOpen(false);
+  const handleLogout = () => {
+    logout();
+    router.replace('/login');
   };
+
+  if (!currentUser) return null;
 
   return (
     <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-6">
-      {/* Left section - Project & Role */}
+      {/* Left section - Project */}
       <div className="flex items-center gap-2 lg:gap-6 min-w-0 flex-1">
-        {/* Current Role Dropdown */}
-        <div className="relative flex-shrink-0">
-          <button 
-            onClick={() => {setRoleDropdownOpen(!roleDropdownOpen); setProjectDropdownOpen(false);}}
-            className="flex items-center gap-2 px-2 lg:px-4 py-2 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors min-w-0"
-          >
-            <div className="w-8 h-8 bg-blue-600 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-semibold">
-              {getRoleInitials(currentRole)}
-            </div>
-            <div className="text-left min-w-0 max-w-[80px] lg:max-w-[120px] hidden sm:block">
-              <div className="text-xs text-gray-500">Current Role</div>
-              <div className="text-sm font-medium text-gray-900 truncate">{currentRole}</div>
-            </div>
-            <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
-          </button>
-          
-          {roleDropdownOpen && (
-            <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
-              {roles.map(role => (
-                <button
-                  key={role}
-                  onClick={() => handleRoleChange(role)}
-                  className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center gap-3 ${
-                    currentRole === role ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
-                  }`}
-                >
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold ${
-                    currentRole === role ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
-                  }`}>
-                    {getRoleInitials(role)}
-                  </div>
-                  {role}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
         {/* Project Dropdown */}
         <div className="relative min-w-0 flex-shrink">
-          <button 
-            onClick={() => {setProjectDropdownOpen(!projectDropdownOpen); setRoleDropdownOpen(false);}}
+          <button
+            onClick={() => setProjectDropdownOpen(!projectDropdownOpen)}
             className="flex items-center gap-2 px-2 lg:px-4 py-2 hover:bg-slate-100 rounded-lg transition-colors min-w-0"
           >
-            <span className="text-sm text-gray-700 max-w-[120px] sm:max-w-[180px] lg:max-w-[300px] truncate">{currentProject}</span>
+            <span className="text-sm text-gray-700 max-w-[140px] sm:max-w-[240px] lg:max-w-[360px] truncate">
+              {currentProject}
+            </span>
             <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
           </button>
-          
+
           {projectDropdownOpen && (
             <div className="absolute top-full left-0 mt-1 w-80 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
               {projects.map(project => (
                 <button
                   key={project}
-                  onClick={() => {setCurrentProject(project); setProjectDropdownOpen(false);}}
+                  onClick={() => { setCurrentProject(project); setProjectDropdownOpen(false); }}
                   className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
                     currentProject === project ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
                   }`}
@@ -90,33 +59,80 @@ export default function TopHeader() {
         </div>
       </div>
 
-      {/* Right section - Search, Notifications, User */}
+      {/* Right section */}
       <div className="flex items-center gap-2 lg:gap-4 flex-shrink-0">
         {/* Search */}
         <div className="relative hidden md:block">
           <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-          <input 
-            type="text" 
-            placeholder="Search..." 
+          <input
+            type="text"
+            placeholder="Search..."
             className="pl-10 pr-4 py-2 w-40 lg:w-64 bg-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
           />
         </div>
-        
+
         {/* Notifications */}
         <button className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0">
           <Bell className="w-5 h-5 text-gray-600" />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
         </button>
-        
+
         {/* User Menu */}
-        <div className="flex items-center gap-2 lg:gap-3 pl-2 lg:pl-4 border-l border-gray-200 flex-shrink-0">
-          <div className="w-8 h-8 bg-blue-600 rounded-full flex-shrink-0 flex items-center justify-center">
-            <User className="w-4 h-4 text-white" />
-          </div>
-          <div className="text-right min-w-0 hidden sm:block">
-            <div className="text-sm font-medium text-gray-900 truncate max-w-[80px] lg:max-w-[100px]">Admin User</div>
-            <div className="text-xs text-gray-500 truncate max-w-[80px] lg:max-w-[100px]">{currentRole}</div>
-          </div>
+        <div className="relative flex-shrink-0">
+          <button
+            onClick={() => setUserMenuOpen(!userMenuOpen)}
+            className="flex items-center gap-2 lg:gap-3 pl-2 lg:pl-4 border-l border-gray-200 hover:bg-gray-50 rounded-lg px-2 py-1.5 transition-colors"
+          >
+            <div className="w-8 h-8 bg-blue-600 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-semibold">
+              {getRoleInitials(currentUser.role)}
+            </div>
+            <div className="text-left min-w-0 hidden sm:block">
+              <div className="text-sm font-medium text-gray-900 truncate max-w-[90px] lg:max-w-[130px]">
+                {currentUser.name}
+              </div>
+              <div className="text-xs text-gray-500 truncate max-w-[90px] lg:max-w-[130px]">
+                {currentUser.role}
+              </div>
+            </div>
+            <ChevronDown className="w-4 h-4 text-gray-400 hidden sm:block" />
+          </button>
+
+          {userMenuOpen && (
+            <div className="absolute top-full right-0 mt-1 w-60 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+              {/* User info header */}
+              <div className="px-4 py-3 border-b border-gray-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
+                    {getRoleInitials(currentUser.role)}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-gray-900 truncate">{currentUser.name}</div>
+                    <div className="text-xs text-gray-500 truncate">{currentUser.email}</div>
+                  </div>
+                </div>
+                <div className="mt-2.5 px-2 py-0.5 bg-blue-50 rounded text-xs text-blue-700 font-medium inline-block">
+                  {currentUser.role}
+                </div>
+              </div>
+
+              {/* Profile placeholder */}
+              <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                <User className="w-4 h-4 text-gray-400" />
+                View Profile
+              </button>
+
+              {/* Logout */}
+              <div className="border-t border-gray-100 mt-1 pt-1">
+                <button
+                  onClick={handleLogout}
+                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 font-medium"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Sign Out
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </header>

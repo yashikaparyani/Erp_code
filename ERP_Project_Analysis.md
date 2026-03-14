@@ -12,7 +12,7 @@
 |------|------|---------|
 | `frs and db schema fields.docx` | **📋 Main FRS (Functional Requirements Spec)** | Yahi hai core document — **isko build karna hai** |
 | `RFPforCitySurveillanceSystem.pdf` | Government Tender (PPHC Punjab) | Real-world client project jiske liye yeh ERP banaya ja raha hai |
-| `Golive-23.12.2024.pdf` | Project Completion Certificate | Punjab Police Surveillance + ITMS project — **go-live ho chuka** |
+| `Golive-23.12.2024.pdf` | Project Completion Certificate | Punjab Police Surveillance + erp project — **go-live ho chuka** |
 | `SAS Nagar Punjab Mohali Synopsis.xlsx` | BOQ/Scope Summary | Site-wise material breakdown |
 | `BOQ PPHC 01.01.204.xlsx` | Bill of Quantities | Material list with quantities |
 | `Master Compliance PPHC.xlsx` | Compliance Checklist | Technical specs compliance tracking |
@@ -29,7 +29,7 @@
 ## 🧠 Background — Context Samajhna
 
 Teri company (**Technosys / Infobase**) ne:
-- Punjab Police **City Surveillance + ITMS project** execute kiya
+- Punjab Police **City Surveillance + erp project** execute kiya
 - **Contract value: ₹1770 Lakhs**
 - **Location:** S.A.S. Nagar (Mohali), Punjab
 - Kya install kiya: 13 ANPRs, 29 PTZ + Bullet cameras, RLVD, Speed Detection, ICCC (Command & Control Centre), Servers, Video Wall, Networking
@@ -46,7 +46,7 @@ Tenders, BOQ, Procurement, Sites, Billing — sab scattered.
 
 > **Project Name:** Integrated Tender-to-Delivery ERP  
 > **Phase:** Phase 1  
-> **Target Users:** Govt project companies (Surveillance, ITMS, Solar, O&M)  
+> **Target Users:** Govt project companies (Surveillance, erp, Solar, O&M)  
 > **Recommended Stack:** ERPNext Framework (Python + Frappe + MariaDB)
 
 ### 🔄 Complete Lifecycle Jo Cover Hogi:
@@ -157,7 +157,7 @@ Delivery (GRN) → Installation → Commissioning → Billing → Payment Tracki
 ### Module 6: 🔨 Project Execution + Dependency Engine
 
 **Kya karta hai:**
-- Project types se template: ITMS / Surveillance / Solar / O&M / AMC
+- Project types se template: erp / Surveillance / Solar / O&M / AMC
 - Sites per project track karo (site status)
 - **Milestones + Tasks:**
   - Planned dates vs Actual dates
@@ -285,7 +285,7 @@ Delivery (GRN) → Installation → Commissioning → Billing → Payment Tracki
 ### F) Projects / Sites / Teams
 | Collection | Key Fields |
 |------------|------------|
-| `project_types` | `_id, orgId, name(ITMS/Surveillance/Solar/O&M/AMC), milestoneTemplates[], taskTemplates[]` |
+| `project_types` | `_id, orgId, name(erp/Surveillance/Solar/O&M/AMC), milestoneTemplates[], taskTemplates[]` |
 | `projects` | `_id, orgId, projectCode, name, projectTypeId, clientId, branchId, region, startDate, plannedEndDate, status, contractSummary{value, retentionPercent, ldRules}, dashboardSummary{}` |
 | `sites` | `_id, orgId, projectId, siteCode, name, address, lat, lng, status, siteSummary{}` |
 | `project_team` | `_id, projectId, userId, roleInProject` |
@@ -623,7 +623,7 @@ Version Control:    Git (separate repo for custom app)
 
 ## 📋 Summary — Ek Line Mein
 
-> **Tu ek Govt Project specific ERP bana raha hai jisme Tender se leke Commissioning aur O&M Ticketing tak ka poora lifecycle cover hoga — ERPNext framework par custom DocTypes aur Workflows use karke, primarily apni company ke CCTV / ITMS / Surveillance government projects manage karne ke liye.**
+> **Tu ek Govt Project specific ERP bana raha hai jisme Tender se leke Commissioning aur O&M Ticketing tak ka poora lifecycle cover hoga — ERPNext framework par custom DocTypes aur Workflows use karke, primarily apni company ke CCTV / erp / Surveillance government projects manage karne ke liye.**
 
 ---
 

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { 
   ArrowLeft, FileText, Calendar, Building2, DollarSign, Clock, 
   Edit, Trash2, RefreshCw, AlertCircle, CheckCircle, XCircle,
-  Shield, CreditCard, User, MapPin, FileCheck, Loader2, X, Save, Check
+  Shield, CreditCard, User, MapPin, FileCheck, Loader2, X, Save, Check, Upload
 } from 'lucide-react';
 
 interface Tender {
@@ -73,6 +73,7 @@ export default function TenderDetailPage() {
     remarks: ''
   });
   const [isAddingInstrument, setIsAddingInstrument] = useState(false);
+  const [isUploadingRfp, setIsUploadingRfp] = useState(false);
 
   const tenderId = params.id as string;
 
@@ -165,6 +166,37 @@ export default function TenderDetailPage() {
       setError('Failed to load tender details');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleRfpFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingRfp(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch(`/api/tenders/${encodeURIComponent(tenderId)}/rfp-document`, {
+        method: 'POST',
+        body: formData,
+      });
+      const result = await response.json();
+
+      if (!result.success) {
+        alert(result.message || 'Failed to upload RFP document');
+        return;
+      }
+
+      setTender((prev) => (prev ? { ...prev, rfp_document: result.fileUrl } : prev));
+      alert('RFP document uploaded successfully');
+    } catch (err) {
+      console.error('Error uploading RFP document:', err);
+      alert('Failed to upload RFP document');
+    } finally {
+      setIsUploadingRfp(false);
+      e.target.value = '';
     }
   };
 
@@ -625,10 +657,32 @@ export default function TenderDetailPage() {
           {/* Documents Card */}
           <div className="card">
             <div className="card-header">
-              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                <FileCheck className="w-5 h-5 text-purple-600" />
-                Documents
-              </h3>
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                  <FileCheck className="w-5 h-5 text-purple-600" />
+                  Documents
+                </h3>
+                <label className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 cursor-pointer disabled:opacity-50">
+                  {isUploadingRfp ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4" />
+                      {tender.rfp_document ? 'Replace RFP' : 'Add RFP'}
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx"
+                    onChange={handleRfpFileSelected}
+                    disabled={isUploadingRfp}
+                    className="hidden"
+                  />
+                </label>
+              </div>
             </div>
             <div className="p-6">
               {tender.rfp_document || tender.tender_document ? (
