@@ -1,0 +1,161 @@
+{
+ "actions": [],
+ "autoname": "naming_series:",
+ "creation": "2026-03-15 18:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "cheque_number",
+  "bank_name",
+  "cb_top",
+  "amount",
+  "issue_date",
+  "maturity_date",
+  "sb_links",
+  "linked_vendor",
+  "linked_po",
+  "cb_links",
+  "linked_project",
+  "status",
+  "sb_remarks",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "PDC-.#####"
+  },
+  {
+   "fieldname": "cheque_number",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Cheque Number",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "bank_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Bank Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "cb_top",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Amount",
+   "reqd": 1
+  },
+  {
+   "fieldname": "issue_date",
+   "fieldtype": "Date",
+   "label": "Issue Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "maturity_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Maturity Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "sb_links",
+   "fieldtype": "Section Break",
+   "label": "References"
+  },
+  {
+   "fieldname": "linked_vendor",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Vendor",
+   "options": "Supplier"
+  },
+  {
+   "fieldname": "linked_po",
+   "fieldtype": "Link",
+   "label": "Purchase Order",
+   "options": "Purchase Order"
+  },
+  {
+   "fieldname": "cb_links",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "linked_project",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Project",
+   "options": "Project"
+  },
+  {
+   "default": "Pending",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Pending\nDeposited\nCleared\nBounced\nCancelled",
+   "reqd": 1
+  },
+  {
+   "fieldname": "sb_remarks",
+   "fieldtype": "Section Break",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-03-15 18:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE PDC Instrument",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1, "delete": 1, "email": 1, "export": 1,
+   "print": 1, "read": 1, "report": 1,
+   "role": "System Manager", "share": 1, "write": 1
+  },
+  {
+   "create": 1, "delete": 1, "read": 1, "report": 1,
+   "role": "Procurement Manager", "write": 1
+  },
+  {
+   "create": 1, "read": 1, "report": 1,
+   "role": "Accounts", "write": 1
+  },
+  {
+   "read": 1, "report": 1,
+   "role": "Project Head"
+  },
+  {
+   "read": 1, "report": 1,
+   "role": "Director"
+  },
+  {
+   "read": 1, "report": 1,
+   "role": "Department Head"
+  }
+ ],
+ "sort_field": "maturity_date",
+ "sort_order": "ASC",
+ "states": [],
+ "track_changes": 1
+}

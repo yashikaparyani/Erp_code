@@ -32,6 +32,25 @@
   "selected_total_amount",
   "section_break_quotes",
   "quotes",
+  "sb_advance",
+  "advance_amount",
+  "cb_advance",
+  "advance_status",
+  "sb_po_details",
+  "po_reference",
+  "wo_reference",
+  "approval_date",
+  "sb_vendor_contact",
+  "vendor_contact_name",
+  "vendor_contact_phone",
+  "cb_vendor_contact",
+  "vendor_contact_email",
+  "sb_delivery",
+  "expected_delivery_date",
+  "actual_delivery_date",
+  "cb_delivery_right",
+  "accounts_notified",
+  "po_attachment",
   "section_break_notes",
   "notes"
  ],
@@ -200,6 +219,101 @@
    "reqd": 1
   },
   {
+   "fieldname": "sb_advance",
+   "fieldtype": "Section Break",
+   "label": "Advance Tracking"
+  },
+  {
+   "default": "0",
+   "fieldname": "advance_amount",
+   "fieldtype": "Currency",
+   "label": "Advance Amount"
+  },
+  {
+   "fieldname": "cb_advance",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Not Required",
+   "fieldname": "advance_status",
+   "fieldtype": "Select",
+   "label": "Advance Status",
+   "options": "Not Required\nPending\nPaid"
+  },
+  {
+   "fieldname": "sb_po_details",
+   "fieldtype": "Section Break",
+   "label": "PO / WO Details"
+  },
+  {
+   "fieldname": "po_reference",
+   "fieldtype": "Data",
+   "label": "PO Reference"
+  },
+  {
+   "fieldname": "wo_reference",
+   "fieldtype": "Data",
+   "label": "WO Reference"
+  },
+  {
+   "fieldname": "approval_date",
+   "fieldtype": "Date",
+   "label": "Approval Date"
+  },
+  {
+   "fieldname": "sb_vendor_contact",
+   "fieldtype": "Section Break",
+   "label": "Vendor Contact"
+  },
+  {
+   "fieldname": "vendor_contact_name",
+   "fieldtype": "Data",
+   "label": "Contact Name"
+  },
+  {
+   "fieldname": "vendor_contact_phone",
+   "fieldtype": "Data",
+   "label": "Contact Phone"
+  },
+  {
+   "fieldname": "cb_vendor_contact",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "vendor_contact_email",
+   "fieldtype": "Data",
+   "label": "Contact Email"
+  },
+  {
+   "fieldname": "sb_delivery",
+   "fieldtype": "Section Break",
+   "label": "Delivery Timeline"
+  },
+  {
+   "fieldname": "expected_delivery_date",
+   "fieldtype": "Date",
+   "label": "Expected Delivery Date"
+  },
+  {
+   "fieldname": "actual_delivery_date",
+   "fieldtype": "Date",
+   "label": "Actual Delivery Date"
+  },
+  {
+   "fieldname": "cb_delivery_right",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "accounts_notified",
+   "fieldtype": "Check",
+   "label": "Accounts Notified"
+  },
+  {
+   "fieldname": "po_attachment",
+   "fieldtype": "Attach",
+   "label": "PO / WO Attachment"
+  },
+  {
    "fieldname": "section_break_notes",
    "fieldtype": "Section Break",
    "label": "Notes"
@@ -212,7 +326,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-03-13 21:30:00.000000",
+ "modified": "2026-03-15 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Gov ERP",
  "name": "GE Vendor Comparison",
@@ -240,25 +354,27 @@
    "write": 1
   },
   {
-   "read": 1,
-   "report": 1,
-   "role": "Presales Tendering Head"
-  },
-  {
-   "read": 1,
-   "report": 1,
-   "role": "Accounts"
-  },
-  {
+    "create": 1,
+    "delete": 1,
+    "read": 1,
+    "report": 1,
+    "role": "Purchase",
+    "write": 1
+    },
+    {
+    "read": 1,
+    "report": 1,
+    "role": "Project Head"
+    },
+    {
+    "read": 1,
+    "report": 1,
+    "role": "Engineering Head"
+    },
+    {
    "read": 1,
    "report": 1,
    "role": "Director"
-  },
-  {
-   "read": 1,
-   "report": 1,
-   "role": "Department Head",
-   "write": 1
   }
  ],
  "sort_field": "creation",

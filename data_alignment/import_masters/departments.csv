@@ -1,0 +1,11 @@
+department_name,company,is_group,parent_department,disabled
+Accounts Department,,0,,0
+Presales Department,,0,,0
+Central Team,,0,,0
+Project Coordinator Department,,0,,0
+Purchase Department,,0,,0
+HR/Admin Department,,0,,0
+Store Department,,0,,0
+Sales Department,,0,,0
+RMA,,0,,0
+O&M,,0,,0

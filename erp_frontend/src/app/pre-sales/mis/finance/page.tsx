@@ -1,49 +1,59 @@
 'use client';
-import { useState } from 'react';
-import { Search, ChevronDown, ChevronUp, Download } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Search, ChevronDown, ChevronUp, Download, Loader2 } from 'lucide-react';
+
+interface FinanceRecord {
+  name: string;
+  instrument_type: string;
+  linked_tender: string;
+  instrument_number: string;
+  amount: number;
+  status: string;
+  bank_name: string;
+  issue_date: string;
+  expiry_date: string;
+  remarks: string;
+  creation: string;
+  owner: string;
+}
 
 export default function FinanceMISPage() {
   const [showFilters, setShowFilters] = useState(true);
+  const [data, setData] = useState<FinanceRecord[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     tenderId: '',
-    searchText: '',
-    organizationName: '',
-    requirement: '',
-    requestFrom: '',
-    requestTo: '',
     status: '',
-    paymentMode: '',
-    paymentDateFrom: '',
-    paymentDateTo: '',
-    favourOf: '',
-    valueType: '',
-    amount: '',
+    instrument_type: '',
   });
+
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (filters.tenderId) params.set('tender', filters.tenderId);
+      if (filters.status) params.set('status', filters.status);
+      if (filters.instrument_type) params.set('instrument_type', filters.instrument_type);
+      const res = await fetch(`/api/mis/finance?${params.toString()}`);
+      const json = await res.json();
+      if (json.success) setData(json.data);
+    } catch (e) { console.error('Failed to fetch:', e); }
+    finally { setLoading(false); }
+  }, [filters]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }));
   };
 
-  const handleSearch = () => {
-    console.log('Searching with filters:', filters);
-  };
-
   const handleClear = () => {
-    setFilters({
-      tenderId: '',
-      searchText: '',
-      organizationName: '',
-      requirement: '',
-      requestFrom: '',
-      requestTo: '',
-      status: '',
-      paymentMode: '',
-      paymentDateFrom: '',
-      paymentDateTo: '',
-      favourOf: '',
-      valueType: '',
-      amount: '',
-    });
+    setFilters({ tenderId: '', status: '', instrument_type: '' });
   };
 
   return (
@@ -74,7 +84,6 @@ export default function FinanceMISPage() {
         {showFilters && (
           <div className="px-4 pb-4 border-t border-gray-100">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mt-4">
-              {/* Row 1 */}
               <input
                 type="text"
                 placeholder="Tender Id"
@@ -82,52 +91,14 @@ export default function FinanceMISPage() {
                 onChange={(e) => handleFilterChange('tenderId', e.target.value)}
                 className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              <input
-                type="text"
-                placeholder="Search Text"
-                value={filters.searchText}
-                onChange={(e) => handleFilterChange('searchText', e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
               <select
-                value={filters.organizationName}
-                onChange={(e) => handleFilterChange('organizationName', e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-500"
-              >
-                <option value="">Organization Name</option>
-                <option value="org1">Organization 1</option>
-                <option value="org2">Organization 2</option>
-              </select>
-              <select
-                value={filters.requirement}
-                onChange={(e) => handleFilterChange('requirement', e.target.value)}
+                value={filters.instrument_type}
+                onChange={(e) => handleFilterChange('instrument_type', e.target.value)}
                 className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-500"
               >
                 <option value="">Select Requirement</option>
-                <option value="emd">EMD</option>
-                <option value="sd">Security Deposit</option>
-                <option value="bg">Bank Guarantee</option>
-                <option value="tender_fee">Tender Fee</option>
-              </select>
-
-              {/* Row 2 */}
-              <select
-                value={filters.requestFrom}
-                onChange={(e) => handleFilterChange('requestFrom', e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-500"
-              >
-                <option value="">Select Request from</option>
-                <option value="user1">User 1</option>
-                <option value="user2">User 2</option>
-              </select>
-              <select
-                value={filters.requestTo}
-                onChange={(e) => handleFilterChange('requestTo', e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-500"
-              >
-                <option value="">Select Request To</option>
-                <option value="finance">Finance Team</option>
-                <option value="management">Management</option>
+                <option value="EMD">EMD</option>
+                <option value="PBG">PBG</option>
               </select>
               <select
                 value={filters.status}
@@ -135,78 +106,15 @@ export default function FinanceMISPage() {
                 className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-500"
               >
                 <option value="">Status</option>
-                <option value="pending">Pending</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
-                <option value="completed">Completed</option>
+                <option value="Pending">Pending</option>
+                <option value="Active">Active</option>
+                <option value="Released">Released</option>
+                <option value="Refunded">Refunded</option>
+                <option value="Rejected">Rejected</option>
               </select>
-              <select
-                value={filters.paymentMode}
-                onChange={(e) => handleFilterChange('paymentMode', e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-500"
-              >
-                <option value="">Payment mode</option>
-                <option value="bank_transfer">Bank Transfer</option>
-                <option value="cheque">Cheque</option>
-                <option value="dd">Demand Draft</option>
-                <option value="online">Online</option>
-              </select>
-
-              {/* Row 3 */}
-              <input
-                type="text"
-                placeholder="Payment Date From"
-                value={filters.paymentDateFrom}
-                onChange={(e) => handleFilterChange('paymentDateFrom', e.target.value)}
-                onFocus={(e) => (e.target.type = 'date')}
-                onBlur={(e) => (e.target.type = 'text')}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <input
-                type="text"
-                placeholder="Payment Date To"
-                value={filters.paymentDateTo}
-                onChange={(e) => handleFilterChange('paymentDateTo', e.target.value)}
-                onFocus={(e) => (e.target.type = 'date')}
-                onBlur={(e) => (e.target.type = 'text')}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <input
-                type="text"
-                placeholder="Favour Of"
-                value={filters.favourOf}
-                onChange={(e) => handleFilterChange('favourOf', e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <div className="flex gap-2">
-                <select
-                  value={filters.valueType}
-                  onChange={(e) => handleFilterChange('valueType', e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-500"
-                >
-                  <option value="">Select Value</option>
-                  <option value="greater">Greater Than</option>
-                  <option value="less">Less Than</option>
-                  <option value="equal">Equal To</option>
-                </select>
-                <input
-                  type="number"
-                  placeholder="Amount"
-                  value={filters.amount}
-                  onChange={(e) => handleFilterChange('amount', e.target.value)}
-                  className="w-24 sm:w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
             </div>
 
-            {/* Action Buttons */}
             <div className="flex gap-3 mt-4">
-              <button
-                onClick={handleSearch}
-                className="px-6 py-2 bg-[#1e6b87] text-white rounded-lg hover:bg-[#185a73] transition-colors text-sm font-medium"
-              >
-                Search
-              </button>
               <button
                 onClick={handleClear}
                 className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm font-medium"
@@ -218,9 +126,56 @@ export default function FinanceMISPage() {
         )}
       </div>
 
-      {/* Empty State or Results would go here */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
-        <p className="text-gray-500">Use the search filters above to find finance records</p>
+      {/* Results Table */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-[#1e6b87] text-white">
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">#</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">Tender</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider">Type</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider">Bank</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider">Amount</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider">Status</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider">Issue Date</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider">Expiry Date</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider">Owner</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {loading ? (
+                <tr>
+                  <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
+                    <Loader2 className="w-5 h-5 animate-spin inline mr-2" />Loading...
+                  </td>
+                </tr>
+              ) : data.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="px-4 py-8 text-center text-gray-500">No records found</td>
+                </tr>
+              ) : (
+                data.map((row, index) => (
+                  <tr key={row.name} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-sm text-gray-900">{index + 1}</td>
+                    <td className="px-4 py-3 text-sm text-blue-600 font-medium">{row.linked_tender || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 text-center">{row.instrument_type}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 text-center">{row.bank_name || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-800 font-medium text-center">₹{(row.amount || 0).toLocaleString()}</td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${row.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' : row.status === 'Active' ? 'bg-green-100 text-green-700' : row.status === 'Rejected' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}`}>
+                        {row.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600 text-center">{formatDate(row.issue_date)}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 text-center">{formatDate(row.expiry_date)}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 text-center">{row.owner}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

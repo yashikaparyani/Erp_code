@@ -27,7 +27,8 @@ import {
   Files,
   CheckSquare,
   Cog,
-  Users2
+  Users2,
+  RefreshCcw
 } from 'lucide-react';
 import { useRole } from '../context/RoleContext';
 
@@ -177,6 +178,11 @@ const navLinks: NavLink[] = [
     name: 'HR',
     href: '/hr',
     icon: Users2,
+  },
+  {
+    name: 'RMA',
+    href: '/rma',
+    icon: RefreshCcw,
   },
   { name: 'O&M & Helpdesk', href: '/om-helpdesk', icon: HeadphonesIcon },
   { name: 'Reports', href: '/reports', icon: BarChart3 },

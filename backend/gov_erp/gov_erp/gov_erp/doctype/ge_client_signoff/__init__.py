@@ -1,0 +1,1 @@
+"""GE Client Signoff DocType."""

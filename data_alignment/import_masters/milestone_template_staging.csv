@@ -1,0 +1,4 @@
+template_name,milestone_name,assigned_team_role,default_status,source_project_name,notes
+Core Delivery,CCR Integration,Project Management,PLANNED,Gwalior ITMS,High-confidence template seed from ANDA
+Core Delivery,Survey & Design,Engineering Team,COMPLETED,,Template seed from ANDA; project link absent in workbook row
+Core Delivery,O&M,,PLANNED,,Template seed from ANDA; assigned team missing in workbook row

@@ -1,56 +1,57 @@
 'use client';
-import { useState } from 'react';
-import { Plus, Search, Edit2, CheckCircle, ChevronsLeft, ChevronsRight, X } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Plus, Search, Edit2, CheckCircle, ChevronsLeft, ChevronsRight, X, Loader2 } from 'lucide-react';
 
 interface DesignationData {
-  id: number;
-  designationName: string;
-  createdBy: string;
-  createdDateTime: string;
-  status: 'Active' | 'Inactive';
+  name: string;
+  designation_name: string;
+  description: string;
+  creation: string;
+  owner: string;
 }
 
-const mockDesignations: DesignationData[] = [
-  { id: 1, designationName: 'Associate', createdBy: 'Purnima Nigam', createdDateTime: '18-01-2025', status: 'Active' },
-  { id: 2, designationName: 'Manager', createdBy: 'Purnima Nigam', createdDateTime: '18-01-2025', status: 'Active' },
-  { id: 3, designationName: 'Chief', createdBy: 'Purnima Nigam', createdDateTime: '18-01-2025', status: 'Active' },
-  { id: 4, designationName: 'Director', createdBy: 'Purnima Nigam', createdDateTime: '07-01-2025', status: 'Active' },
-];
-
 export default function DesignationPage() {
-  const [data, setData] = useState<DesignationData[]>(mockDesignations);
+  const [data, setData] = useState<DesignationData[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [showModal, setShowModal] = useState(false);
   const [newDesignation, setNewDesignation] = useState('');
 
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/designations');
+      const json = await res.json();
+      if (json.success) setData(json.data);
+    } catch (e) { console.error('Failed to fetch designations:', e); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
   const totalPages = Math.ceil(data.length / itemsPerPage) || 1;
 
   const filteredData = data.filter(item =>
-    item.designationName.toLowerCase().includes(searchQuery.toLowerCase())
+    item.designation_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleToggleStatus = (id: number) => {
-    setData(prev => prev.map(item => 
-      item.id === id 
-        ? { ...item, status: item.status === 'Active' ? 'Inactive' : 'Active' }
-        : item
-    ));
-  };
-
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (newDesignation.trim()) {
-      const newItem: DesignationData = {
-        id: data.length + 1,
-        designationName: newDesignation,
-        createdBy: 'Current User',
-        createdDateTime: new Date().toLocaleDateString('en-GB').replace(/\//g, '-'),
-        status: 'Active',
-      };
-      setData(prev => [...prev, newItem]);
-      setNewDesignation('');
-      setShowModal(false);
+      try {
+        const res = await fetch('/api/designations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ designation_name: newDesignation }),
+        });
+        const json = await res.json();
+        if (json.success) {
+          setNewDesignation('');
+          setShowModal(false);
+          fetchData();
+        }
+      } catch (e) { console.error('Failed to create designation:', e); }
     }
   };
 
@@ -101,23 +102,19 @@ export default function DesignationPage() {
               {filteredData.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
-                    No data found.
+                    {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'No data found.'}
                   </td>
                 </tr>
               ) : (
                 filteredData.map((row, index) => (
-                  <tr key={row.id} className="hover:bg-gray-50">
+                  <tr key={row.name} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm text-gray-900 text-center">{index + 1}</td>
-                    <td className="px-4 py-3 text-sm text-blue-600 text-center font-medium">{row.designationName}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900 text-center">{row.createdBy}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600 text-center">{row.createdDateTime}</td>
+                    <td className="px-4 py-3 text-sm text-blue-600 text-center font-medium">{row.designation_name}</td>
+                    <td className="px-4 py-3 text-sm text-gray-900 text-center">{row.owner}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 text-center">{new Date(row.creation).toLocaleDateString('en-GB').replace(/\//g, '-')}</td>
                     <td className="px-4 py-3 text-center">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        row.status === 'Active' 
-                          ? 'bg-green-100 text-green-600' 
-                          : 'bg-red-100 text-red-600'
-                      }`}>
-                        {row.status}
+                      <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-600">
+                        Active
                       </span>
                     </td>
                     <td className="px-4 py-3 text-center">
@@ -126,12 +123,7 @@ export default function DesignationPage() {
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button 
-                          onClick={() => handleToggleStatus(row.id)}
-                          className={`p-1.5 rounded-full ${
-                            row.status === 'Active' 
-                              ? 'bg-green-100 text-green-600' 
-                              : 'bg-gray-200 text-gray-400'
-                          }`}
+                          className="p-1.5 rounded-full bg-green-100 text-green-600"
                         >
                           <CheckCircle className="w-4 h-4" />
                         </button>

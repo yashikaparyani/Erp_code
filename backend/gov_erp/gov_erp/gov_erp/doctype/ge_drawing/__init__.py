@@ -1,0 +1,1 @@
+"""GE Drawing DocType."""

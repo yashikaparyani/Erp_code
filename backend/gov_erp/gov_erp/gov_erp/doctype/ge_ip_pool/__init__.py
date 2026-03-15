@@ -1,0 +1,1 @@
+"""GE IP Pool DocType."""

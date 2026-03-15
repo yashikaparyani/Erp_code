@@ -1,46 +1,54 @@
 'use client';
-import { useState } from 'react';
-import { Search, ChevronDown, ChevronUp, Calendar, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Search, ChevronDown, ChevronUp, Calendar, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Loader2 } from 'lucide-react';
 
-interface LoginMISData {
-  id: number;
-  employeeName: string;
-  loginDateTime: string;
-  logoutDateTime: string;
-  ipAddress: string;
+interface LoginRecord {
+  user: string;
+  full_name: string;
+  creation: string;
+  ip_address: string;
+  operation: string;
 }
-
-const mockLoginData: LoginMISData[] = [
-  { id: 1, employeeName: 'Purnima Nigam', loginDateTime: '09-03-2026', logoutDateTime: '', ipAddress: '10.60.137.145' },
-  { id: 2, employeeName: 'Ankit Mishra', loginDateTime: '09-03-2026', logoutDateTime: '', ipAddress: '10.60.137.145' },
-  { id: 3, employeeName: 'Rahul Sharma', loginDateTime: '09-03-2026 10:30 AM', logoutDateTime: '09-03-2026 06:45 PM', ipAddress: '10.60.137.142' },
-  { id: 4, employeeName: 'Priya Singh', loginDateTime: '09-03-2026 09:15 AM', logoutDateTime: '09-03-2026 05:30 PM', ipAddress: '10.60.137.143' },
-  { id: 5, employeeName: 'Suresh Kumar', loginDateTime: '09-03-2026 08:45 AM', logoutDateTime: '09-03-2026 07:00 PM', ipAddress: '10.60.137.144' },
-  { id: 6, employeeName: 'Hemant Banwari', loginDateTime: '08-03-2026 09:00 AM', logoutDateTime: '08-03-2026 06:30 PM', ipAddress: '10.60.137.141' },
-  { id: 7, employeeName: 'Vikram Desai', loginDateTime: '08-03-2026 09:30 AM', logoutDateTime: '08-03-2026 06:00 PM', ipAddress: '10.60.137.146' },
-  { id: 8, employeeName: 'Neha Gupta', loginDateTime: '08-03-2026 10:00 AM', logoutDateTime: '08-03-2026 05:45 PM', ipAddress: '10.60.137.147' },
-];
 
 export default function LoginMISPage() {
   const [showFilters, setShowFilters] = useState(true);
   const [selectedEmployee, setSelectedEmployee] = useState('');
-  const [dateRange, setDateRange] = useState('');
-  const [data] = useState<LoginMISData[]>(mockLoginData);
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [data, setData] = useState<LoginRecord[]>([]);
+  const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  const totalPages = Math.ceil(data.length / itemsPerPage);
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (selectedEmployee) params.set('user', selectedEmployee);
+      if (fromDate) params.set('from_date', fromDate);
+      if (toDate) params.set('to_date', toDate);
+      const res = await fetch(`/api/mis/login?${params.toString()}`);
+      const json = await res.json();
+      if (json.success) setData(json.data);
+    } catch (e) { console.error('Failed to fetch:', e); }
+    finally { setLoading(false); }
+  }, [selectedEmployee, fromDate, toDate]);
 
-  const handleSearch = () => {
-    console.log('Searching:', { selectedEmployee, dateRange });
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const totalPages = Math.ceil(data.length / itemsPerPage) || 1;
+  const uniqueUsers = [...new Set(data.map(item => item.user))];
+
+  const formatDateTime = (dateString: string) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 
   const handleClear = () => {
     setSelectedEmployee('');
-    setDateRange('');
+    setFromDate('');
+    setToDate('');
   };
-
-  const uniqueEmployees = [...new Set(mockLoginData.map(item => item.employeeName))];
 
   return (
     <div className="p-3 sm:p-4 md:p-6 bg-gray-50 min-h-screen">
@@ -69,37 +77,32 @@ export default function LoginMISPage() {
         
         {showFilters && (
           <div className="px-4 pb-4 border-t border-gray-100">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mt-4 max-w-2xl">
-              <select
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-4 max-w-3xl">
+              <input
+                type="text"
+                placeholder="Filter by user email..."
                 value={selectedEmployee}
                 onChange={(e) => setSelectedEmployee(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-500"
-              >
-                <option value="">Employee Name</option>
-                {uniqueEmployees.map(name => (
-                  <option key={name} value={name}>{name}</option>
-                ))}
-              </select>
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Login From → Login To"
-                  value={dateRange}
-                  onChange={(e) => setDateRange(e.target.value)}
-                  className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              </div>
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <input
+                type="date"
+                placeholder="From date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <input
+                type="date"
+                placeholder="To date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
             </div>
 
             {/* Action Buttons */}
             <div className="flex gap-3 mt-4">
-              <button
-                onClick={handleSearch}
-                className="px-6 py-2 bg-[#1e6b87] text-white rounded-lg hover:bg-[#185a73] transition-colors text-sm font-medium"
-              >
-                Search
-              </button>
               <button
                 onClick={handleClear}
                 className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm font-medium"
@@ -118,22 +121,36 @@ export default function LoginMISPage() {
             <thead>
               <tr className="bg-[#1e6b87] text-white">
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider w-16">#</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">Employee Name</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider">Login Date Time</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider">Logout Date Time</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">User</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">Full Name</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider">Date Time</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider">Operation</th>
                 <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider">IP Address</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {data.map((row, index) => (
-                <tr key={row.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm text-gray-900">{index + 1}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900">{row.employeeName}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600 text-center">{row.loginDateTime}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600 text-center">{row.logoutDateTime || '-'}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600 text-center">{row.ipAddress}</td>
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                    <Loader2 className="w-5 h-5 animate-spin inline mr-2" />Loading...
+                  </td>
                 </tr>
-              ))}
+              ) : data.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-gray-500">No login records found</td>
+                </tr>
+              ) : (
+                data.map((row, index) => (
+                  <tr key={`${row.user}-${index}`} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-sm text-gray-900">{index + 1}</td>
+                    <td className="px-4 py-3 text-sm text-gray-900">{row.user}</td>
+                    <td className="px-4 py-3 text-sm text-gray-900">{row.full_name || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 text-center">{formatDateTime(row.creation)}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 text-center">{row.operation}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 text-center">{row.ip_address || '-'}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

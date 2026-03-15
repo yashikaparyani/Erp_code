@@ -126,6 +126,8 @@
 - [x] `GE SLA Penalty Rule`
 - [x] `GE SLA Penalty Record`
 - [x] `GE RMA Tracker`
+- [x] Dedicated `RMA Manager` business role
+- [x] RMA flow enriched with dispatch, RCA, warranty, approval, PO, invoice, and return-tracking fields
 
 ## What Is Not Implemented Yet
 

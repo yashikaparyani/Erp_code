@@ -1,0 +1,4 @@
+project_name,status,expected_start_date,expected_end_date
+Project Alpha,Open,2025-01-01,2025-06-30
+Project Beta,Open,2025-02-15,2025-07-31
+Project Gamma,Cancelled,2025-03-01,2025-09-30

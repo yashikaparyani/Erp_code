@@ -1,0 +1,4 @@
+site_code,site_name,status,linked_project,address,latitude,longitude,remarks
+Loc1,Location Loc1,PLANNED,Project Alpha,,,,Extracted from ANDA combined data on 2026-03-15
+Loc2,Location Loc2,PLANNED,Project Beta,,,,Extracted from ANDA combined data on 2026-03-15
+Loc3,Location Loc3,PLANNED,Project Gamma,,,,Extracted from ANDA combined data on 2026-03-15

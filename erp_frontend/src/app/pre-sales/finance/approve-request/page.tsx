@@ -1,110 +1,79 @@
 'use client';
-import { useState } from 'react';
-import { Search, ChevronDown, Download, CheckCircle, XCircle, Eye, Clock, User, Calendar, IndianRupee, FileText } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Search, ChevronDown, Download, CheckCircle, XCircle, Eye, Clock, User, Calendar, IndianRupee, FileText, Loader2 } from 'lucide-react';
 
-interface ApprovalRequest {
-  id: string;
-  tenderId: string;
-  requirement: string;
-  paymentMode: string;
+interface FinanceInstrument {
+  name: string;
+  instrument_type: string;
+  linked_tender: string;
+  instrument_number: string;
   amount: number;
-  requesterName: string;
-  financeExecutive: string;
-  requestedDate: string;
-  deadlineDate: string;
-  validity: string;
-  approvalStatus: 'PENDING';
-  daysUntilDeadline: number;
+  status: string;
+  bank_name: string;
+  issue_date: string;
+  expiry_date: string;
+  remarks: string;
+  creation: string;
+  owner: string;
 }
 
-const mockRequests: ApprovalRequest[] = [
-  {
-    id: '1',
-    tenderId: 'TEN-2026-001',
-    requirement: 'EMD',
-    paymentMode: 'Bank Transfer',
-    amount: 150000,
-    requesterName: 'Rahul Sharma',
-    financeExecutive: 'Pending Assignment',
-    requestedDate: '2026-03-05',
-    deadlineDate: '2026-03-20',
-    validity: '90 days',
-    approvalStatus: 'PENDING',
-    daysUntilDeadline: 11,
-  },
-  {
-    id: '2',
-    tenderId: 'TEN-2026-004',
-    requirement: 'PBG',
-    paymentMode: 'DD',
-    amount: 820000,
-    requesterName: 'Priya Singh',
-    financeExecutive: 'Pending Assignment',
-    requestedDate: '2026-03-07',
-    deadlineDate: '2026-03-25',
-    validity: '180 days',
-    approvalStatus: 'PENDING',
-    daysUntilDeadline: 16,
-  },
-  {
-    id: '3',
-    tenderId: 'TEN-2026-005',
-    requirement: 'Security Deposit',
-    paymentMode: 'Cheque',
-    amount: 350000,
-    requesterName: 'Amit Kumar',
-    financeExecutive: 'Pending Assignment',
-    requestedDate: '2026-03-08',
-    deadlineDate: '2026-03-30',
-    validity: '365 days',
-    approvalStatus: 'PENDING',
-    daysUntilDeadline: 21,
-  },
-];
-
-const columns = [
-  { key: '#', label: '#' },
-  { key: 'tenderId', label: 'TENDER ID' },
-  { key: 'requirement', label: 'REQUIREMENT' },
-  { key: 'paymentMode', label: 'PAYMENT MODE' },
-  { key: 'amount', label: 'AMOUNT' },
-  { key: 'requesterName', label: 'REQUESTER NAME' },
-  { key: 'financeExecutive', label: 'FINANCE EXECUTIVE' },
-  { key: 'requestedDate', label: 'REQUESTED DATE' },
-  { key: 'deadlineDate', label: 'DEADLINE DATE' },
-  { key: 'validity', label: 'VALIDITY' },
-  { key: 'approvalStatus', label: 'APPROVAL STATUS' },
-  { key: 'action', label: 'ACTION' },
-];
+interface Stats {
+  pending: number;
+  pending_amount: number;
+  emd_count: number;
+  total: number;
+}
 
 export default function ApproveRequestPage() {
+  const [data, setData] = useState<FinanceInstrument[]>([]);
+  const [stats, setStats] = useState<Stats>({ pending: 0, pending_amount: 0, emd_count: 0, total: 0 });
+  const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [pageSize, setPageSize] = useState(10);
-  const [currentPage, setCurrentPage] = useState(0);
-  const [selectedRequest, setSelectedRequest] = useState<ApprovalRequest | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [reqRes, statsRes] = await Promise.all([
+        fetch('/api/finance-requests?status=Pending'),
+        fetch('/api/finance-requests/stats'),
+      ]);
+      const [reqJson, statsJson] = await Promise.all([reqRes.json(), statsRes.json()]);
+      if (reqJson.success) setData(reqJson.data);
+      if (statsJson.success) setStats(statsJson.data);
+    } catch (e) { console.error('Failed to fetch:', e); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
-  const getDeadlineColor = (days: number) => {
-    if (days <= 5) return 'text-red-600 bg-red-50';
-    if (days <= 10) return 'text-yellow-600 bg-yellow-50';
-    return 'text-green-600 bg-green-50';
+  const handleApprove = async (name: string) => {
+    try {
+      const res = await fetch('/api/finance-requests/approve', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      const json = await res.json();
+      if (json.success) fetchData();
+    } catch (e) { console.error('Approve failed:', e); }
   };
 
-  const handleApprove = (id: string) => {
-    // Approve logic
-    console.log('Approving request:', id);
-  };
-
-  const handleDeny = (id: string) => {
-    // Deny logic
-    console.log('Denying request:', id);
+  const handleDeny = async (name: string) => {
+    const reason = prompt('Reason for denial (optional):');
+    try {
+      const res = await fetch('/api/finance-requests/deny', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, reason: reason || '' }),
+      });
+      const json = await res.json();
+      if (json.success) fetchData();
+    } catch (e) { console.error('Deny failed:', e); }
   };
 
   return (
@@ -123,7 +92,7 @@ export default function ApproveRequestPage() {
               <Clock className="w-5 h-5 text-yellow-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-800">{mockRequests.length}</p>
+              <p className="text-2xl font-bold text-gray-800">{stats.pending}</p>
               <p className="text-sm text-gray-500">Pending Approval</p>
             </div>
           </div>
@@ -134,8 +103,8 @@ export default function ApproveRequestPage() {
               <Clock className="w-5 h-5 text-red-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-800">2</p>
-              <p className="text-sm text-gray-500">Urgent ({"<"}5 days)</p>
+              <p className="text-2xl font-bold text-gray-800">{stats.total}</p>
+              <p className="text-sm text-gray-500">Total Requests</p>
             </div>
           </div>
         </div>
@@ -145,7 +114,7 @@ export default function ApproveRequestPage() {
               <IndianRupee className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-800">₹13.2L</p>
+              <p className="text-2xl font-bold text-gray-800">₹{((stats.pending_amount || 0) / 100000).toFixed(1)}L</p>
               <p className="text-sm text-gray-500">Total Pending Amount</p>
             </div>
           </div>
@@ -156,7 +125,7 @@ export default function ApproveRequestPage() {
               <FileText className="w-5 h-5 text-green-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-800">5</p>
+              <p className="text-2xl font-bold text-gray-800">{stats.emd_count}</p>
               <p className="text-sm text-gray-500">EMD Requests</p>
             </div>
           </div>
@@ -241,40 +210,46 @@ export default function ApproveRequestPage() {
           <table className="w-full">
             <thead>
               <tr className="bg-[#1e6b87] text-white">
-                {columns.map((col) => (
-                  <th key={col.key} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap">
-                    {col.label}
-                  </th>
-                ))}
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap">#</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap">Tender</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap">Type</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap">Bank</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap">Amount</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap">Requester</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap">Approver</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap">Request Date</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap">Expiry Date</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap">Validity</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap">Action</th>
               </tr>
             </thead>
             <tbody>
-              {mockRequests.length === 0 ? (
+              {loading ? (
                 <tr>
-                  <td colSpan={columns.length} className="px-4 py-12 text-center text-gray-500">
-                    No data found
+                  <td colSpan={12} className="px-4 py-12 text-center text-gray-500">
+                    <Loader2 className="w-5 h-5 animate-spin inline mr-2" />Loading...
+                  </td>
+                </tr>
+              ) : data.length === 0 ? (
+                <tr>
+                  <td colSpan={12} className="px-4 py-12 text-center text-gray-500">
+                    No pending requests found
                   </td>
                 </tr>
               ) : (
-                mockRequests.map((request, index) => (
-                  <tr key={request.id} className="border-b border-gray-100 hover:bg-gray-50">
+                data.map((row, index) => (
+                  <tr key={row.name} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm text-gray-600">{index + 1}</td>
-                    <td className="px-4 py-3 text-sm text-blue-600 font-medium">{request.tenderId}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{request.requirement}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{request.paymentMode}</td>
-                    <td className="px-4 py-3 text-sm text-gray-800 font-medium">₹{request.amount.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{request.requesterName}</td>
-                    <td className="px-4 py-3 text-sm text-gray-400 italic">{request.financeExecutive}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{formatDate(request.requestedDate)}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-600">{formatDate(request.deadlineDate)}</span>
-                        <span className={`px-1.5 py-0.5 text-xs font-medium rounded ${getDeadlineColor(request.daysUntilDeadline)}`}>
-                          {request.daysUntilDeadline}d
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{request.validity}</td>
+                    <td className="px-4 py-3 text-sm text-blue-600 font-medium">{row.linked_tender || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{row.instrument_type}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{row.bank_name || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-800 font-medium">₹{(row.amount || 0).toLocaleString()}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{row.owner}</td>
+                    <td className="px-4 py-3 text-sm text-gray-400 italic">-</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{formatDate(row.creation)}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{formatDate(row.expiry_date)}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{row.issue_date && row.expiry_date ? `${Math.ceil((new Date(row.expiry_date).getTime() - new Date(row.issue_date).getTime()) / 86400000)} days` : '-'}</td>
                     <td className="px-4 py-3">
                       <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-700">
                         PENDING
@@ -282,26 +257,19 @@ export default function ApproveRequestPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
-                        <button 
-                          onClick={() => handleApprove(request.id)}
+                        <button
+                          onClick={() => handleApprove(row.name)}
                           className="p-1.5 hover:bg-green-100 rounded text-green-600"
                           title="Approve"
                         >
                           <CheckCircle className="w-4 h-4" />
                         </button>
-                        <button 
-                          onClick={() => handleDeny(request.id)}
+                        <button
+                          onClick={() => handleDeny(row.name)}
                           className="p-1.5 hover:bg-red-100 rounded text-red-600"
                           title="Deny"
                         >
                           <XCircle className="w-4 h-4" />
-                        </button>
-                        <button 
-                          onClick={() => setSelectedRequest(request)}
-                          className="p-1.5 hover:bg-gray-100 rounded text-gray-600"
-                          title="View Details"
-                        >
-                          <Eye className="w-4 h-4" />
                         </button>
                       </div>
                     </td>

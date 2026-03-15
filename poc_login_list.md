@@ -8,6 +8,7 @@ Role-based logins:
 
 - `director@technosys.local` - `Director`
 - `dept.head@technosys.local` - `Department Head`
+- `project.head@technosys.local` - `Project Head`
 - `hr.manager@technosys.local` - `HR Manager`
 - `presales.head@technosys.local` - `Presales Tendering Head`
 - `presales.exec@technosys.local` - `Presales Executive`
@@ -21,6 +22,7 @@ Role-based logins:
 - `accounts@technosys.local` - `Accounts`
 - `field.tech@technosys.local` - `Field Technician`
 - `om.operator@technosys.local` - `OM Operator`
+- `rma.manager@technosys.local` - `RMA Manager`
 
 Notes:
 

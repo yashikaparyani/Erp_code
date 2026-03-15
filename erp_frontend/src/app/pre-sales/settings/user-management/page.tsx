@@ -1,73 +1,87 @@
 'use client';
-import { useState } from 'react';
-import { Plus, Search, Edit2, Trash2, ChevronsLeft, ChevronsRight, X, Eye, EyeOff } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Plus, Search, Edit2, Trash2, ChevronsLeft, ChevronsRight, X, Eye, EyeOff, Loader2 } from 'lucide-react';
 
 interface UserData {
-  id: number;
   name: string;
-  loginUserId: string;
-  emailId: string;
-  contactNo: string;
+  full_name: string;
+  username: string;
+  email: string;
+  enabled: number;
+  phone: string;
+  mobile_no: string;
   department: string;
   designation: string;
+  roles: string[];
 }
 
-const mockUsers: UserData[] = [
-  { id: 1, name: 'Rahul Sharma', loginUserId: 'rahul.sharma', emailId: 'rahul.sharma@company.com', contactNo: '9876543210', department: 'Technical', designation: 'Manager' },
-  { id: 2, name: 'Priya Singh', loginUserId: 'priya.singh', emailId: 'priya.singh@company.com', contactNo: '9876543211', department: 'Pre-Sales', designation: 'Associate' },
-  { id: 3, name: 'Amit Kumar', loginUserId: 'amit.kumar', emailId: 'amit.kumar@company.com', contactNo: '9876543212', department: 'Finance', designation: 'Chief' },
-  { id: 4, name: 'Neha Gupta', loginUserId: 'neha.gupta', emailId: 'neha.gupta@company.com', contactNo: '9876543213', department: 'Human Resource', designation: 'Director' },
-  { id: 5, name: 'Vikash Patel', loginUserId: 'vikash.patel', emailId: 'vikash.patel@company.com', contactNo: '9876543214', department: 'Software', designation: 'Manager' },
-];
+interface DeptOption { name: string; department_name: string; }
+interface DesigOption { name: string; designation_name: string; }
 
 export default function UserManagementPage() {
-  const [data, setData] = useState<UserData[]>(mockUsers);
+  const [data, setData] = useState<UserData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [departments, setDepartments] = useState<DeptOption[]>([]);
+  const [designations, setDesignations] = useState<DesigOption[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [showModal, setShowModal] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
-    name: '',
-    loginUserId: '',
-    password: '',
-    emailId: '',
-    contactNo: '',
-    department: '',
-    designation: '',
+    name: '', username: '', password: '', email: '', contact_no: '', department: '', designation: '',
   });
 
-  const totalPages = Math.ceil(data.length / itemsPerPage) || 1;
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/users-list');
+      const json = await res.json();
+      if (json.success) setData(json.data);
+    } catch (e) { console.error('Failed to fetch users:', e); }
+    finally { setLoading(false); }
+  }, []);
+
+  const fetchOptions = useCallback(async () => {
+    try {
+      const [dRes, desRes] = await Promise.all([fetch('/api/departments'), fetch('/api/designations')]);
+      const [dJson, desJson] = await Promise.all([dRes.json(), desRes.json()]);
+      if (dJson.success) setDepartments(dJson.data);
+      if (desJson.success) setDesignations(desJson.data);
+    } catch (e) { console.error('Failed to fetch options:', e); }
+  }, []);
+
+  useEffect(() => { fetchData(); fetchOptions(); }, [fetchData, fetchOptions]);
 
   const filteredData = data.filter(item =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.loginUserId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.emailId.toLowerCase().includes(searchQuery.toLowerCase())
+    item.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (item.username || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleCreate = () => {
-    if (formData.name.trim() && formData.loginUserId.trim()) {
-      const newItem: UserData = {
-        id: data.length + 1,
-        ...formData,
-      };
-      setData(prev => [...prev, newItem]);
-      setFormData({
-        name: '',
-        loginUserId: '',
-        password: '',
-        emailId: '',
-        contactNo: '',
-        department: '',
-        designation: '',
-      });
-      setShowModal(false);
-    }
-  };
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage) || 1;
 
-  const handleDelete = (id: number) => {
-    if (confirm('Are you sure you want to delete this user?')) {
-      setData(prev => prev.filter(item => item.id !== id));
+  const handleCreate = async () => {
+    if (formData.name.trim() && formData.email.trim()) {
+      try {
+        const res = await fetch('/api/users-list', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            first_name: formData.name,
+            email: formData.email,
+            username: formData.username,
+            password: formData.password,
+            contact_no: formData.contact_no,
+          }),
+        });
+        const json = await res.json();
+        if (json.success) {
+          setFormData({ name: '', username: '', password: '', email: '', contact_no: '', department: '', designation: '' });
+          setShowModal(false);
+          fetchData();
+        }
+      } catch (e) { console.error('Failed to create user:', e); }
     }
   };
 
@@ -117,7 +131,13 @@ export default function UserManagementPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {filteredData.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                    <Loader2 className="w-5 h-5 animate-spin inline mr-2" />Loading...
+                  </td>
+                </tr>
+              ) : filteredData.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
                     No data found.
@@ -125,24 +145,18 @@ export default function UserManagementPage() {
                 </tr>
               ) : (
                 filteredData.map((row, index) => (
-                  <tr key={row.id} className="hover:bg-gray-50">
+                  <tr key={row.name} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm text-gray-900 text-center">{index + 1}</td>
-                    <td className="px-4 py-3 text-sm text-blue-600 text-center font-medium">{row.name}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900 text-center">{row.loginUserId}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600 text-center">{row.emailId}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600 text-center">{row.contactNo}</td>
+                    <td className="px-4 py-3 text-sm text-blue-600 text-center font-medium">{row.full_name}</td>
+                    <td className="px-4 py-3 text-sm text-gray-900 text-center">{row.username}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 text-center">{row.email}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 text-center">{row.mobile_no || row.phone}</td>
                     <td className="px-4 py-3 text-sm text-gray-600 text-center">{row.department}</td>
                     <td className="px-4 py-3 text-sm text-gray-600 text-center">{row.designation}</td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-2">
                         <button className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded">
                           <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(row.id)}
-                          className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded"
-                        >
-                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </td>
@@ -213,8 +227,8 @@ export default function UserManagementPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Login User ID <span className="text-red-500">*</span></label>
                 <input
                   type="text"
-                  value={formData.loginUserId}
-                  onChange={(e) => setFormData(prev => ({ ...prev, loginUserId: e.target.value }))}
+                  value={formData.username}
+                  onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
                   placeholder="Enter login user ID"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -239,11 +253,11 @@ export default function UserManagementPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email ID</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email ID <span className="text-red-500">*</span></label>
                 <input
                   type="email"
-                  value={formData.emailId}
-                  onChange={(e) => setFormData(prev => ({ ...prev, emailId: e.target.value }))}
+                  value={formData.email}
+                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                   placeholder="Enter email address"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -252,8 +266,8 @@ export default function UserManagementPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Contact No</label>
                 <input
                   type="tel"
-                  value={formData.contactNo}
-                  onChange={(e) => setFormData(prev => ({ ...prev, contactNo: e.target.value }))}
+                  value={formData.contact_no}
+                  onChange={(e) => setFormData(prev => ({ ...prev, contact_no: e.target.value }))}
                   placeholder="Enter contact number"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -267,11 +281,9 @@ export default function UserManagementPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Select Department</option>
-                    <option value="Technical">Technical</option>
-                    <option value="Finance">Finance</option>
-                    <option value="Human Resource">Human Resource</option>
-                    <option value="Pre-Sales">Pre-Sales</option>
-                    <option value="Software">Software</option>
+                    {departments.map(d => (
+                      <option key={d.name} value={d.department_name}>{d.department_name}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -282,10 +294,9 @@ export default function UserManagementPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Select Designation</option>
-                    <option value="Associate">Associate</option>
-                    <option value="Manager">Manager</option>
-                    <option value="Chief">Chief</option>
-                    <option value="Director">Director</option>
+                    {designations.map(d => (
+                      <option key={d.name} value={d.designation_name}>{d.designation_name}</option>
+                    ))}
                   </select>
                 </div>
               </div>

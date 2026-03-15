@@ -9,6 +9,7 @@ POC_PASSWORD = os.environ.get("GOV_ERP_POC_PASSWORD")
 POC_USERS = [
 	("director@technosys.local", "Rajesh", "Sharma", "Director"),
 	("dept.head@technosys.local", "Priya", "Mehta", "Department Head"),
+	("project.head@technosys.local", "Ravi", "Sharma", "Project Head"),
 	("hr.manager@technosys.local", "Anjali", "Rao", "HR Manager"),
 	("presales.head@technosys.local", "Amit", "Verma", "Presales Tendering Head"),
 	("presales.exec@technosys.local", "Pooja", "Kulkarni", "Presales Executive"),
@@ -22,6 +23,7 @@ POC_USERS = [
 	("accounts@technosys.local", "Sunita", "Patel", "Accounts"),
 	("field.tech@technosys.local", "Rohit", "Gupta", "Field Technician"),
 	("om.operator@technosys.local", "Deepak", "Mali", "OM Operator"),
+	("rma.manager@technosys.local", "Kiran", "Saxena", "RMA Manager"),
 ]
 
 

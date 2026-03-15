@@ -1,10 +1,128 @@
 # Backend Role Matrix
 
+See also:
+
+- `Erp_code/backend_org_mapping.md` for the client-facing org/dept/designation mapping
+
 ## Goal
 
 Move the backend away from `System Manager`-only access and toward business roles that match the ERP requirements.
 
 HR is also part of the domain, even though it is not part of the current tender-to-costing workflow. The source docs explicitly include `Human Resource` as a department and describe a later `HR & Manpower Module` covering project manpower allocation, attendance, travel log, overtime, ESIC/PF compliance, and technician visit tracking.
+
+## Observed Org Hierarchy
+
+Captured from the user-provided handwritten org chart image on 2026-03-14.
+
+Top level:
+
+- `Director`
+
+Direct department heads under the Director:
+
+- `Project Head`
+- `Engineering Head`
+- `Presales Head`
+- `HR Head`
+- `Accounts Head`
+
+Operational layer shown in the chart:
+
+- `PM1`
+- `PM2`
+- `PM3`
+- `PM4`
+
+Execution/support roles shown in the chart:
+
+- `Network Engineer`
+- `Operator`
+- `Technical Executive`
+- `MIS Executive`
+- `Assistant Manager`
+- `Floor Incharge`
+
+Implementation note:
+
+- The handwritten chart clearly establishes the top-level reporting heads.
+- The lower reporting lines are partially ambiguous in the image, so backend permissions should preserve flexibility rather than hard-code every lower-level reporting edge yet.
+- Current backend role mapping should treat `Project Manager` as the closest live equivalent of `PM1` to `PM4`.
+- We will likely need future role aliases or child roles for `MIS Executive`, `Assistant Manager`, `Floor Incharge`, and `Operator` once their workflow ownership becomes explicit in the frontend or business process docs.
+
+## Role Reconciliation
+
+This section maps the observed hierarchy to the current live app roles.
+
+### Clean Matches
+
+These roles already exist in the app and align well with the org chart:
+
+- `Director`
+- `Engineering Head`
+- `Project Manager`
+- `Accounts`
+
+### Near Matches / Alias Candidates
+
+These current app roles are usable, but the org chart suggests they should eventually be renamed or aliased:
+
+- `HR Manager` -> closer to `HR Head`
+- `Presales Tendering Head` -> closer to `Presales Head`
+- `Department Head` -> too generic when the org chart shows named functional heads
+
+### Roles Missing From Live App
+
+These appear in the org chart but do not yet exist as explicit backend roles:
+
+- `Project Head`
+- `Accounts Head`
+- `Network Engineer`
+- `Operator`
+- `Technical Executive`
+- `MIS Executive`
+- `Assistant Manager`
+- `Floor Incharge`
+
+### Project Layer Interpretation
+
+The org chart strongly suggests a 3-level project-side hierarchy:
+
+1. `Project Head`
+2. multiple `Project Manager` roles (`PM1` to `PM4`)
+3. field / support execution roles
+
+For backend purposes, the likely execution-side mapping is:
+
+- `Project Head`:
+  - portfolio-level project visibility
+  - approval visibility across execution, stores, O&M, and RMA
+  - escalation owner for project-side issues
+- `Project Manager`:
+  - day-to-day site/project ownership
+  - milestone, task, dependency, dispatch, ticket, and RMA initiation visibility
+- field execution roles:
+  - `Network Engineer`
+  - `Technical Executive`
+  - `Operator`
+  - `Field Technician`
+
+### HR + Project Insight
+
+Because the org chart includes project managers and execution staff under a formal reporting structure, HR should not stay isolated as a standalone admin module only.
+
+The HR model should eventually support:
+
+- employee-to-project assignment
+- reporting manager / department head linkage
+- designation-to-role mapping
+- project manpower visibility
+- technician / operator / engineer assignment history
+
+That means the org chart strengthens the case for adding:
+
+- `reports_to_employee` or equivalent manager mapping
+- employee designation master aligned to operational roles
+- employee current department + current project assignment
 
 ## Phase 1 Roles
 
@@ -23,6 +141,7 @@ HR is also part of the domain, even though it is not part of the current tender-
 | Project Manager | No | No | No | No | No | Owns sites, milestones, and execution dependencies |
 | Store Manager | No | No | No | No | No | Backend stores role |
 | Stores Logistics Head | No | No | No | No | No | UI-facing stores/logistics role alias |
+| RMA Manager | No | No | No | No | No | Owns RMA dispatch, warranty split, quote approval tracking, repair return flow |
 | Top Management | Read | Read | Read | Read | Read | Dashboard/read-only |
 
 ## API Direction
@@ -65,6 +184,12 @@ HR is also part of the domain, even though it is not part of the current tender-
 - Read: `Project Manager`, `Engineering Head`, `Engineer`, `Department Head`, `Top Management`, `System Manager`
 - Write: `Project Manager`, `Engineering Head`, `Engineer`, `System Manager`
 - Dependency override approval: `Department Head`, `System Manager`
+
+### RMA APIs
+
+- Read: `RMA Manager`, `Project Manager`, `Engineering Head`, `Engineer`, `Department Head`, `Top Management`, `System Manager`
+- Write: `RMA Manager`, `Project Manager`, `Engineering Head`, `Engineer`, `System Manager`
+- Approve/Reject: `RMA Manager`, `Department Head`, `Top Management`, `System Manager`
 
 ## HR Direction
 

@@ -165,6 +165,7 @@ def test_rma_apis_exist():
         "get_rma_trackers", "get_rma_tracker", "create_rma_tracker",
         "update_rma_tracker", "delete_rma_tracker", "approve_rma",
         "reject_rma", "update_rma_status", "close_rma", "get_rma_stats",
+        "convert_ticket_to_rma",
     }
     assert expected.issubset(names)
 

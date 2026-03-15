@@ -1,12 +1,11 @@
 'use client';
-import { useState } from 'react';
-import { Search, ChevronDown, ChevronUp, Download, Calendar } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Search, ChevronDown, ChevronUp, Download, Calendar, Loader2 } from 'lucide-react';
 
-interface SalesMISData {
-  id: number;
-  userName: string;
+interface SalesMISRecord {
+  user: string;
   assigned: number;
-  inProcess: number;
+  in_process: number;
   submitted: number;
   cancelled: number;
   awarded: number;
@@ -14,42 +13,36 @@ interface SalesMISData {
   rejected: number;
   dropped: number;
   reopened: number;
-  technical: number;
-  financial: number;
+  total: number;
 }
-
-const mockSalesData: SalesMISData[] = [
-  { id: 1, userName: 'Anju Ahirwar', assigned: 1, inProcess: 0, submitted: 0, cancelled: 0, awarded: 0, lost: 0, rejected: 0, dropped: 0, reopened: 0, technical: 0, financial: 0 },
-  { id: 2, userName: 'Ankit Mishra', assigned: 37, inProcess: 2, submitted: 0, cancelled: 0, awarded: 0, lost: 0, rejected: 0, dropped: 1, reopened: 0, technical: 0, financial: 0 },
-  { id: 3, userName: 'Hemant Banwari', assigned: 7, inProcess: 2, submitted: 0, cancelled: 0, awarded: 0, lost: 0, rejected: 0, dropped: 1, reopened: 0, technical: 0, financial: 0 },
-  { id: 4, userName: 'Himadri Biswas', assigned: 0, inProcess: 0, submitted: 0, cancelled: 0, awarded: 0, lost: 0, rejected: 0, dropped: 0, reopened: 0, technical: 0, financial: 0 },
-  { id: 5, userName: 'Priya Sharma', assigned: 12, inProcess: 3, submitted: 2, cancelled: 0, awarded: 1, lost: 0, rejected: 0, dropped: 0, reopened: 0, technical: 1, financial: 1 },
-  { id: 6, userName: 'Rahul Singh', assigned: 8, inProcess: 1, submitted: 1, cancelled: 0, awarded: 0, lost: 1, rejected: 0, dropped: 0, reopened: 0, technical: 0, financial: 0 },
-  { id: 7, userName: 'Suresh Kumar', assigned: 15, inProcess: 4, submitted: 3, cancelled: 1, awarded: 2, lost: 0, rejected: 1, dropped: 0, reopened: 1, technical: 2, financial: 1 },
-];
 
 export default function SalesMISPage() {
   const [showFilters, setShowFilters] = useState(true);
-  const [selectedUser, setSelectedUser] = useState('');
-  const [dateRange, setDateRange] = useState('');
-  const [data] = useState<SalesMISData[]>(mockSalesData);
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [data, setData] = useState<SalesMISRecord[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleSearch = () => {
-    console.log('Searching:', { selectedUser, dateRange });
-  };
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (fromDate) params.set('from_date', fromDate);
+      if (toDate) params.set('to_date', toDate);
+      const res = await fetch(`/api/mis/sales?${params.toString()}`);
+      const json = await res.json();
+      if (json.success) setData(json.data);
+    } catch (e) { console.error('Failed to fetch:', e); }
+    finally { setLoading(false); }
+  }, [fromDate, toDate]);
 
-  const handleClear = () => {
-    setSelectedUser('');
-    setDateRange('');
-  };
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-  const handleExport = () => {
-    console.log('Exporting to Excel');
-  };
+  const handleClear = () => { setFromDate(''); setToDate(''); };
 
   const renderClickableNumber = (value: number) => {
     if (value === 0) return <span className="text-gray-500">0</span>;
-    return <a href="#" className="text-blue-600 hover:underline">{value}</a>;
+    return <span className="text-blue-600 font-medium">{value}</span>;
   };
 
   return (
@@ -80,36 +73,24 @@ export default function SalesMISPage() {
         {showFilters && (
           <div className="px-4 pb-4 border-t border-gray-100">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mt-4 max-w-2xl">
-              <select
-                value={selectedUser}
-                onChange={(e) => setSelectedUser(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-500"
-              >
-                <option value="">User Name</option>
-                {mockSalesData.map(user => (
-                  <option key={user.id} value={user.userName}>{user.userName}</option>
-                ))}
-              </select>
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Date From → Date To"
-                  value={dateRange}
-                  onChange={(e) => setDateRange(e.target.value)}
-                  className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              </div>
+              <input
+                type="date"
+                placeholder="From date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <input
+                type="date"
+                placeholder="To date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
             </div>
 
             {/* Action Buttons */}
             <div className="flex gap-3 mt-4">
-              <button
-                onClick={handleSearch}
-                className="px-6 py-2 bg-[#1e6b87] text-white rounded-lg hover:bg-[#185a73] transition-colors text-sm font-medium"
-              >
-                Search
-              </button>
               <button
                 onClick={handleClear}
                 className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm font-medium"
@@ -121,25 +102,14 @@ export default function SalesMISPage() {
         )}
       </div>
 
-      {/* Export Button */}
-      <div className="flex justify-end mb-4">
-        <button
-          onClick={handleExport}
-          className="flex items-center gap-2 px-4 py-2 border border-[#1e6b87] text-[#1e6b87] rounded-lg hover:bg-[#1e6b87] hover:text-white transition-colors text-sm font-medium"
-        >
-          <Download className="w-4 h-4" />
-          Export To Excel
-        </button>
-      </div>
-
       {/* Data Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1200px]">
+          <table className="w-full min-w-[1000px]">
             <thead>
               <tr className="bg-[#1e6b87] text-white">
                 <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider">#</th>
-                <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider">User Name</th>
+                <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider">User</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Assigned</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">In Process</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Submitted</th>
@@ -149,28 +119,38 @@ export default function SalesMISPage() {
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Rejected</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Dropped</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Reopened</th>
-                <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Technical</th>
-                <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Financial</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Total</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {data.map((row, index) => (
-                <tr key={row.id} className="hover:bg-gray-50">
-                  <td className="px-3 py-3 text-sm text-gray-900">{index + 1}</td>
-                  <td className="px-3 py-3 text-sm text-gray-900">{row.userName}</td>
-                  <td className="px-3 py-3 text-sm text-center">{renderClickableNumber(row.assigned)}</td>
-                  <td className="px-3 py-3 text-sm text-center">{renderClickableNumber(row.inProcess)}</td>
-                  <td className="px-3 py-3 text-sm text-center">{renderClickableNumber(row.submitted)}</td>
-                  <td className="px-3 py-3 text-sm text-center">{renderClickableNumber(row.cancelled)}</td>
-                  <td className="px-3 py-3 text-sm text-center">{renderClickableNumber(row.awarded)}</td>
-                  <td className="px-3 py-3 text-sm text-center">{renderClickableNumber(row.lost)}</td>
-                  <td className="px-3 py-3 text-sm text-center">{renderClickableNumber(row.rejected)}</td>
-                  <td className="px-3 py-3 text-sm text-center">{renderClickableNumber(row.dropped)}</td>
-                  <td className="px-3 py-3 text-sm text-center">{renderClickableNumber(row.reopened)}</td>
-                  <td className="px-3 py-3 text-sm text-center">{renderClickableNumber(row.technical)}</td>
-                  <td className="px-3 py-3 text-sm text-center">{renderClickableNumber(row.financial)}</td>
+              {loading ? (
+                <tr>
+                  <td colSpan={12} className="px-4 py-8 text-center text-gray-500">
+                    <Loader2 className="w-5 h-5 animate-spin inline mr-2" />Loading...
+                  </td>
                 </tr>
-              ))}
+              ) : data.length === 0 ? (
+                <tr>
+                  <td colSpan={12} className="px-4 py-8 text-center text-gray-500">No data found</td>
+                </tr>
+              ) : (
+                data.map((row, index) => (
+                  <tr key={row.user} className="hover:bg-gray-50">
+                    <td className="px-3 py-3 text-sm text-gray-900">{index + 1}</td>
+                    <td className="px-3 py-3 text-sm text-gray-900">{row.user}</td>
+                    <td className="px-3 py-3 text-sm text-center">{renderClickableNumber(row.assigned)}</td>
+                    <td className="px-3 py-3 text-sm text-center">{renderClickableNumber(row.in_process)}</td>
+                    <td className="px-3 py-3 text-sm text-center">{renderClickableNumber(row.submitted)}</td>
+                    <td className="px-3 py-3 text-sm text-center">{renderClickableNumber(row.cancelled)}</td>
+                    <td className="px-3 py-3 text-sm text-center">{renderClickableNumber(row.awarded)}</td>
+                    <td className="px-3 py-3 text-sm text-center">{renderClickableNumber(row.lost)}</td>
+                    <td className="px-3 py-3 text-sm text-center">{renderClickableNumber(row.rejected)}</td>
+                    <td className="px-3 py-3 text-sm text-center">{renderClickableNumber(row.dropped)}</td>
+                    <td className="px-3 py-3 text-sm text-center">{renderClickableNumber(row.reopened)}</td>
+                    <td className="px-3 py-3 text-sm text-center font-bold">{row.total}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

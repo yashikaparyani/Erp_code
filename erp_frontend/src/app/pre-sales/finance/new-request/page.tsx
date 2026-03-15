@@ -1,59 +1,79 @@
 'use client';
-import { useState } from 'react';
-import { Search, ChevronDown, Download, Plus, Calendar, Building2, CreditCard, Clock, FileText, X } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Search, ChevronDown, Download, Plus, Calendar, Building2, CreditCard, Clock, FileText, X, Loader2 } from 'lucide-react';
 
-interface FinanceRequest {
-  id: string;
-  tenderId: string;
-  requirement: string;
-  paymentMode: string;
+interface FinanceInstrument {
+  name: string;
+  instrument_type: string;
+  linked_tender: string;
+  instrument_number: string;
   amount: number;
-  requesterName: string;
-  financeExecutive: string;
-  requestedDate: string;
-  deadlineDate: string;
-  validity: string;
-  approvalStatus: 'PENDING' | 'APPROVED' | 'DENIED';
+  status: string;
+  bank_name: string;
+  issue_date: string;
+  expiry_date: string;
+  remarks: string;
+  creation: string;
+  owner: string;
 }
-
-const columns = [
-  { key: '#', label: '#' },
-  { key: 'tenderId', label: 'TENDER ID' },
-  { key: 'requirement', label: 'REQUIREMENT' },
-  { key: 'paymentMode', label: 'PAYMENT MODE' },
-  { key: 'amount', label: 'AMOUNT' },
-  { key: 'requesterName', label: 'REQUESTER NAME' },
-  { key: 'financeExecutive', label: 'FINANCE EXECUTIVE' },
-  { key: 'requestedDate', label: 'REQUESTED DATE' },
-  { key: 'deadlineDate', label: 'DEADLINE DATE' },
-  { key: 'validity', label: 'VALIDITY' },
-  { key: 'approvalStatus', label: 'APPROVAL STATUS' },
-  { key: 'action', label: 'ACTION' },
-];
 
 export default function NewRequestPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [requests, setRequests] = useState<FinanceRequest[]>([]);
+  const [requests, setRequests] = useState<FinanceInstrument[]>([]);
+  const [loading, setLoading] = useState(true);
   const [pageSize, setPageSize] = useState(10);
-  const [currentPage, setCurrentPage] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const [formData, setFormData] = useState({
-    tenderId: '',
-    requirement: 'EMD',
-    paymentMode: 'Bank Transfer',
+    linked_tender: '',
+    instrument_type: 'EMD',
+    bank_name: '',
     amount: '',
-    deadlineDate: '',
-    validity: '',
+    expiry_date: '',
     remarks: '',
   });
 
-  const requirementOptions = ['EMD', 'PBG', 'Security Deposit', 'Bank Guarantee', 'Other'];
-  const paymentModes = ['Bank Transfer', 'DD', 'Cheque', 'Online Payment', 'Cash'];
+  const requirementOptions = ['EMD', 'PBG'];
 
-  const handleSubmit = () => {
-    // Submit logic here
-    setShowModal(false);
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/finance-requests');
+      const json = await res.json();
+      if (json.success) setRequests(json.data);
+    } catch (e) { console.error('Failed to fetch:', e); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
+  const handleSubmit = async () => {
+    if (!formData.linked_tender.trim() || !formData.amount) return;
+    try {
+      const res = await fetch('/api/finance-requests', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          linked_tender: formData.linked_tender,
+          instrument_type: formData.instrument_type,
+          bank_name: formData.bank_name,
+          amount: parseFloat(formData.amount),
+          expiry_date: formData.expiry_date,
+          remarks: formData.remarks,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setFormData({ linked_tender: '', instrument_type: 'EMD', bank_name: '', amount: '', expiry_date: '', remarks: '' });
+        setShowModal(false);
+        fetchData();
+      }
+    } catch (e) { console.error('Failed to create request:', e); }
   };
 
   return (
@@ -98,21 +118,22 @@ export default function NewRequestPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Requirement</label>
+                <label className="block text-xs text-gray-500 mb-1">Instrument Type</label>
                 <select className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="">All</option>
-                  {requirementOptions.map(opt => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
+                  <option value="EMD">EMD</option>
+                  <option value="PBG">PBG</option>
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Payment Mode</label>
+                <label className="block text-xs text-gray-500 mb-1">Status</label>
                 <select className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="">All</option>
-                  {paymentModes.map(mode => (
-                    <option key={mode} value={mode}>{mode}</option>
-                  ))}
+                  <option value="Pending">Pending</option>
+                  <option value="Active">Active</option>
+                  <option value="Released">Released</option>
+                  <option value="Refunded">Refunded</option>
+                  <option value="Rejected">Rejected</option>
                 </select>
               </div>
               <div>
@@ -149,36 +170,49 @@ export default function NewRequestPage() {
           <table className="w-full">
             <thead>
               <tr className="bg-[#1e6b87] text-white">
-                {columns.map((col) => (
-                  <th key={col.key} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap">
-                    {col.label}
-                  </th>
-                ))}
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap">#</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap">Tender ID</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap">Requirement</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap">Bank</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap">Amount</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap">Requester</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap">Instrument No</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap">Created Date</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap">Expiry Date</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap">Validity</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap">Action</th>
               </tr>
             </thead>
             <tbody>
-              {requests.length === 0 ? (
+              {loading ? (
                 <tr>
-                  <td colSpan={columns.length} className="px-4 py-12 text-center text-gray-500">
+                  <td colSpan={12} className="px-4 py-12 text-center text-gray-500">
+                    <Loader2 className="w-5 h-5 animate-spin inline mr-2" />Loading...
+                  </td>
+                </tr>
+              ) : requests.length === 0 ? (
+                <tr>
+                  <td colSpan={12} className="px-4 py-12 text-center text-gray-500">
                     No data found
                   </td>
                 </tr>
               ) : (
-                requests.map((request, index) => (
-                  <tr key={request.id} className="border-b border-gray-100 hover:bg-gray-50">
+                requests.map((row, index) => (
+                  <tr key={row.name} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm text-gray-600">{index + 1}</td>
-                    <td className="px-4 py-3 text-sm text-blue-600 font-medium">{request.tenderId}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{request.requirement}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{request.paymentMode}</td>
-                    <td className="px-4 py-3 text-sm text-gray-800 font-medium">₹{request.amount.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{request.requesterName}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{request.financeExecutive}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{request.requestedDate}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{request.deadlineDate}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{request.validity}</td>
+                    <td className="px-4 py-3 text-sm text-blue-600 font-medium">{row.linked_tender || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{row.instrument_type}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{row.bank_name || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-800 font-medium">₹{(row.amount || 0).toLocaleString()}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{row.owner}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{row.instrument_number || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{formatDate(row.creation)}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{formatDate(row.expiry_date)}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{row.issue_date && row.expiry_date ? `${Math.ceil((new Date(row.expiry_date).getTime() - new Date(row.issue_date).getTime()) / 86400000)} days` : '-'}</td>
                     <td className="px-4 py-3">
-                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-700">
-                        {request.approvalStatus}
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${row.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' : row.status === 'Active' ? 'bg-green-100 text-green-700' : row.status === 'Rejected' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}`}>
+                        {row.status.toUpperCase()}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -232,8 +266,8 @@ export default function NewRequestPage() {
                 </label>
                 <input
                   type="text"
-                  value={formData.tenderId}
-                  onChange={(e) => setFormData({...formData, tenderId: e.target.value})}
+                  value={formData.linked_tender}
+                  onChange={(e) => setFormData({...formData, linked_tender: e.target.value})}
                   placeholder="Enter tender ID"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -241,11 +275,11 @@ export default function NewRequestPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Requirement <span className="text-red-500">*</span>
+                    Instrument Type <span className="text-red-500">*</span>
                   </label>
                   <select
-                    value={formData.requirement}
-                    onChange={(e) => setFormData({...formData, requirement: e.target.value})}
+                    value={formData.instrument_type}
+                    onChange={(e) => setFormData({...formData, instrument_type: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     {requirementOptions.map(opt => (
@@ -255,17 +289,15 @@ export default function NewRequestPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Payment Mode <span className="text-red-500">*</span>
+                    Bank Name
                   </label>
-                  <select
-                    value={formData.paymentMode}
-                    onChange={(e) => setFormData({...formData, paymentMode: e.target.value})}
+                  <input
+                    type="text"
+                    value={formData.bank_name}
+                    onChange={(e) => setFormData({...formData, bank_name: e.target.value})}
+                    placeholder="Enter bank name"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    {paymentModes.map(mode => (
-                      <option key={mode} value={mode}>{mode}</option>
-                    ))}
-                  </select>
+                  />
                 </div>
               </div>
               <div>
@@ -280,30 +312,16 @@ export default function NewRequestPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Deadline Date <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.deadlineDate}
-                    onChange={(e) => setFormData({...formData, deadlineDate: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Validity (Days)
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.validity}
-                    onChange={(e) => setFormData({...formData, validity: e.target.value})}
-                    placeholder="e.g., 90"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Expiry Date
+                </label>
+                <input
+                  type="date"
+                  value={formData.expiry_date}
+                  onChange={(e) => setFormData({...formData, expiry_date: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Remarks</label>

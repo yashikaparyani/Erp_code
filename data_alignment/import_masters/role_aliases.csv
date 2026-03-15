@@ -1,0 +1,6 @@
+source_label,system_role,backend_constant,notes
+Presales Head,Presales Tendering Head,ROLE_PRESALES_CHIEF,UI label alias over existing backend role
+HR Head,HR Manager,ROLE_HR_HEAD,Head-level alias over HR Manager
+Accounts Head,Accounts,ROLE_ACCOUNTS_HEAD,Head-level alias over Accounts role
+Procurement Head,Procurement Manager,ROLE_PROCUREMENT_HEAD,Head-level alias over Procurement Manager
+RMA Head,RMA Manager,ROLE_RMA_HEAD,Head-level alias over RMA Manager

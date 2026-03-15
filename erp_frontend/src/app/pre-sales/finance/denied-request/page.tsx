@@ -1,99 +1,64 @@
 'use client';
-import { useState } from 'react';
-import { Search, ChevronDown, Download, Eye, XCircle, RefreshCw, Calendar, User, AlertTriangle } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Search, ChevronDown, Download, Eye, XCircle, RefreshCw, Calendar, User, AlertTriangle, Loader2 } from 'lucide-react';
 
-interface DeniedRequest {
-  id: string;
-  tenderId: string;
-  requirement: string;
-  paymentMode: string;
+interface FinanceInstrument {
+  name: string;
+  instrument_type: string;
+  linked_tender: string;
+  instrument_number: string;
   amount: number;
-  requesterName: string;
-  financeExecutive: string;
-  requestedDate: string;
-  deniedDate: string;
-  deniedBy: string;
-  denialReason: string;
-  validity: string;
+  status: string;
+  bank_name: string;
+  issue_date: string;
+  expiry_date: string;
+  remarks: string;
+  creation: string;
+  modified: string;
+  owner: string;
 }
-
-const mockDeniedRequests: DeniedRequest[] = [
-  {
-    id: '1',
-    tenderId: 'TEN-2026-012',
-    requirement: 'EMD',
-    paymentMode: 'Bank Transfer',
-    amount: 500000,
-    requesterName: 'Rahul Sharma',
-    financeExecutive: 'Vikram Desai',
-    requestedDate: '2026-02-20',
-    deniedDate: '2026-02-22',
-    deniedBy: 'Finance Manager',
-    denialReason: 'Insufficient funds in project account',
-    validity: '90 days',
-  },
-  {
-    id: '2',
-    tenderId: 'TEN-2026-013',
-    requirement: 'PBG',
-    paymentMode: 'DD',
-    amount: 1200000,
-    requesterName: 'Priya Singh',
-    financeExecutive: 'Neha Gupta',
-    requestedDate: '2026-02-25',
-    deniedDate: '2026-02-27',
-    deniedBy: 'CFO',
-    denialReason: 'Bank guarantee limit exceeded for current quarter',
-    validity: '180 days',
-  },
-  {
-    id: '3',
-    tenderId: 'TEN-2026-014',
-    requirement: 'Security Deposit',
-    paymentMode: 'Cheque',
-    amount: 250000,
-    requesterName: 'Amit Kumar',
-    financeExecutive: 'Vikram Desai',
-    requestedDate: '2026-03-01',
-    deniedDate: '2026-03-03',
-    deniedBy: 'Finance Manager',
-    denialReason: 'Incomplete documentation - Project approval pending',
-    validity: '365 days',
-  },
-];
 
 const columns = [
   { key: '#', label: '#' },
   { key: 'tenderId', label: 'TENDER ID' },
   { key: 'requirement', label: 'REQUIREMENT' },
-  { key: 'paymentMode', label: 'PAYMENT MODE' },
+  { key: 'bank', label: 'BANK' },
   { key: 'amount', label: 'AMOUNT' },
-  { key: 'requesterName', label: 'REQUESTER NAME' },
-  { key: 'financeExecutive', label: 'FINANCE EXECUTIVE' },
-  { key: 'requestedDate', label: 'REQUESTED DATE' },
-  { key: 'deniedDate', label: 'DENIED DATE' },
+  { key: 'requester', label: 'REQUESTER' },
+  { key: 'instrumentNo', label: 'INSTRUMENT NO' },
+  { key: 'requestedDate', label: 'CREATED DATE' },
+  { key: 'deniedDate', label: 'MODIFIED DATE' },
   { key: 'validity', label: 'VALIDITY' },
   { key: 'approvalStatus', label: 'APPROVAL STATUS' },
   { key: 'action', label: 'ACTION' },
 ];
 
 export default function DeniedRequestPage() {
+  const [data, setData] = useState<FinanceInstrument[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [pageSize, setPageSize] = useState(10);
-  const [currentPage, setCurrentPage] = useState(0);
-  const [selectedRequest, setSelectedRequest] = useState<DeniedRequest | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedRequest, setSelectedRequest] = useState<FinanceInstrument | null>(null);
+
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/finance-requests?status=Rejected');
+      const json = await res.json();
+      if (json.success) setData(json.data);
+    } catch (e) { console.error('Failed to fetch:', e); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
-  const handleResubmit = (id: string) => {
-    console.log('Resubmitting request:', id);
-  };
+  const totalDeniedAmount = data.reduce((sum, r) => sum + (r.amount || 0), 0);
 
   return (
     <div className="p-3 sm:p-4 md:p-6 bg-gray-50 min-h-screen">
@@ -111,7 +76,7 @@ export default function DeniedRequestPage() {
               <XCircle className="w-5 h-5 text-red-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-800">{mockDeniedRequests.length}</p>
+              <p className="text-2xl font-bold text-gray-800">{data.length}</p>
               <p className="text-sm text-gray-500">Total Denied</p>
             </div>
           </div>
@@ -122,7 +87,7 @@ export default function DeniedRequestPage() {
               <AlertTriangle className="w-5 h-5 text-orange-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-800">₹19.5L</p>
+              <p className="text-2xl font-bold text-gray-800">₹{(totalDeniedAmount / 100000).toFixed(1)}L</p>
               <p className="text-sm text-gray-500">Total Denied Amount</p>
             </div>
           </div>
@@ -133,7 +98,7 @@ export default function DeniedRequestPage() {
               <RefreshCw className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-800">1</p>
+              <p className="text-2xl font-bold text-gray-800">-</p>
               <p className="text-sm text-gray-500">Resubmitted</p>
             </div>
           </div>
@@ -223,25 +188,31 @@ export default function DeniedRequestPage() {
               </tr>
             </thead>
             <tbody>
-              {mockDeniedRequests.length === 0 ? (
+              {loading ? (
                 <tr>
                   <td colSpan={columns.length} className="px-4 py-12 text-center text-gray-500">
-                    No data found
+                    <Loader2 className="w-5 h-5 animate-spin inline mr-2" />Loading...
+                  </td>
+                </tr>
+              ) : data.length === 0 ? (
+                <tr>
+                  <td colSpan={columns.length} className="px-4 py-12 text-center text-gray-500">
+                    No denied requests found
                   </td>
                 </tr>
               ) : (
-                mockDeniedRequests.map((request, index) => (
-                  <tr key={request.id} className="border-b border-gray-100 hover:bg-gray-50">
+                data.map((row, index) => (
+                  <tr key={row.name} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm text-gray-600">{index + 1}</td>
-                    <td className="px-4 py-3 text-sm text-blue-600 font-medium">{request.tenderId}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{request.requirement}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{request.paymentMode}</td>
-                    <td className="px-4 py-3 text-sm text-gray-800 font-medium">₹{request.amount.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{request.requesterName}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{request.financeExecutive}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{formatDate(request.requestedDate)}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{formatDate(request.deniedDate)}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{request.validity}</td>
+                    <td className="px-4 py-3 text-sm text-blue-600 font-medium">{row.linked_tender || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{row.instrument_type}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{row.bank_name || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-800 font-medium">₹{(row.amount || 0).toLocaleString()}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{row.owner}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{row.instrument_number || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{formatDate(row.creation)}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{formatDate(row.modified)}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{row.issue_date && row.expiry_date ? `${Math.ceil((new Date(row.expiry_date).getTime() - new Date(row.issue_date).getTime()) / 86400000)} days` : '-'}</td>
                     <td className="px-4 py-3">
                       <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700">
                         DENIED
@@ -249,19 +220,12 @@ export default function DeniedRequestPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
-                        <button 
-                          onClick={() => setSelectedRequest(request)}
+                        <button
+                          onClick={() => setSelectedRequest(row)}
                           className="p-1.5 hover:bg-gray-100 rounded text-gray-600"
                           title="View Details"
                         >
                           <Eye className="w-4 h-4" />
-                        </button>
-                        <button 
-                          onClick={() => handleResubmit(request.id)}
-                          className="p-1.5 hover:bg-blue-100 rounded text-blue-600"
-                          title="Resubmit"
-                        >
-                          <RefreshCw className="w-4 h-4" />
                         </button>
                       </div>
                     </td>
@@ -310,25 +274,27 @@ export default function DeniedRequestPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs text-gray-500">Tender ID</p>
-                  <p className="text-sm font-medium text-gray-800">{selectedRequest.tenderId}</p>
+                  <p className="text-sm font-medium text-gray-800">{selectedRequest.linked_tender || '-'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Requirement</p>
-                  <p className="text-sm font-medium text-gray-800">{selectedRequest.requirement}</p>
+                  <p className="text-sm font-medium text-gray-800">{selectedRequest.instrument_type}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Amount</p>
-                  <p className="text-sm font-medium text-gray-800">₹{selectedRequest.amount.toLocaleString()}</p>
+                  <p className="text-sm font-medium text-gray-800">₹{(selectedRequest.amount || 0).toLocaleString()}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500">Denied By</p>
-                  <p className="text-sm font-medium text-gray-800">{selectedRequest.deniedBy}</p>
+                  <p className="text-xs text-gray-500">Bank</p>
+                  <p className="text-sm font-medium text-gray-800">{selectedRequest.bank_name || '-'}</p>
                 </div>
               </div>
-              <div className="p-3 bg-red-50 rounded-lg border border-red-200">
-                <p className="text-xs text-red-600 font-medium mb-1">Denial Reason</p>
-                <p className="text-sm text-red-800">{selectedRequest.denialReason}</p>
-              </div>
+              {selectedRequest.remarks && (
+                <div className="p-3 bg-red-50 rounded-lg border border-red-200">
+                  <p className="text-xs text-red-600 font-medium mb-1">Remarks</p>
+                  <p className="text-sm text-red-800">{selectedRequest.remarks}</p>
+                </div>
+              )}
             </div>
             <div className="flex justify-end gap-3 p-4 border-t border-gray-200">
               <button
@@ -336,13 +302,6 @@ export default function DeniedRequestPage() {
                 className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
               >
                 Close
-              </button>
-              <button
-                onClick={() => handleResubmit(selectedRequest.id)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Resubmit
               </button>
             </div>
           </div>

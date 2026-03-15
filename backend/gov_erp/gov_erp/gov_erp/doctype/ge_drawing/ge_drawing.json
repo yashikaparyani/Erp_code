@@ -1,0 +1,200 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-03-15 19:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "linked_project",
+  "linked_site",
+  "cb_top",
+  "drawing_number",
+  "discipline",
+  "title",
+  "sb_revision",
+  "revision",
+  "status",
+  "cb_revision",
+  "client_approval_status",
+  "approval_date",
+  "sb_file",
+  "file",
+  "approved_by",
+  "cb_file",
+  "supersedes_drawing",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "DRAW-.#####"
+  },
+  {
+   "fieldname": "linked_project",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Linked Project",
+   "options": "Project",
+   "reqd": 1
+  },
+  {
+   "fieldname": "linked_site",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Linked Site",
+   "options": "GE Site"
+  },
+  {
+   "fieldname": "cb_top",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "drawing_number",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Drawing Number",
+   "reqd": 1
+  },
+  {
+   "fieldname": "discipline",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Discipline",
+   "options": "Electrical\nCivil\nNetwork\nMechanical",
+   "reqd": 1
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "label": "Title",
+   "reqd": 1
+  },
+  {
+   "fieldname": "sb_revision",
+   "fieldtype": "Section Break",
+   "label": "Revision & Approval"
+  },
+  {
+   "default": "0",
+   "fieldname": "revision",
+   "fieldtype": "Int",
+   "label": "Revision",
+   "reqd": 1
+  },
+  {
+   "default": "Draft",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Draft\nSubmitted\nApproved\nSuperseded",
+   "reqd": 1
+  },
+  {
+   "fieldname": "cb_revision",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Pending",
+   "fieldname": "client_approval_status",
+   "fieldtype": "Select",
+   "label": "Client Approval Status",
+   "options": "Pending\nApproved\nRejected"
+  },
+  {
+   "fieldname": "approval_date",
+   "fieldtype": "Date",
+   "label": "Approval Date"
+  },
+  {
+   "fieldname": "sb_file",
+   "fieldtype": "Section Break",
+   "label": "File & Linkage"
+  },
+  {
+   "fieldname": "file",
+   "fieldtype": "Attach",
+   "label": "File",
+   "reqd": 1
+  },
+  {
+   "fieldname": "approved_by",
+   "fieldtype": "Link",
+   "label": "Approved By",
+   "options": "User"
+  },
+  {
+   "fieldname": "cb_file",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "supersedes_drawing",
+   "fieldtype": "Link",
+   "label": "Supersedes Drawing",
+   "options": "GE Drawing"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-03-15 19:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE Drawing",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Engineering Head",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Project Manager",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Project Head"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Director"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

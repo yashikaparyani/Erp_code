@@ -17,6 +17,7 @@ export type Role =
   | 'Project Manager'
   | 'Accounts'
   | 'Field Technician'
+  | 'RMA Manager'
   | 'OM Operator';
 
 export const roles: Role[] = [
@@ -34,6 +35,7 @@ export const roles: Role[] = [
   'Project Manager',
   'Accounts',
   'Field Technician',
+  'RMA Manager',
   'OM Operator',
 ];
 
@@ -49,6 +51,7 @@ export const roleAccess: Record<Role, string[]> = {
     '/inventory',
     '/execution',
     '/om-helpdesk',
+    '/rma',
     '/finance',
     '/reports',
     '/documents',
@@ -64,9 +67,11 @@ export const roleAccess: Record<Role, string[]> = {
     '/inventory',
     '/execution',
     '/om-helpdesk',
+    '/rma',
     '/finance',
     '/reports',
     '/documents',
+    '/rma',
   ],
   'HR Manager': [
     '/',
@@ -165,11 +170,20 @@ export const roleAccess: Record<Role, string[]> = {
     '/execution',
     '/om-helpdesk',
     '/documents',
+    '/rma',
+  ],
+  'RMA Manager': [
+    '/',
+    '/rma',
+    '/om-helpdesk',
+    '/documents',
+    '/reports',
   ],
   'OM Operator': [
     '/',
     '/inventory',
     '/om-helpdesk',
+    '/rma',
     '/reports',
     '/documents',
   ],
@@ -192,6 +206,7 @@ export const getRoleInitials = (role: Role): string => {
     'Project Manager': 'PM',
     'Accounts': 'AC',
     'Field Technician': 'FT',
+    'RMA Manager': 'RM',
     'OM Operator': 'OM',
   };
   return initialsMap[role];

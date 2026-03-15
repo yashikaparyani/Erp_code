@@ -16,6 +16,7 @@ from gov_erp.api import (
 	close_rma,
 	close_sla_timer,
 	close_ticket,
+	convert_ticket_to_rma,
 	convert_tender_to_project,
 	create_boq,
 	create_cost_sheet_from_boq,
@@ -398,6 +399,34 @@ class TestAppRuntime(FrappeTestCase):
 		self.assertTrue(update_rma_status(rma_name, "UNDER_REPAIR")["success"])
 		self.assertTrue(update_rma_status(rma_name, "REPAIRED")["success"])
 		self.assertTrue(close_rma(rma_name)["success"])
+
+		second_ticket_result = create_ticket(
+			{
+				"title": self._unique("RMA Conversion Ticket"),
+				"category": "HARDWARE_ISSUE",
+				"priority": "MEDIUM",
+				"status": "NEW",
+				"linked_project": project.name,
+			}
+		)
+		second_ticket_name = second_ticket_result["data"]["name"]
+		self._track_doc("GE Ticket", second_ticket_name)
+
+		converted_rma = convert_ticket_to_rma(
+			second_ticket_name,
+			{
+				"dispatch_destination": "OEM",
+				"warranty_status": "UNDER_WARRANTY",
+				"repairability_status": "REPAIRABLE",
+			},
+		)
+		self.assertTrue(converted_rma["success"])
+		converted_rma_name = converted_rma["data"]["name"]
+		self._track_doc("GE RMA Tracker", converted_rma_name)
+
+		ticket_doc = frappe.get_doc("GE Ticket", second_ticket_name)
+		self.assertEqual(ticket_doc.is_rma, 1)
+		self.assertEqual(ticket_doc.linked_rma, converted_rma_name)
 
 	def test_role_gated_runtime_access(self):
 		presales_user = self._make_user_with_roles("Presales Executive")

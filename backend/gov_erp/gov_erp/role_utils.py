@@ -7,6 +7,7 @@ ROLE_PRESALES_EXECUTIVE = "Presales Executive"
 ROLE_ENGINEERING_HEAD = "Engineering Head"
 ROLE_ENGINEER = "Engineer"
 ROLE_DEPARTMENT_HEAD = "Department Head"
+ROLE_PROJECT_HEAD = "Project Head"
 ROLE_ACCOUNTS = "Accounts"
 ROLE_HR_MANAGER = "HR Manager"
 ROLE_PROCUREMENT_MANAGER = "Procurement Manager"
@@ -17,6 +18,20 @@ ROLE_STORES_LOGISTICS_HEAD = "Stores Logistics Head"
 ROLE_DIRECTOR = "Director"
 ROLE_FIELD_TECHNICIAN = "Field Technician"
 ROLE_OM_OPERATOR = "OM Operator"
+ROLE_RMA_MANAGER = "RMA Manager"
+
+# ── Head-level aliases ──────────────────────────────────────────────────────
+# These map functional titles that appear in the org chart to the underlying
+# permission role. Code throughout the codebase should use the alias when the
+# context is domain-specific (e.g. ROLE_HR_HEAD in HR guards instead of
+# ROLE_HR_MANAGER) so that the role name shown in the UI is meaningful and
+# can diverge from the permission role in a future refactor without touching
+# every guard.
+ROLE_PRESALES_CHIEF     = ROLE_PRESALES_HEAD          # Presales Head alias
+ROLE_HR_HEAD            = ROLE_HR_MANAGER             # HR Head alias
+ROLE_ACCOUNTS_HEAD      = ROLE_ACCOUNTS               # Accounts Head alias
+ROLE_PROCUREMENT_HEAD   = ROLE_PROCUREMENT_MANAGER    # Procurement Head alias
+ROLE_RMA_HEAD           = ROLE_RMA_MANAGER            # RMA Head alias
 
 
 BUSINESS_ROLES = [
@@ -25,6 +40,7 @@ BUSINESS_ROLES = [
 	ROLE_ENGINEERING_HEAD,
 	ROLE_ENGINEER,
 	ROLE_DEPARTMENT_HEAD,
+	ROLE_PROJECT_HEAD,
 	ROLE_ACCOUNTS,
 	ROLE_HR_MANAGER,
 	ROLE_PROCUREMENT_MANAGER,
@@ -35,6 +51,7 @@ BUSINESS_ROLES = [
 	ROLE_DIRECTOR,
 	ROLE_FIELD_TECHNICIAN,
 	ROLE_OM_OPERATOR,
+	ROLE_RMA_MANAGER,
 ]
 
 

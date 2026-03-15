@@ -1,73 +1,55 @@
 'use client';
-import { useState } from 'react';
-import { Plus, Search, Edit2, Trash2, Download, ChevronRight, ChevronDown, ChevronsLeft, ChevronsRight, X } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Plus, Search, Edit2, Trash2, Download, ChevronRight, ChevronDown, ChevronsLeft, ChevronsRight, X, Loader2 } from 'lucide-react';
 
 interface FolderData {
-  id: number;
-  folderName: string;
-  createdBy: string;
-  createdDateTime: string;
-  subFolders?: SubFolderData[];
+  name: string;
+  file_name: string;
+  folder: string;
+  creation: string;
+  owner: string;
+  file_count: number;
 }
-
-interface SubFolderData {
-  id: number;
-  folderName: string;
-  createdBy: string;
-  createdDateTime: string;
-}
-
-const mockFolders: FolderData[] = [
-  { 
-    id: 1, 
-    folderName: 'Noida', 
-    createdBy: 'Purnima Nigam', 
-    createdDateTime: '25-01-2025 16:40',
-    subFolders: [
-      { id: 101, folderName: 'Q1 2025', createdBy: 'Purnima Nigam', createdDateTime: '26-01-2025 10:30' },
-      { id: 102, folderName: 'Q2 2025', createdBy: 'Purnima Nigam', createdDateTime: '01-04-2025 09:15' },
-    ]
-  },
-  { 
-    id: 2, 
-    folderName: 'Delhi', 
-    createdBy: 'Ankit Mishra', 
-    createdDateTime: '28-01-2025 11:20',
-    subFolders: [
-      { id: 201, folderName: 'Contracts', createdBy: 'Ankit Mishra', createdDateTime: '29-01-2025 14:00' },
-    ]
-  },
-  { 
-    id: 3, 
-    folderName: 'Mumbai', 
-    createdBy: 'Rahul Sharma', 
-    createdDateTime: '02-02-2025 09:45',
-  },
-  { 
-    id: 4, 
-    folderName: 'Bangalore', 
-    createdBy: 'Priya Singh', 
-    createdDateTime: '05-02-2025 14:30',
-  },
-];
 
 export default function FoldersPage() {
-  const [data] = useState<FolderData[]>(mockFolders);
+  const [data, setData] = useState<FolderData[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [expandedFolders, setExpandedFolders] = useState<number[]>([]);
+  const [expandedFolders, setExpandedFolders] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [showModal, setShowModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
 
-  const totalPages = Math.ceil(data.length / itemsPerPage) || 1;
+  const fetchFolders = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/documents/folders');
+      const json = await res.json();
+      if (json.success) setData(json.data);
+    } catch (e) { console.error('Failed to fetch:', e); }
+    finally { setLoading(false); }
+  }, []);
 
-  const toggleFolder = (folderId: number) => {
+  useEffect(() => { fetchFolders(); }, [fetchFolders]);
+
+  // Build tree: top-level folders are those whose parent folder is "Home" or empty
+  const topLevelFolders = data.filter(f => !f.folder || f.folder === 'Home');
+  const getChildren = (parentName: string) => data.filter(f => f.folder === parentName);
+
+  const totalPages = Math.ceil(topLevelFolders.length / itemsPerPage) || 1;
+
+  const toggleFolder = (folderName: string) => {
     setExpandedFolders(prev =>
-      prev.includes(folderId)
-        ? prev.filter(id => id !== folderId)
-        : [...prev, folderId]
+      prev.includes(folderName)
+        ? prev.filter(n => n !== folderName)
+        : [...prev, folderName]
     );
+  };
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 
   const handleCreateFolder = () => {
@@ -78,8 +60,8 @@ export default function FoldersPage() {
     }
   };
 
-  const filteredData = data.filter(folder =>
-    folder.folderName.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredData = topLevelFolders.filter(folder =>
+    folder.file_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -112,6 +94,11 @@ export default function FoldersPage() {
       </div>
 
       {/* Data Table */}
+      {loading ? (
+        <div className="flex justify-center items-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-[#1e6b87]" />
+        </div>
+      ) : (
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -120,6 +107,7 @@ export default function FoldersPage() {
                 <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider w-12"></th>
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider w-16">#</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Folder Name</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Files</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Created By</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Created Date & Time</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider w-32">Action</th>
@@ -128,21 +116,23 @@ export default function FoldersPage() {
             <tbody className="divide-y divide-gray-200">
               {filteredData.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-3 py-8 text-center text-gray-500">
+                  <td colSpan={7} className="px-3 py-8 text-center text-gray-500">
                     No folders found.
                   </td>
                 </tr>
               ) : (
-                filteredData.map((folder, index) => (
+                filteredData.map((folder, index) => {
+                  const children = getChildren(folder.name);
+                  return (
                   <>
-                    <tr key={folder.id} className="hover:bg-gray-50">
+                    <tr key={folder.name} className="hover:bg-gray-50">
                       <td className="px-3 py-3">
-                        {folder.subFolders && folder.subFolders.length > 0 && (
+                        {children.length > 0 && (
                           <button
-                            onClick={() => toggleFolder(folder.id)}
+                            onClick={() => toggleFolder(folder.name)}
                             className="p-1 text-gray-500 hover:text-gray-700"
                           >
-                            {expandedFolders.includes(folder.id) ? (
+                            {expandedFolders.includes(folder.name) ? (
                               <ChevronDown className="w-4 h-4" />
                             ) : (
                               <ChevronRight className="w-4 h-4" />
@@ -152,10 +142,11 @@ export default function FoldersPage() {
                       </td>
                       <td className="px-3 py-3 text-sm text-gray-900 text-center">{index + 1}</td>
                       <td className="px-3 py-3 text-sm text-blue-600 text-center font-medium">
-                        <a href="#" className="hover:underline">{folder.folderName}</a>
+                        <span>{folder.file_name || folder.name}</span>
                       </td>
-                      <td className="px-3 py-3 text-sm text-gray-900 text-center">{folder.createdBy}</td>
-                      <td className="px-3 py-3 text-sm text-gray-600 text-center">{folder.createdDateTime}</td>
+                      <td className="px-3 py-3 text-sm text-gray-900 text-center">{folder.file_count}</td>
+                      <td className="px-3 py-3 text-sm text-gray-900 text-center">{folder.owner}</td>
+                      <td className="px-3 py-3 text-sm text-gray-600 text-center">{formatDate(folder.creation)}</td>
                       <td className="px-3 py-3 text-center">
                         <div className="flex items-center justify-center gap-2">
                           <button className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded">
@@ -171,17 +162,18 @@ export default function FoldersPage() {
                       </td>
                     </tr>
                     {/* Sub Folders */}
-                    {expandedFolders.includes(folder.id) && folder.subFolders?.map((subFolder, subIndex) => (
-                      <tr key={subFolder.id} className="bg-gray-50 hover:bg-gray-100">
+                    {expandedFolders.includes(folder.name) && children.map((subFolder, subIndex) => (
+                      <tr key={subFolder.name} className="bg-gray-50 hover:bg-gray-100">
                         <td className="px-3 py-3"></td>
                         <td className="px-3 py-3 text-sm text-gray-900 text-center pl-8">
                           {index + 1}.{subIndex + 1}
                         </td>
                         <td className="px-3 py-3 text-sm text-blue-600 text-center font-medium pl-8">
-                          <a href="#" className="hover:underline">└ {subFolder.folderName}</a>
+                          <span>└ {subFolder.file_name || subFolder.name}</span>
                         </td>
-                        <td className="px-3 py-3 text-sm text-gray-900 text-center">{subFolder.createdBy}</td>
-                        <td className="px-3 py-3 text-sm text-gray-600 text-center">{subFolder.createdDateTime}</td>
+                        <td className="px-3 py-3 text-sm text-gray-900 text-center">{subFolder.file_count}</td>
+                        <td className="px-3 py-3 text-sm text-gray-900 text-center">{subFolder.owner}</td>
+                        <td className="px-3 py-3 text-sm text-gray-600 text-center">{formatDate(subFolder.creation)}</td>
                         <td className="px-3 py-3 text-center">
                           <div className="flex items-center justify-center gap-2">
                             <button className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded">
@@ -198,7 +190,8 @@ export default function FoldersPage() {
                       </tr>
                     ))}
                   </>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -256,6 +249,7 @@ export default function FoldersPage() {
           </div>
         </div>
       </div>
+      )}
 
       {/* New Folder Modal */}
       {showModal && (

@@ -258,12 +258,6 @@
   {
    "read": 1,
    "report": 1,
-   "role": "Department Head",
-   "write": 1
-  },
-  {
-   "read": 1,
-   "report": 1,
    "role": "Director"
   },
   {
@@ -272,10 +266,10 @@
    "role": "Project Manager"
   },
   {
-   "read": 1,
-   "report": 1,
-   "role": "Presales Tendering Head"
-  }
+    "read": 1,
+    "report": 1,
+    "role": "Project Head"
+    }
  ],
  "sort_field": "creation",
  "sort_order": "desc",

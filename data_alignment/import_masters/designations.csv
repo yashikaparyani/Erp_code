@@ -1,0 +1,29 @@
+designation_name,description
+Director,Executive leadership
+General Manager,Executive leadership
+Department Head,Generic head-level designation
+Project Head,Project leadership
+Presales Head,Presales leadership
+HR Head,HR leadership
+Accounts Head,Finance leadership
+Procurement Head,Procurement leadership
+RMA Head,RMA leadership
+Store Head,Store leadership
+Engineering Head,Engineering leadership
+Project Manager,Project execution lead
+Project Coordinator,Project coordination role
+Presales Executive,Tender execution role
+MIS Executive,Reporting and MIS role
+Accounts Executive,Operational finance role
+HR Executive,Operational HR role
+Procurement Manager,Procurement leadership role
+Purchase Executive,Operational purchase role
+Network Engineer,Network implementation role
+Engineer,Engineering execution role
+Technical Executive,Technical operations role
+Field Technician,Field execution role
+Store Executive,Store operations role
+Logistics Executive,Dispatch and logistics role
+OM Operator,O&M operations role
+Operator,General operator role
+Admin Executive,Administrative support role

@@ -1,0 +1,161 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-03-15 19:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "linked_project",
+  "linked_site",
+  "cb_top",
+  "network_name",
+  "status",
+  "sb_network",
+  "subnet",
+  "gateway",
+  "vlan_id",
+  "cb_network",
+  "total_ips",
+  "allocated_ips",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "IPP-.#####"
+  },
+  {
+   "fieldname": "linked_project",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Linked Project",
+   "options": "Project",
+   "reqd": 1
+  },
+  {
+   "fieldname": "linked_site",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Linked Site",
+   "options": "GE Site",
+   "reqd": 1
+  },
+  {
+   "fieldname": "cb_top",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "network_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Network Name",
+   "reqd": 1
+  },
+  {
+   "default": "Planning",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Planning\nActive\nDecommissioned",
+   "reqd": 1
+  },
+  {
+   "fieldname": "sb_network",
+   "fieldtype": "Section Break",
+   "label": "Network Details"
+  },
+  {
+   "fieldname": "subnet",
+   "fieldtype": "Data",
+   "label": "Subnet",
+   "reqd": 1
+  },
+  {
+   "fieldname": "gateway",
+   "fieldtype": "Data",
+   "label": "Gateway"
+  },
+  {
+   "fieldname": "vlan_id",
+   "fieldtype": "Data",
+   "label": "VLAN ID"
+  },
+  {
+   "fieldname": "cb_network",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "total_ips",
+   "fieldtype": "Int",
+   "label": "Total IPs"
+  },
+  {
+   "default": "0",
+   "fieldname": "allocated_ips",
+   "fieldtype": "Int",
+   "label": "Allocated IPs",
+   "read_only": 1
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-03-15 19:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE IP Pool",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Engineering Head",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Project Manager",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Project Head"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

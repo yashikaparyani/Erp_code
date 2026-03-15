@@ -1,132 +1,79 @@
 'use client';
-import { useState } from 'react';
-import { Search, ChevronDown, Download, Eye, CheckCircle2, Calendar, IndianRupee, FileCheck, Clock, ArrowUpRight } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Search, ChevronDown, Download, Eye, CheckCircle2, Calendar, IndianRupee, FileCheck, Clock, ArrowUpRight, Loader2 } from 'lucide-react';
 
-interface CompletedRequest {
-  id: string;
-  tenderId: string;
-  requirement: string;
-  paymentMode: string;
+interface FinanceInstrument {
+  name: string;
+  instrument_type: string;
+  linked_tender: string;
+  instrument_number: string;
   amount: number;
-  requesterName: string;
-  financeExecutive: string;
-  requestedDate: string;
-  completedDate: string;
-  validity: string;
-  validUntil: string;
-  transactionRef: string;
-  status: 'RELEASED' | 'REFUNDED' | 'ACTIVE';
+  status: string;
+  bank_name: string;
+  issue_date: string;
+  expiry_date: string;
+  remarks: string;
+  creation: string;
+  owner: string;
 }
-
-const mockCompletedRequests: CompletedRequest[] = [
-  {
-    id: '1',
-    tenderId: 'TEN-2026-001',
-    requirement: 'EMD',
-    paymentMode: 'Bank Transfer',
-    amount: 150000,
-    requesterName: 'Rahul Sharma',
-    financeExecutive: 'Vikram Desai',
-    requestedDate: '2026-02-10',
-    completedDate: '2026-02-12',
-    validity: '90 days',
-    validUntil: '2026-05-12',
-    transactionRef: 'TXN20260212001',
-    status: 'ACTIVE',
-  },
-  {
-    id: '2',
-    tenderId: 'TEN-2025-098',
-    requirement: 'PBG',
-    paymentMode: 'DD',
-    amount: 820000,
-    requesterName: 'Priya Singh',
-    financeExecutive: 'Neha Gupta',
-    requestedDate: '2025-12-15',
-    completedDate: '2025-12-18',
-    validity: '180 days',
-    validUntil: '2026-06-15',
-    transactionRef: 'TXN20251218002',
-    status: 'ACTIVE',
-  },
-  {
-    id: '3',
-    tenderId: 'TEN-2025-087',
-    requirement: 'EMD',
-    paymentMode: 'Bank Transfer',
-    amount: 250000,
-    requesterName: 'Amit Kumar',
-    financeExecutive: 'Vikram Desai',
-    requestedDate: '2025-11-20',
-    completedDate: '2025-11-22',
-    validity: '90 days',
-    validUntil: '2026-02-19',
-    transactionRef: 'TXN20251122003',
-    status: 'REFUNDED',
-  },
-  {
-    id: '4',
-    tenderId: 'TEN-2025-076',
-    requirement: 'Security Deposit',
-    paymentMode: 'Cheque',
-    amount: 500000,
-    requesterName: 'Vikram Desai',
-    financeExecutive: 'Neha Gupta',
-    requestedDate: '2025-10-05',
-    completedDate: '2025-10-08',
-    validity: '365 days',
-    validUntil: '2026-10-07',
-    transactionRef: 'TXN20251008004',
-    status: 'RELEASED',
-  },
-];
 
 const columns = [
   { key: '#', label: '#' },
   { key: 'tenderId', label: 'TENDER ID' },
   { key: 'requirement', label: 'REQUIREMENT' },
-  { key: 'paymentMode', label: 'PAYMENT MODE' },
+  { key: 'paymentMode', label: 'BANK' },
   { key: 'amount', label: 'AMOUNT' },
-  { key: 'requesterName', label: 'REQUESTER NAME' },
-  { key: 'financeExecutive', label: 'FINANCE EXECUTIVE' },
-  { key: 'requestedDate', label: 'REQUESTED DATE' },
-  { key: 'completedDate', label: 'COMPLETED DATE' },
+  { key: 'requesterName', label: 'REQUESTER' },
+  { key: 'instrumentNo', label: 'INSTRUMENT NO' },
+  { key: 'requestedDate', label: 'CREATED DATE' },
+  { key: 'expiryDate', label: 'EXPIRY DATE' },
   { key: 'validity', label: 'VALIDITY' },
   { key: 'approvalStatus', label: 'STATUS' },
   { key: 'action', label: 'ACTION' },
 ];
 
 export default function CompletedRequestPage() {
+  const [data, setData] = useState<FinanceInstrument[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [pageSize, setPageSize] = useState(10);
-  const [currentPage, setCurrentPage] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/finance-requests');
+      const json = await res.json();
+      if (json.success) {
+        setData(json.data.filter((r: FinanceInstrument) => ['Active', 'Released', 'Refunded'].includes(r.status)));
+      }
+    } catch (e) { console.error('Failed to fetch:', e); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
-  const getStatusBadge = (status: CompletedRequest['status']) => {
-    const styles = {
-      ACTIVE: 'bg-green-100 text-green-700',
-      REFUNDED: 'bg-blue-100 text-blue-700',
-      RELEASED: 'bg-gray-100 text-gray-700',
+  const getStatusBadge = (status: string) => {
+    const styles: Record<string, string> = {
+      Active: 'bg-green-100 text-green-700',
+      Refunded: 'bg-blue-100 text-blue-700',
+      Released: 'bg-gray-100 text-gray-700',
     };
     return (
-      <span className={`px-2 py-1 text-xs font-medium rounded-full ${styles[status]}`}>
-        {status}
+      <span className={`px-2 py-1 text-xs font-medium rounded-full ${styles[status] || 'bg-gray-100 text-gray-700'}`}>
+        {status.toUpperCase()}
       </span>
     );
   };
 
-  // Calculate summary stats
-  const totalCompleted = mockCompletedRequests.length;
-  const totalAmount = mockCompletedRequests.reduce((sum, r) => sum + r.amount, 0);
-  const activeCount = mockCompletedRequests.filter(r => r.status === 'ACTIVE').length;
-  const refundedCount = mockCompletedRequests.filter(r => r.status === 'REFUNDED').length;
+  const totalAmount = data.reduce((sum, r) => sum + (r.amount || 0), 0);
+  const activeCount = data.filter(r => r.status === 'Active').length;
+  const refundedCount = data.filter(r => r.status === 'Refunded').length;
 
   return (
     <div className="p-3 sm:p-4 md:p-6 bg-gray-50 min-h-screen">
@@ -144,7 +91,7 @@ export default function CompletedRequestPage() {
               <CheckCircle2 className="w-5 h-5 text-green-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-800">{totalCompleted}</p>
+              <p className="text-2xl font-bold text-gray-800">{data.length}</p>
               <p className="text-sm text-gray-500">Total Completed</p>
             </div>
           </div>
@@ -268,35 +215,40 @@ export default function CompletedRequestPage() {
               </tr>
             </thead>
             <tbody>
-              {mockCompletedRequests.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={columns.length} className="px-4 py-12 text-center text-gray-500">
+                    <Loader2 className="w-5 h-5 animate-spin inline mr-2" />Loading...
+                  </td>
+                </tr>
+              ) : data.length === 0 ? (
                 <tr>
                   <td colSpan={columns.length} className="px-4 py-12 text-center text-gray-500">
                     No data found
                   </td>
                 </tr>
               ) : (
-                mockCompletedRequests.map((request, index) => (
-                  <tr key={request.id} className="border-b border-gray-100 hover:bg-gray-50">
+                data.map((row, index) => (
+                  <tr key={row.name} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm text-gray-600">{index + 1}</td>
-                    <td className="px-4 py-3 text-sm text-blue-600 font-medium">{request.tenderId}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{request.requirement}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{request.paymentMode}</td>
-                    <td className="px-4 py-3 text-sm text-gray-800 font-medium">₹{request.amount.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{request.requesterName}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{request.financeExecutive}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{formatDate(request.requestedDate)}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{formatDate(request.completedDate)}</td>
+                    <td className="px-4 py-3 text-sm text-blue-600 font-medium">{row.linked_tender || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{row.instrument_type}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{row.bank_name || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-800 font-medium">₹{(row.amount || 0).toLocaleString()}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{row.owner}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{row.instrument_number || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{formatDate(row.creation)}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{formatDate(row.expiry_date)}</td>
                     <td className="px-4 py-3">
                       <div className="text-sm">
-                        <p className="text-gray-600">{request.validity}</p>
-                        <p className="text-xs text-gray-400">Until {formatDate(request.validUntil)}</p>
+                        <p className="text-gray-600">{row.issue_date && row.expiry_date ? `${Math.ceil((new Date(row.expiry_date).getTime() - new Date(row.issue_date).getTime()) / 86400000)} days` : '-'}</p>
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      {getStatusBadge(request.status)}
+                      {getStatusBadge(row.status)}
                     </td>
                     <td className="px-4 py-3">
-                      <button 
+                      <button
                         className="p-1.5 hover:bg-gray-100 rounded text-gray-600"
                         title="View Details"
                       >

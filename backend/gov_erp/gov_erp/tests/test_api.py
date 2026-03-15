@@ -78,6 +78,7 @@ def test_business_role_list_matches_backend_plan():
 		"Engineering Head",
 		"Engineer",
 		"Department Head",
+		"Project Head",
 		"Accounts",
 		"HR Manager",
 		"Procurement Manager",
@@ -88,4 +89,31 @@ def test_business_role_list_matches_backend_plan():
 		"Director",
 		"Field Technician",
 		"OM Operator",
+		"RMA Manager",
 	]
+
+
+def test_priority9_doctypes_drop_generic_department_head_permissions():
+	expected_role_sets = {
+		"GE Survey": {"System Manager", "Project Manager", "Project Head", "Engineering Head", "Engineer", "Director"},
+		"GE Milestone": {"System Manager", "Project Manager", "Project Head", "Engineering Head", "Director"},
+		"GE Vendor Comparison": {"System Manager", "Procurement Manager", "Purchase", "Project Head", "Engineering Head", "Director"},
+		"GE Dispatch Challan": {"System Manager", "Store Manager", "Stores Logistics Head", "Purchase", "Procurement Manager", "Project Manager", "Project Head", "Director"},
+		"GE Invoice": {"System Manager", "Accounts", "Project Manager", "Project Head", "Director"},
+		"GE Project Communication Log": {"System Manager", "Project Head", "Project Manager", "Engineering Head", "Director"},
+		"GE Project Asset": {"System Manager", "Project Head", "Project Manager"},
+		"GE Petty Cash": {"System Manager", "Project Head", "Project Manager", "Accounts", "Director"},
+		"GE Manpower Log": {"System Manager", "Project Head", "Project Manager", "HR Manager", "Director"},
+		"GE RMA Tracker": {"System Manager", "Project Head", "Project Manager", "RMA Manager", "Procurement Manager", "Director"},
+		"GE Device Uptime Log": {"System Manager", "Project Head", "Project Manager", "RMA Manager", "Engineering Head", "Director"},
+	}
+
+	for path in _iter_doctype_json():
+		data = json.loads(path.read_text())
+		doctype_name = data["name"]
+		if doctype_name not in expected_role_sets:
+			continue
+
+		roles = {perm.get("role") for perm in data.get("permissions", [])}
+		assert "Department Head" not in roles
+		assert roles == expected_role_sets[doctype_name]

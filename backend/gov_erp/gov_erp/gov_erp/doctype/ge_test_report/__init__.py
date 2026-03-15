@@ -1,0 +1,1 @@
+"""GE Test Report DocType."""

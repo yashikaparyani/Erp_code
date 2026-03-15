@@ -1,105 +1,50 @@
 'use client';
-import { useState } from 'react';
-import { Search, ChevronDown, ChevronUp, Download, Eye, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Search, ChevronDown, ChevronUp, Eye, ChevronsLeft, ChevronsRight, Loader2 } from 'lucide-react';
 
 interface ApprovalData {
-  id: number;
-  tenderId: string;
-  approvalFor: string;
-  approvalFrom: string;
-  inLoop: string;
+  id: string;
+  tender_id: string;
+  approval_for: string;
+  approval_from: string;
   requester: string;
-  requestDate: string;
-  actionDate: string;
-  deadlineDate: string;
-  status: 'Approved' | 'Pending' | 'Rejected';
+  request_date: string;
+  status: string;
+  type: string;
 }
-
-const mockApprovals: ApprovalData[] = [
-  {
-    id: 1,
-    tenderId: '3266',
-    approvalFor: 'EMD Approval',
-    approvalFrom: 'Neeraj Kushwaha',
-    inLoop: 'Purnima Nigam',
-    requester: 'Purnima Nigam',
-    requestDate: '04-02-2025 11:22',
-    actionDate: '05-02-2025 14:22',
-    deadlineDate: '04-03-2025 12:00',
-    status: 'Approved',
-  },
-  {
-    id: 2,
-    tenderId: '3271',
-    approvalFor: 'SD Approval',
-    approvalFrom: 'Rahul Sharma',
-    inLoop: 'Ankit Mishra',
-    requester: 'Ankit Mishra',
-    requestDate: '06-02-2025 09:30',
-    actionDate: '07-02-2025 11:45',
-    deadlineDate: '06-03-2025 18:00',
-    status: 'Approved',
-  },
-  {
-    id: 3,
-    tenderId: '3285',
-    approvalFor: 'BG Approval',
-    approvalFrom: 'Priya Singh',
-    inLoop: 'Hemant Banwari',
-    requester: 'Hemant Banwari',
-    requestDate: '10-02-2025 14:15',
-    actionDate: '',
-    deadlineDate: '10-03-2025 17:00',
-    status: 'Pending',
-  },
-  {
-    id: 4,
-    tenderId: '3290',
-    approvalFor: 'Tender Fee',
-    approvalFrom: 'Vikram Desai',
-    inLoop: 'Suresh Kumar',
-    requester: 'Suresh Kumar',
-    requestDate: '12-02-2025 10:00',
-    actionDate: '12-02-2025 16:30',
-    deadlineDate: '12-03-2025 12:00',
-    status: 'Rejected',
-  },
-  {
-    id: 5,
-    tenderId: '3295',
-    approvalFor: 'EMD Approval',
-    approvalFrom: 'Neeraj Kushwaha',
-    inLoop: 'Neha Gupta',
-    requester: 'Neha Gupta',
-    requestDate: '15-02-2025 09:00',
-    actionDate: '',
-    deadlineDate: '15-03-2025 18:00',
-    status: 'Pending',
-  },
-];
 
 export default function ApprovalsPage() {
   const [showFilters, setShowFilters] = useState(false);
-  const [data] = useState<ApprovalData[]>(mockApprovals);
+  const [data, setData] = useState<ApprovalData[]>([]);
+  const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/approvals');
+      const json = await res.json();
+      if (json.success) setData(json.data);
+    } catch (e) { console.error('Failed to fetch:', e); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
   const totalPages = Math.ceil(data.length / itemsPerPage) || 1;
 
-  const handleExport = () => {
-    console.log('Exporting to Excel');
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 
-  const getStatusStyle = (status: ApprovalData['status']) => {
+  const getStatusStyle = (status: string) => {
     switch (status) {
-      case 'Approved':
-        return 'text-green-600';
-      case 'Pending':
-        return 'text-yellow-600';
-      case 'Rejected':
-        return 'text-red-600';
-      default:
-        return 'text-gray-600';
+      case 'Approved': return 'text-green-600';
+      case 'Pending': return 'text-yellow-600';
+      case 'Rejected': return 'text-red-600';
+      default: return 'text-gray-600';
     }
   };
 
@@ -169,32 +114,24 @@ export default function ApprovalsPage() {
         )}
       </div>
 
-      {/* Export Button */}
-      <div className="flex justify-end mb-4">
-        <button
-          onClick={handleExport}
-          className="flex items-center gap-2 px-4 py-2 border border-[#1e6b87] text-[#1e6b87] rounded-lg hover:bg-[#1e6b87] hover:text-white transition-colors text-sm font-medium"
-        >
-          <Download className="w-4 h-4" />
-          Export To Excel
-        </button>
-      </div>
-
       {/* Data Table */}
+      {loading ? (
+        <div className="flex justify-center items-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-[#1e6b87]" />
+        </div>
+      ) : (
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1100px]">
+          <table className="w-full min-w-[900px]">
             <thead>
               <tr className="bg-[#1e6b87] text-white">
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider w-12">#</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Tender ID</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Type</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Approval For</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Approval From</th>
-                <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">In Loop</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Requester</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Request Date</th>
-                <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Action Date</th>
-                <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Deadline Date</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Status</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider w-20">Action</th>
               </tr>
@@ -202,7 +139,7 @@ export default function ApprovalsPage() {
             <tbody className="divide-y divide-gray-200">
               {data.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="px-3 py-8 text-center text-gray-500">
+                  <td colSpan={9} className="px-3 py-8 text-center text-gray-500">
                     No approvals found.
                   </td>
                 </tr>
@@ -211,15 +148,13 @@ export default function ApprovalsPage() {
                   <tr key={row.id} className="hover:bg-gray-50">
                     <td className="px-3 py-3 text-sm text-gray-900 text-center">{index + 1}</td>
                     <td className="px-3 py-3 text-sm text-blue-600 text-center font-medium">
-                      <a href="#" className="hover:underline">{row.tenderId}</a>
+                      <span>{row.tender_id}</span>
                     </td>
-                    <td className="px-3 py-3 text-sm text-gray-900 text-center">{row.approvalFor}</td>
-                    <td className="px-3 py-3 text-sm text-gray-900 text-center">{row.approvalFrom}</td>
-                    <td className="px-3 py-3 text-sm text-gray-900 text-center">{row.inLoop}</td>
+                    <td className="px-3 py-3 text-sm text-gray-900 text-center">{row.type}</td>
+                    <td className="px-3 py-3 text-sm text-gray-900 text-center">{row.approval_for}</td>
+                    <td className="px-3 py-3 text-sm text-gray-900 text-center">{row.approval_from}</td>
                     <td className="px-3 py-3 text-sm text-gray-900 text-center">{row.requester}</td>
-                    <td className="px-3 py-3 text-sm text-gray-600 text-center">{row.requestDate}</td>
-                    <td className="px-3 py-3 text-sm text-gray-600 text-center">{row.actionDate || '-'}</td>
-                    <td className="px-3 py-3 text-sm text-gray-600 text-center">{row.deadlineDate}</td>
+                    <td className="px-3 py-3 text-sm text-gray-600 text-center">{formatDate(row.request_date)}</td>
                     <td className={`px-3 py-3 text-sm text-center font-medium ${getStatusStyle(row.status)}`}>
                       {row.status}
                     </td>
@@ -287,6 +222,7 @@ export default function ApprovalsPage() {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

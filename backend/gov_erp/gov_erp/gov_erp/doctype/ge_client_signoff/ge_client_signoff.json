@@ -1,0 +1,157 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-03-15 19:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "linked_project",
+  "linked_site",
+  "cb_top",
+  "signoff_type",
+  "status",
+  "sb_signoff",
+  "signed_by_client",
+  "signoff_date",
+  "cb_signoff",
+  "linked_commissioning_checklist",
+  "attachment",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "CSIGN-.#####"
+  },
+  {
+   "fieldname": "linked_project",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Linked Project",
+   "options": "Project",
+   "reqd": 1
+  },
+  {
+   "fieldname": "linked_site",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Linked Site",
+   "options": "GE Site"
+  },
+  {
+   "fieldname": "cb_top",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "signoff_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Signoff Type",
+   "options": "FOV\nCommissioning\nHandover",
+   "reqd": 1
+  },
+  {
+   "default": "Pending",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Pending\nSigned\nApproved",
+   "reqd": 1
+  },
+  {
+   "fieldname": "sb_signoff",
+   "fieldtype": "Section Break",
+   "label": "Client Signoff"
+  },
+  {
+   "fieldname": "signed_by_client",
+   "fieldtype": "Data",
+   "label": "Signed By Client",
+   "reqd": 1
+  },
+  {
+   "fieldname": "signoff_date",
+   "fieldtype": "Date",
+   "label": "Signoff Date"
+  },
+  {
+   "fieldname": "cb_signoff",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "linked_commissioning_checklist",
+   "fieldtype": "Link",
+   "label": "Linked Commissioning Checklist",
+   "options": "GE Commissioning Checklist"
+  },
+  {
+   "fieldname": "attachment",
+   "fieldtype": "Attach",
+   "label": "Attachment"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-03-15 19:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE Client Signoff",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Engineering Head",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Project Manager",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Project Head"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Director"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

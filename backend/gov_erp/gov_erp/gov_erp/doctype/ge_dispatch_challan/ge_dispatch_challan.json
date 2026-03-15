@@ -30,6 +30,13 @@
   "total_qty",
   "section_break_items",
   "items",
+  "sb_issuance",
+  "requested_by",
+  "received_by",
+  "cb_issuance_right",
+  "purpose_of_issuance",
+  "condition_on_receipt",
+  "dispatch_attachment",
   "section_break_notes",
   "remarks"
  ],
@@ -236,30 +243,35 @@
    "write": 1
   },
   {
-   "read": 1,
-   "report": 1,
-   "role": "Purchase"
+     "create": 1,
+     "delete": 1,
+     "read": 1,
+     "report": 1,
+     "role": "Purchase",
+     "write": 1
+  },
+  {
+     "create": 1,
+     "delete": 1,
+     "read": 1,
+     "report": 1,
+     "role": "Procurement Manager",
+     "write": 1
   },
   {
    "read": 1,
    "report": 1,
-   "role": "Procurement Manager"
-  },
-  {
-   "read": 1,
-   "report": 1,
-   "role": "Accounts"
-  },
-  {
-   "read": 1,
-   "report": 1,
+     "role": "Project Manager"
+    },
+    {
+     "read": 1,
+     "report": 1,
+     "role": "Project Head"
+    },
+    {
+     "read": 1,
+     "report": 1,
    "role": "Director"
-  },
-  {
-   "read": 1,
-   "report": 1,
-   "role": "Department Head",
-   "write": 1
   }
  ],
  "sort_field": "creation",

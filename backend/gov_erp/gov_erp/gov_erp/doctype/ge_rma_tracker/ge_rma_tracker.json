@@ -11,9 +11,41 @@
   "cb_rma_item",
   "item_link",
   "asset_serial_number",
+  "qty",
+  "faulty_date",
+  "sb_fault_analysis",
+  "failure_reason",
+  "field_rca",
+  "dispatch_destination",
+  "service_partner_name",
+  "rma_reference_no",
+  "outbound_dispatch_date",
+  "outbound_dc_challan_no",
+  "outbound_courier_name",
+  "outbound_docket_no",
+  "partner_root_cause_analysis",
+  "warranty_status",
+  "repairability_status",
+  "repair_cost",
+  "followup_action",
+  "daily_followup_remark",
+  "current_status_detail",
+  "quotation_reference",
+  "approval_status",
+  "approved_by_project_head",
+  "rma_purchase_order_no",
+  "repair_invoice_date",
+  "repair_invoice_no",
+  "repair_invoice_amount",
+  "repairing_status",
+  "return_courier_name",
+  "return_docket_no",
+  "return_dispatch_date",
+  "return_dc_challan_no",
+  "received_at_location_date",
+  "aging_days",
   "sb_rma_status",
   "rma_status",
-  "failure_reason",
   "sb_inspection",
   "initial_inspection_by",
   "initial_inspection_date",
@@ -76,6 +108,175 @@
    "fieldtype": "Data",
    "label": "Asset Serial Number",
    "reqd": 0
+  },
+  {
+   "fieldname": "qty",
+   "fieldtype": "Int",
+   "label": "Qty",
+   "default": "1"
+  },
+  {
+   "fieldname": "faulty_date",
+   "fieldtype": "Date",
+   "label": "Faulty Date"
+  },
+  {
+   "fieldname": "sb_fault_analysis",
+   "fieldtype": "Section Break",
+   "label": "RMA Flow"
+  },
+  {
+   "fieldname": "field_rca",
+   "fieldtype": "Small Text",
+   "label": "RCA By Field"
+  },
+  {
+   "fieldname": "dispatch_destination",
+   "fieldtype": "Select",
+   "label": "Dispatch Destination",
+   "options": "\nOEM\nVENDOR\nHEAD_OFFICE\nCENTRAL_TEAM\nTHIRD_PARTY_REPAIR"
+  },
+  {
+   "fieldname": "service_partner_name",
+   "fieldtype": "Data",
+   "label": "OEM / Vendor / Repair Partner"
+  },
+  {
+   "fieldname": "rma_reference_no",
+   "fieldtype": "Data",
+   "label": "RMA No"
+  },
+  {
+   "fieldname": "outbound_dispatch_date",
+   "fieldtype": "Date",
+   "label": "Dispatch Date To Service Partner"
+  },
+  {
+   "fieldname": "outbound_dc_challan_no",
+   "fieldtype": "Data",
+   "label": "Dispatch Challan No"
+  },
+  {
+   "fieldname": "outbound_courier_name",
+   "fieldtype": "Data",
+   "label": "Outbound Courier Name"
+  },
+  {
+   "fieldname": "outbound_docket_no",
+   "fieldtype": "Data",
+   "label": "Outbound Docket No"
+  },
+  {
+   "fieldname": "partner_root_cause_analysis",
+   "fieldtype": "Text Editor",
+   "label": "RCA By OEM / Vendor / Central Team"
+  },
+  {
+   "fieldname": "warranty_status",
+   "fieldtype": "Select",
+   "label": "Warranty Status",
+   "options": "\nUNDER_WARRANTY\nNON_WARRANTY"
+  },
+  {
+   "fieldname": "repairability_status",
+   "fieldtype": "Select",
+   "label": "Repairability Status",
+   "options": "\nREPAIRABLE\nNON_REPAIRABLE"
+  },
+  {
+   "fieldname": "repair_cost",
+   "fieldtype": "Currency",
+   "label": "Repair Cost"
+  },
+  {
+   "fieldname": "followup_action",
+   "fieldtype": "Small Text",
+   "label": "Follow Up Action"
+  },
+  {
+   "fieldname": "daily_followup_remark",
+   "fieldtype": "Small Text",
+   "label": "Daily Follow Up Remark"
+  },
+  {
+   "fieldname": "current_status_detail",
+   "fieldtype": "Data",
+   "label": "Current Status Of Material"
+  },
+  {
+   "fieldname": "quotation_reference",
+   "fieldtype": "Data",
+   "label": "Quotation Reference"
+  },
+  {
+   "fieldname": "approval_status",
+   "fieldtype": "Select",
+   "label": "Approval Status",
+   "options": "\nPENDING\nAPPROVED\nREJECTED\nNOT_REQUIRED",
+   "default": "PENDING"
+  },
+  {
+   "fieldname": "approved_by_project_head",
+   "fieldtype": "Link",
+   "label": "Approved By Project Head",
+   "options": "User"
+  },
+  {
+   "fieldname": "rma_purchase_order_no",
+   "fieldtype": "Data",
+   "label": "RMA PO No"
+  },
+  {
+   "fieldname": "repair_invoice_date",
+   "fieldtype": "Date",
+   "label": "Invoice Date"
+  },
+  {
+   "fieldname": "repair_invoice_no",
+   "fieldtype": "Data",
+   "label": "Invoice No"
+  },
+  {
+   "fieldname": "repair_invoice_amount",
+   "fieldtype": "Currency",
+   "label": "Invoice Amount"
+  },
+  {
+   "fieldname": "repairing_status",
+   "fieldtype": "Select",
+   "label": "Repairing Status",
+   "options": "\nREPAIRED\nUNREPAIRED\nSERVICE_PENDING\nSCRAP"
+  },
+  {
+   "fieldname": "return_courier_name",
+   "fieldtype": "Data",
+   "label": "Return Courier Name"
+  },
+  {
+   "fieldname": "return_docket_no",
+   "fieldtype": "Data",
+   "label": "Return Docket No"
+  },
+  {
+   "fieldname": "return_dispatch_date",
+   "fieldtype": "Date",
+   "label": "Return Dispatch Date"
+  },
+  {
+   "fieldname": "return_dc_challan_no",
+   "fieldtype": "Data",
+   "label": "Return DC Challan No"
+  },
+  {
+   "fieldname": "received_at_location_date",
+   "fieldtype": "Date",
+   "label": "Received Date At Location"
+  },
+  {
+   "fieldname": "aging_days",
+   "fieldtype": "Int",
+   "label": "Aging Of Day",
+   "read_only": 1
   },
   {
    "fieldname": "sb_rma_status",
@@ -252,26 +453,31 @@
    "delete": 1,
    "read": 1,
    "report": 1,
+   "role": "Project Head",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
    "role": "Project Manager",
    "write": 1
   },
   {
    "create": 1,
+   "delete": 1,
    "read": 1,
    "report": 1,
-   "role": "Engineer",
+   "role": "RMA Manager",
    "write": 1
   },
   {
-   "read": 1,
-   "report": 1,
-   "role": "Engineering Head",
-   "write": 1
-  },
-  {
-   "read": 1,
-   "report": 1,
-   "role": "Department Head",
+    "create": 1,
+    "delete": 1,
+    "read": 1,
+    "report": 1,
+    "role": "Procurement Manager",
    "write": 1
   },
   {

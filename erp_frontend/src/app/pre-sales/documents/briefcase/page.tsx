@@ -1,81 +1,97 @@
 'use client';
-import { useState } from 'react';
-import { Search, ChevronDown, ChevronUp, ChevronsLeft, ChevronsRight, Eye, Edit2, Trash2, Download } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Search, ChevronDown, ChevronUp, ChevronsLeft, ChevronsRight, Eye, Edit2, Trash2, Download, Loader2 } from 'lucide-react';
 
 interface DocumentData {
-  id: number;
-  folderName: string;
-  subFolderName: string;
-  fileName: string;
-  createdBy: string;
-  createdDateTime: string;
-  expiryDate: string;
-  remarks: string;
+  name: string;
+  file_name: string;
+  file_url: string;
+  file_size: number;
+  folder: string;
+  is_private: number;
+  attached_to_doctype: string;
+  attached_to_name: string;
+  creation: string;
+  modified: string;
+  owner: string;
+  uploaded_by: string;
 }
-
-const mockDocuments: DocumentData[] = [];
-
-const folderOptions = [
-  { value: '', label: 'Folder Name' },
-  { value: 'tenders', label: 'Tenders' },
-  { value: 'contracts', label: 'Contracts' },
-  { value: 'invoices', label: 'Invoices' },
-  { value: 'reports', label: 'Reports' },
-];
-
-const subFolderOptions = [
-  { value: '', label: 'Sub Folder Name' },
-  { value: '2024', label: '2024' },
-  { value: '2025', label: '2025' },
-  { value: '2026', label: '2026' },
-  { value: 'archived', label: 'Archived' },
-];
 
 export default function DocumentBriefCasePage() {
   const [showFilters, setShowFilters] = useState(true);
   const [filters, setFilters] = useState({
-    folderName: '',
-    subFolderName: '',
+    folder: '',
     fileName: '',
-    showDeleted: false,
   });
-  const [data] = useState<DocumentData[]>(mockDocuments);
+  const [data, setData] = useState<DocumentData[]>([]);
+  const [folders, setFolders] = useState<{ name: string; file_name: string }[]>([]);
+  const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [selectedRows, setSelectedRows] = useState<number[]>([]);
+  const [selectedRows, setSelectedRows] = useState<string[]>([]);
 
-  const totalPages = Math.ceil(data.length / itemsPerPage) || 1;
+  const fetchFolders = useCallback(async () => {
+    try {
+      const res = await fetch('/api/documents/folders');
+      const json = await res.json();
+      if (json.success) setFolders(json.data);
+    } catch (e) { console.error('Failed to fetch folders:', e); }
+  }, []);
+
+  const fetchDocuments = useCallback(async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (filters.folder) params.set('folder', filters.folder);
+      const res = await fetch(`/api/documents${params.toString() ? '?' + params.toString() : ''}`);
+      const json = await res.json();
+      if (json.success) setData(json.data);
+    } catch (e) { console.error('Failed to fetch:', e); }
+    finally { setLoading(false); }
+  }, [filters.folder]);
+
+  useEffect(() => { fetchFolders(); }, [fetchFolders]);
+  useEffect(() => { fetchDocuments(); }, [fetchDocuments]);
+
+  const filteredData = filters.fileName
+    ? data.filter(d => d.file_name?.toLowerCase().includes(filters.fileName.toLowerCase()))
+    : data;
+
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage) || 1;
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  };
+
+  const formatSize = (bytes: number) => {
+    if (!bytes) return '-';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
 
   const handleFilterChange = (key: string, value: string | boolean) => {
     setFilters(prev => ({ ...prev, [key]: value }));
   };
 
-  const handleSearch = () => {
-    console.log('Searching with filters:', filters);
-  };
-
   const handleClear = () => {
-    setFilters({
-      folderName: '',
-      subFolderName: '',
-      fileName: '',
-      showDeleted: false,
-    });
+    setFilters({ folder: '', fileName: '' });
   };
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedRows(data.map(item => item.id));
+      setSelectedRows(filteredData.map(item => item.name));
     } else {
       setSelectedRows([]);
     }
   };
 
-  const handleSelectRow = (id: number, checked: boolean) => {
+  const handleSelectRow = (name: string, checked: boolean) => {
     if (checked) {
-      setSelectedRows(prev => [...prev, id]);
+      setSelectedRows(prev => [...prev, name]);
     } else {
-      setSelectedRows(prev => prev.filter(rowId => rowId !== id));
+      setSelectedRows(prev => prev.filter(rowId => rowId !== name));
     }
   };
 
@@ -108,21 +124,13 @@ export default function DocumentBriefCasePage() {
           <div className="px-4 pb-4 border-t border-gray-100">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mt-4">
               <select
-                value={filters.folderName}
-                onChange={(e) => handleFilterChange('folderName', e.target.value)}
+                value={filters.folder}
+                onChange={(e) => handleFilterChange('folder', e.target.value)}
                 className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-500"
               >
-                {folderOptions.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-              <select
-                value={filters.subFolderName}
-                onChange={(e) => handleFilterChange('subFolderName', e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-500"
-              >
-                {subFolderOptions.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                <option value="">All Folders</option>
+                {folders.map(f => (
+                  <option key={f.name} value={f.name}>{f.file_name || f.name}</option>
                 ))}
               </select>
               <input
@@ -134,27 +142,8 @@ export default function DocumentBriefCasePage() {
               />
             </div>
 
-            {/* Checkbox */}
-            <div className="mt-4">
-              <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={filters.showDeleted}
-                  onChange={(e) => handleFilterChange('showDeleted', e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                Show Deleted File
-              </label>
-            </div>
-
             {/* Action Buttons */}
             <div className="flex gap-3 mt-4">
-              <button
-                onClick={handleSearch}
-                className="px-6 py-2 bg-[#1e6b87] text-white rounded-lg hover:bg-[#185a73] transition-colors text-sm font-medium"
-              >
-                Search
-              </button>
               <button
                 onClick={handleClear}
                 className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm font-medium"
@@ -167,6 +156,11 @@ export default function DocumentBriefCasePage() {
       </div>
 
       {/* Data Table */}
+      {loading ? (
+        <div className="flex justify-center items-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-[#1e6b87]" />
+        </div>
+      ) : (
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px]">
@@ -175,53 +169,51 @@ export default function DocumentBriefCasePage() {
                 <th className="px-3 py-3 text-left w-10">
                   <input
                     type="checkbox"
-                    checked={selectedRows.length === data.length && data.length > 0}
+                    checked={selectedRows.length === filteredData.length && filteredData.length > 0}
                     onChange={(e) => handleSelectAll(e.target.checked)}
                     className="w-4 h-4 rounded border-white/30"
                   />
                 </th>
                 <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider w-12">#</th>
-                <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider">Folder Name</th>
-                <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider">Sub Folder Name</th>
                 <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider">File Name</th>
-                <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider">Created By</th>
-                <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Created Date & Time</th>
-                <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Expiry Date</th>
-                <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider">Remarks</th>
+                <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider">Folder</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Size</th>
+                <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider">Uploaded By</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Created Date</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {data.length === 0 ? (
+              {filteredData.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-3 py-8 text-center text-gray-500">
+                  <td colSpan={8} className="px-3 py-8 text-center text-gray-500">
                     No data found.
                   </td>
                 </tr>
               ) : (
-                data.map((row, index) => (
-                  <tr key={row.id} className="hover:bg-gray-50">
+                filteredData.map((row, index) => (
+                  <tr key={row.name} className="hover:bg-gray-50">
                     <td className="px-3 py-3">
                       <input
                         type="checkbox"
-                        checked={selectedRows.includes(row.id)}
-                        onChange={(e) => handleSelectRow(row.id, e.target.checked)}
+                        checked={selectedRows.includes(row.name)}
+                        onChange={(e) => handleSelectRow(row.name, e.target.checked)}
                         className="w-4 h-4 rounded border-gray-300"
                       />
                     </td>
                     <td className="px-3 py-3 text-sm text-gray-900">{index + 1}</td>
-                    <td className="px-3 py-3 text-sm text-gray-900">{row.folderName}</td>
-                    <td className="px-3 py-3 text-sm text-gray-900">{row.subFolderName}</td>
-                    <td className="px-3 py-3 text-sm text-gray-900">{row.fileName}</td>
-                    <td className="px-3 py-3 text-sm text-gray-900">{row.createdBy}</td>
-                    <td className="px-3 py-3 text-sm text-gray-600 text-center">{row.createdDateTime}</td>
-                    <td className="px-3 py-3 text-sm text-gray-600 text-center">{row.expiryDate}</td>
-                    <td className="px-3 py-3 text-sm text-gray-600">{row.remarks}</td>
+                    <td className="px-3 py-3 text-sm text-blue-600 font-medium">{row.file_name}</td>
+                    <td className="px-3 py-3 text-sm text-gray-900">{row.folder}</td>
+                    <td className="px-3 py-3 text-sm text-gray-600 text-center">{formatSize(row.file_size)}</td>
+                    <td className="px-3 py-3 text-sm text-gray-900">{row.uploaded_by}</td>
+                    <td className="px-3 py-3 text-sm text-gray-600 text-center">{formatDate(row.creation)}</td>
                     <td className="px-3 py-3 text-center">
                       <div className="flex items-center justify-center gap-2">
-                        <button className="p-1 text-gray-500 hover:text-blue-600">
-                          <Eye className="w-4 h-4" />
-                        </button>
+                        {row.file_url && (
+                          <a href={row.file_url} target="_blank" rel="noopener noreferrer" className="p-1 text-gray-500 hover:text-blue-600">
+                            <Eye className="w-4 h-4" />
+                          </a>
+                        )}
                         <button className="p-1 text-gray-500 hover:text-green-600">
                           <Edit2 className="w-4 h-4" />
                         </button>
@@ -286,6 +278,7 @@ export default function DocumentBriefCasePage() {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

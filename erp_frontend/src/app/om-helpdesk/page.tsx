@@ -7,6 +7,7 @@ interface Ticket {
   title?: string;
   linked_project?: string;
   linked_site?: string;
+  asset_serial_no?: string;
   category?: string;
   priority?: string;
   status?: string;
@@ -35,8 +36,9 @@ export default function OMHelpdeskPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [stats, setStats] = useState<TicketStats>({});
   const [loading, setLoading] = useState(true);
+  const [busyTicket, setBusyTicket] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadTickets = () => {
     Promise.all([
       fetch('/api/tickets').then(r => r.json()).catch(() => ({ data: [] })),
     ]).then(([ticketsRes]) => {
@@ -56,7 +58,35 @@ export default function OMHelpdeskPage() {
         rma_count: data.filter(t => t.is_rma).length,
       });
     }).finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadTickets();
   }, []);
+
+  const handleConvertToRMA = async (ticket: Ticket) => {
+    setBusyTicket(ticket.name);
+    try {
+      const response = await fetch(`/api/tickets/${encodeURIComponent(ticket.name)}/convert-rma`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          linked_project: ticket.linked_project || '',
+          asset_serial_number: ticket.asset_serial_no || '',
+          failure_reason: ticket.title || '',
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.message || 'Failed to convert ticket to RMA');
+      }
+      await loadTickets();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to convert ticket to RMA');
+    } finally {
+      setBusyTicket(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -169,11 +199,12 @@ export default function OMHelpdeskPage() {
                 <th>Assigned To</th>
                 <th>Raised On</th>
                 <th>Status</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
               {tickets.length === 0 ? (
-                <tr><td colSpan={8} className="text-center py-8 text-gray-500">No tickets found</td></tr>
+                <tr><td colSpan={9} className="text-center py-8 text-gray-500">No tickets found</td></tr>
               ) : tickets.map(ticket => (
                 <tr key={ticket.name}>
                   <td>
@@ -213,6 +244,19 @@ export default function OMHelpdeskPage() {
                     }`}>
                       {ticket.status}
                     </span>
+                  </td>
+                  <td>
+                    {ticket.is_rma ? (
+                      <span className="badge badge-success">RMA Raised</span>
+                    ) : (
+                      <button
+                        className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                        onClick={() => handleConvertToRMA(ticket)}
+                        disabled={busyTicket === ticket.name}
+                      >
+                        {busyTicket === ticket.name ? 'Converting...' : 'Convert to RMA'}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
