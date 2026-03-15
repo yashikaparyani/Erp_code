@@ -27,6 +27,13 @@
   "linked_sales_invoice",
   "sb_lines",
   "items",
+  "sb_payment_milestone",
+  "payment_milestone_description",
+  "scheduled_milestone_date",
+  "cb_payment_milestone",
+  "actual_payment_date",
+  "payment_received",
+  "payment_notes",
   "sb_approval",
   "submitted_by",
   "approved_by",
@@ -174,6 +181,40 @@
    "options": "GE Invoice Line"
   },
   {
+   "fieldname": "sb_payment_milestone",
+   "fieldtype": "Section Break",
+   "label": "Payment Milestone"
+  },
+  {
+   "fieldname": "payment_milestone_description",
+   "fieldtype": "Data",
+   "label": "Milestone Description"
+  },
+  {
+   "fieldname": "scheduled_milestone_date",
+   "fieldtype": "Date",
+   "label": "Scheduled Milestone Date"
+  },
+  {
+   "fieldname": "cb_payment_milestone",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "actual_payment_date",
+   "fieldtype": "Date",
+   "label": "Actual Payment Date"
+  },
+  {
+   "fieldname": "payment_received",
+   "fieldtype": "Check",
+   "label": "Payment Received"
+  },
+  {
+   "fieldname": "payment_notes",
+   "fieldtype": "Small Text",
+   "label": "Payment Notes"
+  },
+  {
    "fieldname": "sb_approval",
    "fieldtype": "Section Break",
    "label": "Approval"
@@ -229,7 +270,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-03-13 15:00:00.000000",
+ "modified": "2026-03-15 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Gov ERP",
  "name": "GE Invoice",

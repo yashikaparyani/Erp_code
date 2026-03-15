@@ -1,0 +1,214 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-03-15 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "linked_site",
+  "linked_project",
+  "cb_device",
+  "device_name",
+  "device_type",
+  "serial_no",
+  "sb_log",
+  "log_date",
+  "uptime_hours",
+  "downtime_hours",
+  "cb_log",
+  "sla_target_uptime_pct",
+  "actual_uptime_pct",
+  "sla_status",
+  "sb_downtime",
+  "downtime_reason",
+  "downtime_description",
+  "linked_ticket",
+  "sb_meta",
+  "reported_by",
+  "cb_meta",
+  "verified_by",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "DUL-.#####"
+  },
+  {
+   "fieldname": "linked_site",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Linked Site",
+   "options": "GE Site",
+   "reqd": 1
+  },
+  {
+   "fieldname": "linked_project",
+   "fieldtype": "Link",
+   "label": "Linked Project",
+   "options": "Project"
+  },
+  {
+   "fieldname": "cb_device",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "device_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Device Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "device_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Device Type",
+   "options": "Router\nSwitch\nServer\nUPS\nCCTV\nAccess Point\nTower\nSensor\nOther",
+   "reqd": 1
+  },
+  {
+   "fieldname": "serial_no",
+   "fieldtype": "Data",
+   "label": "Serial No."
+  },
+  {
+   "fieldname": "sb_log",
+   "fieldtype": "Section Break",
+   "label": "Uptime Record"
+  },
+  {
+   "fieldname": "log_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Log Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "uptime_hours",
+   "fieldtype": "Float",
+   "label": "Uptime (hours)",
+   "reqd": 1
+  },
+  {
+   "fieldname": "downtime_hours",
+   "fieldtype": "Float",
+   "label": "Downtime (hours)"
+  },
+  {
+   "fieldname": "cb_log",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "sla_target_uptime_pct",
+   "fieldtype": "Float",
+   "label": "SLA Target Uptime %"
+  },
+  {
+   "fieldname": "actual_uptime_pct",
+   "fieldtype": "Float",
+   "label": "Actual Uptime %",
+   "read_only": 1
+  },
+  {
+   "default": "Pending",
+   "fieldname": "sla_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "SLA Status",
+   "options": "Pending\nCompliant\nNon-Compliant",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sb_downtime",
+   "fieldtype": "Section Break",
+   "label": "Downtime Details"
+  },
+  {
+   "fieldname": "downtime_reason",
+   "fieldtype": "Select",
+   "label": "Downtime Reason",
+   "options": "\nPower Failure\nNetwork Fault\nHardware Fault\nSoftware Fault\nPlanned Maintenance\nUnknown\nOther"
+  },
+  {
+   "fieldname": "downtime_description",
+   "fieldtype": "Small Text",
+   "label": "Downtime Description"
+  },
+  {
+   "fieldname": "linked_ticket",
+   "fieldtype": "Link",
+   "label": "Linked Ticket",
+   "options": "GE Ticket"
+  },
+  {
+   "fieldname": "sb_meta",
+   "fieldtype": "Section Break",
+   "label": "Logged By"
+  },
+  {
+   "fieldname": "reported_by",
+   "fieldtype": "Link",
+   "label": "Reported By",
+   "options": "User"
+  },
+  {
+   "fieldname": "cb_meta",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "verified_by",
+   "fieldtype": "Link",
+   "label": "Verified By",
+   "options": "User"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-03-15 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE Device Uptime Log",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1, "delete": 1, "email": 1, "export": 1,
+   "print": 1, "read": 1, "report": 1,
+   "role": "System Manager", "share": 1, "write": 1
+  },
+  {
+   "create": 1, "delete": 1, "read": 1, "report": 1,
+   "role": "Project Head", "write": 1
+  },
+  {
+   "create": 1, "delete": 1, "read": 1, "report": 1,
+   "role": "Project Manager", "write": 1
+  },
+  {
+   "create": 1, "read": 1, "report": 1,
+   "role": "RMA Manager", "write": 1
+  },
+  {
+   "create": 1, "read": 1, "report": 1,
+   "role": "Engineering Head", "write": 1
+  },
+  {
+   "read": 1, "report": 1,
+   "role": "Director"
+  }
+ ],
+ "sort_field": "log_date",
+ "sort_order": "desc",
+ "track_changes": 1,
+ "naming_rule": "By \"Naming Series\" field"
+}

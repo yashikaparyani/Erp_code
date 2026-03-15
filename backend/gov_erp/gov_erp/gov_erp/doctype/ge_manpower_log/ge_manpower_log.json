@@ -1,0 +1,186 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-03-15 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "linked_project",
+  "linked_site",
+  "cb_top",
+  "log_date",
+  "worker_name",
+  "sb_role",
+  "designation",
+  "role_in_project",
+  "cb_role",
+  "is_contractor",
+  "contractor_company",
+  "sb_cost",
+  "man_days",
+  "daily_rate",
+  "total_cost",
+  "cb_cost",
+  "overtime_hours",
+  "overtime_rate",
+  "overtime_cost",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "MPL-.#####"
+  },
+  {
+   "fieldname": "linked_project",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Linked Project",
+   "options": "Project",
+   "reqd": 1
+  },
+  {
+   "fieldname": "linked_site",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Linked Site",
+   "options": "GE Site"
+  },
+  {
+   "fieldname": "cb_top",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "log_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "worker_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Worker Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "sb_role",
+   "fieldtype": "Section Break",
+   "label": "Role"
+  },
+  {
+   "fieldname": "designation",
+   "fieldtype": "Link",
+   "label": "Designation",
+   "options": "Designation"
+  },
+  {
+   "fieldname": "role_in_project",
+   "fieldtype": "Select",
+   "label": "Role in Project",
+   "options": "PROJECT_MANAGER\nENGINEER\nTECHNICIAN\nSITE_SUPERVISOR\nINSPECTOR\nOPERATOR\nDRIVER\nOTHER"
+  },
+  {
+   "fieldname": "cb_role",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "is_contractor",
+   "fieldtype": "Check",
+   "label": "Is Contractual Worker"
+  },
+  {
+   "fieldname": "contractor_company",
+   "fieldtype": "Data",
+   "label": "Contractor Company"
+  },
+  {
+   "fieldname": "sb_cost",
+   "fieldtype": "Section Break",
+   "label": "Hours & Cost"
+  },
+  {
+   "fieldname": "man_days",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Man Days",
+   "reqd": 1
+  },
+  {
+   "fieldname": "daily_rate",
+   "fieldtype": "Currency",
+   "label": "Daily Rate"
+  },
+  {
+   "fieldname": "total_cost",
+   "fieldtype": "Currency",
+   "label": "Total Cost",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb_cost",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "overtime_hours",
+   "fieldtype": "Float",
+   "label": "Overtime Hours"
+  },
+  {
+   "fieldname": "overtime_rate",
+   "fieldtype": "Currency",
+   "label": "Overtime Rate (per hour)"
+  },
+  {
+   "fieldname": "overtime_cost",
+   "fieldtype": "Currency",
+   "label": "Overtime Cost",
+   "read_only": 1
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-03-15 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE Manpower Log",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1, "delete": 1, "email": 1, "export": 1,
+   "print": 1, "read": 1, "report": 1,
+   "role": "System Manager", "share": 1, "write": 1
+  },
+  {
+   "create": 1, "delete": 1, "read": 1, "report": 1,
+   "role": "Project Head", "write": 1
+  },
+  {
+   "create": 1, "delete": 1, "read": 1, "report": 1,
+   "role": "Project Manager", "write": 1
+  },
+  {
+   "create": 1, "read": 1, "report": 1,
+   "role": "HR Manager", "write": 1
+  },
+  {
+   "read": 1, "report": 1,
+   "role": "Director"
+  }
+ ],
+ "sort_field": "log_date",
+ "sort_order": "desc",
+ "track_changes": 1,
+ "naming_rule": "By \"Naming Series\" field"
+}

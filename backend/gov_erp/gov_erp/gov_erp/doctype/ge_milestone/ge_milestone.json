@@ -10,8 +10,19 @@
   "status",
   "linked_project",
   "linked_site",
+  "sb_dates",
+  "planned_start_date",
+  "planned_end_date",
   "planned_date",
+  "cb_dates_right",
+  "actual_start_date",
+  "actual_end_date",
   "actual_date",
+  "sb_assignment",
+  "assigned_role",
+  "assigned_team",
+  "cb_assignment_right",
+  "progress_pct",
   "owner_user",
   "remarks"
  ],
@@ -64,6 +75,70 @@
    "label": "Actual Date"
   },
   {
+   "fieldname": "sb_dates",
+   "fieldtype": "Section Break",
+   "label": "Dates"
+  },
+  {
+   "fieldname": "planned_start_date",
+   "fieldtype": "Date",
+   "label": "Planned Start Date"
+  },
+  {
+   "fieldname": "planned_end_date",
+   "fieldtype": "Date",
+   "label": "Planned End Date"
+  },
+  {
+   "fieldname": "planned_date",
+   "fieldtype": "Date",
+   "label": "Planned Target Date"
+  },
+  {
+   "fieldname": "cb_dates_right",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "actual_start_date",
+   "fieldtype": "Date",
+   "label": "Actual Start Date"
+  },
+  {
+   "fieldname": "actual_end_date",
+   "fieldtype": "Date",
+   "label": "Actual End Date"
+  },
+  {
+   "fieldname": "actual_date",
+   "fieldtype": "Date",
+   "label": "Actual Completion Date"
+  },
+  {
+   "fieldname": "sb_assignment",
+   "fieldtype": "Section Break",
+   "label": "Assignment"
+  },
+  {
+   "fieldname": "assigned_role",
+   "fieldtype": "Select",
+   "label": "Assigned Role",
+   "options": "\nPROJECT_MANAGER\nENGINEERING_HEAD\nENGINEER\nTECHNICIAN\nCOORDINATOR\nOTHER"
+  },
+  {
+   "fieldname": "assigned_team",
+   "fieldtype": "Small Text",
+   "label": "Assigned Team"
+  },
+  {
+   "fieldname": "cb_assignment_right",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "progress_pct",
+   "fieldtype": "Percent",
+   "label": "Progress %"
+  },
+  {
    "fieldname": "owner_user",
    "fieldtype": "Link",
    "label": "Owner User",
@@ -77,7 +152,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-03-14 00:15:00.000000",
+ "modified": "2026-03-15 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Gov ERP",
  "name": "GE Milestone",

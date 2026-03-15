@@ -14,6 +14,25 @@
   "column_break_geo",
   "latitude",
   "longitude",
+  "sb_location",
+  "location_id",
+  "cb_location_right",
+  "survey_completion_date",
+  "sb_infra",
+  "tower_count",
+  "fiber_length_m",
+  "cb_infra_right",
+  "backhaul_type",
+  "sb_feasibility",
+  "feasibility_status",
+  "power_source",
+  "cb_feasibility_right",
+  "power_availability",
+  "road_accessibility",
+  "sb_installation",
+  "installation_stage",
+  "cb_installation_right",
+  "location_progress_pct",
   "remarks"
  ],
  "fields": [
@@ -75,6 +94,103 @@
    "label": "Longitude"
   },
   {
+   "fieldname": "sb_location",
+   "fieldtype": "Section Break",
+   "label": "Location Details"
+  },
+  {
+   "fieldname": "location_id",
+   "fieldtype": "Data",
+   "in_list_view": 0,
+   "label": "Location ID"
+  },
+  {
+   "fieldname": "cb_location_right",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "survey_completion_date",
+   "fieldtype": "Date",
+   "label": "Survey Completion Date"
+  },
+  {
+   "fieldname": "sb_infra",
+   "fieldtype": "Section Break",
+   "label": "Infrastructure Counts"
+  },
+  {
+   "fieldname": "tower_count",
+   "fieldtype": "Int",
+   "label": "Tower Count"
+  },
+  {
+   "fieldname": "fiber_length_m",
+   "fieldtype": "Float",
+   "label": "Fiber Length (m)"
+  },
+  {
+   "fieldname": "cb_infra_right",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "backhaul_type",
+   "fieldtype": "Select",
+   "label": "Backhaul Type",
+   "options": "\nFiber\nMicrowave\nLTE\nSatellite\nOther"
+  },
+  {
+   "fieldname": "sb_feasibility",
+   "fieldtype": "Section Break",
+   "label": "Feasibility & Utilities"
+  },
+  {
+   "fieldname": "feasibility_status",
+   "fieldtype": "Select",
+   "label": "Feasibility Status",
+   "options": "Pending\nCompleted\nApproved\nRejected"
+  },
+  {
+   "fieldname": "power_source",
+   "fieldtype": "Select",
+   "label": "Power Source",
+   "options": "\nGrid\nGenerator\nSolar\nOther\nNone"
+  },
+  {
+   "fieldname": "cb_feasibility_right",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "power_availability",
+   "fieldtype": "Check",
+   "label": "Power Available"
+  },
+  {
+   "fieldname": "road_accessibility",
+   "fieldtype": "Check",
+   "label": "Road Accessible"
+  },
+  {
+   "fieldname": "sb_installation",
+   "fieldtype": "Section Break",
+   "label": "Installation Stage"
+  },
+  {
+   "fieldname": "installation_stage",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Installation Stage",
+   "options": "Not Started\nSurvey\nCivil Work\nEquipment Installation\nCabling\nTesting\nCommissioned\nHanded Over"
+  },
+  {
+   "fieldname": "cb_installation_right",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "location_progress_pct",
+   "fieldtype": "Percent",
+   "label": "Location Progress %"
+  },
+  {
    "fieldname": "remarks",
    "fieldtype": "Text Editor",
    "label": "Remarks"
@@ -82,7 +198,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-03-14 00:15:00.000000",
+ "modified": "2026-03-15 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Gov ERP",
  "name": "GE Site",

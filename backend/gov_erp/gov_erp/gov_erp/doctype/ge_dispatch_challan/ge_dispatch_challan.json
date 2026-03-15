@@ -195,6 +195,44 @@
    "reqd": 1
   },
   {
+   "fieldname": "sb_issuance",
+   "fieldtype": "Section Break",
+   "label": "Issuance Details"
+  },
+  {
+   "fieldname": "requested_by",
+   "fieldtype": "Link",
+   "label": "Requested By",
+   "options": "User"
+  },
+  {
+   "fieldname": "received_by",
+   "fieldtype": "Link",
+   "label": "Received By",
+   "options": "User"
+  },
+  {
+   "fieldname": "cb_issuance_right",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "purpose_of_issuance",
+   "fieldtype": "Select",
+   "label": "Purpose of Issuance",
+   "options": "\nSite Installation\nRepair\nReplacement\nTesting\nTraining\nOther"
+  },
+  {
+   "fieldname": "condition_on_receipt",
+   "fieldtype": "Select",
+   "label": "Condition on Receipt",
+   "options": "\nGood\nDamaged\nPartially Damaged\nNot Received"
+  },
+  {
+   "fieldname": "dispatch_attachment",
+   "fieldtype": "Attach",
+   "label": "Attachment"
+  },
+  {
    "fieldname": "section_break_notes",
    "fieldtype": "Section Break",
    "label": "Remarks"
@@ -207,7 +245,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-03-13 22:15:00.000000",
+ "modified": "2026-03-15 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Gov ERP",
  "name": "GE Dispatch Challan",
