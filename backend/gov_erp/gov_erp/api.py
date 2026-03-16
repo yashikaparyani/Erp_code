@@ -6844,3 +6844,306 @@ def get_site_uptime_summary(site):
 		d["avg_uptime_pct"] = round((d["total_uptime_hours"] / total) * 100, 2) if total else None
 
 	return {"success": True, "data": list(devices.values())}
+
+
+# ── Technical Deviation Workflow Helpers ──────────────────────
+
+@frappe.whitelist()
+def approve_technical_deviation(name):
+	"""Approve a technical deviation (Engineering Head/Project Manager only)."""
+	_require_roles(ROLE_ENGINEERING_HEAD, ROLE_PROJECT_MANAGER, ROLE_PROJECT_HEAD)
+	doc = frappe.get_doc("GE Technical Deviation", name)
+	if doc.status not in ("Open",):
+		frappe.throw(f"Cannot approve deviation in '{doc.status}' state. Must be 'Open'.")
+	doc.status = "Approved"
+	doc.approved_by = frappe.session.user
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Technical deviation approved"}
+
+
+@frappe.whitelist()
+def reject_technical_deviation(name, reason=None):
+	"""Reject a technical deviation."""
+	_require_roles(ROLE_ENGINEERING_HEAD, ROLE_PROJECT_MANAGER, ROLE_PROJECT_HEAD)
+	doc = frappe.get_doc("GE Technical Deviation", name)
+	if doc.status not in ("Open",):
+		frappe.throw(f"Cannot reject deviation in '{doc.status}' state. Must be 'Open'.")
+	doc.status = "Rejected"
+	doc.approved_by = frappe.session.user
+	if reason:
+		doc.remarks = (doc.remarks or "") + f"\nRejection reason: {reason}"
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Technical deviation rejected"}
+
+
+@frappe.whitelist()
+def close_technical_deviation(name):
+	"""Close an approved or rejected deviation."""
+	_require_roles(ROLE_ENGINEERING_HEAD, ROLE_PROJECT_MANAGER, ROLE_PROJECT_HEAD)
+	doc = frappe.get_doc("GE Technical Deviation", name)
+	if doc.status not in ("Approved", "Rejected"):
+		frappe.throw(f"Cannot close deviation in '{doc.status}' state. Must be 'Approved' or 'Rejected'.")
+	doc.status = "Closed"
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Technical deviation closed"}
+
+
+# ── Change Request Workflow Helpers ──────────────────────────
+
+@frappe.whitelist()
+def submit_change_request(name):
+	"""Submit a draft change request for review."""
+	_require_execution_write_access()
+	doc = frappe.get_doc("GE Change Request", name)
+	if doc.status != "Draft":
+		frappe.throw(f"Cannot submit change request in '{doc.status}' state. Must be 'Draft'.")
+	doc.status = "Submitted"
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Change request submitted for review"}
+
+
+@frappe.whitelist()
+def approve_change_request(name):
+	"""Approve a submitted change request."""
+	_require_roles(ROLE_ENGINEERING_HEAD, ROLE_PROJECT_HEAD)
+	doc = frappe.get_doc("GE Change Request", name)
+	if doc.status != "Submitted":
+		frappe.throw(f"Cannot approve change request in '{doc.status}' state. Must be 'Submitted'.")
+	doc.status = "Approved"
+	doc.approved_by = frappe.session.user
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Change request approved"}
+
+
+@frappe.whitelist()
+def reject_change_request(name, reason=None):
+	"""Reject a submitted change request."""
+	_require_roles(ROLE_ENGINEERING_HEAD, ROLE_PROJECT_HEAD)
+	doc = frappe.get_doc("GE Change Request", name)
+	if doc.status != "Submitted":
+		frappe.throw(f"Cannot reject change request in '{doc.status}' state. Must be 'Submitted'.")
+	doc.status = "Rejected"
+	doc.approved_by = frappe.session.user
+	if reason:
+		doc.remarks = (doc.remarks or "") + f"\nRejection reason: {reason}"
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Change request rejected"}
+
+
+# ── Test Report Workflow Helpers ─────────────────────────────
+
+@frappe.whitelist()
+def approve_test_report(name):
+	"""Approve a submitted test report."""
+	_require_roles(ROLE_ENGINEERING_HEAD, ROLE_PROJECT_MANAGER, ROLE_PROJECT_HEAD)
+	doc = frappe.get_doc("GE Test Report", name)
+	if doc.status != "Submitted":
+		frappe.throw(f"Cannot approve test report in '{doc.status}' state. Must be 'Submitted'.")
+	doc.status = "Approved"
+	doc.approved_by = frappe.session.user
+	doc.approval_date = frappe.utils.today()
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Test report approved"}
+
+
+@frappe.whitelist()
+def reject_test_report(name, reason=None):
+	"""Reject a submitted test report."""
+	_require_roles(ROLE_ENGINEERING_HEAD, ROLE_PROJECT_MANAGER, ROLE_PROJECT_HEAD)
+	doc = frappe.get_doc("GE Test Report", name)
+	if doc.status != "Submitted":
+		frappe.throw(f"Cannot reject test report in '{doc.status}' state. Must be 'Submitted'.")
+	doc.status = "Rejected"
+	doc.approved_by = frappe.session.user
+	doc.approval_date = frappe.utils.today()
+	if reason:
+		doc.remarks = (doc.remarks or "") + f"\nRejection reason: {reason}"
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Test report rejected"}
+
+
+# ── Device Register Lifecycle Helpers ────────────────────────
+
+@frappe.whitelist()
+def commission_device(name):
+	"""Mark a deployed/active device as commissioned."""
+	_require_roles(ROLE_ENGINEERING_HEAD, ROLE_PROJECT_MANAGER)
+	doc = frappe.get_doc("GE Device Register", name)
+	if doc.status not in ("Deployed", "Active"):
+		frappe.throw(f"Cannot commission device in '{doc.status}' state. Must be 'Deployed' or 'Active'.")
+	doc.status = "Commissioned"
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Device commissioned"}
+
+
+@frappe.whitelist()
+def mark_device_faulty(name, remarks=None):
+	"""Flag a device as faulty."""
+	_require_roles(ROLE_ENGINEERING_HEAD, ROLE_PROJECT_MANAGER, ROLE_FIELD_TECHNICIAN)
+	doc = frappe.get_doc("GE Device Register", name)
+	if doc.status == "Decommissioned":
+		frappe.throw("Cannot mark a decommissioned device as faulty.")
+	doc.status = "Faulty"
+	if remarks:
+		doc.remarks = (doc.remarks or "") + f"\nFaulty: {remarks}"
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Device marked faulty"}
+
+
+@frappe.whitelist()
+def decommission_device(name, remarks=None):
+	"""Decommission a device and release its IP allocation if any."""
+	_require_roles(ROLE_ENGINEERING_HEAD, ROLE_PROJECT_MANAGER)
+	doc = frappe.get_doc("GE Device Register", name)
+	doc.status = "Decommissioned"
+	if remarks:
+		doc.remarks = (doc.remarks or "") + f"\nDecommissioned: {remarks}"
+	doc.save()
+	# Release linked IP allocation if present
+	if doc.ip_address:
+		try:
+			alloc = frappe.get_doc("GE IP Allocation", doc.ip_address)
+			if alloc.status == "Active":
+				alloc.status = "Released"
+				alloc.released_on = frappe.utils.today()
+				alloc.save()
+		except frappe.DoesNotExistError:
+			pass
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Device decommissioned"}
+
+
+# ── IP Allocation Lifecycle Helpers ──────────────────────────
+
+@frappe.whitelist()
+def release_ip_allocation(name):
+	"""Release an active IP allocation back to its pool."""
+	_require_roles(ROLE_ENGINEERING_HEAD, ROLE_PROJECT_MANAGER)
+	doc = frappe.get_doc("GE IP Allocation", name)
+	if doc.status != "Active":
+		frappe.throw(f"Cannot release IP allocation in '{doc.status}' state. Must be 'Active'.")
+	doc.status = "Released"
+	doc.released_on = frappe.utils.today()
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "IP allocation released"}
+
+
+# ── Commissioning Checklist Workflow Helpers ─────────────────
+
+@frappe.whitelist()
+def start_commissioning_checklist(name):
+	"""Move a draft commissioning checklist to In Progress."""
+	_require_execution_write_access()
+	doc = frappe.get_doc("GE Commissioning Checklist", name)
+	if doc.status != "Draft":
+		frappe.throw(f"Cannot start checklist in '{doc.status}' state. Must be 'Draft'.")
+	doc.status = "In Progress"
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Commissioning checklist started"}
+
+
+@frappe.whitelist()
+def complete_commissioning_checklist(name):
+	"""Complete a commissioning checklist after verifying all items."""
+	_require_roles(ROLE_ENGINEERING_HEAD, ROLE_PROJECT_MANAGER)
+	doc = frappe.get_doc("GE Commissioning Checklist", name)
+	if doc.status != "In Progress":
+		frappe.throw(f"Cannot complete checklist in '{doc.status}' state. Must be 'In Progress'.")
+	# Verify all items are completed
+	items = doc.get("items") or []
+	incomplete = [item for item in items if not item.is_completed]
+	if incomplete:
+		frappe.throw(f"{len(incomplete)} checklist item(s) are still incomplete. Complete all items first.")
+	doc.status = "Completed"
+	doc.commissioned_by = frappe.session.user
+	doc.commissioned_date = frappe.utils.today()
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Commissioning checklist completed"}
+
+
+# ── Client Signoff Workflow Helpers ──────────────────────────
+
+@frappe.whitelist()
+def sign_client_signoff(name, signed_by_client=None):
+	"""Record client signature on a pending signoff."""
+	_require_roles(ROLE_ENGINEERING_HEAD, ROLE_PROJECT_MANAGER, ROLE_PROJECT_HEAD)
+	doc = frappe.get_doc("GE Client Signoff", name)
+	if doc.status != "Pending":
+		frappe.throw(f"Cannot sign in '{doc.status}' state. Must be 'Pending'.")
+	doc.status = "Signed"
+	if signed_by_client:
+		doc.signed_by_client = signed_by_client
+	doc.signoff_date = frappe.utils.today()
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Client signoff recorded"}
+
+
+@frappe.whitelist()
+def approve_client_signoff(name):
+	"""Final internal approval after client signature."""
+	_require_roles(ROLE_ENGINEERING_HEAD, ROLE_PROJECT_HEAD)
+	doc = frappe.get_doc("GE Client Signoff", name)
+	if doc.status != "Signed":
+		frappe.throw(f"Cannot approve signoff in '{doc.status}' state. Must be 'Signed'.")
+	doc.status = "Approved"
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Client signoff approved"}
+
+
+# ── Drawing Workflow Helpers ─────────────────────────────────
+
+@frappe.whitelist()
+def submit_drawing(name):
+	"""Submit a draft drawing for approval."""
+	_require_execution_write_access()
+	doc = frappe.get_doc("GE Drawing", name)
+	if doc.status != "Draft":
+		frappe.throw(f"Cannot submit drawing in '{doc.status}' state. Must be 'Draft'.")
+	doc.status = "Submitted"
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Drawing submitted for approval"}
+
+
+@frappe.whitelist()
+def approve_drawing(name):
+	"""Approve a submitted drawing."""
+	_require_roles(ROLE_ENGINEERING_HEAD, ROLE_PROJECT_HEAD)
+	doc = frappe.get_doc("GE Drawing", name)
+	if doc.status != "Submitted":
+		frappe.throw(f"Cannot approve drawing in '{doc.status}' state. Must be 'Submitted'.")
+	doc.status = "Approved"
+	doc.approved_by = frappe.session.user
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Drawing approved"}
+
+
+@frappe.whitelist()
+def supersede_drawing(name, superseded_by=None):
+	"""Mark an approved drawing as superseded by a newer revision."""
+	_require_roles(ROLE_ENGINEERING_HEAD, ROLE_PROJECT_HEAD)
+	doc = frappe.get_doc("GE Drawing", name)
+	if doc.status != "Approved":
+		frappe.throw(f"Cannot supersede drawing in '{doc.status}' state. Must be 'Approved'.")
+	doc.status = "Superseded"
+	if superseded_by:
+		doc.supersedes_drawing = superseded_by
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Drawing superseded"}

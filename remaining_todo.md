@@ -31,338 +31,301 @@ Use this instead of reconstructing status from chat.
   - Executive landing dashboard now fetches live portfolio aggregates
   - `/documents` now reads custom `GE Document Folder` and `GE Project Document` APIs instead of mock data
   - `npm run build` passed after the live integration changes
+- `2026-03-15`: Priority 11 repo hygiene executed to commit-and-push level
+  - curated repo snapshot committed as `1b12afb` and pushed to `origin/master`
+  - repo backend mirror matches the live bench app copy after sync verification
+  - remaining repo hygiene is now limited to local untracked source artifacts that were intentionally kept out of Git
+- `2026-03-16`: Priority 1 DocType layer executed to completion
+  - created `GE Test Result Item` child table for `GE Test Report` (test_case_id, description, expected_result, actual_result, status, remarks)
+  - `GE Device Register` `ip_address` field changed from plain `Data` to `Link` → `GE IP Allocation`
+  - alert/escalation confirmed as config-driven via existing `GE SLA Profile.escalation_user` — no admin DocType needed now
+  - `bench migrate` clean, all 76 gov_erp DocTypes live
+  - repo mirror synced
+- `2026-03-16`: Priority 2 Backend & API layer executed to completion
+  - 17 workflow helper APIs added to `api.py` (7143 lines total):
+    - Technical Deviation: `approve`, `reject`, `close`
+    - Change Request: `submit`, `approve`, `reject`
+    - Test Report: `approve`, `reject`
+    - Device Register: `commission`, `mark_faulty`, `decommission` (auto-releases IP allocation)
+    - IP Allocation: `release`
+    - Commissioning Checklist: `start`, `complete` (validates all items done)
+    - Client Signoff: `sign`, `approve`
+    - Drawing: `submit`, `approve`, `supersede`
+  - 15 new Next.js proxy routes created under `/api/engineering/*` and `/api/execution/*`:
+    - `engineering/technical-deviations`, `engineering/drawings`, `engineering/change-requests`
+    - `execution/dependency-rules`, `execution/dependency-overrides`
+    - `execution/project-team-members`, `execution/project-assets`
+    - `execution/commissioning/device-registers`, `execution/commissioning/ip-pools`, `execution/commissioning/ip-allocations`, `execution/commissioning/device-uptime-logs`
+    - `execution/commissioning/test-reports`, `execution/commissioning/checklists`, `execution/commissioning/client-signoffs`
+  - All role/access guards verified: `_require_roles()` with proper business role checks
+  - Backend tests: 9/9 passed
+  - Frontend build: clean pass
+  - Repo mirror synced
 
 The main remaining work is fidelity, integration, and alignment with client trackers and org hierarchy.
 
-## Priority 1: Make The System Faithful To Client Structure
-
-- [x] Add explicit `Project Head` role to backend and stop using `Department Head` as its generic substitute
-- [x] Add role aliases / mapping for:
-  - `Presales Head`
-  - `HR Head`
-  - `Accounts Head`
-  - `Procurement Head`
-  - `RMA Head`
-- [x] Separate `designation master` from `permission role` clearly in implementation
-- [x] Align department master with the HR org chart:
-  - `Accounts Department`
-  - `Presales Department`
-  - `Central Team`
-  - `Project Coordinator Department`
-  - `Purchase Department`
-  - `HR/Admin Department`
-  - `Store Department`
-  - `Sales Department`
-  - `RMA`
-  - `O&M`
-
-## Priority 2: Cover Missing ANDA Trackers
-
-- [x] Add `Project Communication Log`
-- [x] Add `Project Assets & Services`
-- [x] Add `Petty Cash Tracker`
-- [x] Add `Project Manpower` tracker or extend current manpower model to match client sheet
-- [x] Add `Device Uptime Log` as a proper backend entity or reshape current SLA/ticket model to match it better
-
-## Priority 3: Strengthen Partial Modules
-
-- [x] Extend `GE Site` to cover more of `LOCATION AND SURVEY DETAILS`
-  - location ID
-  - survey completion date
-  - infra counts
-  - feasibility / utility availability
-  - installation stage fields
-  - location progress %
-- [x] Extend `GE Milestone` to cover more of `PROJECT AND MILESTONE PHASES`
-  - planned start date
-  - planned end date
-  - actual start date
-  - actual end date
-  - assigned team / role
-  - progress %
-- [x] Extend procurement tracking to match the client tracker language
-  - PO/WO references
-  - vendor contact details
-  - delivery timeline
-  - approval date
-  - expected vs actual delivery
-  - attachment flags
-  - accounts notified flag
-- [x] Extend client payment milestone tracking
-  - milestone description
-  - scheduled vs actual milestone date
-  - payment received flags
-  - payment notes
-- [x] Extend material consumption / issuance tracking
-  - issuance ID
-  - requested by
-  - received by
-  - condition on receipt
-  - purpose of issuance
-
-## Priority 4: Frontend Integration
-
-- [x] Restart backend and do a live smoke pass on recently backed pages
-- [x] Verify settings pages against live backend:
-  - department
-  - designation
-  - role
-  - user management
-- [x] Verify pre-sales finance pages against live backend:
-  - new request
-  - approve request
-  - denied request
-  - completed request
-- [x] Verify MIS pages against live backend:
-  - finance MIS
-  - login MIS
-  - sales MIS
-- [x] Verify documents / folders pages against live backend
-- [x] Replace or hide any remaining fake/static page that can mislead the client
-  - `documents/page.tsx` — amber banner added (file counts and recent docs are mock data)
-  - `page.tsx` (`DefaultExecutiveDashboard`) — amber banner added
-  - All 7 role dashboard components — amber banners added (AccountsDashboard, ExecutionDashboard, OMDashboard, PresalesDashboard, ProcurementDashboard, ProjectHeadDashboard, StoresDashboard)
-  - All other module pages verified live (master-data, reports, hr, inventory, procurement, finance, engineering, survey, om-helpdesk, tender-task, rma)
-
-### Dashboard Live-Data Integration (blocked — requires backend work first)
-
-All 7 role dashboards + the executive dashboard + the documents page are currently illustrative mock-ups.
-They were **not wired to live APIs** because the required aggregation routes don't exist yet.
-
-After reading every plan MD in the project, the key correction is:
-**Most "missing DocTypes" are actually ERPNext built-ins that already exist on the bench.**
-The procurement plan says to reuse `Material Request` (Indent), `Purchase Order`, `Purchase Receipt` (GRN).
-The stores plan says to reuse `Warehouse`, `Bin` (stock ledger), `Stock Entry`.
-These are all live in ERPNext — the gap is only API wrappers + frontend wiring.
-
-The correct three-layer model:
-
-```
-Layer 1: DocTypes (the spine)
-   ↓ already exists or is an ERPNext built-in
-Layer 2: Backend Python APIs (derived from DocType relationships)
-   ↓ wraps DocType CRUD + aggregation queries
-Layer 3: Frontend (GUI application of Layer 2)
-   ↓ fetch + render
-```
-
----
-
-## Priority 5: Layer 1 — DocType Inventory & Gaps — ✅ Complete
-
-`2026-03-15`: All P5 items executed — 4 new DocTypes created, 2 existing DocTypes extended, `bench migrate` clean.
-
-### What already exists (70 custom + ERPNext built-ins)
-
-**Custom gov_erp (70 DocTypes, all live in DB):**
-
-| Area | DocTypes |
-|------|----------|
-| Tender (14) | `GE Tender`, `GE Tender Checklist`, `GE Tender Checklist Item`, `GE Tender Clarification`, `GE Tender Compliance Item`, `GE Tender Organization`, `GE Tender Reminder`, `GE Tender Result`, `GE Tender Result Bidder`, `GE EMD PBG Instrument`, `GE BOQ`, `GE BOQ Item`, `GE Cost Sheet`, `GE Cost Sheet Item` |
-| Execution (8) | `GE Site`, `GE Milestone`, `GE DPR`, `GE DPR Item`, `GE DPR Photo`, `GE Project Communication Log`, `GE Project Team Member`, `GE Project Asset` |
-| Logistics (2) | `GE Dispatch Challan`, `GE Dispatch Challan Item` |
-| HR (8) | `GE Employee Onboarding`, `GE Employee Certification`, `GE Employee Document`, `GE Attendance Log`, `GE Travel Log`, `GE Overtime Entry`, `GE Statutory Ledger`, `GE Technician Visit Log` |
-| Accounts (7) | `GE Invoice`, `GE Invoice Line`, `GE Payment Receipt`, `GE Retention Ledger`, `GE Penalty Deduction`, `GE Petty Cash`, `GE Manpower Log` |
-| Procurement (4) | `GE Vendor Comparison`, `GE Vendor Comparison Quote`, `GE Party`, `GE PDC Instrument` ✅ NEW |
-| Budget (1) | `GE Budget Allocation` ✅ NEW |
-| Documents (2) | `GE Document Folder`, `GE Project Document` ✅ NEW |
-| Engineering (3) | `GE Drawing`, `GE Technical Deviation`, `GE Change Request` ✅ NEW |
-| Network & Commissioning (7) | `GE Device Register`, `GE IP Pool`, `GE IP Allocation`, `GE Commissioning Checklist`, `GE Commissioning Checklist Item`, `GE Test Report`, `GE Client Signoff` ✅ NEW |
-| Ticketing (6) | `GE Ticket`, `GE Ticket Action`, `GE SLA Profile`, `GE SLA Timer`, `GE SLA Penalty Rule`, `GE SLA Penalty Record` |
-| RMA (1) | `GE RMA Tracker` |
-| Monitoring (1) | `GE Device Uptime Log` |
-| Survey (2) | `GE Survey`, `GE Survey Attachment` |
-| Dependencies (2) | `GE Dependency Rule`, `GE Dependency Override` |
-| Other (2) | `GE Organization`, `GE Competitor` |
-
-**ERPNext built-ins (already on bench, ready to use):**
-
-| DocType | Role in ERP | Currently used? |
-|---------|-------------|-----------------|
-| `Material Request` | = Indent (procurement requisition) | ✅ Wrapper APIs live: `get_indents`, `get_indent`, `create_indent`, `get_indent_stats` |
-| `Purchase Order` | = PO after vendor comparison approval | ✅ Wrapper APIs live: `get_purchase_orders`, `get_po_stats`, `create_po_from_comparison` |
-| `Purchase Receipt` | = GRN (goods receipt note) | ✅ Wrapper APIs live: `get_grns`, `get_grn`, `create_grn`, `get_grn_stats` |
-| `Warehouse` | = Stock location master | ✅ Used by `GE Dispatch Challan.from_warehouse/to_warehouse` |
-| `Bin` | = Live stock ledger position per item per warehouse | ✅ Used by `get_store_stock_snapshot` |
-| `Stock Entry` | = Material movement record | ✅ Created when dispatch marked DISPATCHED |
-| `Item` | = Material master | ✅ Used across BOQ, Cost Sheet, Dispatch, Vendor Comparison |
-| `Supplier` | = Vendor master (for procurement) | ✅ Used by `GE Vendor Comparison Quote.supplier` |
-| `Project` | = Project spine | ✅ Used everywhere |
-| `Task` | = Work execution unit | ✅ Used by dependency engine |
-| `Employee` | = Employee master | ✅ Synced from `GE Employee Onboarding` |
+## Right Now
 
-### What needs to be CREATED (truly new DocTypes) — ✅ All Done
-
-| # | DocType | Status | Fields | Links to |
-|---|---------|--------|--------|----------|
-| 1 | `GE Budget Allocation` | ✅ Live | `project`, `budget_head`, `sanctioned_amount`, `revised_amount`, `spent_to_date` (read-only), `utilization_pct` (read-only), `period_start`, `period_end`, `status`, `remarks` | Project |
-| 2 | `GE Document Folder` | ✅ Live | `folder_name`, `parent_folder` (self-link), `linked_project`, `department`, `sort_order`, `description` | Project, Department, self |
-| 3 | `GE Project Document` | ✅ Live | `document_name`, `folder`, `linked_project`, `category`, `file` (Attach), `version`, `uploaded_by` (read-only), `uploaded_on` (read-only), `remarks` | GE Document Folder, Project |
-| 4 | `GE PDC Instrument` | ✅ Live | `cheque_number` (unique), `bank_name`, `amount`, `issue_date`, `maturity_date`, `linked_vendor`, `linked_po`, `linked_project`, `status`, `remarks` | Supplier, Purchase Order, Project |
-
-### What needs FIELD ADDITIONS on existing DocTypes — ✅ All Done
-
-| # | DocType | Field added | Status |
-|---|---------|-------------|--------|
-| 1 | `GE Tender Checklist Item` | `completion_pct` (Percent) | ✅ Live — enables presales dashboard compliance % |
-| 2 | `GE Vendor Comparison` | `advance_amount` (Currency), `advance_status` (Select: Not Required/Pending/Paid) | ✅ Live — enables procurement dashboard "Advance Required" card |
-
-### What needs only API WRAPPERS over ERPNext built-ins (no new DocType)
-
-| # | ERPNext DocType | Wrapper needed | Why |
-|---|-----------------|----------------|-----|
-| 1 | `Material Request` | `get_indents`, `get_indent`, `create_indent`, `get_indent_stats` | Project Head + Procurement dashboards need indent counts |
-| 2 | `Purchase Order` | `get_purchase_orders`, `get_po_stats`, `create_po_from_comparison` | Procurement dashboard PO queue; auto-create from approved comparison |
-| 3 | `Purchase Receipt` | `get_grns`, `get_grn`, `create_grn`, `get_grn_stats` | Stores dashboard GRN queue section |
-| 4 | `Warehouse` + `Bin` | `get_stock_position`, `get_stock_aging` | Stores dashboard stock value + aging analysis ✅ live |
-
----
-
-## Priority 6: Layer 2 — Backend API Routes — ✅ Complete
-
-These are the Python methods (`gov_erp/api.py` or module-level `*.py`) that expose DocType data.
-
-### 6A: ERPNext wrapper APIs — ✅ Complete
-
-`2026-03-15`: ERPNext wrapper APIs were added in `gov_erp/api.py`, and matching Next proxy routes were added under `erp_frontend/src/app/api`.
-
-- [x] Indent APIs: `get_indents(project, status)`, `get_indent(name)`, `get_indent_stats(project)`, `create_indent(data)`
-  - Wraps `Material Request` with `material_request_type='Purchase'`
-  - Supports project filtering via `Material Request Item.project`
-- [x] PO APIs: `get_purchase_orders(project, status)`, `get_purchase_order(name)`, `get_po_stats(project)`, `create_po_from_comparison(comparison_name)`
-  - Wraps `Purchase Order`
-  - PO creation from approved comparison now carries `linked_project` + `linked_material_request`
-- [x] GRN APIs: `get_grns(project, status)`, `get_grn(name)`, `get_grn_stats(project)`, `create_grn(data)`
-  - Wraps `Purchase Receipt`
-  - `create_grn` can derive receivable lines directly from a PO
-- [x] Stock position APIs: `get_stock_position(warehouse)`, `get_stock_aging(warehouse)`
-  - Wraps `Bin` + `Stock Ledger Entry`
-  - Matching Next proxy routes added for frontend wiring
-
-### 6B: Dashboard aggregation APIs (derived from existing + wrapper APIs)
-
-- [x] `get_om_dashboard()` → aggregates `GE Ticket` + `GE SLA Timer` + `GE RMA Tracker`
-- [x] `get_accounts_dashboard()` → aggregates `GE Invoice` + `GE Retention Ledger` + `GE Penalty Deduction` + tax and aging summaries
-- [x] `get_presales_dashboard()` → aggregates `GE Tender` + `GE BOQ` + `GE Survey` + `GE EMD PBG Instrument` + checklist completion
-- [x] `get_execution_dashboard()` → aggregates `GE Site` + `GE DPR` + `GE Milestone` + `GE Manpower Log` + `GE Dependency Rule`
-- [x] `get_project_head_dashboard()` → aggregates indent, execution, billing, SLA, and manpower coverage metrics
-- [x] `get_procurement_dashboard()` → aggregates indent, PO, vendor comparison, dispatch, and payment-due metrics
-- [x] `get_stores_dashboard()` → aggregates GRN, stock position, stock aging, and dispatch metrics
-- [x] `get_executive_dashboard()` → aggregates projects, budget, SLA, critical tickets, and pending approvals
-
-### 6C: Document management APIs (needs new DocTypes from P5)
-
-- [x] `get_document_folders(project)`, `create_document_folder(data)`
-- [x] `get_project_documents(folder, project)`, `upload_project_document(data)`, `get_document_versions(name)`
-- [x] `get_project_document(name)`, `update_document_folder(name, data)`, `update_project_document(name, data)`, delete APIs
-
----
-
-## Priority 7: Layer 3 — Frontend Dashboard Wiring — ✅ Complete
-
-`2026-03-15`: All role dashboards, the executive dashboard, and the documents hub were switched from mock JSX to live API-backed rendering.
-
-- [x] Replace all 7 role dashboards with live `/api/dashboards/[dashboard]` data consumers
-- [x] Replace executive landing dashboard with live aggregate rendering
-- [x] Replace `/documents` mock folder/file lists with custom document API reads
-- [x] Add loading, error, retry, and last-updated states for the live dashboard/document surfaces
-- [x] Validate with `npm run build`
-
----
-
-## Priority 8: Layer 1+2+3 — Remaining Module Gaps From Plan MDs — ✅ Complete
-
-`2026-03-15`: All remaining custom DocTypes from the plan MDs were created on the bench and migrated cleanly.
-
-These modules now have Layer 1 coverage. The remaining work here is backend CRUD/workflow APIs and frontend pages.
-
-### Engineering & Design Module (Module 7 in ERP analysis — DocTypes live)
-
-| DocType | Status | Core fields | Links |
-|----------------|--------|-------|
-| `GE Drawing` | ✅ Live | drawing_number, title, revision, status, client_approval_status, file, approved_by, approval_date, supersedes_drawing | Project, GE Site |
-| `GE Technical Deviation` | ✅ Live | deviation_id, linked_project, linked_drawing, description, impact, proposed_solution, root_cause, status, raised_by, approved_by | Project, GE Drawing |
-| `GE Change Request` | ✅ Live | cr_number, linked_project, description, reason, cost_impact, schedule_impact_days, status, raised_by, approved_by | Project |
-
-- **Backend**: CRUD APIs live; dedicated workflow helper actions can still be refined where needed
-- **Frontend**: New engineering detail pages (currently shallow wrappers)
-
-### Network & Commissioning Module (Module 8 — DocTypes live)
-
-| DocType | Status | Core fields | Links |
-|----------------|--------|-------|
-| `GE Device Register` | ✅ Live | device_name, device_type, item_link, serial_no, ip_address, mac_address, linked_dispatch_challan, warranty_end_date | GE Site, Project |
-| `GE IP Pool` | ✅ Live | network_name, subnet, gateway, vlan_id, total_ips, allocated_ips, status | GE Site, Project |
-| `GE IP Allocation` | ✅ Live | ip_address, linked_pool, linked_device, allocated_on, allocated_by, released_on, status | GE IP Pool, GE Device Register |
-| `GE Commissioning Checklist` | ✅ Live | checklist_name, linked_project, linked_site, template_type, status, items, commissioned_by, commissioned_date | Project, GE Site |
-| `GE Commissioning Checklist Item` (child) | ✅ Live | item_name, is_completed, completed_by, completed_on, remarks | — |
-| `GE Test Report` | ✅ Live | report_name, test_type, linked_project, linked_site, linked_commissioning_checklist, status, file, tested_by, test_date | Project, GE Site |
-| `GE Client Signoff` | ✅ Live | signoff_type, linked_project, linked_site, signed_by_client, signoff_date, linked_commissioning_checklist, status, attachment | Project, GE Site |
-
-- **Backend**: CRUD APIs live; commissioning workflow-specific helper actions can still be refined where needed
-- **Frontend**: Engineering page expansion
-
-### Alerts & Notifications Module (Module 11 — workflow pending, no custom DocType required by default)
-
-| Feature | Implementation |
-|---------|---------------|
-| Milestone due reminders | Scheduled job querying `GE Milestone.planned_date` |
-| Payment overdue alerts | Scheduled job querying `GE Invoice.scheduled_milestone_date` |
-| Dependency block notifications | Triggered on `evaluate_task_dependencies` returning blockers |
-| Document expiry reminders | Scheduled job on `GE EMD PBG Instrument.expiry_date`, warranty dates |
-| Escalation chain | Config-driven, uses Frappe's notification framework |
-
-- **Backend**: Frappe scheduled job hooks + notification DocType usage
-- **Frontend**: Notification bell component + settings page
-
-## Priority 8: Data Alignment — ✅ Complete
-
-`2026-03-15`: Priority 8 executed with a clean sanity pass first.
-
-- [x] Convert `ANDA.xlsx` into a sheet-to-doctype mapping
-- [x] Identify which client master rows must be loaded before POC / implementation
-- [x] Prepare import-ready masters for:
-  - departments
-  - designations
-  - roles / aliases
-  - projects
-  - locations
-  - milestone templates
-  - vendors / organizations
-
-Artifacts created:
-- `Erp_code/data_alignment/anda_sheet_to_doctype_mapping.md`
-- `Erp_code/data_alignment/poc_master_load_plan.md`
-- `Erp_code/data_alignment/import_masters/*.csv`
-
-## Priority 9: Role And Access Cleanup — ✅ Complete
-
-`2026-03-15`: Priority 9 executed across API guards and Desk permissions.
-
-- [x] Update backend DocType permissions to reflect real hierarchy instead of generic placeholders where possible
-- [x] Review API role guards against `anda acess.md`
-- [x] Add missing lower-level roles only where workflows truly require them
-  - No additional lower-level runtime roles were added because the current workflow surface does not require new roles beyond the existing business-role set
-
-## Priority 10: Validation / QA — 🟠 Medium
-
-`2026-03-15`: Live QA pass executed against `dev.localhost` + frontend on `3000`.
-
-- Frontend runtime issue found and fixed during QA:
-  - stale Next runtime on `/login` returned `500` (`Cannot find module './1072.js'`)
-  - frontend process was recycled; main demo routes now return `200`
-- Live route smoke completed:
-  - frontend `200`: `/login`, `/`, `/pre-sales/tender`, `/pre-sales/survey`, `/finance/costing`, `/procurement`, `/inventory`, `/execution`, `/finance/billing`, `/rma`, `/documents`
-  - backend guest access behaves correctly: `health_check` returns `200`, authenticated business APIs return `403` to anonymous callers
-- Role-visibility pass completed server-side against real site users:
-  - 38 role checks executed via Frappe impersonation against live API guards
-  - missing `project.head@technosys.local` POC user was discovered and provisioned on `dev.localhost`
-  - petty-cash API guard was corrected to remove stale `Department Head` access and match the cleaned Desk permission matrix
-- Current walkthrough blocker:
-  - the main journey is not yet fully demo-populated on this site
-  - current live record counts: tender `14`, survey `3`, BOQ `5`, costing `0`, procurement `0`, dispatch `0`, execution `0`, billing `0`, ticket `0`, RMA `1`
-
-- [ ] Run a full live walkthrough of the main journey:
+This is the practical next-action list, in order.
+
+1. Complete the missing live demo journey data so Priority 10 can be closed honestly
+  - create or load enough records for costing, procurement, dispatch, execution, billing, and ticket flow
+  - re-run the full walkthrough on real data instead of empty states
+2. Close the QA gap on demo-critical pages
+  - confirm each page shows real records where available
+  - where records are still absent, keep explicit honest empty states instead of implied completeness
+3. Refine workflow helper APIs for engineering and commissioning
+  - move beyond CRUD and add action-oriented flow helpers where operators need guided state transitions
+4. Do the final low-priority repo cleanup
+  - remove, relocate, or ignore the leftover local-only source artifacts before the next push
+
+## Frontend Screen Map For Missing Entity UIs
+
+These backend APIs exist, but still do not have dedicated frontend screens in the current Next app.
+
+### 1. Engineering → Technical Deviations
+
+Build route:
+
+- `erp_frontend/src/app/engineering/deviations/page.tsx`
+
+Use this screen for:
+
+- `create_technical_deviation`
+- `get_technical_deviation`
+- `get_technical_deviations`
+- `update_technical_deviation`
+- `delete_technical_deviation`
+
+Reason:
+
+- technical deviation belongs to Module 7 Engineering & Design, next to drawings and change requests
+
+### 2. Execution → Dependency Rules & Overrides
+
+Build route:
+
+- `erp_frontend/src/app/execution/dependencies/page.tsx`
+
+Use this screen for:
+
+- `create_dependency_override`
+- `approve_dependency_override`
+- `reject_dependency_override`
+- `get_dependency_overrides`
+- `create_dependency_rule`
+- `update_dependency_rule`
+- `delete_dependency_rule`
+- `get_dependency_rules`
+
+Reason:
+
+- dependency engine is part of Module 6 Project Execution, not Engineering BOQ
+
+### 3. Execution → Project Structure
+
+Build route:
+
+- `erp_frontend/src/app/execution/project-structure/page.tsx`
+
+Use this screen for:
+
+- `create_project_team_member`
+- `get_project_team_member`
+- `get_project_team_members`
+- `update_project_team_member`
+- `delete_project_team_member`
+- `create_project_asset`
+- `get_project_asset`
+- `get_project_assets`
+- `update_project_asset`
+- `delete_project_asset`
+
+Reason:
+
+- project team mapping and project assets are execution-side project structure entities, not inventory stock or HR master data
+
+### 4. Execution → Commissioning → Devices & IP
+
+Build route:
+
+- `erp_frontend/src/app/execution/commissioning/devices/page.tsx`
+
+Use this screen for:
+
+- `create_device_register`
+- `get_device_register`
+- `get_device_registers`
+- `update_device_register`
+- `delete_device_register`
+- `create_device_uptime_log`
+- `get_device_uptime_log`
+- `get_device_uptime_logs`
+- `update_device_uptime_log`
+- `delete_device_uptime_log`
+- `create_ip_pool`
+- `get_ip_pool`
+- `get_ip_pools`
+- `update_ip_pool`
+- `delete_ip_pool`
+- `create_ip_allocation`
+- `get_ip_allocation`
+- `get_ip_allocations`
+- `update_ip_allocation`
+- `delete_ip_allocation`
+
+Reason:
+
+- device register, uptime, IP pools, and IP allocations all sit inside Module 8 Network & Commissioning and should be managed together
+
+### 5. Execution → Commissioning → Test Reports
+
+Build route:
+
+- `erp_frontend/src/app/execution/commissioning/test-reports/page.tsx`
+
+Use this screen for:
+
+- `create_test_report`
+- `get_test_report`
+- `get_test_reports`
+- `update_test_report`
+- `delete_test_report`
+
+Reason:
+
+- test reports are commissioning deliverables and should live beside device/IP and client signoff work, not inside BOQ or RMA
+
+### Optional Navigation Update
+
+If these screens are built, the sidebar should expand `Execution (I&C)` into child routes for:
+
+- `Dependencies`
+- `Project Structure`
+- `Commissioning / Devices & IP`
+- `Commissioning / Test Reports`
+
+And `Engineering` should gain:
+
+- `Technical Deviations`
+
+## Priority 1: DocTypes To Create Or Reuse
+
+This priority is the data-model layer only.
+
+### Reuse ERPNext Built-ins
+
+- [x] Reuse `Material Request` for indent flow
+- [x] Reuse `Purchase Order` for PO flow
+- [x] Reuse `Purchase Receipt` for GRN flow
+- [x] Reuse `Warehouse` and `Bin` for stock views
+- [x] Reuse `Project`, `Task`, `Item`, `Supplier`, and `Employee` where already suitable
+
+### Custom DocTypes Already Created
+
+- [x] `GE Budget Allocation`
+- [x] `GE Document Folder`
+- [x] `GE Project Document`
+- [x] `GE PDC Instrument`
+- [x] `GE Drawing`
+- [x] `GE Technical Deviation`
+- [x] `GE Change Request`
+- [x] `GE Device Register`
+- [x] `GE IP Pool`
+- [x] `GE IP Allocation`
+- [x] `GE Commissioning Checklist`
+- [x] `GE Commissioning Checklist Item`
+- [x] `GE Test Report`
+- [x] `GE Test Result Item` (child table of GE Test Report)
+- [x] `GE Client Signoff`
+- [x] `GE Project Communication Log`
+- [x] `GE Project Asset`
+- [x] `GE Petty Cash`
+- [x] `GE Manpower Log`
+- [x] `GE Device Uptime Log`
+- [x] `GE Dependency Rule`
+- [x] `GE Dependency Override`
+- [x] `GE Project Team Member`
+
+### Existing DocTypes Already Extended
+
+- [x] `GE Site`
+- [x] `GE Milestone`
+- [x] `GE Vendor Comparison`
+- [x] `GE Invoice`
+- [x] `GE Dispatch Challan`
+- [x] `GE Tender Checklist Item`
+
+### Remaining DocType Work
+
+- [x] Confirm whether any new child DocType or configuration DocType is still needed for engineering/commissioning workflow helpers
+  - **Done 2026-03-16**: Created `GE Test Result Item` child table for `GE Test Report` so individual test cases track pass/fail
+  - **Done 2026-03-16**: Changed `GE Device Register.ip_address` from `Data` to `Link` → `GE IP Allocation`
+- [x] Confirm whether alert/escalation settings should stay config-driven only or need a custom admin DocType later
+  - **Done 2026-03-16**: Config-driven via `GE SLA Profile.escalation_user` is sufficient for current scope; defer escalation matrix DocType to future enhancement
+
+## Priority 2: Backend And API Creation
+
+This priority is backend logic, wrappers, CRUD, workflow actions, and frontend proxy routes.
+
+### Already Complete
+
+- [x] ERPNext wrapper APIs for indent / PO / GRN / stock
+- [x] Dashboard aggregation APIs for role dashboards
+- [x] Document management APIs
+- [x] CRUD APIs for engineering, commissioning, dependency, project structure, RMA, HR, finance, dispatch, and related modules
+- [x] Frontend proxy coverage for major live modules already surfaced in the app
+
+### Remaining Backend/API Work
+
+- [x] Add/refine workflow helper APIs for engineering and commissioning where CRUD exists but guided lifecycle actions are still thin
+  - **Done 2026-03-16**: Technical deviation approve/reject/close, change request submit/approve/reject, test report approve/reject, device commission/faulty/decommission, IP release, commissioning start/complete, client signoff sign/approve, drawing submit/approve/supersede
+- [x] Review whether any of the newly planned frontend screens still need dedicated Next proxy routes instead of generic backend hookups
+  - **Done 2026-03-16**: 15 proxy routes created under `/api/engineering/*` and `/api/execution/*` — all action-based POST dispatch (action field selects workflow helper)
+- [x] Keep role/access guards aligned with business roles as new workflow actions are added
+  - **Done 2026-03-16**: All 17 new workflow helpers use `_require_roles()` with correct business roles (Engineering Head, Project Manager, Project Head, Field Technician as appropriate)
+
+## Priority 3: Frontend Screens And Backend Connections
+
+This priority is dedicated UI modules and their connection to backend APIs.
+
+### Already Complete
+
+- [x] Live dashboard wiring for all 7 role dashboards
+- [x] Executive dashboard live aggregates
+- [x] Documents module wiring
+- [x] Survey, inventory, execution, finance billing, finance costing, O&M helpdesk, and RMA core screens connected to live backend actions
+
+### Remaining Frontend Work
+
+- [ ] Build `erp_frontend/src/app/engineering/deviations/page.tsx`
+  - wire: `create_technical_deviation`, `get_technical_deviation`, `get_technical_deviations`, `update_technical_deviation`, `delete_technical_deviation`
+- [ ] Build `erp_frontend/src/app/execution/dependencies/page.tsx`
+  - wire: `create_dependency_override`, `approve_dependency_override`, `reject_dependency_override`, `get_dependency_overrides`, `create_dependency_rule`, `update_dependency_rule`, `delete_dependency_rule`, `get_dependency_rules`
+- [ ] Build `erp_frontend/src/app/execution/project-structure/page.tsx`
+  - wire: `create_project_team_member`, `get_project_team_member`, `get_project_team_members`, `update_project_team_member`, `delete_project_team_member`, `create_project_asset`, `get_project_asset`, `get_project_assets`, `update_project_asset`, `delete_project_asset`
+- [ ] Build `erp_frontend/src/app/execution/commissioning/devices/page.tsx`
+  - wire: device register, device uptime, IP pool, and IP allocation CRUD APIs
+- [ ] Build `erp_frontend/src/app/execution/commissioning/test-reports/page.tsx`
+  - wire: `create_test_report`, `get_test_report`, `get_test_reports`, `update_test_report`, `delete_test_report`
+- [ ] Update sidebar/navigation so these screens are reachable from `Engineering` and `Execution (I&C)`
+- [ ] Keep honest empty states on every newly connected page where live records are still sparse
+
+## Priority 4: QA Across 1 + 2 + 3
+
+This priority is verification of DocTypes, backend/API behavior, frontend screens, and real user flow.
+
+### Already Complete
+
+- [x] Live smoke pass on major frontend routes
+- [x] Role-visibility validation with real POC users
+- [x] Focused backend regression tests for API permission cleanup
+- [x] Frontend production build validation on the live integration wave
+
+### Remaining QA Work
+
+- [ ] Load or create enough live demo data for costing, procurement, dispatch, execution, billing, and ticket flow
+- [ ] Run the full live walkthrough of the main journey:
   - tender
   - survey
   - BOQ
@@ -372,32 +335,21 @@ Artifacts created:
   - execution
   - billing
   - ticket / RMA
-- [x] Check role-based visibility using real POC users
+- [ ] Validate the new missing frontend screens after they are built
 - [ ] Make sure every demo-critical page uses real data or an honest empty state
 
-## Priority 11: Repo Hygiene — 🟢 Low
+## Low-Priority: Repo Hygiene
 
-- [ ] Make sure repo backend copy and live bench copy stay in sync
-- [ ] Clean remaining dirty repo state before next push
-- [ ] Keep the docs aligned:
-  - `backend_todo.md`
-  - `backend_org_mapping.md`
-  - `backend_architecture_note.md`
-  - this file
-
-## Suggested Order
-
-1. ~~hierarchy / role cleanup~~ ✅ done (P1)
-2. ~~missing ANDA trackers~~ ✅ done (P2)
-3. ~~strengthen partial modules~~ ✅ done (P3)
-4. ~~live frontend verification + fake-page audit~~ ✅ done (P4)
-5. ~~Build missing backend DocTypes for dashboards~~ ✅ done (P5 — 4 new DocTypes + 2 field extensions, bench migrated)
-6. ~~Create remaining Engineering + Network/Commissioning DocTypes~~ ✅ done (P8 module-gap DocTypes migrated)
-7. ~~Wire dashboards and module pages to live APIs~~ ✅ done (P7)
-8. ~~Data alignment + ANDA import prep~~ ✅ done (P8 data alignment)
-9. 🟠 Refine workflow helper APIs for engineering + commissioning modules
-10. 🟠 Role/access cleanup + QA walkthrough
-11. 🟢 Repo hygiene
+- [x] Repo backend copy and live bench copy are in sync
+- [ ] Clean remaining local-only repo artifacts before next push
+  - `ANDA.xlsx`
+  - `HR Organitional Chart.xlsx`
+  - `RMA Department & Help Desk.xlsx`
+  - `WhatsApp Image 2026-03-14 at 6.45.20 PM.jpeg`
+  - `anda acess.md`
+  - `hiearchy.jpeg`
+  - `notes.txt`
+- [x] Keep tracker/docs aligned
 
 ## Status Summary
 
@@ -409,6 +361,7 @@ If judged against the intended ERP spirit:
 
 The remaining gap is mostly:
 
+- **Right now:** finish live demo data + walkthrough closure first
 - **🟠 Workflow helper refinement still pending** — engineering and commissioning CRUD is live, but explicit workflow action endpoints can still be expanded
 - client tracker fidelity / data import
 - hierarchy fidelity / role permissions

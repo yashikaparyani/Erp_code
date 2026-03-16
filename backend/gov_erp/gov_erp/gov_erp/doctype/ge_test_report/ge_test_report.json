@@ -21,6 +21,8 @@
   "test_date",
   "approved_by",
   "approval_date",
+  "sb_test_items",
+  "test_items",
   "remarks"
  ],
  "fields": [
@@ -120,6 +122,17 @@
    "label": "Approval Date"
   },
   {
+   "fieldname": "sb_test_items",
+   "fieldtype": "Section Break",
+   "label": "Test Results"
+  },
+  {
+   "fieldname": "test_items",
+   "fieldtype": "Table",
+   "label": "Test Items",
+   "options": "GE Test Result Item"
+  },
+  {
    "fieldname": "remarks",
    "fieldtype": "Small Text",
    "label": "Remarks"
@@ -127,7 +140,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-03-15 19:00:00.000000",
+ "modified": "2026-03-16 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "Gov ERP",
  "name": "GE Test Report",

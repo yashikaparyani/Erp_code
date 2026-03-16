@@ -28,7 +28,12 @@ import {
   CheckSquare,
   Cog,
   Users2,
-  RefreshCcw
+  RefreshCcw,
+  AlertTriangle,
+  GitBranch,
+  FolderTree,
+  Cpu,
+  ClipboardList
 } from 'lucide-react';
 import { useRole } from '../context/RoleContext';
 
@@ -160,11 +165,29 @@ const navLinks: NavLink[] = [
     children: [
       { name: 'Survey', href: '/survey', icon: MapPin },
       { name: 'BOQ', href: '/engineering/boq', icon: FileText },
+      { name: 'Technical Deviations', href: '/engineering/deviations', icon: AlertTriangle },
     ]
   },
   { name: 'Procurement', href: '/procurement', icon: ShoppingCart },
   { name: 'Inventory', href: '/inventory', icon: Package },
-  { name: 'Execution (I&C)', href: '/execution', icon: Wrench },
+  {
+    name: 'Execution (I&C)',
+    href: '/execution',
+    icon: Wrench,
+    children: [
+      { name: 'Dependencies', href: '/execution/dependencies', icon: GitBranch },
+      { name: 'Project Structure', href: '/execution/project-structure', icon: FolderTree },
+      {
+        name: 'Commissioning',
+        href: '/execution/commissioning',
+        icon: Cpu,
+        children: [
+          { name: 'Devices & IP', href: '/execution/commissioning/devices' },
+          { name: 'Test Reports & Signoffs', href: '/execution/commissioning/test-reports' },
+        ]
+      },
+    ]
+  },
   {
     name: 'Finance',
     href: '/finance',
