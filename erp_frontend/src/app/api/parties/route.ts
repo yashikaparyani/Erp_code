@@ -7,8 +7,8 @@ export async function GET(request: NextRequest) {
     const partyType = searchParams.get('type'); // CLIENT, VENDOR, BOTH
     const active = searchParams.get('active');
     const result = await callFrappeMethod('get_parties', {
-      party_type: partyType || '',
-      active: active || '',
+      party_type: partyType || undefined,
+      active: active || undefined,
     }, request);
     
     return NextResponse.json({

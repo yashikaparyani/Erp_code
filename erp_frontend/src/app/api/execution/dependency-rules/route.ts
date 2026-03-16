@@ -7,8 +7,8 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const result = await callFrappeMethod('get_dependency_rules', {
-      task: searchParams.get('task') || '',
-      active: searchParams.get('active') || '',
+      task: searchParams.get('task') || undefined,
+      active: searchParams.get('active') || undefined,
     }, request);
     return NextResponse.json({ success: true, data: result.data || [], total: result.total || 0 });
   } catch (error) {

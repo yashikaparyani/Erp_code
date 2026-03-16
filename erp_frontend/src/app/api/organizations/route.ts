@@ -5,7 +5,7 @@ export async function GET(request: NextRequest) {
   try {
     const active = request.nextUrl.searchParams.get('active');
     const result = await callFrappeMethod('get_organizations', {
-      active: active || '',
+      active: active || undefined,
     }, request);
 
     return NextResponse.json({

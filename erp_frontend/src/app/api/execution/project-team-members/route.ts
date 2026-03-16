@@ -7,9 +7,9 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const result = await callFrappeMethod('get_project_team_members', {
-      project: searchParams.get('project') || '',
-      role: searchParams.get('role') || '',
-      active: searchParams.get('active') || '',
+      project: searchParams.get('project') || undefined,
+      role: searchParams.get('role') || undefined,
+      active: searchParams.get('active') || undefined,
     }, request);
     return NextResponse.json({ success: true, data: result.data || [], total: result.total || 0 });
   } catch (error) {
