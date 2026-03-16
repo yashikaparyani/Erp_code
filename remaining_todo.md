@@ -298,18 +298,20 @@ This priority is dedicated UI modules and their connection to backend APIs.
 
 ### Remaining Frontend Work
 
-- [ ] Build `erp_frontend/src/app/engineering/deviations/page.tsx`
-  - wire: `create_technical_deviation`, `get_technical_deviation`, `get_technical_deviations`, `update_technical_deviation`, `delete_technical_deviation`
-- [ ] Build `erp_frontend/src/app/execution/dependencies/page.tsx`
-  - wire: `create_dependency_override`, `approve_dependency_override`, `reject_dependency_override`, `get_dependency_overrides`, `create_dependency_rule`, `update_dependency_rule`, `delete_dependency_rule`, `get_dependency_rules`
-- [ ] Build `erp_frontend/src/app/execution/project-structure/page.tsx`
-  - wire: `create_project_team_member`, `get_project_team_member`, `get_project_team_members`, `update_project_team_member`, `delete_project_team_member`, `create_project_asset`, `get_project_asset`, `get_project_assets`, `update_project_asset`, `delete_project_asset`
-- [ ] Build `erp_frontend/src/app/execution/commissioning/devices/page.tsx`
-  - wire: device register, device uptime, IP pool, and IP allocation CRUD APIs
-- [ ] Build `erp_frontend/src/app/execution/commissioning/test-reports/page.tsx`
-  - wire: `create_test_report`, `get_test_report`, `get_test_reports`, `update_test_report`, `delete_test_report`
-- [ ] Update sidebar/navigation so these screens are reachable from `Engineering` and `Execution (I&C)`
-- [ ] Keep honest empty states on every newly connected page where live records are still sparse
+- [x] Build `erp_frontend/src/app/engineering/deviations/page.tsx`
+  - **Done 2026-03-16**: Stats, table, create modal, approve/reject/close actions wired via `/api/engineering/technical-deviations`
+- [x] Build `erp_frontend/src/app/execution/dependencies/page.tsx`
+  - **Done 2026-03-16**: Two-tab (Rules + Overrides) with dual modals, approve/reject on overrides wired via `/api/execution/dependency-rules` and `/api/execution/dependency-overrides`
+- [x] Build `erp_frontend/src/app/execution/project-structure/page.tsx`
+  - **Done 2026-03-16**: Two-tab (Team + Assets) with dual modals wired via `/api/execution/project-team-members` and `/api/execution/project-assets`
+- [x] Build `erp_frontend/src/app/execution/commissioning/devices/page.tsx`
+  - **Done 2026-03-16**: Four-tab page (Devices, IP Pools, IP Allocations, Uptime Logs) with commission/faulty/decommission/release actions wired via commissioning proxy routes
+- [x] Build `erp_frontend/src/app/execution/commissioning/test-reports/page.tsx`
+  - **Done 2026-03-16**: Three-tab page (Test Reports, Checklists, Client Signoffs) with submit/approve/reject/start/complete/sign actions wired via commissioning proxy routes
+- [x] Update sidebar/navigation so these screens are reachable from `Engineering` and `Execution (I&C)`
+  - **Done 2026-03-16**: Engineering gained Technical Deviations child; Execution (I&C) gained Dependencies, Project Structure, and Commissioning sub-group with Devices & IP and Test Reports & Signoffs
+- [x] Keep honest empty states on every newly connected page where live records are still sparse
+  - **Done 2026-03-16**: All 5 new pages show explicit empty-state rows ("No devices registered", "No test reports", etc.) when no data exists
 
 ## Priority 4: QA Across 1 + 2 + 3
 
