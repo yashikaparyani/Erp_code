@@ -9,7 +9,7 @@ Role-based logins:
 - `director@technosys.local` - `Director`
 - `dept.head@technosys.local` - `Department Head`
 - `project.head@technosys.local` - `Project Head`
-- `hr.manager@technosys.local` - `HR Manager`
+- `![1773680827502](image/poc_login_list/1773680827502.png)` - `HR Manager`
 - `presales.head@technosys.local` - `Presales Tendering Head`
 - `presales.exec@technosys.local` - `Presales Executive`
 - `eng.head@technosys.local` - `Engineering Head`
@@ -19,7 +19,7 @@ Role-based logins:
 - `store.manager@technosys.local` - `Store Manager`
 - `stores.head@technosys.local` - `Stores Logistics Head`
 - `project.manager@technosys.local` - `Project Manager`
-- `accounts@technosys.local` - `Accounts`
+- `accounts@technosys.local` - `Accountthese real Frappe userss`
 - `field.tech@technosys.local` - `Field Technician`
 - `om.operator@technosys.local` - `OM Operator`
 - `rma.manager@technosys.local` - `RMA Manager`
@@ -27,4 +27,4 @@ Role-based logins:
 Notes:
 
 - These are POC-only accounts for the `dev.localhost` site.
-- Frontend demo credentials are removed; use these real Frappe users instead.
+- Frontend demo credentials are removed; use  instead.

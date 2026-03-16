@@ -95,7 +95,6 @@ export const roleAccess: Record<Role, string[]> = {
     '/hr',
     '/reports',
     '/documents',
-    '/master-data',
   ],
   'Presales Tendering Head': [
     '/',
