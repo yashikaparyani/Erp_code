@@ -65,6 +65,12 @@ Use this instead of reconstructing status from chat.
     - added idempotent seeder at `backend/gov_erp/gov_erp/demo_seed.py`
     - populated live records on `dev.localhost` for cost sheets, budget allocations, material requests, vendor comparisons, dispatch challans, sites, milestones, drawings, deviations, change requests, invoices, document folders, project documents, project team/assets, petty cash, manpower, commissioning, tickets, RMA, SLA, PDC, and dependency rules
     - second run created `0` additional records across all seeded DocTypes, confirming idempotency
+  - `2026-03-16`: Full live walkthrough re-run completed against seeded data
+    - corrected local frontend bench target from `FRAPPE_URL=http://127.0.0.1:8001` to `http://127.0.0.1:8000` for the active dev setup
+    - authenticated frontend login verified successfully through `/api/auth/login`
+    - demo-critical pages returned `200`: tender, survey, BOQ, costing, procurement, execution, billing, RMA, documents, technical deviations, dependencies, project structure, commissioning devices, commissioning test reports
+    - seeded frontend API routes returned real records: cost sheets `1`, indents `1`, vendor comparisons `1`, dispatch challans `1`, invoices `1`, tickets `2`, RMA trackers `2`, drawings `1`, technical deviations `1`, change requests `1`, project team members `4`, project assets `3`, device registers `3`, IP pools `1`, IP allocations `3`, uptime logs `2`, checklists `1`, test reports `1`, client signoffs `1`
+    - mirrored `demo_seed.py` into the live bench app copy and verified direct execution from `frappe-bench` without `PYTHONPATH`
 
 The main remaining work is fidelity, integration, and alignment with client trackers and org hierarchy.
 
@@ -72,14 +78,9 @@ The main remaining work is fidelity, integration, and alignment with client trac
 
 This is the practical next-action list, in order.
 
-1. Re-run the full walkthrough on the newly seeded live demo journey so Priority 10 can be closed honestly
-  - verify tender, survey, BOQ, costing, procurement, dispatch, execution, billing, and ticket/RMA screens against the seeded records
-2. Close the QA gap on demo-critical pages
-  - confirm each page shows real records where available
-  - where records are still absent, keep explicit honest empty states instead of implied completeness
-3. Refine workflow helper APIs for engineering and commissioning
+1. Refine workflow helper APIs for engineering and commissioning
   - move beyond CRUD and add action-oriented flow helpers where operators need guided state transitions
-4. Do the final low-priority repo cleanup
+2. Do the final low-priority repo cleanup
   - remove, relocate, or ignore the leftover local-only source artifacts before the next push
 
 ## Frontend Screen Map For Missing Entity UIs
@@ -341,7 +342,7 @@ This priority is verification of DocTypes, backend/API behavior, frontend screen
 
 - [x] Load or create enough live demo data for costing, procurement, dispatch, execution, billing, and ticket flow
   - **Done 2026-03-16**: `demo_seed.py` populated the previously empty operational modules around `PROJ-0001` / `TEND-2026-001`
-- [ ] Run the full live walkthrough of the main journey:
+- [x] Run the full live walkthrough of the main journey:
   - tender
   - survey
   - BOQ
@@ -351,7 +352,8 @@ This priority is verification of DocTypes, backend/API behavior, frontend screen
   - execution
   - billing
   - ticket / RMA
-- [ ] Make sure every demo-critical page uses real data or an honest empty state
+- [x] Make sure every demo-critical page uses real data or an honest empty state
+  - **Done 2026-03-16**: walkthrough verified real records on the demo-critical routes backed by the seeded dataset
 
 ## Low-Priority: Repo Hygiene
 
