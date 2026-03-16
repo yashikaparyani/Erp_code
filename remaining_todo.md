@@ -61,6 +61,10 @@ Use this instead of reconstructing status from chat.
   - Backend tests: 9/9 passed
   - Frontend build: clean pass
   - Repo mirror synced
+  - `2026-03-16`: Demo operational dataset seeded for walkthrough prep
+    - added idempotent seeder at `backend/gov_erp/gov_erp/demo_seed.py`
+    - populated live records on `dev.localhost` for cost sheets, budget allocations, material requests, vendor comparisons, dispatch challans, sites, milestones, drawings, deviations, change requests, invoices, document folders, project documents, project team/assets, petty cash, manpower, commissioning, tickets, RMA, SLA, PDC, and dependency rules
+    - second run created `0` additional records across all seeded DocTypes, confirming idempotency
 
 The main remaining work is fidelity, integration, and alignment with client trackers and org hierarchy.
 
@@ -68,9 +72,8 @@ The main remaining work is fidelity, integration, and alignment with client trac
 
 This is the practical next-action list, in order.
 
-1. Complete the missing live demo journey data so Priority 10 can be closed honestly
-  - create or load enough records for costing, procurement, dispatch, execution, billing, and ticket flow
-  - re-run the full walkthrough on real data instead of empty states
+1. Re-run the full walkthrough on the newly seeded live demo journey so Priority 10 can be closed honestly
+  - verify tender, survey, BOQ, costing, procurement, dispatch, execution, billing, and ticket/RMA screens against the seeded records
 2. Close the QA gap on demo-critical pages
   - confirm each page shows real records where available
   - where records are still absent, keep explicit honest empty states instead of implied completeness
@@ -323,10 +326,21 @@ This priority is verification of DocTypes, backend/API behavior, frontend screen
 - [x] Role-visibility validation with real POC users
 - [x] Focused backend regression tests for API permission cleanup
 - [x] Frontend production build validation on the live integration wave
+- [x] Full frontend↔backend connectivity QA (`2026-03-16`)
+  - 160 unique `callFrappeMethod` names cross-checked against 462 backend `def` functions: 0 mismatches
+  - 23 proxy routes verified (proper 401-style JSON without auth, real data with auth)
+  - 14 frontend pages return HTTP 200
+  - 8 stats/dashboard API endpoints OK
+  - Backend unit tests: 9/9 passed
+  - Frontend production build: clean pass (exit 0)
+  - Fixed 4 proxy routes that sent empty string for optional Int params (`dependency-rules`, `project-team-members`, `parties`, `organizations`): `|| ''` → `|| undefined`
+  - Repo synced to bench (`api.py`, `role_utils.py`, `ge_vendor_comparison.json`), `bench migrate` clean
+  - Commit `18abea5` pushed to `origin/master`
 
 ### Remaining QA Work
 
-- [ ] Load or create enough live demo data for costing, procurement, dispatch, execution, billing, and ticket flow
+- [x] Load or create enough live demo data for costing, procurement, dispatch, execution, billing, and ticket flow
+  - **Done 2026-03-16**: `demo_seed.py` populated the previously empty operational modules around `PROJ-0001` / `TEND-2026-001`
 - [ ] Run the full live walkthrough of the main journey:
   - tender
   - survey
@@ -337,7 +351,6 @@ This priority is verification of DocTypes, backend/API behavior, frontend screen
   - execution
   - billing
   - ticket / RMA
-- [ ] Validate the new missing frontend screens after they are built
 - [ ] Make sure every demo-critical page uses real data or an honest empty state
 
 ## Low-Priority: Repo Hygiene
