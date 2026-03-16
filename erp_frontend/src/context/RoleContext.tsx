@@ -5,6 +5,7 @@ import { useAuth } from './AuthContext';
 export type Role = 
   | 'Director'
   | 'Department Head'
+  | 'Project Head'
   | 'HR Manager'
   | 'Presales Tendering Head'
   | 'Presales Executive'
@@ -23,6 +24,7 @@ export type Role =
 export const roles: Role[] = [
   'Director',
   'Department Head',
+  'Project Head',
   'HR Manager',
   'Presales Tendering Head',
   'Presales Executive',
@@ -72,6 +74,21 @@ export const roleAccess: Record<Role, string[]> = {
     '/reports',
     '/documents',
     '/rma',
+  ],
+  'Project Head': [
+    '/',
+    '/hr',
+    '/pre-sales',
+    '/survey',
+    '/engineering',
+    '/procurement',
+    '/inventory',
+    '/execution',
+    '/om-helpdesk',
+    '/rma',
+    '/finance',
+    '/reports',
+    '/documents',
   ],
   'HR Manager': [
     '/',
@@ -194,6 +211,7 @@ export const getRoleInitials = (role: Role): string => {
   const initialsMap: Record<Role, string> = {
     'Director': 'DI',
     'Department Head': 'DH',
+    'Project Head': 'PH',
     'HR Manager': 'HR',
     'Presales Tendering Head': 'PT',
     'Presales Executive': 'PE',
@@ -222,7 +240,7 @@ const RoleContext = createContext<RoleContextType | undefined>(undefined);
 export function RoleProvider({ children }: { children: ReactNode }) {
   const { currentUser } = useAuth();
   const currentRole = (currentUser?.role as Role | undefined) ?? 'Project Manager';
-  const settingsAllowedRoles: Role[] = ['Director', 'Department Head', 'Project Manager'];
+  const settingsAllowedRoles: Role[] = ['Director', 'Department Head', 'Project Head', 'Project Manager'];
 
   const hasAccess = (path: string): boolean => {
     if (path === '/pre-sales/settings' || path.startsWith('/pre-sales/settings/')) {

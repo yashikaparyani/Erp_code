@@ -14,6 +14,7 @@ export default function Home() {
 	const { currentRole } = useRole();
 
 	switch (currentRole) {
+		case 'Project Head':
 		case 'Project Manager':
 			return <ProjectHeadDashboard />;
 		case 'Presales Tendering Head':

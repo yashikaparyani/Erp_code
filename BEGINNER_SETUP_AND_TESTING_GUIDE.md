@@ -312,6 +312,8 @@ Create `erp_frontend/.env.local` with at least:
 FRAPPE_URL=http://127.0.0.1:8000
 ```
 
+This value must match the active bench port exactly. If the frontend points to the wrong backend port, Next.js proxy routes and `/api/auth/login` fail with `fetch failed` even when the frontend itself loads on `3000`.
+
 If your bench works better through site host mapping, use:
 
 ```env

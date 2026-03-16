@@ -18,6 +18,11 @@ Frontend-backend linkage:
 - required setting:
   - `FRAPPE_URL=http://127.0.0.1:8000`
 
+Important:
+
+- `FRAPPE_URL` must match the live bench port.
+- If it drifts to another port such as `8001`, frontend proxy routes and `/api/auth/login` return `fetch failed` while page shells may still render.
+
 Current username format:
 
 - `director@technosys.local`

@@ -90,6 +90,8 @@ def _require_tender_conversion_access():
 
 def _require_survey_read_access():
 	_require_roles(
+		ROLE_PRESALES_HEAD,
+		ROLE_PRESALES_EXECUTIVE,
 		ROLE_PROJECT_MANAGER,
 		ROLE_PROJECT_HEAD,
 		ROLE_ENGINEERING_HEAD,
@@ -144,6 +146,7 @@ def _require_procurement_read_access():
 	_require_roles(
 		ROLE_PROCUREMENT_HEAD,
 		ROLE_PURCHASE,
+		ROLE_PROJECT_MANAGER,
 		ROLE_PROJECT_HEAD,
 		ROLE_ENGINEERING_HEAD,
 		ROLE_DIRECTOR,
@@ -219,6 +222,7 @@ def _require_execution_read_access():
 		ROLE_PROJECT_HEAD,
 		ROLE_ENGINEERING_HEAD,
 		ROLE_ENGINEER,
+		ROLE_FIELD_TECHNICIAN,
 		ROLE_DEPARTMENT_HEAD,
 		ROLE_DIRECTOR,
 	)

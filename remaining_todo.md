@@ -71,6 +71,11 @@ Use this instead of reconstructing status from chat.
     - demo-critical pages returned `200`: tender, survey, BOQ, costing, procurement, execution, billing, RMA, documents, technical deviations, dependencies, project structure, commissioning devices, commissioning test reports
     - seeded frontend API routes returned real records: cost sheets `1`, indents `1`, vendor comparisons `1`, dispatch challans `1`, invoices `1`, tickets `2`, RMA trackers `2`, drawings `1`, technical deviations `1`, change requests `1`, project team members `4`, project assets `3`, device registers `3`, IP pools `1`, IP allocations `3`, uptime logs `2`, checklists `1`, test reports `1`, client signoffs `1`
     - mirrored `demo_seed.py` into the live bench app copy and verified direct execution from `frappe-bench` without `PYTHONPATH`
+  - `2026-03-16`: Role-by-role POC verification completed
+    - verified backend session context for all 17 seeded POC users against their expected frontend primary roles
+    - confirmed role-specific dashboard/API coverage across executive, presales, procurement, stores, execution, accounts, O&M, RMA, and HR paths
+    - fixed frontend role modeling gap where `Project Head` existed in backend session context but was missing from `RoleContext` and the home dashboard switch
+    - aligned backend read permissions with existing frontend navigation for presales survey access, project-manager procurement access, and field-technician execution access
 
 The main remaining work is fidelity, integration, and alignment with client trackers and org hierarchy.
 
