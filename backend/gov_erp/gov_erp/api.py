@@ -443,37 +443,42 @@ def _parse_payload(data):
 
 
 def _get_indent_names_for_project(project):
-	rows = frappe.db.sql(
-		"""
-			select distinct parent
-			from `tabMaterial Request Item`
-			where project = %s
-		""",
-		(project,),
-		as_dict=True,
+	"""Get Material Request names that have items with specified project."""
+	rows = frappe.get_all(
+		"Material Request Item",
+		filters={"project": project},
+		fields=["parent"],
+		distinct=True,
 	)
 	return [row.parent for row in rows]
 
 
 def _attach_indent_project_summary(rows):
+	"""Attach project summary to Material Request rows."""
 	if not rows:
 		return rows
 
 	indent_names = [row.name for row in rows]
-	project_rows = frappe.db.sql(
-		"""
-			select parent, project
-			from `tabMaterial Request Item`
-			where parent in %(parents)s and ifnull(project, '') != ''
-			group by parent, project
-		""",
-		{"parents": tuple(indent_names)},
-		as_dict=True,
+	
+	# Get Material Request Items with project info
+	project_rows = frappe.get_all(
+		"Material Request Item",
+		filters=[
+			["parent", "in", indent_names],
+			["project", "!=", ""]
+		],
+		fields=["parent", "project"],
 	)
+	
+	# Build project map
 	project_map = {}
 	for row in project_rows:
-		project_map.setdefault(row.parent, []).append(row.project)
+		if row.parent not in project_map:
+			project_map[row.parent] = []
+		if row.project not in project_map[row.parent]:
+			project_map[row.parent].append(row.project)
 
+	# Attach projects to Material Request rows
 	for row in rows:
 		projects = project_map.get(row.name, [])
 		row["projects"] = projects
