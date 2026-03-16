@@ -61,6 +61,9 @@ const steps = [
 export default function CreateTenderModal({ isOpen, onClose, onSuccess }: CreateTenderModalProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<TenderFormData>(initialFormData);
+  const [estimatedValueInput, setEstimatedValueInput] = useState('');
+  const [emdAmountInput, setEmdAmountInput] = useState('');
+  const [pbgAmountInput, setPbgAmountInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof TenderFormData, string>>>({});
   
@@ -139,6 +142,31 @@ export default function CreateTenderModal({ isOpen, onClose, onSuccess }: Create
     }
   };
 
+  const normalizeNumberInput = (raw: string): string => {
+    const cleaned = raw.replace(/[^\d.]/g, '');
+    if (!cleaned) return '';
+
+    const [intPart, ...rest] = cleaned.split('.');
+    const normalizedInt = intPart.replace(/^0+(?=\d)/, '');
+    const decimalPart = rest.join('').replace(/\./g, '');
+
+    return decimalPart.length > 0 ? `${normalizedInt || '0'}.${decimalPart}` : normalizedInt;
+  };
+
+  const handleMoneyInputChange = (
+    field: 'estimated_value' | 'emd_amount' | 'pbg_amount',
+    rawValue: string,
+  ) => {
+    const normalized = normalizeNumberInput(rawValue);
+    const numericValue = normalized === '' ? 0 : parseFloat(normalized);
+
+    if (field === 'estimated_value') setEstimatedValueInput(normalized);
+    if (field === 'emd_amount') setEmdAmountInput(normalized);
+    if (field === 'pbg_amount') setPbgAmountInput(normalized);
+
+    updateFormData(field, Number.isFinite(numericValue) ? numericValue : 0);
+  };
+
   const validateStep = (step: number): boolean => {
     const newErrors: Partial<Record<keyof TenderFormData, string>> = {};
     
@@ -215,6 +243,9 @@ export default function CreateTenderModal({ isOpen, onClose, onSuccess }: Create
   const handleClose = () => {
     setCurrentStep(1);
     setFormData(initialFormData);
+    setEstimatedValueInput('');
+    setEmdAmountInput('');
+    setPbgAmountInput('');
     setErrors({});
     setShowQuickAddClient(false);
     setQuickAddName('');
@@ -446,9 +477,10 @@ export default function CreateTenderModal({ isOpen, onClose, onSuccess }: Create
                   Estimated Project Value (₹)
                 </label>
                 <input
-                  type="number"
-                  value={formData.estimated_value}
-                  onChange={(e) => updateFormData('estimated_value', parseFloat(e.target.value) || 0)}
+                  type="text"
+                  inputMode="decimal"
+                  value={estimatedValueInput}
+                  onChange={(e) => handleMoneyInputChange('estimated_value', e.target.value)}
                   placeholder="e.g., 84000000"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -477,9 +509,10 @@ export default function CreateTenderModal({ isOpen, onClose, onSuccess }: Create
                 {formData.emd_required && (
                   <div>
                     <input
-                      type="number"
-                      value={formData.emd_amount}
-                      onChange={(e) => updateFormData('emd_amount', parseFloat(e.target.value) || 0)}
+                      type="text"
+                      inputMode="decimal"
+                      value={emdAmountInput}
+                      onChange={(e) => handleMoneyInputChange('emd_amount', e.target.value)}
                       placeholder="EMD Amount (₹)"
                       className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                         errors.emd_amount ? 'border-red-500' : 'border-gray-300'
@@ -510,9 +543,10 @@ export default function CreateTenderModal({ isOpen, onClose, onSuccess }: Create
                 {formData.pbg_required && (
                   <div>
                     <input
-                      type="number"
-                      value={formData.pbg_amount}
-                      onChange={(e) => updateFormData('pbg_amount', parseFloat(e.target.value) || 0)}
+                      type="text"
+                      inputMode="decimal"
+                      value={pbgAmountInput}
+                      onChange={(e) => handleMoneyInputChange('pbg_amount', e.target.value)}
                       placeholder="PBG Amount (₹)"
                       className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                         errors.pbg_amount ? 'border-red-500' : 'border-gray-300'

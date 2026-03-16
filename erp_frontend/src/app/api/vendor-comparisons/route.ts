@@ -17,3 +17,23 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export async function POST(request: NextRequest) {
+  try {
+    const data = await request.json();
+    const result = await callFrappeMethod('create_vendor_comparison', { data: JSON.stringify(data) }, request);
+    return NextResponse.json({
+      success: true,
+      data: result.data,
+      message: result.message || 'Vendor comparison created',
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to create vendor comparison',
+      },
+      { status: 500 },
+    );
+  }
+}

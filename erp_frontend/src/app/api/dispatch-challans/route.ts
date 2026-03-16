@@ -17,3 +17,23 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export async function POST(request: NextRequest) {
+  try {
+    const data = await request.json();
+    const result = await callFrappeMethod('create_dispatch_challan', { data: JSON.stringify(data) }, request);
+    return NextResponse.json({
+      success: true,
+      data: result.data,
+      message: result.message || 'Dispatch challan created',
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to create dispatch challan',
+      },
+      { status: 500 },
+    );
+  }
+}

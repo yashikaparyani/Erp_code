@@ -221,7 +221,7 @@ const RoleContext = createContext<RoleContextType | undefined>(undefined);
 
 export function RoleProvider({ children }: { children: ReactNode }) {
   const { currentUser } = useAuth();
-  const currentRole: Role = currentUser?.role ?? 'Project Manager';
+  const currentRole = (currentUser?.role as Role | undefined) ?? 'Project Manager';
   const settingsAllowedRoles: Role[] = ['Director', 'Department Head', 'Project Manager'];
 
   const hasAccess = (path: string): boolean => {
@@ -229,7 +229,9 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       return settingsAllowedRoles.includes(currentRole);
     }
 
-    return roleAccess[currentRole].some(allowedPath => {
+    const allowedPaths = roleAccess[currentRole] ?? roleAccess['Project Manager'];
+
+    return allowedPaths.some(allowedPath => {
       return path === allowedPath || path.startsWith(allowedPath + '/');
     });
   };

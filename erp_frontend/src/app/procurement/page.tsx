@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Plus, ShoppingCart, Truck, Clock, CheckCircle2, Eye } from 'lucide-react';
+import { Plus, ShoppingCart, Truck, Clock, CheckCircle2, Eye, X } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 interface VendorComparison {
   name: string;
@@ -37,19 +38,139 @@ function formatCurrency(val?: number): string {
 }
 
 export default function ProcurementPage() {
+  const { currentUser } = useAuth();
   const [items, setItems] = useState<VendorComparison[]>([]);
   const [stats, setStats] = useState<VCStats>({});
   const [loading, setLoading] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [actionLoadingName, setActionLoadingName] = useState<string | null>(null);
+  const [createForm, setCreateForm] = useState({
+    linked_tender: '',
+    linked_project: '',
+    supplier: '',
+    description: '',
+    qty: 1,
+    rate: 0,
+    notes: '',
+  });
 
-  useEffect(() => {
-    Promise.all([
+  const hasAnyRole = (...roles: string[]) => {
+    const assigned = new Set(currentUser?.roles || []);
+    return roles.some((role) => assigned.has(role));
+  };
+
+  const canCreateOrSubmit = hasAnyRole('Director', 'System Manager', 'Procurement Manager', 'Purchase');
+  const canApproveReject = hasAnyRole('Director', 'System Manager', 'Project Head', 'Department Head');
+
+  const loadData = async () => {
+    setLoading(true);
+    const [listRes, statsRes] = await Promise.all([
       fetch('/api/vendor-comparisons').then(r => r.json()).catch(() => ({ data: [] })),
       fetch('/api/vendor-comparisons/stats').then(r => r.json()).catch(() => ({ data: {} })),
-    ]).then(([listRes, statsRes]) => {
-      setItems(listRes.data || []);
-      setStats(statsRes.data || {});
-    }).finally(() => setLoading(false));
+    ]);
+    setItems(listRes.data || []);
+    setStats(statsRes.data || {});
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadData();
   }, []);
+
+  const resetCreateForm = () => {
+    setCreateForm({
+      linked_tender: '',
+      linked_project: '',
+      supplier: '',
+      description: '',
+      qty: 1,
+      rate: 0,
+      notes: '',
+    });
+    setCreateError('');
+  };
+
+  const handleCreateComparison = async () => {
+    if (!createForm.supplier.trim()) {
+      setCreateError('Supplier is required.');
+      return;
+    }
+    if (!createForm.description.trim()) {
+      setCreateError('Description is required.');
+      return;
+    }
+
+    setCreating(true);
+    setCreateError('');
+    try {
+      const payload = {
+        linked_tender: createForm.linked_tender.trim() || undefined,
+        linked_project: createForm.linked_project.trim() || undefined,
+        recommended_supplier: createForm.supplier.trim(),
+        notes: createForm.notes.trim() || undefined,
+        quotes: [
+          {
+            supplier: createForm.supplier.trim(),
+            description: createForm.description.trim(),
+            qty: Number(createForm.qty) || 1,
+            rate: Number(createForm.rate) || 0,
+            is_selected: 1,
+          },
+        ],
+      };
+
+      const response = await fetch('/api/vendor-comparisons', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Failed to create comparison');
+      }
+
+      setShowCreateModal(false);
+      resetCreateForm();
+      await loadData();
+    } catch (error) {
+      setCreateError(error instanceof Error ? error.message : 'Failed to create comparison');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const runAction = async (name: string, action: 'submit' | 'approve' | 'reject' | 'revise' | 'create_po') => {
+    setActionError('');
+    setActionLoadingName(name);
+    try {
+      const payload: Record<string, unknown> = { action };
+      if (action === 'reject') {
+        payload.reason = prompt('Reject reason (optional):') || '';
+      }
+      if (action === 'approve') {
+        payload.exception_reason = prompt('Exception reason (optional):') || '';
+      }
+
+      const response = await fetch(`/api/vendor-comparisons/${encodeURIComponent(name)}/actions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || `Failed to ${action}`);
+      }
+
+      await loadData();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : `Failed to ${action}`);
+    } finally {
+      setActionLoadingName(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -67,11 +188,76 @@ export default function ProcurementPage() {
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Procurement</h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-1">Vendor comparisons and purchase management</p>
         </div>
-        <button className="btn btn-primary w-full sm:w-auto">
+        <button
+          className="btn btn-primary w-full sm:w-auto"
+          onClick={() => {
+            resetCreateForm();
+            setShowCreateModal(true);
+          }}
+        >
           <Plus className="w-4 h-4" />
           New Comparison
         </button>
       </div>
+
+      {showCreateModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h2 className="text-lg font-semibold text-gray-900">Create Vendor Comparison</h2>
+              <button className="p-2 rounded-lg hover:bg-gray-100" onClick={() => setShowCreateModal(false)}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Linked Tender</label>
+                <input className="input" value={createForm.linked_tender} onChange={(e) => setCreateForm((p) => ({ ...p, linked_tender: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Linked Project</label>
+                <input className="input" value={createForm.linked_project} onChange={(e) => setCreateForm((p) => ({ ...p, linked_project: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Supplier *</label>
+                <input className="input" value={createForm.supplier} onChange={(e) => setCreateForm((p) => ({ ...p, supplier: e.target.value }))} placeholder="Exact Supplier name" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
+                <input className="input" value={createForm.description} onChange={(e) => setCreateForm((p) => ({ ...p, description: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Qty *</label>
+                <input className="input" type="number" min={1} step={1} value={createForm.qty} onChange={(e) => setCreateForm((p) => ({ ...p, qty: Number(e.target.value) || 1 }))} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Rate *</label>
+                <input className="input" type="number" min={0} step={0.01} value={createForm.rate} onChange={(e) => setCreateForm((p) => ({ ...p, rate: Number(e.target.value) || 0 }))} />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea className="input min-h-24" value={createForm.notes} onChange={(e) => setCreateForm((p) => ({ ...p, notes: e.target.value }))} />
+              </div>
+            </div>
+
+            {createError ? <p className="px-6 pb-2 text-sm text-red-600">{createError}</p> : null}
+
+            <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
+              <button className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>Cancel</button>
+              <button className="btn btn-primary" disabled={creating} onClick={handleCreateComparison}>
+                {creating ? 'Creating...' : 'Create Comparison'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {actionError ? (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {actionError}
+        </div>
+      ) : null}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
@@ -183,10 +369,44 @@ export default function ProcurementPage() {
                     </span>
                   </td>
                   <td>
-                    <button className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1">
-                      <Eye className="w-4 h-4" />
-                      View Details
-                    </button>
+                    <div className="flex flex-wrap gap-2 items-center">
+                      <button
+                        className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1"
+                        onClick={() => alert(`Comparison: ${vc.name}\nStatus: ${vc.status || '-'}\nSupplier: ${vc.recommended_supplier || '-'}`)}
+                      >
+                        <Eye className="w-4 h-4" />
+                        View
+                      </button>
+
+                      {vc.status === 'DRAFT' && canCreateOrSubmit ? (
+                        <button className="text-indigo-600 hover:text-indigo-800 text-sm font-medium" disabled={actionLoadingName === vc.name} onClick={() => runAction(vc.name, 'submit')}>
+                          Submit
+                        </button>
+                      ) : null}
+
+                      {vc.status === 'PENDING_APPROVAL' && canApproveReject ? (
+                        <>
+                          <button className="text-green-600 hover:text-green-800 text-sm font-medium" disabled={actionLoadingName === vc.name} onClick={() => runAction(vc.name, 'approve')}>
+                            Approve
+                          </button>
+                          <button className="text-red-600 hover:text-red-800 text-sm font-medium" disabled={actionLoadingName === vc.name} onClick={() => runAction(vc.name, 'reject')}>
+                            Reject
+                          </button>
+                        </>
+                      ) : null}
+
+                      {(vc.status === 'APPROVED' || vc.status === 'REJECTED') && canCreateOrSubmit ? (
+                        <button className="text-purple-600 hover:text-purple-800 text-sm font-medium" disabled={actionLoadingName === vc.name} onClick={() => runAction(vc.name, 'revise')}>
+                          Revise
+                        </button>
+                      ) : null}
+
+                      {vc.status === 'APPROVED' && canCreateOrSubmit ? (
+                        <button className="text-orange-600 hover:text-orange-800 text-sm font-medium" disabled={actionLoadingName === vc.name} onClick={() => runAction(vc.name, 'create_po')}>
+                          Create PO
+                        </button>
+                      ) : null}
+                    </div>
                   </td>
                 </tr>
               ))}

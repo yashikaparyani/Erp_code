@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Plus, Wrench, Camera, Activity, CheckCircle2, Clock, Eye, AlertTriangle } from 'lucide-react';
+import { Plus, Wrench, Camera, Activity, CheckCircle2, Eye, X } from 'lucide-react';
 
 interface Site {
   name: string;
@@ -35,15 +35,25 @@ export default function ExecutionPage() {
   const [dprs, setDprs] = useState<DPR[]>([]);
   const [dprStats, setDprStats] = useState<DPRStats>({});
   const [loading, setLoading] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState('');
+  const [createForm, setCreateForm] = useState({
+    site_code: '',
+    site_name: '',
+    linked_project: '',
+    linked_tender: '',
+    status: 'PLANNED',
+  });
 
-  useEffect(() => {
+  const loadData = async () => {
+    setLoading(true);
     Promise.all([
       fetch('/api/sites').then(r => r.json()).catch(() => ({ data: [] })),
       fetch('/api/dprs').then(r => r.json()).catch(() => ({ data: [] })),
     ]).then(([sitesRes, dprsRes]) => {
       setSites(sitesRes.data || []);
       setDprs(dprsRes.data || []);
-      // Derive DPR stats from raw data
       const d = dprsRes.data || [];
       setDprStats({
         total_reports: d.length,
@@ -51,7 +61,40 @@ export default function ExecutionPage() {
         total_equipment_logged: d.reduce((s: number, r: DPR) => s + (r.equipment_count || 0), 0),
       });
     }).finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadData();
   }, []);
+
+  const handleCreateSite = async () => {
+    if (!createForm.site_code.trim() || !createForm.site_name.trim() || !createForm.linked_project.trim()) {
+      setError('Site Code, Site Name, and Linked Project are required.');
+      return;
+    }
+
+    setCreating(true);
+    setError('');
+    try {
+      const response = await fetch('/api/sites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(createForm),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Failed to create site');
+      }
+
+      setShowCreateModal(false);
+      setCreateForm({ site_code: '', site_name: '', linked_project: '', linked_tender: '', status: 'PLANNED' });
+      await loadData();
+    } catch (siteError) {
+      setError(siteError instanceof Error ? siteError.message : 'Failed to create site');
+    } finally {
+      setCreating(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -75,11 +118,57 @@ export default function ExecutionPage() {
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Execution (I&C)</h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-1">Installation, commissioning, and site progress tracking</p>
         </div>
-        <button className="btn btn-primary w-full sm:w-auto">
+        <button className="btn btn-primary w-full sm:w-auto" onClick={() => setShowCreateModal(true)}>
           <Plus className="w-4 h-4" />
           New Site
         </button>
       </div>
+
+      {showCreateModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h2 className="text-lg font-semibold text-gray-900">Create Site</h2>
+              <button className="p-2 rounded-lg hover:bg-gray-100" onClick={() => setShowCreateModal(false)}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Site Code *</label>
+                <input className="input" value={createForm.site_code} onChange={(e) => setCreateForm((p) => ({ ...p, site_code: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Site Name *</label>
+                <input className="input" value={createForm.site_name} onChange={(e) => setCreateForm((p) => ({ ...p, site_name: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Linked Project *</label>
+                <input className="input" value={createForm.linked_project} onChange={(e) => setCreateForm((p) => ({ ...p, linked_project: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Linked Tender</label>
+                <input className="input" value={createForm.linked_tender} onChange={(e) => setCreateForm((p) => ({ ...p, linked_tender: e.target.value }))} />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select className="input" value={createForm.status} onChange={(e) => setCreateForm((p) => ({ ...p, status: e.target.value }))}>
+                  <option value="PLANNED">PLANNED</option>
+                  <option value="ACTIVE">ACTIVE</option>
+                  <option value="ON_HOLD">ON_HOLD</option>
+                  <option value="COMPLETED">COMPLETED</option>
+                  <option value="CANCELLED">CANCELLED</option>
+                </select>
+              </div>
+            </div>
+            {error ? <p className="px-6 pb-2 text-sm text-red-600">{error}</p> : null}
+            <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
+              <button className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleCreateSite} disabled={creating}>{creating ? 'Creating...' : 'Create Site'}</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
@@ -191,7 +280,10 @@ export default function ExecutionPage() {
                     </span>
                   </td>
                   <td>
-                    <button className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1">
+                    <button
+                      className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1"
+                      onClick={() => alert(`Site: ${site.name}\nStatus: ${site.status || '-'}\nProject: ${site.linked_project || '-'}`)}
+                    >
                       <Eye className="w-4 h-4" />
                       View Details
                     </button>

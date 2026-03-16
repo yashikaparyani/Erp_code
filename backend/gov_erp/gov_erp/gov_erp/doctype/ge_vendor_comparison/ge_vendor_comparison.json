@@ -372,9 +372,12 @@
     "role": "Engineering Head"
     },
     {
+    "create": 1,
+    "delete": 1,
    "read": 1,
    "report": 1,
-   "role": "Director"
+    "role": "Director",
+    "write": 1
   }
  ],
  "sort_field": "creation",

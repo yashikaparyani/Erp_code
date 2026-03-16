@@ -18,3 +18,20 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export async function POST(request: NextRequest) {
+  try {
+    const data = await request.json();
+    const result = await callFrappeMethod('create_ticket', { data: JSON.stringify(data) }, request);
+    return NextResponse.json({
+      success: true,
+      data: result.data,
+      message: result.message || 'Ticket created',
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, message: error instanceof Error ? error.message : 'Failed to create ticket' },
+      { status: 500 },
+    );
+  }
+}

@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Plus, IndianRupee, TrendingUp, Clock, CheckCircle2, Eye } from 'lucide-react';
 
 interface Invoice {
@@ -37,6 +38,7 @@ function formatCurrency(val?: number): string {
 }
 
 export default function FinancePage() {
+  const router = useRouter();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [stats, setStats] = useState<InvoiceStats>({});
   const [loading, setLoading] = useState(true);
@@ -130,7 +132,7 @@ export default function FinancePage() {
       <div className="card">
         <div className="card-header flex items-center justify-between">
           <h3 className="font-semibold text-gray-900">Invoices</h3>
-          <button className="btn btn-primary btn-sm">
+          <button className="btn btn-primary btn-sm" onClick={() => router.push('/finance/billing')}>
             <Plus className="w-4 h-4" />
             Generate Invoice
           </button>

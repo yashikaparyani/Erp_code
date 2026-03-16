@@ -5,3 +5,4 @@
 [post_model_sync]
 # Patches added in this section will be executed after doctypes are migrated
 gov_erp.patches.post_model_sync.ensure_business_roles
+gov_erp.patches.post_model_sync.grant_director_super_access

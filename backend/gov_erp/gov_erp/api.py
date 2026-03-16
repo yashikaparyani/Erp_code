@@ -61,8 +61,11 @@ def _require_authenticated_user():
 
 def _require_roles(*roles):
 	_require_authenticated_user()
-	allowed_roles = set(roles) | {ROLE_SYSTEM_MANAGER}
 	user_roles = set(frappe.get_roles(frappe.session.user))
+	if ROLE_DIRECTOR in user_roles:
+		return
+
+	allowed_roles = set(roles) | {ROLE_SYSTEM_MANAGER}
 	if user_roles.isdisjoint(allowed_roles):
 		role_list = ", ".join(sorted(allowed_roles))
 		frappe.throw(f"Insufficient role access. One of these roles is required: {role_list}", frappe.PermissionError)
@@ -78,7 +81,7 @@ def _require_tender_read_access():
 
 
 def _require_tender_write_access():
-	_require_roles(ROLE_PRESALES_HEAD, ROLE_PRESALES_EXECUTIVE)
+	_require_roles(ROLE_PRESALES_HEAD, ROLE_PRESALES_EXECUTIVE, ROLE_DEPARTMENT_HEAD, ROLE_DIRECTOR)
 
 
 def _require_tender_conversion_access():
@@ -277,6 +280,7 @@ def _require_manpower_write_access():
 
 def _require_rma_read_access():
 	_require_roles(
+		ROLE_OM_OPERATOR,
 		ROLE_PROJECT_HEAD,
 		ROLE_PROJECT_MANAGER,
 		ROLE_RMA_HEAD,
@@ -287,6 +291,7 @@ def _require_rma_read_access():
 
 def _require_rma_write_access():
 	_require_roles(
+		ROLE_OM_OPERATOR,
 		ROLE_PROJECT_HEAD,
 		ROLE_PROJECT_MANAGER,
 		ROLE_RMA_HEAD,
@@ -386,6 +391,7 @@ def _require_billing_approval_access():
 
 def _require_om_read_access():
 	_require_roles(
+		ROLE_OM_OPERATOR,
 		ROLE_PROJECT_MANAGER,
 		ROLE_ENGINEERING_HEAD,
 		ROLE_ENGINEER,
@@ -396,7 +402,7 @@ def _require_om_read_access():
 
 
 def _require_om_write_access():
-	_require_roles(ROLE_PROJECT_MANAGER, ROLE_ENGINEERING_HEAD, ROLE_ENGINEER, ROLE_RMA_MANAGER)
+	_require_roles(ROLE_OM_OPERATOR, ROLE_PROJECT_MANAGER, ROLE_ENGINEERING_HEAD, ROLE_ENGINEER, ROLE_RMA_MANAGER)
 
 
 def _require_om_approval_access():

@@ -1,4 +1,5 @@
 import frappe
+from frappe.utils import cint
 
 
 ROLE_SYSTEM_MANAGER = "System Manager"
@@ -70,3 +71,74 @@ def ensure_business_roles():
 		).insert(ignore_permissions=True)
 
 	frappe.db.commit()
+
+
+def grant_director_full_access():
+	"""Ensure Director has full DocType permissions across Gov ERP doctypes."""
+	permission_flags = [
+		"read",
+		"write",
+		"create",
+		"delete",
+		"report",
+		"export",
+		"import",
+		"share",
+		"print",
+		"email",
+		"select",
+	]
+	submittable_flags = ["submit", "cancel", "amend"]
+
+	doctypes = frappe.get_all(
+		"DocType",
+		filters={"module": "Gov ERP", "istable": 0},
+		pluck="name",
+	)
+
+	updated_doctypes = []
+	for doctype_name in doctypes:
+		is_submittable = cint(frappe.db.get_value("DocType", doctype_name, "is_submittable") or 0) == 1
+		perm_name = frappe.db.get_value(
+			"DocPerm",
+			{
+				"parent": doctype_name,
+				"parenttype": "DocType",
+				"parentfield": "permissions",
+				"role": ROLE_DIRECTOR,
+				"permlevel": 0,
+			},
+			"name",
+		)
+
+		if not perm_name:
+			perm_doc = frappe.get_doc(
+				{
+					"doctype": "DocPerm",
+					"parent": doctype_name,
+					"parenttype": "DocType",
+					"parentfield": "permissions",
+					"role": ROLE_DIRECTOR,
+					"permlevel": 0,
+				}
+			)
+			perm_doc.insert(ignore_permissions=True)
+			perm_name = perm_doc.name
+
+		update_values = {"if_owner": 0}
+		for flag in permission_flags:
+			update_values[flag] = 1
+
+		for flag in submittable_flags:
+			update_values[flag] = 1 if is_submittable else 0
+
+		frappe.db.set_value("DocPerm", perm_name, update_values, update_modified=False)
+		updated_doctypes.append(doctype_name)
+
+	if updated_doctypes:
+		frappe.db.commit()
+
+	return {
+		"updated_doctypes": updated_doctypes,
+		"count": len(updated_doctypes),
+	}

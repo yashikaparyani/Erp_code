@@ -208,14 +208,18 @@
    "write": 1
   },
   {
+    "create": 1,
    "read": 1,
    "report": 1,
-   "role": "Department Head"
+    "role": "Department Head",
+    "write": 1
   },
   {
+    "create": 1,
    "read": 1,
    "report": 1,
-   "role": "Director"
+    "role": "Director",
+    "write": 1
   }
  ],
  "sort_field": "creation",

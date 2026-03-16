@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Plus, HeadphonesIcon, Building2, AlertTriangle, Clock, CheckCircle2 } from 'lucide-react';
+import { Plus, HeadphonesIcon, Building2, AlertTriangle, Clock, CheckCircle2, X } from 'lucide-react';
 
 interface Ticket {
   name: string;
@@ -37,6 +37,18 @@ export default function OMHelpdeskPage() {
   const [stats, setStats] = useState<TicketStats>({});
   const [loading, setLoading] = useState(true);
   const [busyTicket, setBusyTicket] = useState<string | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
+  const [createForm, setCreateForm] = useState({
+    title: '',
+    linked_project: '',
+    linked_site: '',
+    asset_serial_no: '',
+    category: 'OTHER',
+    priority: 'MEDIUM',
+    description: '',
+  });
 
   const loadTickets = () => {
     Promise.all([
@@ -63,6 +75,53 @@ export default function OMHelpdeskPage() {
   useEffect(() => {
     loadTickets();
   }, []);
+
+  const handleCreateTicket = async () => {
+    if (!createForm.title.trim()) {
+      setCreateError('Title is required.');
+      return;
+    }
+
+    setCreating(true);
+    setCreateError('');
+    try {
+      const payload = {
+        title: createForm.title.trim(),
+        linked_project: createForm.linked_project.trim() || undefined,
+        linked_site: createForm.linked_site.trim() || undefined,
+        asset_serial_no: createForm.asset_serial_no.trim() || undefined,
+        category: createForm.category,
+        priority: createForm.priority,
+        description: createForm.description.trim() || undefined,
+      };
+
+      const response = await fetch('/api/tickets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Failed to create ticket');
+      }
+
+      setShowCreateModal(false);
+      setCreateForm({
+        title: '',
+        linked_project: '',
+        linked_site: '',
+        asset_serial_no: '',
+        category: 'OTHER',
+        priority: 'MEDIUM',
+        description: '',
+      });
+      await loadTickets();
+    } catch (error) {
+      setCreateError(error instanceof Error ? error.message : 'Failed to create ticket');
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const handleConvertToRMA = async (ticket: Ticket) => {
     setBusyTicket(ticket.name);
@@ -107,11 +166,71 @@ export default function OMHelpdeskPage() {
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">O&M & Helpdesk</h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-1">Operations, maintenance, and ticket management</p>
         </div>
-        <button className="btn btn-primary w-full sm:w-auto">
+        <button className="btn btn-primary w-full sm:w-auto" onClick={() => setShowCreateModal(true)}>
           <Plus className="w-4 h-4" />
           Create Ticket
         </button>
       </div>
+
+      {showCreateModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h2 className="text-lg font-semibold text-gray-900">Create Ticket</h2>
+              <button className="p-2 rounded-lg hover:bg-gray-100" onClick={() => setShowCreateModal(false)}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+                <input className="input" value={createForm.title} onChange={(e) => setCreateForm((p) => ({ ...p, title: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
+                <select className="input" value={createForm.category} onChange={(e) => setCreateForm((p) => ({ ...p, category: e.target.value }))}>
+                  <option value="HARDWARE_ISSUE">HARDWARE_ISSUE</option>
+                  <option value="SOFTWARE_ISSUE">SOFTWARE_ISSUE</option>
+                  <option value="NETWORK_ISSUE">NETWORK_ISSUE</option>
+                  <option value="PERFORMANCE">PERFORMANCE</option>
+                  <option value="MAINTENANCE">MAINTENANCE</option>
+                  <option value="OTHER">OTHER</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Priority *</label>
+                <select className="input" value={createForm.priority} onChange={(e) => setCreateForm((p) => ({ ...p, priority: e.target.value }))}>
+                  <option value="CRITICAL">CRITICAL</option>
+                  <option value="HIGH">HIGH</option>
+                  <option value="MEDIUM">MEDIUM</option>
+                  <option value="LOW">LOW</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Linked Project</label>
+                <input className="input" value={createForm.linked_project} onChange={(e) => setCreateForm((p) => ({ ...p, linked_project: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Linked Site</label>
+                <input className="input" value={createForm.linked_site} onChange={(e) => setCreateForm((p) => ({ ...p, linked_site: e.target.value }))} />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Asset Serial No</label>
+                <input className="input" value={createForm.asset_serial_no} onChange={(e) => setCreateForm((p) => ({ ...p, asset_serial_no: e.target.value }))} />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea className="input min-h-24" value={createForm.description} onChange={(e) => setCreateForm((p) => ({ ...p, description: e.target.value }))} />
+              </div>
+            </div>
+            {createError ? <p className="px-6 pb-2 text-sm text-red-600">{createError}</p> : null}
+            <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
+              <button className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleCreateTicket} disabled={creating}>{creating ? 'Creating...' : 'Create Ticket'}</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
