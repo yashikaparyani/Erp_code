@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Plus, IndianRupee, TrendingUp, Clock, CheckCircle2, Eye } from 'lucide-react';
 
@@ -71,6 +72,11 @@ export default function FinancePage() {
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Finance</h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-1">Invoicing, payments, and financial tracking</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/finance/costing" className="btn btn-secondary">Costing</Link>
+          <Link href="/finance/billing" className="btn btn-secondary">Billing</Link>
+          <Link href="/finance/payment-receipts" className="btn btn-secondary">Payments</Link>
         </div>
       </div>
 

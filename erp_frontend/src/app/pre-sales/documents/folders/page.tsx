@@ -53,11 +53,47 @@ export default function FoldersPage() {
   };
 
   const handleCreateFolder = () => {
-    if (newFolderName.trim()) {
-      console.log('Creating folder:', newFolderName);
-      setNewFolderName('');
-      setShowModal(false);
+    if (!newFolderName.trim()) return;
+    fetch('/api/documents/folders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ folder_name: newFolderName.trim(), file_name: newFolderName.trim(), folder: 'Home' }),
+    })
+      .then((res) => res.json())
+      .then((payload) => {
+        if (!payload.success) throw new Error(payload.message || 'Failed to create folder');
+        setNewFolderName('');
+        setShowModal(false);
+        fetchFolders();
+      })
+      .catch((err) => alert(err instanceof Error ? err.message : 'Failed to create folder'));
+  };
+
+  const handleRenameFolder = async (folder: FolderData) => {
+    const nextName = prompt('New folder name', folder.file_name || folder.name);
+    if (!nextName || nextName === (folder.file_name || folder.name)) return;
+    const response = await fetch('/api/documents/folders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: folder.name, file_name: nextName, folder_name: nextName }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload.success) {
+      alert(payload.message || 'Failed to rename folder');
+      return;
     }
+    await fetchFolders();
+  };
+
+  const handleDeleteFolder = async (folder: FolderData) => {
+    if (!confirm(`Delete folder ${folder.file_name || folder.name}?`)) return;
+    const response = await fetch(`/api/documents/folders?name=${encodeURIComponent(folder.name)}`, { method: 'DELETE' });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload.success) {
+      alert(payload.message || 'Failed to delete folder');
+      return;
+    }
+    await fetchFolders();
   };
 
   const filteredData = topLevelFolders.filter(folder =>
@@ -149,10 +185,10 @@ export default function FoldersPage() {
                       <td className="px-3 py-3 text-sm text-gray-600 text-center">{formatDate(folder.creation)}</td>
                       <td className="px-3 py-3 text-center">
                         <div className="flex items-center justify-center gap-2">
-                          <button className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded">
+                          <button className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded" onClick={() => void handleRenameFolder(folder)}>
                             <Edit2 className="w-4 h-4" />
                           </button>
-                          <button className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded">
+                          <button className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded" onClick={() => void handleDeleteFolder(folder)}>
                             <Trash2 className="w-4 h-4" />
                           </button>
                           <button className="p-1.5 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded">
@@ -176,10 +212,10 @@ export default function FoldersPage() {
                         <td className="px-3 py-3 text-sm text-gray-600 text-center">{formatDate(subFolder.creation)}</td>
                         <td className="px-3 py-3 text-center">
                           <div className="flex items-center justify-center gap-2">
-                            <button className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded">
+                            <button className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded" onClick={() => void handleRenameFolder(subFolder)}>
                               <Edit2 className="w-4 h-4" />
                             </button>
-                            <button className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded">
+                            <button className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded" onClick={() => void handleDeleteFolder(subFolder)}>
                               <Trash2 className="w-4 h-4" />
                             </button>
                             <button className="p-1.5 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded">

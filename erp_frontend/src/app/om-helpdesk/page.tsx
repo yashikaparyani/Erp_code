@@ -147,6 +147,28 @@ export default function OMHelpdeskPage() {
     }
   };
 
+  const runTicketAction = async (ticket: Ticket, action: string) => {
+    const payload: Record<string, string> = { name: ticket.name, action };
+    if (action === 'assign') payload.assigned_to = prompt('Assign to user') || '';
+    if (action === 'escalate') payload.reason = prompt('Escalation reason') || '';
+    if (action === 'comment') payload.notes = prompt('Comment') || '';
+    if (action === 'pause') payload.reason = prompt('Pause reason') || '';
+    if (action === 'resolve') payload.resolution_notes = prompt('Resolution notes') || '';
+    if (action === 'close') payload.closure_notes = prompt('Closure notes') || '';
+
+    const response = await fetch('/api/tickets', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || result.success === false) {
+      alert(result.message || `Failed to ${action} ticket`);
+      return;
+    }
+    loadTickets();
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -365,17 +387,22 @@ export default function OMHelpdeskPage() {
                     </span>
                   </td>
                   <td>
-                    {ticket.is_rma ? (
-                      <span className="badge badge-success">RMA Raised</span>
-                    ) : (
-                      <button
-                        className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                        onClick={() => handleConvertToRMA(ticket)}
-                        disabled={busyTicket === ticket.name}
-                      >
-                        {busyTicket === ticket.name ? 'Converting...' : 'Convert to RMA'}
-                      </button>
-                    )}
+                    <div className="flex flex-wrap gap-2">
+                      {ticket.is_rma ? (
+                        <span className="badge badge-success">RMA Raised</span>
+                      ) : (
+                        <button
+                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                          onClick={() => handleConvertToRMA(ticket)}
+                          disabled={busyTicket === ticket.name}
+                        >
+                          {busyTicket === ticket.name ? 'Converting...' : 'Convert to RMA'}
+                        </button>
+                      )}
+                      <button className="text-sm font-medium text-indigo-600" onClick={() => void runTicketAction(ticket, 'assign')}>Assign</button>
+                      <button className="text-sm font-medium text-amber-600" onClick={() => void runTicketAction(ticket, 'escalate')}>Escalate</button>
+                      <button className="text-sm font-medium text-slate-600" onClick={() => void runTicketAction(ticket, 'comment')}>Comment</button>
+                    </div>
                   </td>
                 </tr>
               ))}

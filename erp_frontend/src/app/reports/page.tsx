@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Boxes, ClipboardList, FileText, MapPin, Receipt, RefreshCw, ShieldAlert, Target } from 'lucide-react';
 
@@ -23,6 +24,18 @@ function formatCurrency(value?: number) {
 export default function ReportsPage() {
   const [cards, setCards] = useState<StatCard[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const exportCsv = () => {
+    const rows = cards.map((card) => `${card.title},${String(card.value).replace(/,/g, '')},${card.hint}`);
+    const csv = ['Title,Value,Hint', ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'erp-reports-summary.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   useEffect(() => {
     Promise.all([
@@ -106,6 +119,7 @@ export default function ReportsPage() {
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Reports</h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-1">Live operations snapshot compiled from the implemented backend modules.</p>
         </div>
+        <button className="btn btn-primary" onClick={exportCsv}>Export Summary</button>
       </div>
 
       <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -119,8 +133,10 @@ export default function ReportsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {cards.map((card) => {
+          {cards.map((card, index) => {
             const Icon = card.icon;
+            const drilldowns = ['/engineering/boq', '/finance/costing', '/finance/billing', '/inventory', '/execution', '/rma', '/procurement'];
+            const href = drilldowns[index] || '/';
             return (
               <div key={card.title} className="card">
                 <div className="card-body">
@@ -134,6 +150,7 @@ export default function ReportsPage() {
                     </div>
                   </div>
                   <div className="mt-3 text-xs text-gray-500">{card.hint}</div>
+                  <Link href={href} className="mt-3 inline-flex text-sm font-medium text-blue-600 hover:text-blue-800">Open records</Link>
                 </div>
               </div>
             );

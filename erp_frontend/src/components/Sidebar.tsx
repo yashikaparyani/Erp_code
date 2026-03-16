@@ -33,7 +33,13 @@ import {
   GitBranch,
   FolderTree,
   Cpu,
-  ClipboardList
+  ClipboardList,
+  Briefcase,
+  CalendarCheck2,
+  Plane,
+  Clock,
+  Flag,
+  ShieldCheck
 } from 'lucide-react';
 import { useRole } from '../context/RoleContext';
 
@@ -165,11 +171,33 @@ const navLinks: NavLink[] = [
     children: [
       { name: 'Survey', href: '/survey', icon: MapPin },
       { name: 'BOQ', href: '/engineering/boq', icon: FileText },
+      { name: 'Drawings', href: '/engineering/drawings', icon: FileText },
+      { name: 'Change Requests', href: '/engineering/change-requests', icon: RefreshCcw },
       { name: 'Technical Deviations', href: '/engineering/deviations', icon: AlertTriangle },
     ]
   },
-  { name: 'Procurement', href: '/procurement', icon: ShoppingCart },
-  { name: 'Inventory', href: '/inventory', icon: Package },
+  {
+    name: 'Procurement',
+    href: '/procurement',
+    icon: ShoppingCart,
+    children: [
+      { name: 'Vendor Comparisons', href: '/procurement', icon: ClipboardList },
+      { name: 'Indents', href: '/indents', icon: FileText },
+      { name: 'Purchase Orders', href: '/purchase-orders', icon: ShoppingCart },
+      { name: 'Petty Cash', href: '/petty-cash', icon: CreditCard },
+    ]
+  },
+  {
+    name: 'Inventory',
+    href: '/inventory',
+    icon: Package,
+    children: [
+      { name: 'Overview', href: '/inventory', icon: Package },
+      { name: 'GRNs', href: '/grns', icon: Package },
+      { name: 'Stock Position', href: '/stock-position', icon: Database },
+      { name: 'Stock Aging', href: '/stock-aging', icon: BarChart3 },
+    ]
+  },
   {
     name: 'Execution (I&C)',
     href: '/execution',
@@ -186,6 +214,9 @@ const navLinks: NavLink[] = [
           { name: 'Test Reports & Signoffs', href: '/execution/commissioning/test-reports' },
         ]
       },
+      { name: 'Milestones', href: '/milestones', icon: Flag },
+      { name: 'Manpower Logs', href: '/manpower', icon: Users2 },
+      { name: 'Communication Logs', href: '/execution/comm-logs', icon: ClipboardList },
     ]
   },
   {
@@ -195,12 +226,23 @@ const navLinks: NavLink[] = [
     children: [
       { name: 'Costing', href: '/finance/costing', icon: PieChart },
       { name: 'Billing', href: '/finance/billing', icon: CreditCard },
+      { name: 'Payment Receipts', href: '/finance/payment-receipts', icon: CreditCard },
+      { name: 'Retention Ledger', href: '/finance/retention', icon: ShieldCheck },
+      { name: 'Penalty Deductions', href: '/finance/penalties', icon: AlertTriangle },
     ]
   },
   {
     name: 'HR',
     href: '/hr',
     icon: Users2,
+    children: [
+      { name: 'Overview', href: '/hr', icon: Users2 },
+      { name: 'Onboarding', href: '/hr/onboarding', icon: Briefcase },
+      { name: 'Attendance', href: '/hr/attendance', icon: CalendarCheck2 },
+      { name: 'Travel Logs', href: '/hr/travel-logs', icon: Plane },
+      { name: 'Overtime', href: '/hr/overtime', icon: Clock },
+      { name: 'Technician Visits', href: '/hr/technician-visits', icon: Wrench },
+    ]
   },
   {
     name: 'RMA',
@@ -208,6 +250,7 @@ const navLinks: NavLink[] = [
     icon: RefreshCcw,
   },
   { name: 'O&M & Helpdesk', href: '/om-helpdesk', icon: HeadphonesIcon },
+  { name: 'SLA Profiles', href: '/sla', icon: Clock },
   { name: 'Reports', href: '/reports', icon: BarChart3 },
   { name: 'Document Management', href: '/documents', icon: FolderOpen },
   { name: 'Master Data', href: '/master-data', icon: Database },

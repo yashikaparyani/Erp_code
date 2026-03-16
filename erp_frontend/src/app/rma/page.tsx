@@ -141,6 +141,25 @@ export default function RMAPage() {
     }
   };
 
+  const runRmaAction = async (name: string, action: 'approve' | 'reject' | 'close' | 'status', newStatus?: string) => {
+    const response = await fetch('/api/rma-trackers', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        action,
+        reason: action === 'reject' ? prompt('Reject reason') || '' : '',
+        new_status: newStatus || '',
+      }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload.success) {
+      alert(payload.message || `Failed to ${action} RMA`);
+      return;
+    }
+    await loadData();
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -190,6 +209,7 @@ export default function RMAPage() {
                 <th>Approval / PO</th>
                 <th>Repair Status</th>
                 <th>Aging</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -231,8 +251,14 @@ export default function RMAPage() {
                     <div className="text-sm text-gray-900">{item.repairing_status || item.rma_status || '-'}</div>
                     <div className="text-xs text-gray-500">{item.faulty_date || '-'}</div>
                   </td>
+                  <td><div className="font-medium text-gray-900">{item.aging_days ?? 0} days</div></td>
                   <td>
-                    <div className="font-medium text-gray-900">{item.aging_days ?? 0} days</div>
+                    <div className="flex flex-wrap gap-2">
+                      {item.rma_status === 'PENDING' ? <button className="text-xs font-medium text-green-600" onClick={() => void runRmaAction(item.name, 'approve')}>Approve</button> : null}
+                      {item.rma_status === 'PENDING' ? <button className="text-xs font-medium text-red-600" onClick={() => void runRmaAction(item.name, 'reject')}>Reject</button> : null}
+                      {item.rma_status === 'APPROVED' ? <button className="text-xs font-medium text-amber-600" onClick={() => void runRmaAction(item.name, 'status', 'IN_TRANSIT')}>In Transit</button> : null}
+                      {(item.rma_status === 'REPAIRED' || item.rma_status === 'REPLACED' || item.rma_status === 'REJECTED') ? <button className="text-xs font-medium text-blue-600" onClick={() => void runRmaAction(item.name, 'close')}>Close</button> : null}
+                    </div>
                   </td>
                 </tr>
               ))}

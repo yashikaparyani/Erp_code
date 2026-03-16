@@ -48,6 +48,30 @@ export default function ApprovalsPage() {
     }
   };
 
+  const getApprovalKind = (row: ApprovalData) => {
+    if (row.approval_for.toLowerCase().includes('vendor comparison')) return 'vendor_comparison';
+    return '';
+  };
+
+  const runApproval = async (row: ApprovalData, action: 'approve' | 'reject') => {
+    const kind = getApprovalKind(row);
+    if (!kind) {
+      alert('No direct workflow action is wired for this approval type yet.');
+      return;
+    }
+    const response = await fetch('/api/approvals', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind, action, name: row.id, reason: action === 'reject' ? prompt('Reject reason') || '' : '' }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload.success) {
+      alert(payload.message || `Failed to ${action}`);
+      return;
+    }
+    await fetchData();
+  };
+
   return (
     <div className="p-3 sm:p-4 md:p-6 bg-gray-50 min-h-screen">
       {/* Header */}
@@ -133,7 +157,7 @@ export default function ApprovalsPage() {
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Requester</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Request Date</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Status</th>
-                <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider w-20">Action</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider w-40">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -159,9 +183,17 @@ export default function ApprovalsPage() {
                       {row.status}
                     </td>
                     <td className="px-3 py-3 text-center">
-                      <button className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded">
-                        <Eye className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center justify-center gap-2">
+                        <button className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded">
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        {getApprovalKind(row) ? (
+                          <>
+                            <button className="text-xs font-medium text-green-600 hover:text-green-800" onClick={() => void runApproval(row, 'approve')}>Approve</button>
+                            <button className="text-xs font-medium text-red-600 hover:text-red-800" onClick={() => void runApproval(row, 'reject')}>Reject</button>
+                          </>
+                        ) : null}
+                      </div>
                     </td>
                   </tr>
                 ))

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Eye, FileText, FolderOpen, GitBranch, Lock, Shield, UploadCloud } from 'lucide-react';
 import { EmptyState, SectionCard, formatDateTime, useApiData } from '../../components/dashboards/shared';
 
@@ -50,6 +51,36 @@ export default function DocumentsPage() {
 	const error = foldersState.error || docsState.error;
 	const lastUpdated = foldersState.lastUpdated || docsState.lastUpdated;
 	const linkedProjects = new Set(documents.map((doc) => doc.linked_project).filter(Boolean));
+	const [showFolderModal, setShowFolderModal] = useState(false);
+	const [showUploadModal, setShowUploadModal] = useState(false);
+	const [folderName, setFolderName] = useState('');
+	const [uploadForm, setUploadForm] = useState({ document_name: '', linked_project: '', folder: '', category: '', file_url: '' });
+
+	const createFolder = async () => {
+		const response = await fetch('/api/documents/folders', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ folder_name: folderName, file_name: folderName, folder: 'Home', source: 'custom' }),
+		});
+		const payload = await response.json().catch(() => ({}));
+		if (!response.ok || !payload.success) throw new Error(payload.message || 'Failed to create folder');
+		setFolderName('');
+		setShowFolderModal(false);
+		await foldersState.refresh();
+	};
+
+	const uploadDocument = async () => {
+		const response = await fetch('/api/documents', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ ...uploadForm, version: 1 }),
+		});
+		const payload = await response.json().catch(() => ({}));
+		if (!response.ok || !payload.success) throw new Error(payload.message || 'Failed to upload document');
+		setUploadForm({ document_name: '', linked_project: '', folder: '', category: '', file_url: '' });
+		setShowUploadModal(false);
+		await docsState.refresh();
+	};
 
 	if (loading) {
 		return (
@@ -89,14 +120,13 @@ export default function DocumentsPage() {
 						{lastUpdated ? ` • Last updated: ${lastUpdated}` : ''}
 					</p>
 				</div>
-				<button
-					disabled
-					className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-100 px-4 py-2 text-sm font-medium text-gray-500"
-					title="The upload action is not yet exposed through a frontend POST route."
-				>
-					<UploadCloud className="h-4 w-4" />
-					Upload Route Pending
-				</button>
+				<div className="flex flex-wrap gap-2">
+					<button onClick={() => setShowFolderModal(true)} className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Create Folder</button>
+					<button onClick={() => setShowUploadModal(true)} className="inline-flex items-center gap-2 rounded-lg bg-[#1e6b87] px-4 py-2 text-sm font-medium text-white hover:bg-[#185a73]">
+						<UploadCloud className="h-4 w-4" />
+						Upload Document
+					</button>
+				</div>
 			</div>
 
 			<div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -214,6 +244,38 @@ export default function DocumentsPage() {
 					)}
 				</SectionCard>
 			</div>
+
+			{showFolderModal ? (
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+					<div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+						<h3 className="text-lg font-semibold text-gray-900">Create Folder</h3>
+						<input className="input mt-4" value={folderName} onChange={(event) => setFolderName(event.target.value)} placeholder="Folder name" />
+						<div className="mt-4 flex justify-end gap-2">
+							<button className="btn btn-secondary" onClick={() => setShowFolderModal(false)}>Cancel</button>
+							<button className="btn btn-primary" onClick={() => void createFolder()}>Create</button>
+						</div>
+					</div>
+				</div>
+			) : null}
+
+			{showUploadModal ? (
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+					<div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl">
+						<h3 className="text-lg font-semibold text-gray-900">Upload Document</h3>
+						<div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+							<input className="input" value={uploadForm.document_name} onChange={(event) => setUploadForm((prev) => ({ ...prev, document_name: event.target.value }))} placeholder="Document name" />
+							<input className="input" value={uploadForm.linked_project} onChange={(event) => setUploadForm((prev) => ({ ...prev, linked_project: event.target.value }))} placeholder="Linked project" />
+							<input className="input" value={uploadForm.folder} onChange={(event) => setUploadForm((prev) => ({ ...prev, folder: event.target.value }))} placeholder="Folder" />
+							<input className="input" value={uploadForm.category} onChange={(event) => setUploadForm((prev) => ({ ...prev, category: event.target.value }))} placeholder="Category" />
+							<input className="input sm:col-span-2" value={uploadForm.file_url} onChange={(event) => setUploadForm((prev) => ({ ...prev, file_url: event.target.value }))} placeholder="File URL" />
+						</div>
+						<div className="mt-4 flex justify-end gap-2">
+							<button className="btn btn-secondary" onClick={() => setShowUploadModal(false)}>Cancel</button>
+							<button className="btn btn-primary" onClick={() => void uploadDocument()}>Upload</button>
+						</div>
+					</div>
+				</div>
+			) : null}
 		</div>
 	);
 }

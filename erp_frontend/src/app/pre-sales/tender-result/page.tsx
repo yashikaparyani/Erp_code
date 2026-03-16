@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { 
-  Search, ChevronDown, ChevronUp, Download, Clock, MapPin, FileText 
+  Search, ChevronDown, ChevronUp, Download, Clock, MapPin, FileText, Plus, X
 } from 'lucide-react';
 
 interface TenderResultRow {
@@ -24,6 +24,8 @@ export default function TenderResultPage() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [results, setResults] = useState<TenderResultRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [formData, setFormData] = useState({ tender: '', result_stage: '', winner_company: '', winning_amount: 0, organization_name: '', site_location: '' });
 
   useEffect(() => {
     const load = async () => {
@@ -43,6 +45,33 @@ export default function TenderResultPage() {
 
     load();
   }, []);
+
+  const loadResults = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/tender-results');
+      const payload = await response.json();
+      if (payload.success) setResults(payload.data || []);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const createResult = async () => {
+    const response = await fetch('/api/tender-results', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formData),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload.success) {
+      alert(payload.message || 'Failed to create tender result');
+      return;
+    }
+    setShowCreateModal(false);
+    setFormData({ tender: '', result_stage: '', winner_company: '', winning_amount: 0, organization_name: '', site_location: '' });
+    await loadResults();
+  };
 
   const tabs: { key: TabType; label: string; count?: number }[] = [
     { key: 'fresh', label: 'Fresh Result' },
@@ -142,7 +171,11 @@ export default function TenderResultPage() {
       </div>
 
       {/* Actions Bar */}
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-end gap-3 mb-4">
+        <button onClick={() => setShowCreateModal(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm">
+          <Plus className="w-4 h-4" />
+          New Result
+        </button>
         <button className="flex items-center gap-2 px-4 py-2 border border-blue-500 text-blue-600 rounded-md hover:bg-blue-50 text-sm">
           <Download className="w-4 h-4" />
           Export To Excel
@@ -271,6 +304,29 @@ export default function TenderResultPage() {
           </button>
         </div>
       </div>
+
+      {showCreateModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">Create Tender Result</h3>
+              <button onClick={() => setShowCreateModal(false)} className="rounded p-2 hover:bg-gray-100"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <input className="input" placeholder="Tender" value={formData.tender} onChange={(e) => setFormData((p) => ({ ...p, tender: e.target.value }))} />
+              <input className="input" placeholder="Result Stage" value={formData.result_stage} onChange={(e) => setFormData((p) => ({ ...p, result_stage: e.target.value }))} />
+              <input className="input" placeholder="Winner Company" value={formData.winner_company} onChange={(e) => setFormData((p) => ({ ...p, winner_company: e.target.value }))} />
+              <input className="input" type="number" placeholder="Winning Amount" value={formData.winning_amount} onChange={(e) => setFormData((p) => ({ ...p, winning_amount: Number(e.target.value || 0) }))} />
+              <input className="input" placeholder="Organization" value={formData.organization_name} onChange={(e) => setFormData((p) => ({ ...p, organization_name: e.target.value }))} />
+              <input className="input" placeholder="Site Location" value={formData.site_location} onChange={(e) => setFormData((p) => ({ ...p, site_location: e.target.value }))} />
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>Cancel</button>
+              <button className="btn btn-primary" onClick={() => void createResult()}>Create</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

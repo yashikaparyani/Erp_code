@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import CreateTenderModal from '@/components/CreateTenderModal';
 import { 
   Search, ChevronDown, ChevronUp, Download, Eye, Heart, Clock, 
   User, MapPin, Filter, SortDesc 
@@ -27,6 +28,7 @@ export default function TenderPage() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [sortBy, setSortBy] = useState('value');
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   useEffect(() => {
     fetch('/api/tenders')
@@ -122,7 +124,10 @@ export default function TenderPage() {
       </div>
 
       {/* Actions Bar */}
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-end gap-3 mb-4">
+        <button onClick={() => setIsCreateOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm">
+          New Tender
+        </button>
         <button className="flex items-center gap-2 px-4 py-2 border border-blue-500 text-blue-600 rounded-md hover:bg-blue-50 text-sm">
           <Download className="w-4 h-4" />
           Export To Excel
@@ -285,6 +290,8 @@ export default function TenderPage() {
           </button>
         </div>
       </div>
+
+      <CreateTenderModal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} onSuccess={() => window.location.reload()} />
     </div>
   );
 }

@@ -31,3 +31,30 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { name, ...rest } = body;
+    const result = await callFrappeMethod('update_dpr', { name, data: JSON.stringify(rest) }, request);
+    return NextResponse.json({ success: true, data: result.data, message: result.message || 'DPR updated' });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, message: error instanceof Error ? error.message : 'Failed to update DPR' },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const name = request.nextUrl.searchParams.get('name') || '';
+    const result = await callFrappeMethod('delete_dpr', { name }, request);
+    return NextResponse.json({ success: true, data: result.data, message: result.message || 'DPR deleted' });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, message: error instanceof Error ? error.message : 'Failed to delete DPR' },
+      { status: 500 },
+    );
+  }
+}

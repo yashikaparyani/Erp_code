@@ -41,3 +41,34 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { action, name, ...rest } = body;
+
+    if (action === 'approve') {
+      const result = await callFrappeMethod('approve_rma', { name }, request);
+      return NextResponse.json({ success: true, data: result.data, message: result.message || 'RMA approved' });
+    }
+    if (action === 'reject') {
+      const result = await callFrappeMethod('reject_rma', { name, reason: rest.reason || '' }, request);
+      return NextResponse.json({ success: true, data: result.data, message: result.message || 'RMA rejected' });
+    }
+    if (action === 'close') {
+      const result = await callFrappeMethod('close_rma', { name }, request);
+      return NextResponse.json({ success: true, data: result.data, message: result.message || 'RMA closed' });
+    }
+    if (action === 'status') {
+      const result = await callFrappeMethod('update_rma_status', { name, new_status: rest.new_status || '' }, request);
+      return NextResponse.json({ success: true, data: result.data, message: result.message || 'RMA status updated' });
+    }
+
+    return NextResponse.json({ success: false, message: 'Unsupported action' }, { status: 400 });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, message: error instanceof Error ? error.message : 'Failed to update RMA' },
+      { status: 500 }
+    );
+  }
+}

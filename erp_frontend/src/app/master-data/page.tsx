@@ -16,12 +16,19 @@ interface Party {
   active: number;
 }
 
-type TabType = 'clients' | 'vendors';
+interface Organization {
+  name: string;
+  organization_name?: string;
+  active?: number;
+}
+
+type TabType = 'clients' | 'vendors' | 'organizations';
 
 export default function MasterDataPage() {
   const [activeTab, setActiveTab] = useState<TabType>('clients');
   const [clients, setClients] = useState<Party[]>([]);
   const [vendors, setVendors] = useState<Party[]>([]);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -48,16 +55,19 @@ export default function MasterDataPage() {
   const fetchAllData = async () => {
     setIsLoading(true);
     try {
-      const [clientsRes, vendorsRes] = await Promise.all([
+      const [clientsRes, vendorsRes, organizationsRes] = await Promise.all([
         fetch('/api/parties?type=CLIENT'),
-        fetch('/api/parties?type=VENDOR')
+        fetch('/api/parties?type=VENDOR'),
+        fetch('/api/organizations')
       ]);
       
       const clientsData = await clientsRes.json();
       const vendorsData = await vendorsRes.json();
+      const organizationsData = await organizationsRes.json();
       
       if (clientsData.success) setClients(clientsData.data);
       if (vendorsData.success) setVendors(vendorsData.data);
+      if (organizationsData.success) setOrganizations(organizationsData.data);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -73,20 +83,25 @@ export default function MasterDataPage() {
     
     setIsSubmitting(true);
     try {
-      const payload = {
-        party_name: formData.name,
-        party_type: activeTab === 'clients' ? 'CLIENT' : 'VENDOR',
-        gstin: formData.gstin,
-        pan: formData.pan,
-        phone: formData.phone,
-        email: formData.email,
-        address: formData.address,
-        city: formData.city,
-        state: formData.state,
-        pincode: formData.pincode
-      };
+      const payload = activeTab === 'organizations'
+        ? {
+            organization_name: formData.name,
+            active: 1
+          }
+        : {
+            party_name: formData.name,
+            party_type: activeTab === 'clients' ? 'CLIENT' : 'VENDOR',
+            gstin: formData.gstin,
+            pan: formData.pan,
+            phone: formData.phone,
+            email: formData.email,
+            address: formData.address,
+            city: formData.city,
+            state: formData.state,
+            pincode: formData.pincode
+          };
       
-      const response = await fetch('/api/parties', {
+      const response = await fetch(activeTab === 'organizations' ? '/api/organizations' : '/api/parties', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -137,6 +152,10 @@ export default function MasterDataPage() {
           v.party_name.toLowerCase().includes(term) || 
           v.city?.toLowerCase().includes(term)
         );
+      case 'organizations':
+        return organizations.filter(org =>
+          (org.organization_name || org.name || '').toLowerCase().includes(term)
+        );
       default:
         return [];
     }
@@ -146,13 +165,50 @@ export default function MasterDataPage() {
     switch (activeTab) {
       case 'clients': return 'Client';
       case 'vendors': return 'Vendor';
+      case 'organizations': return 'Organization';
     }
   };
 
   const tabs = [
     { id: 'clients' as TabType, label: 'Clients', count: clients.length, icon: Users2 },
     { id: 'vendors' as TabType, label: 'Vendors', count: vendors.length, icon: Package },
+    { id: 'organizations' as TabType, label: 'Organizations', count: organizations.length, icon: Users2 },
   ];
+
+  const handleEdit = async (item: any) => {
+    const nextName = prompt('Update name', item.party_name || item.organization_name || item.name);
+    if (!nextName) return;
+    if (activeTab === 'organizations') {
+      alert('Organization edit backend is not available yet.');
+      return;
+    }
+    const response = await fetch('/api/parties', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: item.name, party_name: nextName }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.success) {
+      alert(result.message || 'Failed to update');
+      return;
+    }
+    fetchAllData();
+  };
+
+  const handleDelete = async (item: any) => {
+    if (activeTab === 'organizations') {
+      alert('Organization delete backend is not available yet.');
+      return;
+    }
+    if (!confirm(`Delete ${item.party_name || item.name}?`)) return;
+    const response = await fetch(`/api/parties?name=${encodeURIComponent(item.name)}`, { method: 'DELETE' });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.success) {
+      alert(result.message || 'Failed to delete');
+      return;
+    }
+    fetchAllData();
+  };
 
   return (
     <div>
@@ -246,9 +302,9 @@ export default function MasterDataPage() {
                 <tr>
                   <th>Name</th>
                   <th>Type</th>
-                  <th>GSTIN</th>
+                  <th>{activeTab === 'organizations' ? 'Code' : 'GSTIN'}</th>
                   <th>City</th>
-                  <th>Phone</th>
+                  <th>{activeTab === 'organizations' ? 'Status' : 'Phone'}</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -256,21 +312,23 @@ export default function MasterDataPage() {
               <tbody>
                 {getTabData().map((item: any) => (
                   <tr key={item.name}>
-                    <td className="font-medium text-gray-900">{item.party_name}</td>
+                    <td className="font-medium text-gray-900">{item.party_name || item.organization_name || item.name}</td>
                     <td>
                       <span className={`px-2 py-1 text-xs rounded-full ${
-                        item.party_type === 'CLIENT' 
+                        activeTab === 'organizations'
+                          ? 'bg-blue-100 text-blue-700'
+                          : item.party_type === 'CLIENT' 
                           ? 'bg-green-100 text-green-700'
                           : item.party_type === 'VENDOR'
                           ? 'bg-purple-100 text-purple-700'
                           : 'bg-blue-100 text-blue-700'
                       }`}>
-                        {item.party_type}
+                        {activeTab === 'organizations' ? 'ORGANIZATION' : item.party_type}
                       </span>
                     </td>
-                    <td className="text-gray-600">{item.gstin || '-'}</td>
+                    <td className="text-gray-600">{item.gstin || item.name || '-'}</td>
                     <td className="text-gray-600">{item.city || '-'}</td>
-                    <td className="text-gray-600">{item.phone || '-'}</td>
+                    <td className="text-gray-600">{activeTab === 'organizations' ? (item.active ? 'Active' : 'Inactive') : (item.phone || '-')}</td>
                     <td>
                       <span className={`px-2 py-1 text-xs rounded-full ${
                         item.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
@@ -280,10 +338,10 @@ export default function MasterDataPage() {
                     </td>
                     <td>
                       <div className="flex items-center gap-2">
-                        <button className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors">
+                        <button className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" onClick={() => void handleEdit(item)}>
                           <Edit className="w-4 h-4" />
                         </button>
-                        <button className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
+                        <button className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" onClick={() => void handleDelete(item)}>
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>

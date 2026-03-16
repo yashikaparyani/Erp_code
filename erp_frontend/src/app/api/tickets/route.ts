@@ -35,3 +35,42 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { action, name, ...rest } = body;
+
+    if (action === 'assign') {
+      return NextResponse.json(await callFrappeMethod('assign_ticket', { name, assigned_to: rest.assigned_to || '' }, request));
+    }
+    if (action === 'escalate') {
+      return NextResponse.json(await callFrappeMethod('escalate_ticket', { name, reason: rest.reason || '' }, request));
+    }
+    if (action === 'comment') {
+      return NextResponse.json(await callFrappeMethod('add_ticket_comment', { name, notes: rest.notes || '', attachment: rest.attachment || '' }, request));
+    }
+    if (action === 'start') {
+      return NextResponse.json(await callFrappeMethod('start_ticket', { name }, request));
+    }
+    if (action === 'pause') {
+      return NextResponse.json(await callFrappeMethod('pause_ticket', { name, reason: rest.reason || '' }, request));
+    }
+    if (action === 'resume') {
+      return NextResponse.json(await callFrappeMethod('resume_ticket', { name }, request));
+    }
+    if (action === 'resolve') {
+      return NextResponse.json(await callFrappeMethod('resolve_ticket', { name, resolution_notes: rest.resolution_notes || '' }, request));
+    }
+    if (action === 'close') {
+      return NextResponse.json(await callFrappeMethod('close_ticket', { name, closure_notes: rest.closure_notes || '' }, request));
+    }
+
+    return NextResponse.json({ success: false, message: 'Unsupported action' }, { status: 400 });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, message: error instanceof Error ? error.message : 'Failed to update ticket' },
+      { status: 500 }
+    );
+  }
+}

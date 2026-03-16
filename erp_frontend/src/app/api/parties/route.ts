@@ -60,3 +60,42 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const data = await request.json();
+    const { name, ...rest } = data;
+    const result = await callFrappeMethod('update_party', {
+      name,
+      data: JSON.stringify(rest),
+    }, request);
+
+    return NextResponse.json({
+      success: true,
+      message: result.message || 'Party updated successfully',
+      data: result.data
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, message: error instanceof Error ? error.message : 'Failed to update party' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const name = request.nextUrl.searchParams.get('name') || '';
+    const result = await callFrappeMethod('delete_party', { name }, request);
+    return NextResponse.json({
+      success: true,
+      message: result.message || 'Party deleted successfully',
+      data: result.data
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, message: error instanceof Error ? error.message : 'Failed to delete party' },
+      { status: 500 }
+    );
+  }
+}

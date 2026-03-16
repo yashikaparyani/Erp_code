@@ -62,3 +62,42 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const data = await request.json();
+    const { name, ...rest } = data;
+    const result = await callFrappeMethod('update_tender', {
+      name,
+      data: JSON.stringify(rest),
+    }, request);
+
+    return NextResponse.json({
+      success: true,
+      message: result.message || 'Tender updated successfully',
+      data: result.data
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, message: error instanceof Error ? error.message : 'Failed to update tender' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const name = request.nextUrl.searchParams.get('name') || '';
+    const result = await callFrappeMethod('delete_tender', { name }, request);
+    return NextResponse.json({
+      success: true,
+      message: result.message || 'Tender deleted successfully',
+      data: result.data
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, message: error instanceof Error ? error.message : 'Failed to delete tender' },
+      { status: 500 }
+    );
+  }
+}

@@ -63,6 +63,18 @@ function getDaysToSubmission(dateString?: string) {
   return Math.ceil((target - Date.now()) / (1000 * 60 * 60 * 24));
 }
 
+async function updateTenderStatus(name: string, status: string) {
+  const response = await fetch('/api/tenders', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, status }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload.success === false) {
+    throw new Error(payload.message || 'Failed to update tender');
+  }
+}
+
 export default function TenderTaskBoard({
   title,
   subtitle,
@@ -76,6 +88,7 @@ export default function TenderTaskBoard({
   const [searchQuery, setSearchQuery] = useState('');
   const [clientFilter, setClientFilter] = useState('');
   const [statusSelection, setStatusSelection] = useState('');
+  const [actionBusy, setActionBusy] = useState('');
 
   useEffect(() => {
     let mounted = true;
@@ -300,12 +313,45 @@ export default function TenderTaskBoard({
                       </span>
                     </td>
                     <td>
-                      <Link
-                        href={`/pre-sales/${encodeURIComponent(tender.name)}`}
-                        className="text-sm font-medium text-blue-600 hover:text-blue-700"
-                      >
-                        Open tender
-                      </Link>
+                      <div className="flex flex-wrap gap-2">
+                        <Link href={`/pre-sales/${encodeURIComponent(tender.name)}`} className="text-sm font-medium text-blue-600 hover:text-blue-700">
+                          Open
+                        </Link>
+                        {!['SUBMITTED', 'WON', 'LOST', 'DROPPED', 'CANCELLED'].includes(tender.status || '') ? (
+                          <button
+                            className="text-sm font-medium text-green-600 hover:text-green-700"
+                            disabled={actionBusy === tender.name}
+                            onClick={async () => {
+                              try {
+                                setActionBusy(tender.name);
+                                await updateTenderStatus(tender.name, 'SUBMITTED');
+                                window.location.reload();
+                              } finally {
+                                setActionBusy('');
+                              }
+                            }}
+                          >
+                            Submit
+                          </button>
+                        ) : null}
+                        {!['DROPPED', 'WON', 'LOST', 'CANCELLED'].includes(tender.status || '') ? (
+                          <button
+                            className="text-sm font-medium text-red-600 hover:text-red-700"
+                            disabled={actionBusy === tender.name}
+                            onClick={async () => {
+                              try {
+                                setActionBusy(tender.name);
+                                await updateTenderStatus(tender.name, 'DROPPED');
+                                window.location.reload();
+                              } finally {
+                                setActionBusy('');
+                              }
+                            }}
+                          >
+                            Drop
+                          </button>
+                        ) : null}
+                      </div>
                     </td>
                   </tr>
                 );
