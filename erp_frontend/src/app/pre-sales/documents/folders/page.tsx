@@ -27,16 +27,10 @@ export default function FoldersPage() {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [showModal, setShowModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
-<<<<<<< HEAD
-  const [creating, setCreating] = useState(false);
-  const [editingFolder, setEditingFolder] = useState<FolderData | null>(null);
-  const [editName, setEditName] = useState('');
-=======
   const [error, setError] = useState('');
   const [dialog, setDialog] = useState<FolderDialogState>(null);
   const [submitting, setSubmitting] = useState(false);
   const [downloadingFolder, setDownloadingFolder] = useState<string | null>(null);
->>>>>>> 41b381c (improved ui)
 
   const fetchFolders = useCallback(async () => {
     try {
@@ -74,31 +68,6 @@ export default function FoldersPage() {
   };
 
   const handleCreateFolder = async () => {
-<<<<<<< HEAD
-    if (!newFolderName.trim()) return;
-    setCreating(true);
-    try {
-      const res = await fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method: 'create_document_folder', args: { folder_name: newFolderName.trim() } }) });
-      if (res.ok) { setNewFolderName(''); setShowModal(false); fetchFolders(); }
-    } catch (e) { console.error('Create folder failed:', e); }
-    setCreating(false);
-  };
-
-  const handleDeleteFolder = async (folder: FolderData) => {
-    if (!confirm(`Delete folder "${folder.file_name || folder.name}"?`)) return;
-    try {
-      await fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method: 'delete_document_folder', args: { name: folder.name } }) });
-      fetchFolders();
-    } catch (e) { console.error('Delete folder failed:', e); }
-  };
-
-  const handleEditFolder = async () => {
-    if (!editingFolder || !editName.trim()) return;
-    try {
-      await fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method: 'update_document_folder', args: { name: editingFolder.name, folder_name: editName.trim() } }) });
-      setEditingFolder(null); setEditName(''); fetchFolders();
-    } catch (e) { console.error('Edit folder failed:', e); }
-=======
     if (!newFolderName.trim()) {
       setError('Folder name is required.');
       return;
@@ -151,7 +120,6 @@ export default function FoldersPage() {
     } finally {
       setSubmitting(false);
     }
->>>>>>> 41b381c (improved ui)
   };
 
   const handleDeleteFolder = async () => {
@@ -179,7 +147,14 @@ export default function FoldersPage() {
       const relatedRows = data.filter((row) => row.name === folder.name || row.folder === folder.name);
       const csvRows = [
         ['Folder ID', 'Folder Name', 'Parent Folder', 'Created By', 'Created On', 'File Count'],
-        ...relatedRows.map((row) => [row.name, row.file_name || row.name, row.folder || 'Home', row.owner || '', row.creation || '', row.file_count || 0]),
+        ...relatedRows.map((row) => [
+          row.name,
+          row.file_name || row.name,
+          row.folder || 'Home',
+          row.owner || '',
+          row.creation || '',
+          row.file_count || 0,
+        ]),
       ];
       const csv = csvRows.map((line) => line.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -240,100 +215,6 @@ export default function FoldersPage() {
                   <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Created Date & Time</th>
                   <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider w-32">Action</th>
                 </tr>
-<<<<<<< HEAD
-              ) : (
-                filteredData.map((folder, index) => {
-                  const children = getChildren(folder.name);
-                  return (
-                  <>
-                    <tr key={folder.name} className="hover:bg-gray-50">
-                      <td className="px-3 py-3">
-                        {children.length > 0 && (
-                          <button
-                            onClick={() => toggleFolder(folder.name)}
-                            className="p-1 text-gray-500 hover:text-gray-700"
-                          >
-                            {expandedFolders.includes(folder.name) ? (
-                              <ChevronDown className="w-4 h-4" />
-                            ) : (
-                              <ChevronRight className="w-4 h-4" />
-                            )}
-                          </button>
-                        )}
-                      </td>
-                      <td className="px-3 py-3 text-sm text-gray-900 text-center">{index + 1}</td>
-                      <td className="px-3 py-3 text-sm text-blue-600 text-center font-medium">
-                        <span>{folder.file_name || folder.name}</span>
-                      </td>
-                      <td className="px-3 py-3 text-sm text-gray-900 text-center">{folder.file_count}</td>
-                      <td className="px-3 py-3 text-sm text-gray-900 text-center">{folder.owner}</td>
-                      <td className="px-3 py-3 text-sm text-gray-600 text-center">{formatDate(folder.creation)}</td>
-                      <td className="px-3 py-3 text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <button onClick={() => { setEditingFolder(folder); setEditName(folder.file_name || folder.name); }} className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded">
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => handleDeleteFolder(folder)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                          <button className="p-1.5 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded">
-                            <Download className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                    {/* Sub Folders */}
-                    {expandedFolders.includes(folder.name) && children.map((subFolder, subIndex) => (
-                      <tr key={subFolder.name} className="bg-gray-50 hover:bg-gray-100">
-                        <td className="px-3 py-3"></td>
-                        <td className="px-3 py-3 text-sm text-gray-900 text-center pl-8">
-                          {index + 1}.{subIndex + 1}
-                        </td>
-                        <td className="px-3 py-3 text-sm text-blue-600 text-center font-medium pl-8">
-                          <span>└ {subFolder.file_name || subFolder.name}</span>
-                        </td>
-                        <td className="px-3 py-3 text-sm text-gray-900 text-center">{subFolder.file_count}</td>
-                        <td className="px-3 py-3 text-sm text-gray-900 text-center">{subFolder.owner}</td>
-                        <td className="px-3 py-3 text-sm text-gray-600 text-center">{formatDate(subFolder.creation)}</td>
-                        <td className="px-3 py-3 text-center">
-                          <div className="flex items-center justify-center gap-2">
-                            <button onClick={() => { setEditingFolder(subFolder); setEditName(subFolder.file_name || subFolder.name); }} className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded">
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => handleDeleteFolder(subFolder)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                            <button className="p-1.5 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded">
-                              <Download className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        <div className="px-4 py-3 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <span>Show</span>
-            <select
-              value={itemsPerPage}
-              onChange={(e) => setItemsPerPage(Number(e.target.value))}
-              className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-            <span>Page {currentPage} of {totalPages}</span>
-=======
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {filteredData.length === 0 ? (
@@ -403,7 +284,6 @@ export default function FoldersPage() {
                 )}
               </tbody>
             </table>
->>>>>>> 41b381c (improved ui)
           </div>
 
           <div className="px-4 py-3 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -422,14 +302,6 @@ export default function FoldersPage() {
               <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-50 disabled:cursor-not-allowed">
                 <ChevronsLeft className="w-4 h-4" />
               </button>
-<<<<<<< HEAD
-              <button
-                onClick={handleCreateFolder}
-                disabled={creating}
-                className="px-4 py-2 bg-[#1e6b87] text-white rounded-lg hover:bg-[#185a73] transition-colors text-sm font-medium disabled:opacity-50"
-              >
-                {creating ? 'Creating...' : 'Create'}
-=======
               <button onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))} disabled={currentPage === 1} className="px-2 py-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-50 disabled:cursor-not-allowed text-sm">
                 Prev
               </button>
@@ -439,35 +311,12 @@ export default function FoldersPage() {
               </button>
               <button onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-50 disabled:cursor-not-allowed">
                 <ChevronsRight className="w-4 h-4" />
->>>>>>> 41b381c (improved ui)
               </button>
             </div>
           </div>
         </div>
       )}
 
-<<<<<<< HEAD
-      {/* Edit Folder Modal */}
-      {editingFolder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setEditingFolder(null)} />
-          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-800">Rename Folder</h3>
-              <button onClick={() => setEditingFolder(null)} className="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"><X className="w-5 h-5" /></button>
-            </div>
-            <div className="p-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Folder Name</label>
-              <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            </div>
-            <div className="flex items-center justify-end gap-3 px-4 py-3 border-t border-gray-200">
-              <button onClick={() => setEditingFolder(null)} className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors text-sm font-medium">Cancel</button>
-              <button onClick={handleEditFolder} className="px-4 py-2 bg-[#1e6b87] text-white rounded-lg hover:bg-[#185a73] transition-colors text-sm font-medium">Save</button>
-            </div>
-          </div>
-        </div>
-      )}
-=======
       <ModalFrame
         open={showModal}
         title="Create New Folder"
@@ -528,7 +377,6 @@ export default function FoldersPage() {
           </p>
         ) : null}
       </ModalFrame>
->>>>>>> 41b381c (improved ui)
     </div>
   );
 }

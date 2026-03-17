@@ -15,9 +15,6 @@ interface Party {
   active: number;
 }
 
-<<<<<<< HEAD
-type TabType = 'clients' | 'vendors';
-=======
 interface Organization {
   name: string;
   organization_name?: string;
@@ -26,24 +23,19 @@ interface Organization {
 
 type TabType = 'clients' | 'vendors' | 'organizations';
 type EditableRecord = Party | Organization;
->>>>>>> 41b381c (improved ui)
 
 export default function MasterDataPage() {
   const [activeTab, setActiveTab] = useState<TabType>('clients');
   const [clients, setClients] = useState<Party[]>([]);
   const [vendors, setVendors] = useState<Party[]>([]);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [pageError, setPageError] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-<<<<<<< HEAD
-  const [editingParty, setEditingParty] = useState<Party | null>(null);
-  const [editForm, setEditForm] = useState({ party_name: '', gstin: '', phone: '', email: '', city: '' });
-=======
   const [editState, setEditState] = useState<{ item: Party; name: string } | null>(null);
   const [deleteState, setDeleteState] = useState<Party | null>(null);
->>>>>>> 41b381c (improved ui)
   const [formData, setFormData] = useState({
     name: '',
     gstin: '',
@@ -65,26 +57,19 @@ export default function MasterDataPage() {
     setIsLoading(true);
     setPageError('');
     try {
-      const [clientsRes, vendorsRes] = await Promise.all([
+      const [clientsRes, vendorsRes, organizationsRes] = await Promise.all([
         fetch('/api/parties?type=CLIENT'),
-<<<<<<< HEAD
-        fetch('/api/parties?type=VENDOR')
-=======
         fetch('/api/parties?type=VENDOR'),
         fetch('/api/organizations'),
->>>>>>> 41b381c (improved ui)
       ]);
 
       const clientsData = await clientsRes.json();
       const vendorsData = await vendorsRes.json();
-<<<<<<< HEAD
-      
-=======
       const organizationsData = await organizationsRes.json();
 
->>>>>>> 41b381c (improved ui)
       if (clientsData.success) setClients(clientsData.data);
       if (vendorsData.success) setVendors(vendorsData.data);
+      if (organizationsData.success) setOrganizations(organizationsData.data);
     } catch (error) {
       console.error('Error fetching data:', error);
       setPageError(error instanceof Error ? error.message : 'Failed to fetch master data');
@@ -93,53 +78,6 @@ export default function MasterDataPage() {
     }
   };
 
-<<<<<<< HEAD
-  const handleCreateSubmit = async () => {
-    if (!formData.name.trim()) {
-      alert('Name is required');
-      return;
-    }
-    
-    setIsSubmitting(true);
-    try {
-      const payload = {
-        party_name: formData.name,
-        party_type: activeTab === 'clients' ? 'CLIENT' : 'VENDOR',
-        gstin: formData.gstin,
-        pan: formData.pan,
-        phone: formData.phone,
-        email: formData.email,
-        address: formData.address,
-        city: formData.city,
-        state: formData.state,
-        pincode: formData.pincode
-      };
-      
-      const response = await fetch('/api/parties', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      
-      const result = await response.json();
-      
-      if (result.success) {
-        setShowCreateModal(false);
-        resetForm();
-        fetchAllData();
-      } else {
-        alert(result.message || 'Failed to create');
-      }
-    } catch (error) {
-      console.error('Error creating:', error);
-      alert('Failed to create. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-=======
->>>>>>> 41b381c (improved ui)
   const resetForm = () => {
     setFormData({
       name: '',
@@ -155,41 +93,6 @@ export default function MasterDataPage() {
     });
   };
 
-<<<<<<< HEAD
-  const handleEditParty = async () => {
-    if (!editingParty) return;
-    setIsSubmitting(true);
-    try {
-      const res = await fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method: 'update_party', args: { name: editingParty.name, ...editForm } }) });
-      if (res.ok) { setEditingParty(null); fetchAllData(); }
-    } catch (e) { console.error('Edit failed:', e); }
-    setIsSubmitting(false);
-  };
-
-  const handleDeleteParty = async (party: Party) => {
-    if (!confirm(`Delete "${party.party_name}"? This cannot be undone.`)) return;
-    try {
-      await fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method: 'delete_party', args: { name: party.name } }) });
-      fetchAllData();
-    } catch (e) { console.error('Delete failed:', e); }
-  };
-
-  const getTabData = () => {
-    const term = searchTerm.toLowerCase();
-    switch (activeTab) {
-      case 'clients':
-        return clients.filter(c => 
-          c.party_name.toLowerCase().includes(term) || 
-          c.city?.toLowerCase().includes(term)
-        );
-      case 'vendors':
-        return vendors.filter(v => 
-          v.party_name.toLowerCase().includes(term) || 
-          v.city?.toLowerCase().includes(term)
-        );
-      default:
-        return [];
-=======
   const handleCreateSubmit = async () => {
     if (!formData.name.trim()) {
       setPageError('Name is required.');
@@ -236,7 +139,6 @@ export default function MasterDataPage() {
       setPageError(error instanceof Error ? error.message : 'Failed to create record');
     } finally {
       setIsSubmitting(false);
->>>>>>> 41b381c (improved ui)
     }
   };
 
@@ -256,27 +158,21 @@ export default function MasterDataPage() {
 
   const getTabTitle = () => {
     switch (activeTab) {
-<<<<<<< HEAD
-      case 'clients': return 'Client';
-      case 'vendors': return 'Vendor';
-=======
       case 'clients':
         return 'Client';
       case 'vendors':
         return 'Vendor';
       case 'organizations':
         return 'Organization';
->>>>>>> 41b381c (improved ui)
     }
   };
 
   const tabs = [
     { id: 'clients' as TabType, label: 'Clients', count: clients.length, icon: Users2 },
     { id: 'vendors' as TabType, label: 'Vendors', count: vendors.length, icon: Package },
+    { id: 'organizations' as TabType, label: 'Organizations', count: organizations.length, icon: Users2 },
   ];
 
-<<<<<<< HEAD
-=======
   const openEdit = (item: EditableRecord) => {
     if (activeTab === 'organizations') return;
     const party = item as Party;
@@ -328,7 +224,6 @@ export default function MasterDataPage() {
     }
   };
 
->>>>>>> 41b381c (improved ui)
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
@@ -405,52 +300,14 @@ export default function MasterDataPage() {
                 <tr>
                   <th>Name</th>
                   <th>Type</th>
-                  <th>GSTIN</th>
+                  <th>{activeTab === 'organizations' ? 'Code' : 'GSTIN'}</th>
                   <th>City</th>
-                  <th>Phone</th>
+                  <th>{activeTab === 'organizations' ? 'Status' : 'Phone'}</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-<<<<<<< HEAD
-                {getTabData().map((item: any) => (
-                  <tr key={item.name}>
-                    <td className="font-medium text-gray-900">{item.party_name}</td>
-                    <td>
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        item.party_type === 'CLIENT' 
-                          ? 'bg-green-100 text-green-700'
-                          : item.party_type === 'VENDOR'
-                          ? 'bg-purple-100 text-purple-700'
-                          : 'bg-blue-100 text-blue-700'
-                      }`}>
-                        {item.party_type}
-                      </span>
-                    </td>
-                    <td className="text-gray-600">{item.gstin || '-'}</td>
-                    <td className="text-gray-600">{item.city || '-'}</td>
-                    <td className="text-gray-600">{item.phone || '-'}</td>
-                    <td>
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        item.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
-                      }`}>
-                        {item.active ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => { setEditingParty(item); setEditForm({ party_name: item.party_name, gstin: item.gstin || '', phone: item.phone || '', email: item.email || '', city: item.city || '' }); }} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors">
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => handleDeleteParty(item)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-=======
                 {getTabData.map((item: EditableRecord) => {
                   const isOrganization = activeTab === 'organizations';
                   const label = (item as Party).party_name || (item as Organization).organization_name || item.name;
@@ -489,7 +346,6 @@ export default function MasterDataPage() {
                     </tr>
                   );
                 })}
->>>>>>> 41b381c (improved ui)
               </tbody>
             </table>
           )}
@@ -568,40 +424,6 @@ export default function MasterDataPage() {
             </div>
           )}
         </div>
-<<<<<<< HEAD
-      )}
-
-      {/* Edit Modal */}
-      {editingParty && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setEditingParty(null)} />
-          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
-              <h2 className="text-xl font-semibold text-gray-900">Edit Party</h2>
-              <button onClick={() => setEditingParty(null)} className="p-2 hover:bg-gray-200 rounded-lg"><X className="w-5 h-5 text-gray-500" /></button>
-            </div>
-            <div className="px-6 py-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Party Name</label>
-                <input type="text" value={editForm.party_name} onChange={(e) => setEditForm(p => ({ ...p, party_name: e.target.value }))} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">GSTIN</label><input type="text" value={editForm.gstin} onChange={(e) => setEditForm(p => ({ ...p, gstin: e.target.value }))} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">Phone</label><input type="text" value={editForm.phone} onChange={(e) => setEditForm(p => ({ ...p, phone: e.target.value }))} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" value={editForm.email} onChange={(e) => setEditForm(p => ({ ...p, email: e.target.value }))} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">City</label><input type="text" value={editForm.city} onChange={(e) => setEditForm(p => ({ ...p, city: e.target.value }))} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
-              </div>
-            </div>
-            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
-              <button onClick={() => setEditingParty(null)} className="px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-lg text-sm font-medium">Cancel</button>
-              <button onClick={handleEditParty} disabled={isSubmitting} className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">{isSubmitting ? 'Saving...' : 'Save Changes'}</button>
-            </div>
-          </div>
-        </div>
-      )}
-=======
       </ModalFrame>
 
       <ModalFrame
@@ -646,7 +468,6 @@ export default function MasterDataPage() {
           Delete <span className="font-semibold text-gray-900">{deleteState?.party_name || deleteState?.name}</span> from master data?
         </p>
       </ModalFrame>
->>>>>>> 41b381c (improved ui)
     </div>
   );
 }

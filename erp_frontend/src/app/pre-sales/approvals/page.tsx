@@ -1,13 +1,8 @@
 'use client';
-<<<<<<< HEAD
-import { useState, useEffect, useCallback } from 'react';
-import { Search, ChevronDown, ChevronUp, Eye, ChevronsLeft, ChevronsRight, Loader2, CheckCircle, XCircle } from 'lucide-react';
-=======
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Search, ChevronDown, ChevronUp, Eye, ChevronsLeft, ChevronsRight, Loader2 } from 'lucide-react';
 import ModalFrame from '@/components/ui/ModalFrame';
->>>>>>> 41b381c (improved ui)
 
 interface ApprovalData {
   id: string;
@@ -20,33 +15,10 @@ interface ApprovalData {
   type: string;
 }
 
-<<<<<<< HEAD
-function getApproveMethod(row: ApprovalData): string | null {
-  const af = row.approval_for?.toLowerCase() || '';
-  if (af.includes('boq')) return 'approve_boq';
-  if (af.includes('cost sheet')) return 'approve_cost_sheet';
-  if (af.includes('onboarding')) return 'approve_onboarding';
-  if (af.includes('invoice')) return 'approve_invoice';
-  if (af.includes('dispatch')) return 'approve_dispatch_challan';
-  if (af.includes('overtime')) return 'approve_overtime_entry';
-  if (af.includes('petty cash')) return 'approve_petty_cash_entry';
-  if (af.includes('travel')) return 'approve_travel_log';
-  if (af.includes('vendor')) return 'approve_vendor_comparison';
-  if (af.includes('rma')) return 'approve_rma';
-  if (af.includes('sla')) return 'approve_sla_penalty';
-  return null;
-}
-
-function getRejectMethod(row: ApprovalData): string | null {
-  const m = getApproveMethod(row);
-  return m ? m.replace('approve_', 'reject_') : null;
-}
-=======
 type ApprovalDialogState =
   | { mode: 'view'; row: ApprovalData }
   | { mode: 'reject'; row: ApprovalData; value: string }
   | null;
->>>>>>> 41b381c (improved ui)
 
 export default function ApprovalsPage() {
   const [showFilters, setShowFilters] = useState(false);
@@ -55,24 +27,8 @@ export default function ApprovalsPage() {
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-<<<<<<< HEAD
-  const [busyId, setBusyId] = useState<string | null>(null);
-
-  const handleAction = async (row: ApprovalData, action: 'approve' | 'reject') => {
-    const method = action === 'approve' ? getApproveMethod(row) : getRejectMethod(row);
-    if (!method) return alert('No matching workflow method for this approval type.');
-    if (!confirm(`${action === 'approve' ? 'Approve' : 'Reject'} "${row.approval_for}"?`)) return;
-    setBusyId(row.id);
-    try {
-      await fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method, args: { name: row.id } }) });
-      fetchData();
-    } catch (e) { console.error(`${action} failed:`, e); }
-    setBusyId(null);
-  };
-=======
   const [dialog, setDialog] = useState<ApprovalDialogState>(null);
   const [processingId, setProcessingId] = useState('');
->>>>>>> 41b381c (improved ui)
 
   const fetchData = useCallback(async () => {
     try {
@@ -97,8 +53,6 @@ export default function ApprovalsPage() {
     void fetchData();
   }, [fetchData]);
 
-<<<<<<< HEAD
-=======
   const getApprovalKind = (row: ApprovalData) => {
     if (row.approval_for.toLowerCase().includes('vendor comparison')) return 'vendor_comparison';
     return '';
@@ -164,7 +118,6 @@ export default function ApprovalsPage() {
     }
   };
 
->>>>>>> 41b381c (improved ui)
   return (
     <div className="p-3 sm:p-4 md:p-6 bg-gray-50 min-h-screen">
       <div className="mb-4 sm:mb-6">
@@ -205,62 +158,6 @@ export default function ApprovalsPage() {
           <Loader2 className="w-8 h-8 animate-spin text-[#1e6b87]" />
         </div>
       ) : (
-<<<<<<< HEAD
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px]">
-            <thead>
-              <tr className="bg-[#1e6b87] text-white">
-                <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider w-12">#</th>
-                <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Tender ID</th>
-                <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Type</th>
-                <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Approval For</th>
-                <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Approval From</th>
-                <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Requester</th>
-                <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Request Date</th>
-                <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Status</th>
-                <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider w-36">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {data.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="px-3 py-8 text-center text-gray-500">
-                    No approvals found.
-                  </td>
-                </tr>
-              ) : (
-                data.map((row, index) => (
-                  <tr key={row.id} className="hover:bg-gray-50">
-                    <td className="px-3 py-3 text-sm text-gray-900 text-center">{index + 1}</td>
-                    <td className="px-3 py-3 text-sm text-blue-600 text-center font-medium">
-                      <span>{row.tender_id}</span>
-                    </td>
-                    <td className="px-3 py-3 text-sm text-gray-900 text-center">{row.type}</td>
-                    <td className="px-3 py-3 text-sm text-gray-900 text-center">{row.approval_for}</td>
-                    <td className="px-3 py-3 text-sm text-gray-900 text-center">{row.approval_from}</td>
-                    <td className="px-3 py-3 text-sm text-gray-900 text-center">{row.requester}</td>
-                    <td className="px-3 py-3 text-sm text-gray-600 text-center">{formatDate(row.request_date)}</td>
-                    <td className={`px-3 py-3 text-sm text-center font-medium ${getStatusStyle(row.status)}`}>
-                      {row.status}
-                    </td>
-                    <td className="px-3 py-3 text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        {row.status === 'Pending' && (
-                          <>
-                            <button onClick={() => handleAction(row, 'approve')} disabled={busyId === row.id} className="p-1.5 text-green-600 hover:bg-green-50 rounded disabled:opacity-50" title="Approve">
-                              <CheckCircle className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => handleAction(row, 'reject')} disabled={busyId === row.id} className="p-1.5 text-red-600 hover:bg-red-50 rounded disabled:opacity-50" title="Reject">
-                              <XCircle className="w-4 h-4" />
-                            </button>
-                          </>
-                        )}
-                        <button className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded">
-                          <Eye className="w-4 h-4" />
-                        </button>
-                      </div>
-=======
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px]">
@@ -283,7 +180,6 @@ export default function ApprovalsPage() {
                   <tr>
                     <td colSpan={10} className="px-3 py-8 text-center text-gray-500">
                       No approvals found.
->>>>>>> 41b381c (improved ui)
                     </td>
                   </tr>
                 ) : (

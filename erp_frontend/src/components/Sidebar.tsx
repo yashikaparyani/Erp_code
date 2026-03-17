@@ -32,9 +32,6 @@ import {
   GitBranch,
   FolderTree,
   Cpu,
-<<<<<<< HEAD
-  ClipboardList
-=======
   ClipboardList,
   Briefcase,
   CalendarCheck2,
@@ -43,7 +40,6 @@ import {
   Flag,
   ShieldCheck,
   Layers3,
->>>>>>> 41b381c (improved ui)
 } from 'lucide-react';
 import { useRole } from '../context/RoleContext';
 
@@ -175,36 +171,30 @@ const navLinks: NavLink[] = [
     children: [
       { name: 'Survey', href: '/survey', icon: MapPin },
       { name: 'BOQ', href: '/engineering/boq', icon: FileText },
+      { name: 'Drawings', href: '/engineering/drawings', icon: FileText },
+      { name: 'Change Requests', href: '/engineering/change-requests', icon: RefreshCcw },
       { name: 'Technical Deviations', href: '/engineering/deviations', icon: AlertTriangle },
-<<<<<<< HEAD
-      { name: 'Drawings', href: '/drawings', icon: FileText },
-      { name: 'Change Requests', href: '/change-requests', icon: GitBranch },
-    ]
-=======
     ],
->>>>>>> 41b381c (improved ui)
   },
   {
     name: 'Procurement',
     href: '/procurement',
     icon: ShoppingCart,
     children: [
+      { name: 'Vendor Comparisons', href: '/procurement', icon: ClipboardList },
+      { name: 'Indents', href: '/indents', icon: FileText },
       { name: 'Purchase Orders', href: '/purchase-orders', icon: ShoppingCart },
-<<<<<<< HEAD
-      { name: 'GRNs', href: '/grns', icon: Package },
-      { name: 'Indents', href: '/indents', icon: ClipboardList },
-    ]
-=======
       { name: 'Petty Cash', href: '/petty-cash', icon: CreditCard },
     ],
->>>>>>> 41b381c (improved ui)
   },
   {
     name: 'Inventory',
     href: '/inventory',
     icon: Package,
     children: [
-      { name: 'Stock Position', href: '/stock-position', icon: Package },
+      { name: 'Overview', href: '/inventory', icon: Package },
+      { name: 'GRNs', href: '/grns', icon: Package },
+      { name: 'Stock Position', href: '/stock-position', icon: Database },
       { name: 'Stock Aging', href: '/stock-aging', icon: BarChart3 },
     ],
   },
@@ -215,9 +205,6 @@ const navLinks: NavLink[] = [
     children: [
       { name: 'Dependencies', href: '/execution/dependencies', icon: GitBranch },
       { name: 'Project Structure', href: '/execution/project-structure', icon: FolderTree },
-      { name: 'Milestones', href: '/milestones', icon: ListTodo },
-      { name: 'Manpower Logs', href: '/manpower', icon: Users2 },
-      { name: 'Comm Logs', href: '/comm-logs', icon: FileText },
       {
         name: 'Commissioning',
         href: '/execution/commissioning',
@@ -227,14 +214,10 @@ const navLinks: NavLink[] = [
           { name: 'Test Reports & Signoffs', href: '/execution/commissioning/test-reports' },
         ],
       },
-<<<<<<< HEAD
-    ]
-=======
       { name: 'Milestones', href: '/milestones', icon: Flag },
       { name: 'Manpower Logs', href: '/manpower', icon: Users2 },
       { name: 'Communication Logs', href: '/execution/comm-logs', icon: ClipboardList },
     ],
->>>>>>> 41b381c (improved ui)
   },
   {
     name: 'Finance',
@@ -243,41 +226,15 @@ const navLinks: NavLink[] = [
     children: [
       { name: 'Costing', href: '/finance/costing', icon: PieChart },
       { name: 'Billing', href: '/finance/billing', icon: CreditCard },
-<<<<<<< HEAD
-      { name: 'Petty Cash', href: '/petty-cash', icon: DollarSign },
-      { name: 'Payment Receipts', href: '/payment-receipts', icon: CreditCard },
-      { name: 'Retention Money', href: '/retention', icon: DollarSign },
-      { name: 'Penalties', href: '/penalties', icon: AlertTriangle },
-    ]
-=======
       { name: 'Payment Receipts', href: '/finance/payment-receipts', icon: CreditCard },
       { name: 'Retention Ledger', href: '/finance/retention', icon: ShieldCheck },
       { name: 'Penalty Deductions', href: '/finance/penalties', icon: AlertTriangle },
     ],
->>>>>>> 41b381c (improved ui)
   },
   {
     name: 'HR',
     href: '/hr',
     icon: Users2,
-<<<<<<< HEAD
-  },
-  {
-    name: 'RMA',
-    href: '/rma',
-    icon: RefreshCcw,
-  },
-  {
-    name: 'O&M & Helpdesk',
-    href: '/om-helpdesk',
-    icon: HeadphonesIcon,
-    children: [
-      { name: 'Technician Visits', href: '/technician-visits', icon: Wrench },
-      { name: 'SLA Profiles', href: '/sla-profiles', icon: ClipboardList },
-      { name: 'Device Uptime', href: '/device-uptime', icon: Cpu },
-    ]
-  },
-=======
     children: [
       { name: 'Overview', href: '/hr', icon: Users2 },
       { name: 'Onboarding', href: '/hr/onboarding', icon: Briefcase },
@@ -290,7 +247,6 @@ const navLinks: NavLink[] = [
   { name: 'RMA', href: '/rma', icon: RefreshCcw },
   { name: 'O&M & Helpdesk', href: '/om-helpdesk', icon: HeadphonesIcon },
   { name: 'SLA Profiles', href: '/sla', icon: Clock },
->>>>>>> 41b381c (improved ui)
   { name: 'Reports', href: '/reports', icon: BarChart3 },
   { name: 'Document Management', href: '/documents', icon: FolderOpen },
   { name: 'Master Data', href: '/master-data', icon: Database },
