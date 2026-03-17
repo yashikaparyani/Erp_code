@@ -134,6 +134,7 @@ def test_project_workflow_apis_exist():
 	functions = {node.name for node in tree.body if isinstance(node, ast.FunctionDef)}
 
 	assert {
+		"get_engineering_head_dashboard",
 		"get_project_workflow_state",
 		"submit_project_stage_for_approval",
 		"approve_project_stage",

@@ -21,23 +21,23 @@ type StatTone = 'blue' | 'green' | 'orange' | 'purple' | 'red' | 'amber' | 'cyan
 type ValueTone = 'default' | 'positive' | 'negative' | 'warning' | 'info';
 
 const statToneClasses: Record<StatTone, string> = {
-	blue: 'bg-blue-50 text-blue-700',
-	green: 'bg-green-50 text-green-700',
-	orange: 'bg-orange-50 text-orange-700',
-	purple: 'bg-purple-50 text-purple-700',
-	red: 'bg-red-50 text-red-700',
-	amber: 'bg-amber-50 text-amber-700',
-	cyan: 'bg-cyan-50 text-cyan-700',
-	slate: 'bg-slate-100 text-slate-700',
-	teal: 'bg-teal-50 text-teal-700',
+	blue: 'bg-[#eef5ff] text-[#235d93]',
+	green: 'bg-[#edf8f1] text-[#2d6b4f]',
+	orange: 'bg-[var(--accent-soft)] text-[var(--accent-strong)]',
+	purple: 'bg-[#f4f1fb] text-[#6a549a]',
+	red: 'bg-[#fff0ef] text-[#b74231]',
+	amber: 'bg-[#fff7e8] text-[#a66311]',
+	cyan: 'bg-[#edf8fb] text-[#2d7080]',
+	slate: 'bg-[#f2f3f5] text-[#5c6472]',
+	teal: 'bg-[#eef7f5] text-[#2f6d61]',
 };
 
 const metricToneClasses: Record<ValueTone, string> = {
-	default: 'text-gray-900',
-	positive: 'text-green-700',
-	negative: 'text-red-700',
-	warning: 'text-amber-700',
-	info: 'text-blue-700',
+	default: 'text-[var(--text-main)]',
+	positive: 'text-[#2d6b4f]',
+	negative: 'text-[#b74231]',
+	warning: 'text-[#a66311]',
+	info: 'text-[#235d93]',
 };
 
 function buildTimestamp() {
@@ -103,9 +103,9 @@ export function DashboardShell({
 	if (loading) {
 		return (
 			<div className="card">
-				<div className="card-body py-16 flex items-center justify-center">
-					<div className="flex items-center gap-3 text-gray-600">
-						<Loader2 className="w-5 h-5 animate-spin" />
+				<div className="card-body flex items-center justify-center py-16">
+					<div className="flex items-center gap-3 text-[var(--text-muted)]">
+						<Loader2 className="h-5 w-5 animate-spin" />
 						<span className="text-sm">Loading live dashboard data...</span>
 					</div>
 				</div>
@@ -117,32 +117,31 @@ export function DashboardShell({
 		return (
 			<div className="card">
 				<div className="card-body py-12 text-center">
-					<div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600">
+					<div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--error-bg)] text-[var(--error-border)]">
 						<AlertCircle className="h-6 w-6" />
 					</div>
-					<h1 className="text-xl font-semibold text-gray-900">{title}</h1>
-					<p className="mt-2 text-sm text-red-600">{error}</p>
-					{onRetry ? (
-						<button
-							onClick={onRetry}
-							className="mt-4 rounded-lg bg-[#1e6b87] px-4 py-2 text-sm font-medium text-white hover:bg-[#185a73]"
-						>
-							Retry
-						</button>
-					) : null}
+					<h1 className="text-xl font-semibold text-[var(--text-main)]">{title}</h1>
+					<p className="mt-2 text-sm text-[var(--error-text)]">{error}</p>
+					{onRetry ? <button onClick={onRetry} className="btn btn-primary mt-4">Retry</button> : null}
 				</div>
 			</div>
 		);
 	}
 
 	return (
-		<div>
-			<div className="mb-6">
-				<h1 className="text-2xl font-bold text-gray-900">{title}</h1>
-				<p className="mt-1 text-sm text-gray-500">
-					{subtitle}
-					{lastUpdated ? ` • Last updated: ${lastUpdated}` : ''}
-				</p>
+		<div className="space-y-6">
+			<div className="workspace-hero">
+				<div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+					<div className="max-w-3xl">
+						<div className="workspace-kicker">Operational Workspace</div>
+						<h1 className="mt-2 text-[clamp(1.7rem,2.4vw,2.5rem)] font-semibold tracking-[-0.03em] text-[var(--text-main)]">{title}</h1>
+						<p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">{subtitle}</p>
+					</div>
+					<div className="flex flex-wrap gap-2">
+						<div className="workspace-chip">Live role-scoped data</div>
+						{lastUpdated ? <div className="workspace-chip">Updated {lastUpdated}</div> : null}
+					</div>
+				</div>
 			</div>
 			{children}
 		</div>
@@ -169,11 +168,11 @@ export function StatCard({
 					<div className="stat-label">{title}</div>
 					<div className="stat-value mt-1">{value}</div>
 				</div>
-				<div className={`flex h-10 w-10 items-center justify-center rounded-lg ${statToneClasses[tone]}`}>
+				<div className={`flex h-11 w-11 items-center justify-center rounded-2xl border border-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] ${statToneClasses[tone]}`}>
 					<Icon className="h-5 w-5" />
 				</div>
 			</div>
-			<div className="mt-2 text-xs text-gray-500">{hint}</div>
+			<div className="mt-3 text-xs leading-5 text-[var(--text-muted)]">{hint}</div>
 		</div>
 	);
 }
@@ -191,8 +190,9 @@ export function SectionCard({
 		<div className="card">
 			<div className="card-header">
 				<div>
-					<h3 className="font-semibold text-gray-900">{title}</h3>
-					{subtitle ? <p className="mt-1 text-xs text-gray-500">{subtitle}</p> : null}
+					<div className="workspace-kicker mb-1">Section</div>
+					<h3 className="font-semibold text-[var(--text-main)]">{title}</h3>
+					{subtitle ? <p className="mt-1 text-xs text-[var(--text-muted)]">{subtitle}</p> : null}
 				</div>
 			</div>
 			<div className="card-body">{children}</div>
@@ -214,8 +214,8 @@ export function MetricList({
 	return (
 		<div className="space-y-3">
 			{items.map((item) => (
-				<div key={item.label} className="flex items-center justify-between gap-4 rounded-lg bg-gray-50 px-3 py-2">
-					<span className="text-sm text-gray-600">{item.label}</span>
+				<div key={item.label} className="flex items-center justify-between gap-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-4 py-3">
+					<span className="text-sm text-[var(--text-muted)]">{item.label}</span>
 					<span className={`text-sm font-semibold ${metricToneClasses[item.tone || 'default']}`}>{item.value}</span>
 				</div>
 			))}
@@ -224,7 +224,7 @@ export function MetricList({
 }
 
 export function EmptyState({ message }: { message: string }) {
-	return <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">{message}</div>;
+	return <div className="rounded-[22px] border border-dashed border-[var(--border-strong)] bg-[var(--surface-raised)] px-4 py-8 text-center text-sm text-[var(--text-muted)]">{message}</div>;
 }
 
 export function formatCurrency(value?: number) {

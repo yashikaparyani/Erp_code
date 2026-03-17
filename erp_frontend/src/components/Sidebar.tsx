@@ -284,7 +284,7 @@ const navLinks: NavLink[] = [
 ];
 
 const getSubMenuClasses = (level: number) => ({
-  wrapper: level === 0 ? 'mt-2 ml-3 pl-3 border-l border-orange-100 space-y-1.5' : 'mt-2 ml-4 pl-3 border-l border-orange-100/80 space-y-1.5',
+  wrapper: level === 0 ? 'mt-2 ml-3 pl-3 border-l border-[var(--border-subtle)] space-y-1.5' : 'mt-2 ml-4 pl-3 border-l border-[var(--border-subtle)] space-y-1.5',
   item: level === 0 ? 'rounded-2xl px-3 py-2.5' : 'rounded-xl px-3 py-2',
   text: level === 0 ? 'text-[13px]' : 'text-[12.5px]',
 });
@@ -317,10 +317,10 @@ function SubMenu({ items, level = 0, onNavigate }: { items: SubMenuItem[]; level
             <div
               className={`group flex items-center justify-between border transition-all duration-200 cursor-pointer ${menuClasses.item} ${
                 isCurrentRoute && !hasChildren
-                  ? 'border-orange-400 bg-gradient-to-r from-orange-500 to-[var(--brand-orange)] text-white shadow-lg shadow-orange-100'
+                  ? 'border-[rgba(233,129,42,0.55)] bg-[var(--accent-soft)] text-[var(--accent-strong)] shadow-[0_10px_24px_rgba(233,129,42,0.10)]'
                   : hasChildren && (isCurrentRoute || isDescendantActive)
-                    ? 'border-orange-200 bg-orange-50 text-orange-900'
-                    : 'border-transparent bg-white/70 text-gray-600 hover:border-orange-100 hover:bg-orange-50 hover:text-gray-900'
+                    ? 'border-[var(--border-subtle)] bg-[var(--surface-hover)] text-[var(--text-main)]'
+                    : 'border-transparent bg-white/70 text-[var(--text-muted)] hover:border-[var(--border-subtle)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-main)]'
               }`}
               onClick={() => hasChildren ? toggleExpand(item.href, isExpanded) : null}
             >
@@ -337,8 +337,8 @@ function SubMenu({ items, level = 0, onNavigate }: { items: SubMenuItem[]; level
               )}
               {hasChildren ? (
                 isExpanded
-                  ? <ChevronDown className={`w-4 h-4 flex-shrink-0 ${isCurrentRoute || isDescendantActive ? 'text-orange-600' : 'text-gray-400 group-hover:text-orange-500'}`} />
-                  : <ChevronRight className={`w-4 h-4 flex-shrink-0 ${isCurrentRoute || isDescendantActive ? 'text-orange-600' : 'text-gray-400 group-hover:text-orange-500'}`} />
+                  ? <ChevronDown className={`w-4 h-4 flex-shrink-0 ${isCurrentRoute || isDescendantActive ? 'text-[var(--accent-strong)]' : 'text-[var(--text-soft)] group-hover:text-[var(--accent)]'}`} />
+                  : <ChevronRight className={`w-4 h-4 flex-shrink-0 ${isCurrentRoute || isDescendantActive ? 'text-[var(--accent-strong)]' : 'text-[var(--text-soft)] group-hover:text-[var(--accent)]'}`} />
               ) : null}
             </div>
             {hasChildren && isExpanded ? (
@@ -398,7 +398,7 @@ export default function Sidebar() {
 
       <aside
         className={`
-          w-80 min-w-[320px] flex-shrink-0 h-screen flex flex-col overflow-hidden
+          w-80 min-w-[320px] flex-shrink-0 min-h-screen flex flex-col overflow-visible
           fixed lg:static inset-y-0 left-0 z-50 border-r border-[var(--border-subtle)]
           transform transition-transform duration-300 ease-in-out
           ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
@@ -407,14 +407,14 @@ export default function Sidebar() {
         <div className="p-4 lg:p-5 border-b border-[var(--border-subtle)] bg-transparent">
           <div className="shell-panel px-4 py-4">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-orange-50 flex items-center justify-center shrink-0 border border-orange-100">
+              <div className="w-12 h-12 rounded-2xl bg-[var(--accent-tint)] flex items-center justify-center shrink-0 border border-[var(--border-subtle)]">
                 <img src="/logo.png" alt="Technosys Logo" className="object-contain w-full h-full drop-shadow-sm" />
               </div>
               <div className="min-w-0">
-                <h1 className="text-sm lg:text-base font-bold text-gray-900 leading-tight truncate">
+                <h1 className="text-sm lg:text-base font-bold text-[var(--text-main)] leading-tight truncate">
                   Technosys ERP
                 </h1>
-                <div className="text-[11px] text-gray-500 truncate">
+                <div className="text-[11px] text-[var(--text-muted)] truncate">
                   tailored for your needs and as per experiences
                 </div>
               </div>
@@ -422,7 +422,7 @@ export default function Sidebar() {
           </div>
         </div>
 
-        <nav className="flex-1 min-h-0 overflow-y-auto px-4 pb-4">
+        <nav className="flex-1 px-4 pb-4">
           <div className="shell-section-title mb-3 px-2 pt-4">Navigation</div>
           <ul className="space-y-2">
             {accessibleLinks.map((link) => {
@@ -438,10 +438,10 @@ export default function Sidebar() {
                   <div
                     className={`group flex items-center justify-between rounded-3xl border px-3.5 py-3 transition-all duration-200 ${
                       isActive
-                        ? 'border-orange-400 bg-gradient-to-r from-orange-500 to-[var(--brand-orange)] text-white shadow-lg shadow-orange-100'
+                        ? 'border-[rgba(233,129,42,0.55)] bg-[var(--accent-soft)] text-[var(--accent-strong)] shadow-[0_12px_26px_rgba(233,129,42,0.12)]'
                         : isInSection
-                          ? 'border-orange-200 bg-orange-50 text-orange-900'
-                          : 'border-transparent bg-white/60 text-gray-700 hover:border-orange-100 hover:bg-white hover:text-gray-900'
+                          ? 'border-[var(--border-subtle)] bg-[var(--surface-hover)] text-[var(--text-main)]'
+                          : 'border-transparent bg-white/60 text-[var(--text-main)] hover:border-[var(--border-subtle)] hover:bg-white/85 hover:text-[var(--text-main)]'
                     }`}
                   >
                     {canAccessLink ? (
@@ -457,17 +457,17 @@ export default function Sidebar() {
                       >
                         <div className={`flex h-10 w-10 items-center justify-center rounded-2xl border ${
                           isActive
-                            ? 'bg-white/20 border-white/20 text-white'
+                            ? 'bg-white/70 border-white/80 text-[var(--accent-strong)]'
                             : isInSection
-                              ? 'bg-white border-orange-200 text-orange-700'
-                              : 'bg-orange-50 border-orange-100 text-orange-600'
+                              ? 'bg-white border-[var(--border-subtle)] text-[var(--accent-strong)]'
+                              : 'bg-[var(--accent-tint)] border-[var(--border-subtle)] text-[var(--accent)]'
                         }`}>
                           <Icon className="w-5 h-5" />
                         </div>
                         <div className="min-w-0">
                           <div className="truncate text-sm font-semibold">{link.name}</div>
                           {hasChildren ? (
-                            <div className={`text-[11px] ${isActive ? 'text-orange-100' : isInSection ? 'text-orange-600' : 'text-gray-400'}`}>
+                            <div className={`text-[11px] ${isActive ? 'text-[var(--accent-strong)]/70' : isInSection ? 'text-[var(--accent-strong)]' : 'text-[var(--text-soft)]'}`}>
                               {link.children?.length} sections
                             </div>
                           ) : null}
@@ -481,14 +481,14 @@ export default function Sidebar() {
                       >
                         <div className={`flex h-10 w-10 items-center justify-center rounded-2xl border ${
                           isInSection
-                            ? 'bg-white border-orange-200 text-orange-700'
-                            : 'bg-orange-50 border-orange-100 text-orange-600'
+                            ? 'bg-white border-[var(--border-subtle)] text-[var(--accent-strong)]'
+                            : 'bg-[var(--accent-tint)] border-[var(--border-subtle)] text-[var(--accent)]'
                         }`}>
                           <Icon className="w-5 h-5" />
                         </div>
                         <div className="min-w-0">
                           <div className="truncate text-sm font-semibold">{link.name}</div>
-                          {hasChildren ? <div className="text-[11px] text-gray-400">{link.children?.length} sections</div> : null}
+                          {hasChildren ? <div className="text-[11px] text-[var(--text-soft)]">{link.children?.length} sections</div> : null}
                         </div>
                       </button>
                     )}
@@ -499,7 +499,7 @@ export default function Sidebar() {
                           e.stopPropagation();
                           toggleMenu(link.name, isExpanded);
                         }}
-                        className={`p-2 rounded-xl ${isActive ? 'hover:bg-white/20' : 'hover:bg-orange-100/80'}`}
+                        className={`p-2 rounded-xl ${isActive ? 'hover:bg-white/65' : 'hover:bg-[var(--surface-hover)]'}`}
                       >
                         {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                       </button>
@@ -512,12 +512,13 @@ export default function Sidebar() {
               );
             })}
           </ul>
+
         </nav>
 
         <div className="shrink-0 p-4 border-t border-[var(--border-subtle)] bg-transparent">
           <div className="shell-panel px-4 py-3 text-center">
-            <div className="text-xs font-semibold text-gray-700">Technosys ERP</div>
-            <div className="mt-1 text-[11px] text-gray-400">2026</div>
+            <div className="text-xs font-semibold text-[var(--text-main)]">Technosys ERP</div>
+            <div className="mt-1 text-[11px] text-[var(--text-soft)]">2026</div>
           </div>
         </div>
       </aside>

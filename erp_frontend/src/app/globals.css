@@ -3,46 +3,47 @@
 @tailwind utilities;
 
 .windows-erp-theme {
-  --accent: #f58220;
-  --accent-strong: #dc6803;
-  --accent-soft: #ffedd5;
-  --accent-tint: #fff6ed;
-  --brand-orange: #f58220;
+  --accent: #e9812a;
+  --accent-strong: #c76614;
+  --accent-soft: #fff0df;
+  --accent-tint: #fff8f1;
+  --brand-orange: #e9812a;
 
-  --app-bg: #f7f4ef;
-  --app-bg-alt: #efe7dc;
-  --surface: #ffffff;
-  --surface-alt: #fffaf5;
-  --surface-hover: #fff3e6;
+  --app-bg: #f6f3ee;
+  --app-bg-alt: #eee8de;
+  --surface: rgba(255, 255, 255, 0.9);
+  --surface-alt: #fffaf4;
+  --surface-hover: #fff5ea;
   --surface-strong: #fffdf9;
+  --surface-raised: rgba(255, 251, 246, 0.88);
 
-  --border-subtle: #eadfce;
-  --border-strong: #d7c2a4;
+  --border-subtle: #e5d7c4;
+  --border-strong: #cfb89b;
 
-  --shadow-soft: 0 18px 40px rgba(168, 96, 28, 0.12);
-  --shadow-subtle: 0 2px 8px rgba(94, 68, 40, 0.07);
-  --shadow-focus: 0 0 0 3px rgba(245, 130, 32, 0.16);
+  --shadow-soft: 0 18px 40px rgba(110, 79, 42, 0.08);
+  --shadow-subtle: 0 6px 18px rgba(90, 73, 50, 0.06);
+  --shadow-focus: 0 0 0 3px rgba(233, 129, 42, 0.14);
 
-  --text-main: #1f2937;
-  --text-muted: #6b7280;
-  --text-soft: #9ca3af;
+  --text-main: #1f2933;
+  --text-muted: #667085;
+  --text-soft: #98a2b3;
   --text-inverse: #ffffff;
 
-  --success-bg: #dff6dd;
-  --success-border: #107c10;
-  --success-text: #0f540f;
+  --success-bg: #e8f5eb;
+  --success-border: #45985a;
+  --success-text: #255b34;
 
-  --warning-bg: #fff4ce;
-  --warning-border: #d83b01;
-  --warning-text: #8a2400;
+  --warning-bg: #fff5e6;
+  --warning-border: #c27a1c;
+  --warning-text: #8c5612;
 
-  --error-bg: #fde7e9;
-  --error-border: #d13438;
-  --error-text: #a4262c;
+  --error-bg: #fff0ef;
+  --error-border: #c85d4d;
+  --error-text: #9f3528;
 
-  --info-bg: #fff1de;
-  --info-border: #f58220;
-  --info-text: #9a4d00;
+  --info-bg: #eef5ff;
+  --info-border: #4877b4;
+  --info-text: #295486;
 }
 
 *,
@@ -58,8 +59,9 @@ body.windows-erp-theme {
 
 body.windows-erp-theme {
   background:
-    radial-gradient(circle at top left, rgba(245, 130, 32, 0.08), transparent 26%),
-    linear-gradient(180deg, #fffdf9 0%, var(--app-bg) 42%, #f4eee6 100%);
+    radial-gradient(circle at top left, rgba(233, 129, 42, 0.06), transparent 24%),
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.72), transparent 22%),
+    linear-gradient(180deg, #fbfaf7 0%, var(--app-bg) 42%, #f1ece4 100%);
   color: var(--text-main);
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -75,14 +77,14 @@ body.windows-erp-theme {
 }
 
 .windows-erp-theme ::-webkit-scrollbar-thumb {
-  background: #d7c2a4;
+  background: #cfb89b;
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: content-box;
 }
 
 .windows-erp-theme ::-webkit-scrollbar-thumb:hover {
-  background-color: #c79b62;
+  background-color: #b89267;
 }
 
 .windows-erp-theme > div > .flex.min-h-screen {
@@ -90,23 +92,23 @@ body.windows-erp-theme {
 }
 
 .windows-erp-theme aside {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 249, 242, 0.96) 100%);
-  border-right: 1px solid rgba(215, 194, 164, 0.8);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(251, 247, 241, 0.94) 100%);
+  border-right: 1px solid rgba(207, 184, 155, 0.72);
   color: var(--text-main);
-  box-shadow: 12px 0 32px rgba(156, 109, 47, 0.06);
+  box-shadow: 14px 0 34px rgba(112, 83, 46, 0.05);
 }
 
 .windows-erp-theme header {
-  background: rgba(255, 255, 255, 0.82);
-  backdrop-filter: blur(14px);
-  border-bottom: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(229, 215, 196, 0.9);
   box-shadow: var(--shadow-subtle);
 }
 
 .windows-erp-theme .card {
-  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-strong) 100%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(255, 252, 247, 0.98) 100%);
   border: 1px solid var(--border-subtle);
-  border-radius: 18px;
+  border-radius: 24px;
   box-shadow: var(--shadow-soft);
   color: var(--text-main);
 }
@@ -115,10 +117,10 @@ body.windows-erp-theme {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--border-subtle);
-  background: linear-gradient(180deg, #fff7ef 0%, #fffdf9 100%);
-  border-radius: 18px 18px 0 0;
+  padding: 1rem 1.15rem;
+  border-bottom: 1px solid rgba(229, 215, 196, 0.78);
+  background: linear-gradient(180deg, rgba(255, 247, 237, 0.92) 0%, rgba(255, 253, 249, 0.9) 100%);
+  border-radius: 24px 24px 0 0;
   color: var(--text-main);
 }
 
@@ -127,27 +129,30 @@ body.windows-erp-theme {
 }
 
 .windows-erp-theme .stat-card {
-  background: linear-gradient(180deg, #ffffff 0%, #fffaf4 100%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(255, 249, 242, 0.96) 100%);
   border: 1px solid var(--border-subtle);
-  border-radius: 20px;
+  border-radius: 24px;
   padding: 1.25rem;
   box-shadow: var(--shadow-subtle);
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease;
 }
 
 .windows-erp-theme .stat-card:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-soft);
+  border-color: rgba(199, 144, 86, 0.7);
 }
 
 .windows-erp-theme .stat-value {
-  font-size: 1.5rem;
+  font-size: 1.55rem;
   font-weight: 600;
+  line-height: 1.2;
   color: var(--text-main);
 }
 
 .windows-erp-theme .stat-label {
-  font-size: 0.875rem;
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
   color: var(--text-muted);
 }
 
@@ -156,8 +161,8 @@ body.windows-erp-theme {
   margin-top: 0.25rem;
 }
 
-.windows-erp-theme .stat-change.positive { color: #107c10; }
-.windows-erp-theme .stat-change.negative { color: #d13438; }
+.windows-erp-theme .stat-change.positive { color: #2d6b4f; }
+.windows-erp-theme .stat-change.negative { color: #b74231; }
 
 .windows-erp-theme .data-table {
   width: 100%;
@@ -169,21 +174,21 @@ body.windows-erp-theme {
 
 .windows-erp-theme .data-table th {
   text-align: left;
-  padding: 0.7rem 0.9rem;
+  padding: 0.8rem 0.95rem;
   font-weight: 700;
   color: var(--text-main);
-  background-color: #fff7ef;
+  background-color: rgba(255, 246, 235, 0.94);
   border-bottom: 1px solid var(--border-subtle);
 }
 
 .windows-erp-theme .data-table td {
-  padding: 0.7rem 0.9rem;
+  padding: 0.85rem 0.95rem;
   border-top: 1px solid var(--border-subtle);
-  background-color: var(--surface);
+  background-color: rgba(255, 255, 255, 0.82);
 }
 
 .windows-erp-theme .data-table tbody tr:nth-child(2n) td {
-  background-color: #fffdf9;
+  background-color: rgba(255, 252, 248, 0.88);
 }
 
 .windows-erp-theme .data-table tbody tr:hover td {
@@ -195,7 +200,7 @@ body.windows-erp-theme {
   align-items: center;
   font-size: 0.75rem;
   font-weight: 600;
-  padding: 0.18rem 0.55rem;
+  padding: 0.22rem 0.62rem;
   border-radius: 999px;
   border: 1px solid transparent;
 }
@@ -203,29 +208,29 @@ body.windows-erp-theme {
 .windows-erp-theme .badge-success {
   background-color: var(--success-bg);
   color: var(--success-text);
-  border-color: var(--success-border);
+  border-color: rgba(69, 152, 90, 0.4);
 }
 
 .windows-erp-theme .badge-warning {
   background-color: var(--warning-bg);
   color: var(--warning-text);
-  border-color: var(--warning-border);
+  border-color: rgba(194, 122, 28, 0.35);
 }
 
 .windows-erp-theme .badge-error {
   background-color: var(--error-bg);
   color: var(--error-text);
-  border-color: var(--error-border);
+  border-color: rgba(200, 93, 77, 0.36);
 }
 
 .windows-erp-theme .badge-info {
   background-color: var(--info-bg);
   color: var(--info-text);
-  border-color: var(--info-border);
+  border-color: rgba(72, 119, 180, 0.34);
 }
 
 .windows-erp-theme .badge-gray {
-  background-color: #f8f4ee;
+  background-color: #f8f5ef;
   color: var(--text-muted);
   border-color: var(--border-strong);
 }
@@ -237,34 +242,34 @@ body.windows-erp-theme {
   gap: 0.5rem;
   font-weight: 600;
   font-size: 0.875rem;
-  padding: 0.55rem 1rem;
-  border-radius: 14px;
+  padding: 0.65rem 1rem;
+  border-radius: 16px;
   border: 1px solid transparent;
   cursor: pointer;
-  transition: all 0.12s ease;
+  transition: all 0.14s ease;
 }
 
 .windows-erp-theme .btn-primary {
-  background: linear-gradient(180deg, #ff9b43 0%, var(--accent) 100%);
-  border-color: rgba(220, 104, 3, 0.75);
+  background: linear-gradient(180deg, #ef964c 0%, var(--accent) 100%);
+  border-color: rgba(199, 102, 20, 0.72);
   color: var(--text-inverse);
-  box-shadow: 0 10px 24px rgba(245, 130, 32, 0.18);
+  box-shadow: 0 10px 22px rgba(233, 129, 42, 0.16);
 }
 
 .windows-erp-theme .btn-primary:hover {
-  background: linear-gradient(180deg, #ffab5f 0%, var(--accent-strong) 100%);
+  background: linear-gradient(180deg, #f2a35d 0%, var(--accent-strong) 100%);
   border-color: var(--accent-strong);
 }
 
 .windows-erp-theme .btn-secondary {
-  background-color: var(--surface);
+  background-color: rgba(255, 255, 255, 0.76);
   border-color: var(--border-strong);
   color: var(--text-main);
 }
 
 .windows-erp-theme .btn-secondary:hover {
   background-color: var(--surface-hover);
-  border-color: #c89b67;
+  border-color: #bd9a74;
 }
 
 .windows-erp-theme .btn-outline {
@@ -279,8 +284,8 @@ body.windows-erp-theme {
 
 .windows-erp-theme .btn:disabled,
 .windows-erp-theme .btn[disabled] {
-  background-color: #cccccc !important;
-  color: rgba(0, 0, 0, 0.4) !important;
+  background-color: rgba(215, 215, 215, 0.68) !important;
+  color: rgba(31, 41, 51, 0.45) !important;
   border-color: transparent !important;
   cursor: not-allowed;
   box-shadow: none;
@@ -297,11 +302,11 @@ body.windows-erp-theme {
 .windows-erp-theme select,
 .windows-erp-theme textarea {
   width: 100%;
-  border-radius: 14px;
+  border-radius: 16px;
   border: 1px solid var(--border-strong);
-  background-color: rgba(255, 255, 255, 0.9);
+  background-color: rgba(255, 255, 255, 0.82);
   color: var(--text-main);
-  padding: 0.65rem 0.85rem;
+  padding: 0.72rem 0.9rem;
   font-size: 0.875rem;
   transition: border-color 0.12s ease, box-shadow 0.12s ease, background-color 0.12s ease;
 }
@@ -318,7 +323,7 @@ body.windows-erp-theme {
   outline: none;
   border-color: var(--accent);
   box-shadow: var(--shadow-focus);
-  background-color: var(--surface);
+  background-color: rgba(255, 255, 255, 0.98);
 }
 
 .windows-erp-theme input:disabled,
@@ -333,7 +338,7 @@ body.windows-erp-theme {
 .windows-erp-theme select {
   padding-right: 2rem;
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 0.75rem center;
   background-size: 1rem;
@@ -342,7 +347,7 @@ body.windows-erp-theme {
 .windows-erp-theme .progress-bar {
   width: 100%;
   border-radius: 999px;
-  height: 0.35rem;
+  height: 0.4rem;
   background-color: var(--border-subtle);
   overflow: hidden;
 }
@@ -350,27 +355,97 @@ body.windows-erp-theme {
 .windows-erp-theme .progress-fill {
   border-radius: 999px;
   height: 100%;
-  background-color: var(--accent);
+  background: linear-gradient(90deg, #ef964c 0%, var(--accent) 100%);
   transition: width 0.25s ease;
 }
 
 .windows-erp-theme .shell-panel {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(255, 250, 245, 0.98) 100%);
-  border: 1px solid rgba(234, 223, 206, 0.95);
-  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 251, 246, 0.96) 100%);
+  border: 1px solid rgba(229, 215, 196, 0.95);
+  border-radius: 28px;
   box-shadow: var(--shadow-soft);
 }
 
 .windows-erp-theme .shell-glass {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.72);
 }
 
-.windows-erp-theme .shell-section-title {
+.windows-erp-theme .shell-section-title,
+.windows-erp-theme .workspace-kicker {
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: #9a6f3f;
+  color: #9b744a;
+}
+
+.windows-erp-theme .workspace-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 1.45rem 1.55rem;
+  border-radius: 28px;
+  border: 1px solid rgba(229, 215, 196, 0.95);
+  background:
+    radial-gradient(circle at top right, rgba(233, 129, 42, 0.12), transparent 22%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.76) 0%, rgba(255, 251, 246, 0.92) 100%);
+  box-shadow: var(--shadow-soft);
+}
+
+.windows-erp-theme .workspace-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.46rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid rgba(207, 184, 155, 0.76);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.windows-erp-theme .workspace-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.1rem;
+  border-radius: 24px;
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: var(--shadow-subtle);
+}
+
+.windows-erp-theme .workspace-list-item {
+  width: 100%;
+  border-radius: 20px;
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.72);
+  padding: 0.95rem 1rem;
+  text-align: left;
+  transition: all 0.14s ease;
+}
+
+.windows-erp-theme .workspace-list-item:hover {
+  background: var(--surface-hover);
+  border-color: rgba(199, 144, 86, 0.6);
+  transform: translateY(-1px);
+}
+
+.windows-erp-theme .workspace-list-item.is-active {
+  border-color: rgba(233, 129, 42, 0.66);
+  background: linear-gradient(180deg, rgba(255, 244, 230, 0.95) 0%, rgba(255, 250, 243, 0.98) 100%);
+  box-shadow: 0 14px 28px rgba(156, 99, 38, 0.08);
+}
+
+.windows-erp-theme .sidebar-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.windows-erp-theme .sidebar-scroll::-webkit-scrollbar {
+  display: none;
 }

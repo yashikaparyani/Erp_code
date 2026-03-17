@@ -2,7 +2,7 @@ import json
 
 import frappe
 from frappe.sessions import delete_session
-from frappe.utils import cint
+from frappe.utils import cint, cstr
 from gov_erp.gov_erp.doctype.ge_dependency_rule.ge_dependency_rule import (
 	evaluate_dependency_state,
 	resolve_reference_status,
@@ -6179,6 +6179,65 @@ def get_project_head_dashboard(project=None):
 			"manpower": {
 				"sites_without_today_log": sum(1 for row in sites if row.name not in logged_sites_today),
 				"sites_with_today_log": sum(1 for row in sites if row.name in logged_sites_today),
+			},
+		},
+	}
+
+
+@frappe.whitelist()
+def get_engineering_head_dashboard(project=None):
+	"""Aggregate engineering-head dashboard metrics across design, surveys, and execution readiness."""
+	_require_roles(ROLE_ENGINEERING_HEAD, ROLE_ENGINEER, ROLE_PROJECT_HEAD, ROLE_PROJECT_MANAGER, ROLE_DIRECTOR)
+	survey_data = get_survey_stats().get("data", {})
+	boq_data = get_boq_stats().get("data", {})
+	execution_data = get_execution_dashboard(project).get("data", {})
+	project_filters = {"name": project} if project else {}
+	project_rows = frappe.get_all(
+		"Project",
+		filters=project_filters,
+		fields=["name", "current_project_stage", "current_stage_status", "spine_blocked"],
+	)
+	drawing_rows = frappe.get_all("GE Drawing", fields=["status"])
+	change_request_rows = frappe.get_all("GE Change Request", fields=["status"])
+	deviation_rows = frappe.get_all("GE Technical Deviation", fields=["status"])
+
+	def normalize_status(value):
+		return cstr(value or "").strip().upper().replace(" ", "_")
+
+	def count_status(rows, states):
+		expected = {normalize_status(state) for state in states}
+		return sum(1 for row in rows if normalize_status(row.status) in expected)
+
+	return {
+		"success": True,
+		"data": {
+			"surveys": survey_data,
+			"boqs": boq_data,
+			"execution": execution_data,
+			"projects": {
+				"total": len(project_rows),
+				"blocked": sum(1 for row in project_rows if cint(row.spine_blocked)),
+				"survey_stage": sum(1 for row in project_rows if normalize_status(row.current_project_stage) == "SURVEY"),
+				"design_stage": sum(1 for row in project_rows if normalize_status(row.current_project_stage) == "BOQ_DESIGN"),
+				"awaiting_approval": sum(1 for row in project_rows if normalize_status(row.current_stage_status) == "PENDING_APPROVAL"),
+			},
+			"drawings": {
+				"total": len(drawing_rows),
+				"approved": count_status(drawing_rows, {"APPROVED", "COMPLETED"}),
+				"pending": count_status(drawing_rows, {"DRAFT", "PENDING", "PENDING_APPROVAL", "SUBMITTED", "IN_PROGRESS"}),
+				"rejected": count_status(drawing_rows, {"REJECTED", "CANCELLED"}),
+			},
+			"change_requests": {
+				"total": len(change_request_rows),
+				"open": count_status(change_request_rows, {"OPEN", "DRAFT", "PENDING", "IN_PROGRESS"}),
+				"resolved": count_status(change_request_rows, {"RESOLVED", "APPROVED", "COMPLETED", "CLOSED"}),
+				"rejected": count_status(change_request_rows, {"REJECTED", "CANCELLED"}),
+			},
+			"technical_deviations": {
+				"total": len(deviation_rows),
+				"pending": count_status(deviation_rows, {"DRAFT", "PENDING", "PENDING_APPROVAL", "SUBMITTED", "IN_PROGRESS"}),
+				"approved": count_status(deviation_rows, {"APPROVED", "COMPLETED"}),
+				"rejected": count_status(deviation_rows, {"REJECTED", "CANCELLED"}),
 			},
 		},
 	}

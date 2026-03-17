@@ -5,6 +5,7 @@ const dashboardMethods: Record<string, string> = {
 	om: 'get_om_dashboard',
 	accounts: 'get_accounts_dashboard',
 	presales: 'get_presales_dashboard',
+	'engineering-head': 'get_engineering_head_dashboard',
 	execution: 'get_execution_dashboard',
 	'project-head': 'get_project_head_dashboard',
 	procurement: 'get_procurement_dashboard',

@@ -834,9 +834,19 @@ export default function ProjectsPage() {
         <StatCard title="Blocked Items" value={summary?.action_queue?.blocked_count || 0} hint={`Status: ${selectedProjectStatus}`} icon={ShieldAlert} tone="red" />
       </div>
 
-      <div className="mt-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="text-sm text-gray-500">
-          Manage the base project record first, then use the linked team and asset CRUD below for execution details.
+      <div className="workspace-toolbar mt-6">
+        <div className="max-w-3xl">
+          <div className="workspace-kicker">Project Control Desk</div>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <span className="workspace-chip">{selectedProjectLabel}</span>
+            <span className="workspace-chip">Status {selectedProjectStatus}</span>
+            <span className="workspace-chip">Stage {selectedProjectStage}</span>
+            <span className="workspace-chip">{activeMembers} active members</span>
+            <span className="workspace-chip">{deployedAssets} deployed assets</span>
+          </div>
+          <div className="mt-3 text-sm text-[var(--text-muted)]">
+            Manage the base project record first, then use linked workflow, team, and asset actions below for daily execution control.
+          </div>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <button className="btn btn-primary" onClick={openCreateProjectModal}>
@@ -853,8 +863,10 @@ export default function ProjectsPage() {
 
       {feedback ? (
         <div
-          className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${
-            feedback.tone === 'success' ? 'border-green-200 bg-green-50 text-green-800' : 'border-red-200 bg-red-50 text-red-800'
+          className={`mt-4 rounded-[22px] border px-4 py-3 text-sm ${
+            feedback.tone === 'success'
+              ? 'border-[rgba(69,152,90,0.35)] bg-[var(--success-bg)] text-[var(--success-text)]'
+              : 'border-[rgba(200,93,77,0.35)] bg-[var(--error-bg)] text-[var(--error-text)]'
           }`}
         >
           {feedback.message}
@@ -862,7 +874,7 @@ export default function ProjectsPage() {
       ) : null}
 
       {workspaceError ? (
-        <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{workspaceError}</div>
+        <div className="mt-4 rounded-[22px] border border-[rgba(200,93,77,0.35)] bg-[var(--error-bg)] px-4 py-3 text-sm text-[var(--error-text)]">{workspaceError}</div>
       ) : null}
 
       <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
@@ -880,17 +892,25 @@ export default function ProjectsPage() {
                       setFeedback(null);
                       setSelectedProject(project.name);
                     }}
-                    className={`w-full rounded-xl border px-4 py-3 text-left transition-colors ${
-                      selected ? 'border-orange-300 bg-orange-50' : 'border-gray-200 bg-white hover:bg-gray-50'
-                    }`}
+                    className={`workspace-list-item ${selected ? 'is-active' : ''}`}
                   >
-                    <div className="text-sm font-semibold text-gray-900">{project.project_name || project.name}</div>
-                    <div className="mt-1 text-xs text-gray-500">
-                      {project.customer || 'No customer'} | {project.current_project_stage || 'SURVEY'}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-[var(--text-main)]">{project.project_name || project.name}</div>
+                        <div className="mt-1 text-xs text-[var(--text-muted)]">
+                          {project.customer || 'No customer'} | {project.current_project_stage || 'SURVEY'}
+                        </div>
+                      </div>
+                      <span className={`badge ${project.spine_blocked ? 'badge-warning' : 'badge-info'}`}>
+                        {project.spine_blocked ? 'Blocked' : 'Open'}
+                      </span>
                     </div>
-                    <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
+                    <div className="mt-3 flex items-center justify-between text-xs text-[var(--text-muted)]">
                       <span>{project.total_sites || 0} sites</span>
                       <span>{formatPercent(project.spine_progress_pct || 0)}</span>
+                    </div>
+                    <div className="mt-3 progress-bar">
+                      <div className="progress-fill" style={{ width: `${Math.max(0, Math.min(100, project.spine_progress_pct || 0))}%` }} />
                     </div>
                   </button>
                 );
@@ -899,9 +919,17 @@ export default function ProjectsPage() {
           )}
         </SectionCard>
  
-        <SectionCard title="Project Overview" subtitle="Keep the project record clean and operationally useful">
+        <SectionCard title="Project Overview" subtitle="Core ownership, dates, notes, and delivery posture">
           {summary?.project_summary || projectRecord ? (
             <div className="space-y-4">
+              <div className="rounded-[24px] border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-4 py-4">
+                <div className="workspace-kicker">Selected Project</div>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className="workspace-chip">{summary?.project_summary?.project_name || projectRecord?.project_name || '-'}</span>
+                  <span className="workspace-chip">Customer {summary?.project_summary?.customer || projectRecord?.customer || '-'}</span>
+                  <span className="workspace-chip">PM {summary?.project_summary?.project_manager || projectRecord?.project_manager_user || '-'}</span>
+                </div>
+              </div>
               <MetricList
                 items={[
                   { label: 'Project', value: summary?.project_summary?.project_name || projectRecord?.project_name || summary?.project_summary?.name || projectRecord?.name || '-' },
@@ -916,9 +944,9 @@ export default function ProjectsPage() {
                   { label: 'Spine Progress', value: formatPercent(summary?.project_summary?.spine_progress_pct || projectRecord?.spine_progress_pct || 0) },
                 ]}
               />
-              <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
-                <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Project Notes</div>
-                <div className="mt-2 text-sm text-gray-700">{projectRecord?.notes || 'No project notes captured yet.'}</div>
+              <div className="rounded-[24px] border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-4 py-4">
+                <div className="workspace-kicker">Project Notes</div>
+                <div className="mt-2 text-sm leading-6 text-[var(--text-main)]">{projectRecord?.notes || 'No project notes captured yet.'}</div>
               </div>
             </div>
           ) : (
@@ -926,7 +954,7 @@ export default function ProjectsPage() {
           )}
         </SectionCard>
 
-        <SectionCard title="Action Queue" subtitle="Useful operational signals from the backend project spine">
+        <SectionCard title="Action Queue" subtitle="Operational pressure points surfaced from the backend spine">
           {summary ? (
             <div className="space-y-4">
               <MetricList
@@ -936,9 +964,9 @@ export default function ProjectsPage() {
                   { label: 'Overdue Milestones', value: summary.action_queue.overdue_count },
                 ]}
               />
-              <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
-                <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Blocker Summary</div>
-                <div className="mt-2 text-sm text-gray-700">{projectRecord?.blocker_summary || summary.project_summary?.blocker_summary || 'No blocker summary on the selected project.'}</div>
+              <div className="rounded-[24px] border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-4 py-4">
+                <div className="workspace-kicker">Blocker Summary</div>
+                <div className="mt-2 text-sm leading-6 text-[var(--text-main)]">{projectRecord?.blocker_summary || summary.project_summary?.blocker_summary || 'No blocker summary on the selected project.'}</div>
               </div>
             </div>
           ) : (
@@ -948,9 +976,18 @@ export default function ProjectsPage() {
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <SectionCard title="Workflow Control" subtitle="Use this as the main stage handoff control for the selected project">
+        <SectionCard title="Workflow Control" subtitle="Use this as the main stage handoff desk for the selected project">
           {workflow ? (
             <div className="space-y-4">
+              <div className="rounded-[24px] border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-4">
+                <div className="workspace-kicker">Stage Snapshot</div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <span className="workspace-chip">{workflow.stage_label || workflow.stage}</span>
+                  <span className="workspace-chip">{formatWorkflowAction(workflow.stage_status)}</span>
+                  <span className="workspace-chip">{workflow.owner_department || '-'}</span>
+                  <span className="workspace-chip">{workflow.next_stage_label || workflow.next_stage || 'Final stage'}</span>
+                </div>
+              </div>
               <MetricList
                 items={[
                   { label: 'Current Stage', value: workflow.stage_label || workflow.stage },
@@ -962,29 +999,29 @@ export default function ProjectsPage() {
                 ]}
               />
 
-              <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
-                <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Stage Guidance</div>
-                <div className="mt-2 text-sm text-gray-700">{workflow.description}</div>
-                <div className="mt-2 text-xs text-gray-500">{workflow.readiness.summary}</div>
+              <div className="rounded-[24px] border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-4 py-4">
+                <div className="workspace-kicker">Stage Guidance</div>
+                <div className="mt-2 text-sm leading-6 text-[var(--text-main)]">{workflow.description}</div>
+                <div className="mt-2 text-xs text-[var(--text-muted)]">{workflow.readiness.summary}</div>
               </div>
 
-              <div className={`rounded-xl border px-4 py-3 ${workflow.readiness.ready ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50'}`}>
-                <div className={`text-xs font-semibold uppercase tracking-wide ${workflow.readiness.ready ? 'text-green-700' : 'text-amber-700'}`}>
+              <div className={`rounded-[24px] border px-4 py-4 ${workflow.readiness.ready ? 'border-[rgba(69,152,90,0.35)] bg-[var(--success-bg)]' : 'border-[rgba(194,122,28,0.32)] bg-[var(--warning-bg)]'}`}>
+                <div className={`workspace-kicker ${workflow.readiness.ready ? 'text-[var(--success-text)]' : 'text-[var(--warning-text)]'}`}>
                   Readiness Check
                 </div>
-                <div className={`mt-2 text-sm ${workflow.readiness.ready ? 'text-green-800' : 'text-amber-800'}`}>
+                <div className={`mt-2 text-sm ${workflow.readiness.ready ? 'text-[var(--success-text)]' : 'text-[var(--warning-text)]'}`}>
                   {workflow.readiness.ready ? 'Stage can be submitted for approval.' : 'Complete the missing checks before submission.'}
                 </div>
                 <div className="mt-3 space-y-2">
                   {workflow.readiness.requirements.map((requirement) => (
-                    <div key={requirement.label} className="rounded-lg bg-white/80 px-3 py-2">
+                    <div key={requirement.label} className="rounded-2xl border border-white/70 bg-white/70 px-3 py-3">
                       <div className="flex items-center justify-between gap-3">
-                        <div className="text-sm font-medium text-gray-800">{requirement.label}</div>
+                        <div className="text-sm font-medium text-[var(--text-main)]">{requirement.label}</div>
                         <span className={`badge ${requirement.satisfied ? 'badge-success' : 'badge-warning'}`}>
                           {requirement.satisfied ? 'Ready' : 'Pending'}
                         </span>
                       </div>
-                      <div className="mt-1 text-xs text-gray-600">{requirement.detail}</div>
+                      <div className="mt-1 text-xs text-[var(--text-muted)]">{requirement.detail}</div>
                     </div>
                   ))}
                 </div>
@@ -1055,25 +1092,25 @@ export default function ProjectsPage() {
           ) : (
             <div className="space-y-3">
               {workflow.history.slice(0, 8).map((event, index) => (
-                <div key={`${event.timestamp}-${event.action}-${index}`} className="rounded-xl border border-gray-200 bg-white p-4">
+                <div key={`${event.timestamp}-${event.action}-${index}`} className="rounded-[24px] border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-4">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                      <div className="text-sm font-semibold text-gray-900">{formatWorkflowAction(event.action)}</div>
-                      <div className="mt-1 text-xs text-gray-500">
+                      <div className="text-sm font-semibold text-[var(--text-main)]">{formatWorkflowAction(event.action)}</div>
+                      <div className="mt-1 text-xs text-[var(--text-muted)]">
                         {event.stage}
                         {event.next_stage ? ` -> ${event.next_stage}` : ''}
                       </div>
                     </div>
-                    <div className="text-xs text-gray-500">{formatDateTime(event.timestamp)}</div>
+                    <div className="text-xs text-[var(--text-muted)]">{formatDateTime(event.timestamp)}</div>
                   </div>
-                  <div className="mt-3 grid grid-cols-1 gap-2 text-sm text-gray-700 sm:grid-cols-2">
+                  <div className="mt-3 grid grid-cols-1 gap-2 text-sm text-[var(--text-main)] sm:grid-cols-2">
                     <div>
-                      <div className="text-xs uppercase tracking-wide text-gray-500">Actor</div>
-                      <div>{event.actor}</div>
+                      <div className="workspace-kicker">Actor</div>
+                      <div className="mt-1">{event.actor}</div>
                     </div>
                     <div>
-                      <div className="text-xs uppercase tracking-wide text-gray-500">Remarks</div>
-                      <div>{event.remarks || 'No remarks added.'}</div>
+                      <div className="workspace-kicker">Remarks</div>
+                      <div className="mt-1">{event.remarks || 'No remarks added.'}</div>
                     </div>
                   </div>
                 </div>
@@ -1091,9 +1128,9 @@ export default function ProjectsPage() {
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <SectionCard title="Project Team" subtitle="CRUD enabled from GE Project Team Member APIs">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-sm text-gray-500">
+        <SectionCard title="Project Team" subtitle="Live assignment register from GE Project Team Member APIs">
+          <div className="workspace-toolbar">
+            <div className="text-sm text-[var(--text-muted)]">
               {selectedProject ? `Assignments scoped to ${selectedProject}` : 'Select a project to manage team assignments.'}
               {detailsLoading ? ' Refreshing live data...' : ''}
             </div>
@@ -1112,36 +1149,36 @@ export default function ProjectsPage() {
             </div>
           ) : (
             <div className="mt-4 overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 text-sm">
+              <table className="data-table">
                 <thead>
-                  <tr className="text-left text-xs uppercase tracking-wide text-gray-500">
-                    <th className="px-3 py-2">User</th>
-                    <th className="px-3 py-2">Role</th>
-                    <th className="px-3 py-2">Site</th>
-                    <th className="px-3 py-2">Period</th>
-                    <th className="px-3 py-2">Status</th>
-                    <th className="px-3 py-2 text-right">Actions</th>
+                  <tr>
+                    <th>User</th>
+                    <th>Role</th>
+                    <th>Site</th>
+                    <th>Period</th>
+                    <th>Status</th>
+                    <th className="text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody>
                   {teamMembers.map((member) => (
                     <tr key={member.name} className="align-top">
-                      <td className="px-3 py-3">
-                        <div className="font-medium text-gray-900">{member.user}</div>
-                        <div className="text-xs text-gray-500">{member.name}</div>
+                      <td>
+                        <div className="font-medium text-[var(--text-main)]">{member.user}</div>
+                        <div className="text-xs text-[var(--text-muted)]">{member.name}</div>
                       </td>
-                      <td className="px-3 py-3 text-gray-700">{formatRoleLabel(member.role_in_project)}</td>
-                      <td className="px-3 py-3 text-gray-700">{member.linked_site || '-'}</td>
-                      <td className="px-3 py-3 text-gray-700">
+                      <td className="text-[var(--text-main)]">{formatRoleLabel(member.role_in_project)}</td>
+                      <td className="text-[var(--text-main)]">{member.linked_site || '-'}</td>
+                      <td className="text-[var(--text-main)]">
                         <div>{member.start_date || '-'}</div>
-                        <div className="text-xs text-gray-500">{member.end_date || 'Open-ended'}</div>
+                        <div className="text-xs text-[var(--text-muted)]">{member.end_date || 'Open-ended'}</div>
                       </td>
-                      <td className="px-3 py-3">
+                      <td>
                         <span className={`badge ${member.is_active !== false && member.is_active !== 0 ? 'badge-success' : 'badge-gray'}`}>
                           {member.is_active !== false && member.is_active !== 0 ? 'Active' : 'Inactive'}
                         </span>
                       </td>
-                      <td className="px-3 py-3">
+                      <td>
                         <div className="flex justify-end gap-2">
                           <button className="btn btn-secondary px-3 py-2 text-xs" onClick={() => openEditMemberModal(member)}>
                             <Pencil className="h-3.5 w-3.5" /> Edit
@@ -1159,9 +1196,9 @@ export default function ProjectsPage() {
           )}
         </SectionCard>
 
-        <SectionCard title="Project Assets" subtitle="CRUD enabled from GE Project Asset APIs">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-sm text-gray-500">
+        <SectionCard title="Project Assets" subtitle="Live asset register from GE Project Asset APIs">
+          <div className="workspace-toolbar">
+            <div className="text-sm text-[var(--text-muted)]">
               {selectedProject ? `Asset register for ${selectedProject}` : 'Select a project to manage assets.'}
               {detailsLoading ? ' Refreshing live data...' : ''}
             </div>
@@ -1181,44 +1218,44 @@ export default function ProjectsPage() {
           ) : (
             <div className="mt-4 space-y-3">
               {assets.map((asset) => (
-                <div key={asset.name} className="rounded-xl border border-gray-200 bg-white p-4">
+                <div key={asset.name} className="rounded-[24px] border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-4">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <div className="text-sm font-semibold text-gray-900">{asset.asset_name}</div>
+                        <div className="text-sm font-semibold text-[var(--text-main)]">{asset.asset_name}</div>
                         <span className={`badge ${getAssetStatusBadge(asset.status)}`}>{asset.status || '-'}</span>
                       </div>
-                      <div className="mt-1 text-xs text-gray-500">{asset.name}</div>
-                      <div className="mt-3 grid grid-cols-1 gap-3 text-sm text-gray-700 sm:grid-cols-2">
+                      <div className="mt-1 text-xs text-[var(--text-muted)]">{asset.name}</div>
+                      <div className="mt-3 grid grid-cols-1 gap-3 text-sm text-[var(--text-main)] sm:grid-cols-2">
                         <div>
-                          <div className="text-xs uppercase tracking-wide text-gray-500">Type</div>
-                          <div>{asset.asset_type || '-'}</div>
+                          <div className="workspace-kicker">Type</div>
+                          <div className="mt-1">{asset.asset_type || '-'}</div>
                         </div>
                         <div>
-                          <div className="text-xs uppercase tracking-wide text-gray-500">Site</div>
-                          <div>{asset.linked_site || '-'}</div>
+                          <div className="workspace-kicker">Site</div>
+                          <div className="mt-1">{asset.linked_site || '-'}</div>
                         </div>
                         <div>
-                          <div className="text-xs uppercase tracking-wide text-gray-500">Serial / Model</div>
-                          <div>{asset.serial_no || asset.make_model || '-'}</div>
+                          <div className="workspace-kicker">Serial / Model</div>
+                          <div className="mt-1">{asset.serial_no || asset.make_model || '-'}</div>
                         </div>
                         <div>
-                          <div className="text-xs uppercase tracking-wide text-gray-500">Assigned To</div>
-                          <div>{asset.assigned_to || '-'}</div>
+                          <div className="workspace-kicker">Assigned To</div>
+                          <div className="mt-1">{asset.assigned_to || '-'}</div>
                         </div>
                         <div>
-                          <div className="text-xs uppercase tracking-wide text-gray-500">Quantity / Cost</div>
-                          <div>
+                          <div className="workspace-kicker">Quantity / Cost</div>
+                          <div className="mt-1">
                             {asset.quantity ?? 1}
                             {asset.unit_cost ? ` • ${formatCurrency(asset.unit_cost)}` : ''}
                           </div>
                         </div>
                         <div>
-                          <div className="text-xs uppercase tracking-wide text-gray-500">Timeline</div>
-                          <div>{asset.deployment_date || asset.warranty_end_date ? `${asset.deployment_date || '-'} -> ${asset.warranty_end_date || '-'}` : '-'}</div>
+                          <div className="workspace-kicker">Timeline</div>
+                          <div className="mt-1">{asset.deployment_date || asset.warranty_end_date ? `${asset.deployment_date || '-'} -> ${asset.warranty_end_date || '-'}` : '-'}</div>
                         </div>
                       </div>
-                      <div className="mt-3 text-xs text-gray-500">Last updated {formatDateTime(asset.modified || asset.creation)}</div>
+                      <div className="mt-3 text-xs text-[var(--text-muted)]">Last updated {formatDateTime(asset.modified || asset.creation)}</div>
                     </div>
                     <div className="flex gap-2">
                       <button className="btn btn-secondary px-3 py-2 text-xs" onClick={() => openEditAssetModal(asset)}>
