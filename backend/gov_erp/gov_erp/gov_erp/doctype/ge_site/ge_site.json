@@ -194,11 +194,55 @@
    "fieldname": "remarks",
    "fieldtype": "Text Editor",
    "label": "Remarks"
+  },
+  {
+   "fieldname": "sb_spine",
+   "fieldtype": "Section Break",
+   "label": "Project Spine"
+  },
+  {
+   "fieldname": "current_site_stage",
+   "fieldtype": "Select",
+   "label": "Current Site Stage",
+   "options": "SURVEY\nBOQ_DESIGN\nCOSTING\nPROCUREMENT\nSTORES_DISPATCH\nEXECUTION\nBILLING_PAYMENT\nOM_RMA\nCLOSED",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "site_blocked",
+   "fieldtype": "Check",
+   "label": "Blocked",
+   "default": "0"
+  },
+  {
+   "fieldname": "blocker_reason",
+   "fieldtype": "Small Text",
+   "label": "Blocker Reason",
+   "depends_on": "site_blocked"
+  },
+  {
+   "fieldname": "cb_spine_right",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "current_owner_role",
+   "fieldtype": "Data",
+   "label": "Current Owner Role"
+  },
+  {
+   "fieldname": "current_owner_user",
+   "fieldtype": "Link",
+   "label": "Current Owner User",
+   "options": "User"
+  },
+  {
+   "fieldname": "site_progress_pct",
+   "fieldtype": "Percent",
+   "label": "Site Progress %"
   }
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-03-15 12:00:00.000000",
+ "modified": "2026-03-17 08:48:24.712019",
  "modified_by": "Administrator",
  "module": "Gov ERP",
  "name": "GE Site",

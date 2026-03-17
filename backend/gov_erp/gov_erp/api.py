@@ -7221,3 +7221,451 @@ def supersede_drawing(name, superseded_by=None):
 	doc.save()
 	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": "Drawing superseded"}
+
+# ── Project Spine Model APIs ────────────────────────────────
+
+SPINE_STAGES = [
+        "SURVEY",
+        "BOQ_DESIGN",
+        "COSTING",
+        "PROCUREMENT",
+        "STORES_DISPATCH",
+        "EXECUTION",
+        "BILLING_PAYMENT",
+        "OM_RMA",
+        "CLOSED",
+]
+
+# Map each department to the stages it owns (for filtered views)
+DEPARTMENT_STAGE_MAP = {
+        "engineering": ["SURVEY", "BOQ_DESIGN", "EXECUTION"],
+        "procurement": ["PROCUREMENT"],
+        "stores": ["STORES_DISPATCH"],
+        "accounts": ["COSTING", "BILLING_PAYMENT"],
+        "hr": SPINE_STAGES,              # cross-cutting
+        "om_rma": ["OM_RMA"],
+}
+
+
+def _require_spine_read_access():
+        _require_roles(
+                ROLE_DIRECTOR,
+                ROLE_DEPARTMENT_HEAD,
+                ROLE_PROJECT_HEAD,
+                ROLE_PROJECT_MANAGER,
+                ROLE_ENGINEERING_HEAD,
+                ROLE_ENGINEER,
+                ROLE_PROCUREMENT_HEAD,
+                ROLE_PROCUREMENT_MANAGER,
+                ROLE_STORES_LOGISTICS_HEAD,
+                ROLE_STORE_MANAGER,
+                ROLE_ACCOUNTS,
+                ROLE_ACCOUNTS_HEAD,
+                ROLE_HR_HEAD,
+                ROLE_HR_MANAGER,
+                ROLE_RMA_HEAD,
+                ROLE_RMA_MANAGER,
+                ROLE_FIELD_TECHNICIAN,
+                ROLE_OM_OPERATOR,
+        )
+
+
+def _require_spine_write_access():
+        _require_roles(
+                ROLE_DIRECTOR,
+                ROLE_PROJECT_HEAD,
+                ROLE_PROJECT_MANAGER,
+                ROLE_ENGINEERING_HEAD,
+                ROLE_PROCUREMENT_HEAD,
+                ROLE_STORES_LOGISTICS_HEAD,
+                ROLE_ACCOUNTS_HEAD,
+                ROLE_HR_HEAD,
+                ROLE_RMA_HEAD,
+        )
+
+
+def _compute_project_spine_progress(sites):
+        """Compute project spine progress % from site stages."""
+        if not sites:
+                return 0
+        stage_weight = {s: i for i, s in enumerate(SPINE_STAGES)}
+        max_idx = len(SPINE_STAGES) - 1
+        if max_idx == 0:
+                return 100
+        total = sum(stage_weight.get(s.current_site_stage or "SURVEY", 0) for s in sites)
+        return round((total / (len(sites) * max_idx)) * 100, 2)
+
+
+def _site_stage_coverage(sites):
+        """Group sites by their current spine stage."""
+        coverage = {s: 0 for s in SPINE_STAGES}
+        for site in sites:
+                stage = site.current_site_stage or "SURVEY"
+                if stage in coverage:
+                        coverage[stage] += 1
+        return coverage
+
+
+def _build_action_queue(sites, project=None):
+        """Find sites that need attention: blocked, pending, overdue milestones."""
+        blocked = []
+        pending = []
+        for site in sites:
+                if site.site_blocked:
+                        blocked.append({
+                                "site": site.name,
+                                "site_code": site.site_code,
+                                "site_name": site.site_name,
+                                "stage": site.current_site_stage,
+                                "reason": site.blocker_reason,
+                        })
+                elif (site.current_site_stage or "SURVEY") != "CLOSED":
+                        pending.append({
+                                "site": site.name,
+                                "site_code": site.site_code,
+                                "site_name": site.site_name,
+                                "stage": site.current_site_stage,
+                                "owner_role": site.current_owner_role,
+                                "owner_user": site.current_owner_user,
+                        })
+
+        # Overdue milestones for the project
+        ms_filters = {}
+        if project:
+                ms_filters["linked_project"] = project
+        overdue_milestones = []
+        for ms in frappe.get_all(
+                "GE Milestone",
+                filters=ms_filters,
+                fields=["name", "milestone_name", "linked_site", "planned_end_date", "status"],
+        ):
+                if (
+                        ms.planned_end_date
+                        and not ms.status == "COMPLETED"
+                        and frappe.utils.date_diff(frappe.utils.nowdate(), ms.planned_end_date) > 0
+                ):
+                        overdue_milestones.append({
+                                "milestone": ms.name,
+                                "title": ms.milestone_name,
+                                "site": ms.linked_site,
+                                "planned_end_date": str(ms.planned_end_date),
+                        })
+
+        return {
+                "blocked_sites": blocked,
+                "blocked_count": len(blocked),
+                "pending_sites": pending[:20],
+                "pending_count": len(pending),
+                "overdue_milestones": overdue_milestones[:20],
+                "overdue_count": len(overdue_milestones),
+        }
+
+
+@frappe.whitelist()
+def get_project_spine_list():
+        """List all projects with spine summary data."""
+        _require_spine_read_access()
+        projects = frappe.get_all(
+                "Project",
+                fields=[
+                        "name", "project_name", "status", "customer",
+                        "percent_complete", "expected_start_date", "expected_end_date",
+                        "linked_tender", "project_head", "project_manager_user",
+                        "total_sites", "current_project_stage", "spine_progress_pct",
+                        "spine_blocked", "blocker_summary",
+                ],
+                order_by="creation desc",
+        )
+        return {"success": True, "data": projects}
+
+
+@frappe.whitelist()
+def get_project_spine_summary(project=None):
+        """
+        Full spine summary for a single project (or all projects).
+
+        Returns 3 layers:
+          1. Project summary
+          2. Site coverage by stage
+          3. Action queue
+        """
+        _require_spine_read_access()
+
+        # Layer 1 – Project summary
+        if project:
+                project = _require_param(project, "project")
+                proj = frappe.get_doc("Project", project)
+                project_summary = {
+                        "name": proj.name,
+                        "project_name": proj.project_name,
+                        "status": proj.status,
+                        "customer": proj.customer,
+                        "linked_tender": getattr(proj, "linked_tender", None),
+                        "project_head": getattr(proj, "project_head", None),
+                        "project_manager": getattr(proj, "project_manager_user", None),
+                        "current_project_stage": getattr(proj, "current_project_stage", None),
+                        "spine_progress_pct": getattr(proj, "spine_progress_pct", 0),
+                        "spine_blocked": getattr(proj, "spine_blocked", 0),
+                        "blocker_summary": getattr(proj, "blocker_summary", None),
+                        "total_sites": getattr(proj, "total_sites", 0),
+                        "percent_complete": proj.percent_complete,
+                }
+        else:
+                project_summary = None
+
+        # Fetch sites
+        site_filters = {"linked_project": project} if project else {}
+        sites = frappe.get_all(
+                "GE Site",
+                filters=site_filters,
+                fields=[
+                        "name", "site_code", "site_name", "status",
+                        "linked_project", "current_site_stage",
+                        "site_blocked", "blocker_reason",
+                        "current_owner_role", "current_owner_user",
+                        "site_progress_pct", "location_progress_pct",
+                ],
+        )
+
+        # If no specific project, compute total_sites for project_summary
+        if project and project_summary:
+                project_summary["total_sites"] = len(sites)
+
+        # Layer 2 – Site coverage by stage
+        stage_coverage = _site_stage_coverage(sites)
+
+        # Layer 3 – Action queue
+        action_queue = _build_action_queue(sites, project)
+
+        return {
+                "success": True,
+                "data": {
+                        "project_summary": project_summary,
+                        "site_count": len(sites),
+                        "stage_coverage": stage_coverage,
+                        "action_queue": action_queue,
+                },
+        }
+
+
+@frappe.whitelist()
+def get_department_spine_view(department=None, project=None):
+        """
+        Department-filtered spine view.
+
+        Shows only the stages that belong to the given department
+        and the sites currently in those stages.
+        """
+        _require_spine_read_access()
+        department = _require_param(department, "department")
+        dept_key = department.lower().replace(" ", "_")
+        allowed_stages = DEPARTMENT_STAGE_MAP.get(dept_key, SPINE_STAGES)
+
+        site_filters = {}
+        if project:
+                site_filters["linked_project"] = project
+
+        all_sites = frappe.get_all(
+                "GE Site",
+                filters=site_filters,
+                fields=[
+                        "name", "site_code", "site_name", "status",
+                        "linked_project", "current_site_stage",
+                        "site_blocked", "blocker_reason",
+                        "current_owner_role", "current_owner_user",
+                        "site_progress_pct",
+                ],
+        )
+
+        # Filter to sites in department's stages
+        dept_sites = [s for s in all_sites if (s.current_site_stage or "SURVEY") in allowed_stages]
+
+        # Coverage only for department stages
+        coverage = {s: 0 for s in allowed_stages}
+        for site in dept_sites:
+                stage = site.current_site_stage or "SURVEY"
+                if stage in coverage:
+                        coverage[stage] += 1
+
+        return {
+                "success": True,
+                "data": {
+                        "department": department,
+                        "allowed_stages": allowed_stages,
+                        "total_sites": len(all_sites),
+                        "department_sites": len(dept_sites),
+                        "stage_coverage": coverage,
+                        "blocked_sites": [
+                                {
+                                        "site": s.name,
+                                        "site_code": s.site_code,
+                                        "stage": s.current_site_stage,
+                                        "reason": s.blocker_reason,
+                                }
+                                for s in dept_sites
+                                if s.site_blocked
+                        ],
+                        "sites": [
+                                {
+                                        "site": s.name,
+                                        "site_code": s.site_code,
+                                        "site_name": s.site_name,
+                                        "stage": s.current_site_stage,
+                                        "progress_pct": s.site_progress_pct,
+                                        "owner_role": s.current_owner_role,
+                                        "owner_user": s.current_owner_user,
+                                        "blocked": s.site_blocked,
+                                }
+                                for s in dept_sites
+                        ],
+                },
+        }
+
+
+@frappe.whitelist()
+def get_site_spine_detail(site=None):
+        """Full spine detail for a single site."""
+        _require_spine_read_access()
+        site = _require_param(site, "site")
+        doc = frappe.get_doc("GE Site", site)
+        data = doc.as_dict()
+
+        # Enrich with milestone progress
+        milestones = frappe.get_all(
+                "GE Milestone",
+                filters={"linked_site": site},
+                fields=["name", "milestone_name", "status", "progress_pct", "planned_end_date", "actual_end_date"],
+                order_by="creation asc",
+        )
+
+        # Enrich with recent DPRs
+        dprs = frappe.get_all(
+                "GE DPR",
+                filters={"linked_site": site},
+                fields=["name", "report_date", "manpower_on_site"],
+                order_by="report_date desc",
+                limit_page_length=10,
+        )
+
+        return {
+                "success": True,
+                "data": {
+                        "site": data,
+                        "milestones": milestones,
+                        "recent_dprs": dprs,
+                },
+        }
+
+
+@frappe.whitelist()
+def advance_site_stage(site=None, new_stage=None, notes=None):
+        """Advance a site to the next spine stage."""
+        _require_spine_write_access()
+        site = _require_param(site, "site")
+        new_stage = _require_param(new_stage, "new_stage")
+
+        if new_stage not in SPINE_STAGES:
+                frappe.throw(f"Invalid stage: {new_stage}. Must be one of: {', '.join(SPINE_STAGES)}")
+
+        doc = frappe.get_doc("GE Site", site)
+        old_stage = doc.current_site_stage or "SURVEY"
+
+        old_idx = SPINE_STAGES.index(old_stage) if old_stage in SPINE_STAGES else 0
+        new_idx = SPINE_STAGES.index(new_stage)
+        if new_idx < old_idx:
+                frappe.throw(f"Cannot move site backward from {old_stage} to {new_stage}")
+
+        doc.current_site_stage = new_stage
+
+        # Auto-compute site_progress_pct based on stage position
+        max_idx = len(SPINE_STAGES) - 1
+        doc.site_progress_pct = round((new_idx / max_idx) * 100, 2) if max_idx else 100
+
+        doc.save(ignore_permissions=True)
+
+        # Log the transition as a comment
+        frappe.get_doc({
+                "doctype": "Comment",
+                "comment_type": "Info",
+                "reference_doctype": "GE Site",
+                "reference_name": site,
+                "content": f"Stage advanced: {old_stage} → {new_stage}" + (f" | {notes}" if notes else ""),
+        }).insert(ignore_permissions=True)
+
+        # Recompute project-level progress
+        _refresh_project_spine(doc.linked_project)
+
+        frappe.db.commit()
+        return {
+                "success": True,
+                "data": doc.as_dict(),
+                "message": f"Site stage advanced to {new_stage}",
+        }
+
+
+@frappe.whitelist()
+def toggle_site_blocked(site=None, blocked=None, reason=None):
+        """Block or unblock a site."""
+        _require_spine_write_access()
+        site = _require_param(site, "site")
+        blocked = cint(blocked)
+
+        doc = frappe.get_doc("GE Site", site)
+        doc.site_blocked = blocked
+        doc.blocker_reason = reason if blocked else ""
+        doc.save(ignore_permissions=True)
+        frappe.db.commit()
+        return {
+                "success": True,
+                "data": doc.as_dict(),
+                "message": f"Site {'blocked' if blocked else 'unblocked'}",
+        }
+
+
+@frappe.whitelist()
+def refresh_project_spine(project=None):
+        """Recompute project spine stats (total_sites, spine_progress_pct, current_project_stage)."""
+        _require_spine_write_access()
+        project = _require_param(project, "project")
+        _refresh_project_spine(project)
+        frappe.db.commit()
+        proj = frappe.get_doc("Project", project)
+        return {
+                "success": True,
+                "data": {
+                        "total_sites": getattr(proj, "total_sites", 0),
+                        "current_project_stage": getattr(proj, "current_project_stage", None),
+                        "spine_progress_pct": getattr(proj, "spine_progress_pct", 0),
+                        "spine_blocked": getattr(proj, "spine_blocked", 0),
+                },
+                "message": "Project spine refreshed",
+        }
+
+
+def _refresh_project_spine(project_name):
+        """Internal: recompute spine aggregates on the Project record."""
+        if not project_name:
+                return
+        sites = frappe.get_all(
+                "GE Site",
+                filters={"linked_project": project_name},
+                fields=["current_site_stage", "site_blocked"],
+        )
+        total = len(sites)
+        progress = _compute_project_spine_progress(sites)
+        any_blocked = any(s.site_blocked for s in sites)
+
+        # Determine overall project stage = the minimum stage across all sites
+        if sites:
+                stage_idx = {s: i for i, s in enumerate(SPINE_STAGES)}
+                min_idx = min(stage_idx.get(s.current_site_stage or "SURVEY", 0) for s in sites)
+                proj_stage = SPINE_STAGES[min_idx]
+        else:
+                proj_stage = "SURVEY"
+
+        frappe.db.set_value("Project", project_name, {
+                "total_sites": total,
+                "spine_progress_pct": progress,
+                "current_project_stage": proj_stage,
+                "spine_blocked": 1 if any_blocked else 0,
+        }, update_modified=False)
