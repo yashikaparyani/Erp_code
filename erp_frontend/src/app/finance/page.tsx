@@ -43,6 +43,22 @@ export default function FinancePage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [stats, setStats] = useState<InvoiceStats>({});
   const [loading, setLoading] = useState(true);
+  const [busyInv, setBusyInv] = useState<string | null>(null);
+
+  const handleInvoiceAction = async (name: string, method: string) => {
+    setBusyInv(name);
+    try {
+      await fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method, args: { name } }) });
+      // reload
+      const [invRes, statsRes] = await Promise.all([
+        fetch('/api/invoices').then(r => r.json()).catch(() => ({ data: [] })),
+        fetch('/api/invoices/stats').then(r => r.json()).catch(() => ({ data: {} })),
+      ]);
+      setInvoices(invRes.data || []);
+      setStats(statsRes.data || {});
+    } catch (e) { console.error(method, 'failed:', e); }
+    setBusyInv(null);
+  };
 
   useEffect(() => {
     Promise.all([
@@ -154,7 +170,7 @@ export default function FinancePage() {
                 <th>Net Receivable</th>
                 <th>Date</th>
                 <th>Status</th>
-                <th></th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -193,9 +209,23 @@ export default function FinancePage() {
                     </span>
                   </td>
                   <td>
-                    <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">
-                      <Eye className="w-4 h-4" />
-                    </button>
+                    <div className="flex flex-wrap gap-1">
+                      {inv.status === 'DRAFT' && (
+                        <button onClick={() => handleInvoiceAction(inv.name, 'submit_invoice')} disabled={busyInv === inv.name} className="px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 rounded hover:bg-blue-100 disabled:opacity-50">Submit</button>
+                      )}
+                      {inv.status === 'SUBMITTED' && (
+                        <>
+                          <button onClick={() => handleInvoiceAction(inv.name, 'approve_invoice')} disabled={busyInv === inv.name} className="px-2 py-1 text-xs font-medium text-green-700 bg-green-50 rounded hover:bg-green-100 disabled:opacity-50">Approve</button>
+                          <button onClick={() => handleInvoiceAction(inv.name, 'reject_invoice')} disabled={busyInv === inv.name} className="px-2 py-1 text-xs font-medium text-red-700 bg-red-50 rounded hover:bg-red-100 disabled:opacity-50">Reject</button>
+                        </>
+                      )}
+                      {inv.status === 'APPROVED' && (
+                        <button onClick={() => handleInvoiceAction(inv.name, 'mark_invoice_paid')} disabled={busyInv === inv.name} className="px-2 py-1 text-xs font-medium text-green-700 bg-green-50 rounded hover:bg-green-100 disabled:opacity-50">Mark Paid</button>
+                      )}
+                      {inv.status !== 'CANCELLED' && inv.status !== 'PAYMENT_RECEIVED' && (
+                        <button onClick={() => handleInvoiceAction(inv.name, 'cancel_invoice')} disabled={busyInv === inv.name} className="px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50">Cancel</button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

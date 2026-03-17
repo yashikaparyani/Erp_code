@@ -40,6 +40,10 @@ export default function OMHelpdeskPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
+  const [assignModal, setAssignModal] = useState<string | null>(null);
+  const [assignTo, setAssignTo] = useState('');
+  const [commentModal, setCommentModal] = useState<string | null>(null);
+  const [commentText, setCommentText] = useState('');
   const [createForm, setCreateForm] = useState({
     title: '',
     linked_project: '',
@@ -147,26 +151,33 @@ export default function OMHelpdeskPage() {
     }
   };
 
-  const runTicketAction = async (ticket: Ticket, action: string) => {
-    const payload: Record<string, string> = { name: ticket.name, action };
-    if (action === 'assign') payload.assigned_to = prompt('Assign to user') || '';
-    if (action === 'escalate') payload.reason = prompt('Escalation reason') || '';
-    if (action === 'comment') payload.notes = prompt('Comment') || '';
-    if (action === 'pause') payload.reason = prompt('Pause reason') || '';
-    if (action === 'resolve') payload.resolution_notes = prompt('Resolution notes') || '';
-    if (action === 'close') payload.closure_notes = prompt('Closure notes') || '';
+  const handleTicketAction = async (ticketName: string, method: string) => {
+    setBusyTicket(ticketName);
+    try {
+      await fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method, args: { name: ticketName } }) });
+      await loadTickets();
+    } catch (e) { console.error(method, 'failed:', e); }
+    setBusyTicket(null);
+  };
 
-    const response = await fetch('/api/tickets', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok || result.success === false) {
-      alert(result.message || `Failed to ${action} ticket`);
-      return;
-    }
-    loadTickets();
+  const handleAssign = async () => {
+    if (!assignModal || !assignTo.trim()) return;
+    setBusyTicket(assignModal);
+    try {
+      await fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method: 'assign_ticket', args: { name: assignModal, assigned_to: assignTo.trim() } }) });
+      setAssignModal(null); setAssignTo(''); await loadTickets();
+    } catch (e) { console.error('assign failed:', e); }
+    setBusyTicket(null);
+  };
+
+  const handleAddComment = async () => {
+    if (!commentModal || !commentText.trim()) return;
+    setBusyTicket(commentModal);
+    try {
+      await fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method: 'add_ticket_comment', args: { name: commentModal, comment: commentText.trim() } }) });
+      setCommentModal(null); setCommentText('');
+    } catch (e) { console.error('comment failed:', e); }
+    setBusyTicket(null);
   };
 
   if (loading) {
@@ -387,21 +398,39 @@ export default function OMHelpdeskPage() {
                     </span>
                   </td>
                   <td>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1">
                       {ticket.is_rma ? (
-                        <span className="badge badge-success">RMA Raised</span>
+                        <span className="badge badge-success">RMA</span>
                       ) : (
-                        <button
-                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                          onClick={() => handleConvertToRMA(ticket)}
-                          disabled={busyTicket === ticket.name}
-                        >
-                          {busyTicket === ticket.name ? 'Converting...' : 'Convert to RMA'}
-                        </button>
+                        <button onClick={() => handleConvertToRMA(ticket)} disabled={busyTicket === ticket.name} className="px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 rounded hover:bg-blue-100 disabled:opacity-50">RMA</button>
                       )}
-                      <button className="text-sm font-medium text-indigo-600" onClick={() => void runTicketAction(ticket, 'assign')}>Assign</button>
-                      <button className="text-sm font-medium text-amber-600" onClick={() => void runTicketAction(ticket, 'escalate')}>Escalate</button>
-                      <button className="text-sm font-medium text-slate-600" onClick={() => void runTicketAction(ticket, 'comment')}>Comment</button>
+                      {ticket.status === 'NEW' && (
+                        <>
+                          <button onClick={() => { setAssignModal(ticket.name); setAssignTo(ticket.assigned_to || ''); }} className="px-2 py-1 text-xs font-medium text-purple-700 bg-purple-50 rounded hover:bg-purple-100">Assign</button>
+                          <button onClick={() => handleTicketAction(ticket.name, 'start_ticket')} disabled={busyTicket === ticket.name} className="px-2 py-1 text-xs font-medium text-green-700 bg-green-50 rounded hover:bg-green-100 disabled:opacity-50">Start</button>
+                        </>
+                      )}
+                      {ticket.status === 'ASSIGNED' && (
+                        <button onClick={() => handleTicketAction(ticket.name, 'start_ticket')} disabled={busyTicket === ticket.name} className="px-2 py-1 text-xs font-medium text-green-700 bg-green-50 rounded hover:bg-green-100 disabled:opacity-50">Start</button>
+                      )}
+                      {ticket.status === 'IN_PROGRESS' && (
+                        <>
+                          <button onClick={() => handleTicketAction(ticket.name, 'pause_ticket')} disabled={busyTicket === ticket.name} className="px-2 py-1 text-xs font-medium text-yellow-700 bg-yellow-50 rounded hover:bg-yellow-100 disabled:opacity-50">Pause</button>
+                          <button onClick={() => handleTicketAction(ticket.name, 'resolve_ticket')} disabled={busyTicket === ticket.name} className="px-2 py-1 text-xs font-medium text-green-700 bg-green-50 rounded hover:bg-green-100 disabled:opacity-50">Resolve</button>
+                        </>
+                      )}
+                      {ticket.status === 'ON_HOLD' && (
+                        <button onClick={() => handleTicketAction(ticket.name, 'resume_ticket')} disabled={busyTicket === ticket.name} className="px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 rounded hover:bg-blue-100 disabled:opacity-50">Resume</button>
+                      )}
+                      {ticket.status === 'RESOLVED' && (
+                        <button onClick={() => handleTicketAction(ticket.name, 'close_ticket')} disabled={busyTicket === ticket.name} className="px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50">Close</button>
+                      )}
+                      {ticket.status !== 'CLOSED' && (
+                        <>
+                          <button onClick={() => handleTicketAction(ticket.name, 'escalate_ticket')} disabled={busyTicket === ticket.name} className="px-2 py-1 text-xs font-medium text-red-700 bg-red-50 rounded hover:bg-red-100 disabled:opacity-50">Escalate</button>
+                          <button onClick={() => { setCommentModal(ticket.name); setCommentText(''); }} className="px-2 py-1 text-xs font-medium text-gray-700 bg-gray-50 rounded hover:bg-gray-100">Comment</button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -410,6 +439,45 @@ export default function OMHelpdeskPage() {
           </table>
         </div>
       </div>
+
+      {/* Assign Modal */}
+      {assignModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-800">Assign Ticket</h3>
+              <button onClick={() => setAssignModal(null)} className="p-1 text-gray-500 hover:text-gray-700 rounded"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Assign To (email)</label>
+              <input type="text" value={assignTo} onChange={(e) => setAssignTo(e.target.value)} placeholder="user@technosys.local" className="input w-full" />
+            </div>
+            <div className="flex justify-end gap-3 px-4 py-3 border-t border-gray-200">
+              <button onClick={() => setAssignModal(null)} className="btn btn-secondary">Cancel</button>
+              <button onClick={handleAssign} disabled={busyTicket === assignModal} className="btn btn-primary">{busyTicket === assignModal ? 'Assigning...' : 'Assign'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Comment Modal */}
+      {commentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-800">Add Comment</h3>
+              <button onClick={() => setCommentModal(null)} className="p-1 text-gray-500 hover:text-gray-700 rounded"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-4">
+              <textarea value={commentText} onChange={(e) => setCommentText(e.target.value)} placeholder="Enter comment..." className="input w-full min-h-[100px]" />
+            </div>
+            <div className="flex justify-end gap-3 px-4 py-3 border-t border-gray-200">
+              <button onClick={() => setCommentModal(null)} className="btn btn-secondary">Cancel</button>
+              <button onClick={handleAddComment} disabled={busyTicket === commentModal} className="btn btn-primary">{busyTicket === commentModal ? 'Sending...' : 'Add Comment'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

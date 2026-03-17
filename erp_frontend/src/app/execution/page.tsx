@@ -1,6 +1,5 @@
 'use client';
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { Plus, Wrench, Camera, Activity, CheckCircle2, Eye, X } from 'lucide-react';
 
 interface Site {
@@ -37,23 +36,16 @@ export default function ExecutionPage() {
   const [dprStats, setDprStats] = useState<DPRStats>({});
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showDprModal, setShowDprModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
+  const [showDprModal, setShowDprModal] = useState(false);
+  const [dprForm, setDprForm] = useState({ linked_project: '', linked_site: '', report_date: '', summary: '', manpower_on_site: 0, equipment_count: 0 });
   const [createForm, setCreateForm] = useState({
     site_code: '',
     site_name: '',
     linked_project: '',
     linked_tender: '',
     status: 'PLANNED',
-  });
-  const [dprForm, setDprForm] = useState({
-    linked_project: '',
-    linked_site: '',
-    report_date: '',
-    summary: '',
-    manpower_on_site: 0,
-    equipment_count: 0,
   });
 
   const loadData = async () => {
@@ -107,24 +99,18 @@ export default function ExecutionPage() {
   };
 
   const handleCreateDpr = async () => {
-    setCreating(true);
-    setError('');
-    try {
-      const response = await fetch('/api/dprs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dprForm),
-      });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok || !result.success) throw new Error(result.message || 'Failed to create DPR');
-      setShowDprModal(false);
-      setDprForm({ linked_project: '', linked_site: '', report_date: '', summary: '', manpower_on_site: 0, equipment_count: 0 });
-      await loadData();
-    } catch (creationError) {
-      setError(creationError instanceof Error ? creationError.message : 'Failed to create DPR');
-    } finally {
-      setCreating(false);
+    if (!dprForm.linked_project.trim() || !dprForm.linked_site.trim()) {
+      setError('Project and Site are required.');
+      return;
     }
+    setCreating(true); setError('');
+    try {
+      const res = await fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method: 'create_dpr', args: dprForm }) });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(result.message || 'Failed to create DPR');
+      setShowDprModal(false); setDprForm({ linked_project: '', linked_site: '', report_date: '', summary: '', manpower_on_site: 0, equipment_count: 0 }); await loadData();
+    } catch (e) { setError(e instanceof Error ? e.message : 'Failed to create DPR'); }
+    setCreating(false);
   };
 
   if (loading) {
@@ -149,12 +135,11 @@ export default function ExecutionPage() {
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Execution (I&C)</h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-1">Installation, commissioning, and site progress tracking</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex gap-2">
           <button className="btn btn-secondary w-full sm:w-auto" onClick={() => setShowDprModal(true)}>
-            <Plus className="w-4 h-4" />
+            <Camera className="w-4 h-4" />
             New DPR
           </button>
-          <Link href="/milestones" className="btn btn-secondary">Milestones</Link>
           <button className="btn btn-primary w-full sm:w-auto" onClick={() => setShowCreateModal(true)}>
             <Plus className="w-4 h-4" />
             New Site
@@ -208,30 +193,30 @@ export default function ExecutionPage() {
         </div>
       ) : null}
 
-      {showDprModal ? (
+      {/* DPR Create Modal */}
+      {showDprModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-900">Create DPR</h2>
-              <button className="p-2 rounded-lg hover:bg-gray-100" onClick={() => setShowDprModal(false)}>
-                <X className="w-5 h-5" />
-              </button>
+              <h2 className="text-lg font-semibold text-gray-900">Create Daily Progress Report</h2>
+              <button className="p-2 rounded-lg hover:bg-gray-100" onClick={() => setShowDprModal(false)}><X className="w-5 h-5" /></button>
             </div>
             <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <input className="input" placeholder="Linked Project" value={dprForm.linked_project} onChange={(e) => setDprForm((p) => ({ ...p, linked_project: e.target.value }))} />
-              <input className="input" placeholder="Linked Site" value={dprForm.linked_site} onChange={(e) => setDprForm((p) => ({ ...p, linked_site: e.target.value }))} />
-              <input className="input" type="date" value={dprForm.report_date} onChange={(e) => setDprForm((p) => ({ ...p, report_date: e.target.value }))} />
-              <input className="input" type="number" placeholder="Manpower" value={dprForm.manpower_on_site} onChange={(e) => setDprForm((p) => ({ ...p, manpower_on_site: Number(e.target.value || 0) }))} />
-              <input className="input" type="number" placeholder="Equipment Count" value={dprForm.equipment_count} onChange={(e) => setDprForm((p) => ({ ...p, equipment_count: Number(e.target.value || 0) }))} />
-              <textarea className="input min-h-24 sm:col-span-2" placeholder="Summary" value={dprForm.summary} onChange={(e) => setDprForm((p) => ({ ...p, summary: e.target.value }))} />
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Linked Project *</label><input className="input" value={dprForm.linked_project} onChange={(e) => setDprForm(p => ({ ...p, linked_project: e.target.value }))} /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Linked Site *</label><select className="input" value={dprForm.linked_site} onChange={(e) => setDprForm(p => ({ ...p, linked_site: e.target.value }))}><option value="">Select site</option>{sites.map(s => <option key={s.name} value={s.name}>{s.site_name || s.name}</option>)}</select></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Report Date</label><input className="input" type="date" value={dprForm.report_date} onChange={(e) => setDprForm(p => ({ ...p, report_date: e.target.value }))} /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Manpower On Site</label><input className="input" type="number" min="0" value={dprForm.manpower_on_site} onChange={(e) => setDprForm(p => ({ ...p, manpower_on_site: Number(e.target.value) }))} /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Equipment Count</label><input className="input" type="number" min="0" value={dprForm.equipment_count} onChange={(e) => setDprForm(p => ({ ...p, equipment_count: Number(e.target.value) }))} /></div>
+              <div className="sm:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Summary</label><textarea className="input min-h-24" value={dprForm.summary} onChange={(e) => setDprForm(p => ({ ...p, summary: e.target.value }))} /></div>
             </div>
+            {error ? <p className="px-6 pb-2 text-sm text-red-600">{error}</p> : null}
             <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
               <button className="btn btn-secondary" onClick={() => setShowDprModal(false)}>Cancel</button>
               <button className="btn btn-primary" onClick={handleCreateDpr} disabled={creating}>{creating ? 'Creating...' : 'Create DPR'}</button>
             </div>
           </div>
         </div>
-      ) : null}
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">

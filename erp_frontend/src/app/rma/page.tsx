@@ -89,6 +89,17 @@ export default function RMAPage() {
   const [formData, setFormData] = useState<RMAFormData>(initialFormData);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [busyName, setBusyName] = useState<string | null>(null);
+
+  const handleWorkflow = async (rmaName: string, method: string, label: string) => {
+    if (!confirm(`${label} RMA "${rmaName}"?`)) return;
+    setBusyName(rmaName);
+    try {
+      await fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method, args: { name: rmaName } }) });
+      await loadData();
+    } catch (e) { console.error(`${label} failed:`, e); }
+    setBusyName(null);
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -215,7 +226,7 @@ export default function RMAPage() {
             <tbody>
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-8 text-gray-500">No RMA records found</td>
+                  <td colSpan={10} className="text-center py-8 text-gray-500">No RMA records found</td>
                 </tr>
               ) : items.map((item) => (
                 <tr key={item.name}>
@@ -258,6 +269,19 @@ export default function RMAPage() {
                       {item.rma_status === 'PENDING' ? <button className="text-xs font-medium text-red-600" onClick={() => void runRmaAction(item.name, 'reject')}>Reject</button> : null}
                       {item.rma_status === 'APPROVED' ? <button className="text-xs font-medium text-amber-600" onClick={() => void runRmaAction(item.name, 'status', 'IN_TRANSIT')}>In Transit</button> : null}
                       {(item.rma_status === 'REPAIRED' || item.rma_status === 'REPLACED' || item.rma_status === 'REJECTED') ? <button className="text-xs font-medium text-blue-600" onClick={() => void runRmaAction(item.name, 'close')}>Close</button> : null}
+                    </div>
+                  </td>
+                  <td>
+                    <div className="flex flex-wrap gap-1">
+                      {(!item.approval_status || item.approval_status === 'PENDING') && (
+                        <>
+                          <button onClick={() => handleWorkflow(item.name, 'approve_rma', 'Approve')} disabled={busyName === item.name} className="px-2 py-1 text-xs font-medium text-green-700 bg-green-50 rounded hover:bg-green-100 disabled:opacity-50">Approve</button>
+                          <button onClick={() => handleWorkflow(item.name, 'reject_rma', 'Reject')} disabled={busyName === item.name} className="px-2 py-1 text-xs font-medium text-red-700 bg-red-50 rounded hover:bg-red-100 disabled:opacity-50">Reject</button>
+                        </>
+                      )}
+                      {item.rma_status !== 'CLOSED' && (
+                        <button onClick={() => handleWorkflow(item.name, 'close_rma', 'Close')} disabled={busyName === item.name} className="px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50">Close</button>
+                      )}
                     </div>
                   </td>
                 </tr>

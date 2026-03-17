@@ -20,6 +20,9 @@ export default function FoldersPage() {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [showModal, setShowModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [editingFolder, setEditingFolder] = useState<FolderData | null>(null);
+  const [editName, setEditName] = useState('');
 
   const fetchFolders = useCallback(async () => {
     try {
@@ -52,48 +55,30 @@ export default function FoldersPage() {
     return new Date(dateString).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 
-  const handleCreateFolder = () => {
+  const handleCreateFolder = async () => {
     if (!newFolderName.trim()) return;
-    fetch('/api/documents/folders', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ folder_name: newFolderName.trim(), file_name: newFolderName.trim(), folder: 'Home' }),
-    })
-      .then((res) => res.json())
-      .then((payload) => {
-        if (!payload.success) throw new Error(payload.message || 'Failed to create folder');
-        setNewFolderName('');
-        setShowModal(false);
-        fetchFolders();
-      })
-      .catch((err) => alert(err instanceof Error ? err.message : 'Failed to create folder'));
-  };
-
-  const handleRenameFolder = async (folder: FolderData) => {
-    const nextName = prompt('New folder name', folder.file_name || folder.name);
-    if (!nextName || nextName === (folder.file_name || folder.name)) return;
-    const response = await fetch('/api/documents/folders', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: folder.name, file_name: nextName, folder_name: nextName }),
-    });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok || !payload.success) {
-      alert(payload.message || 'Failed to rename folder');
-      return;
-    }
-    await fetchFolders();
+    setCreating(true);
+    try {
+      const res = await fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method: 'create_document_folder', args: { folder_name: newFolderName.trim() } }) });
+      if (res.ok) { setNewFolderName(''); setShowModal(false); fetchFolders(); }
+    } catch (e) { console.error('Create folder failed:', e); }
+    setCreating(false);
   };
 
   const handleDeleteFolder = async (folder: FolderData) => {
-    if (!confirm(`Delete folder ${folder.file_name || folder.name}?`)) return;
-    const response = await fetch(`/api/documents/folders?name=${encodeURIComponent(folder.name)}`, { method: 'DELETE' });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok || !payload.success) {
-      alert(payload.message || 'Failed to delete folder');
-      return;
-    }
-    await fetchFolders();
+    if (!confirm(`Delete folder "${folder.file_name || folder.name}"?`)) return;
+    try {
+      await fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method: 'delete_document_folder', args: { name: folder.name } }) });
+      fetchFolders();
+    } catch (e) { console.error('Delete folder failed:', e); }
+  };
+
+  const handleEditFolder = async () => {
+    if (!editingFolder || !editName.trim()) return;
+    try {
+      await fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method: 'update_document_folder', args: { name: editingFolder.name, folder_name: editName.trim() } }) });
+      setEditingFolder(null); setEditName(''); fetchFolders();
+    } catch (e) { console.error('Edit folder failed:', e); }
   };
 
   const filteredData = topLevelFolders.filter(folder =>
@@ -185,10 +170,10 @@ export default function FoldersPage() {
                       <td className="px-3 py-3 text-sm text-gray-600 text-center">{formatDate(folder.creation)}</td>
                       <td className="px-3 py-3 text-center">
                         <div className="flex items-center justify-center gap-2">
-                          <button className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded" onClick={() => void handleRenameFolder(folder)}>
+                          <button onClick={() => { setEditingFolder(folder); setEditName(folder.file_name || folder.name); }} className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded">
                             <Edit2 className="w-4 h-4" />
                           </button>
-                          <button className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded" onClick={() => void handleDeleteFolder(folder)}>
+                          <button onClick={() => handleDeleteFolder(folder)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded">
                             <Trash2 className="w-4 h-4" />
                           </button>
                           <button className="p-1.5 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded">
@@ -212,10 +197,10 @@ export default function FoldersPage() {
                         <td className="px-3 py-3 text-sm text-gray-600 text-center">{formatDate(subFolder.creation)}</td>
                         <td className="px-3 py-3 text-center">
                           <div className="flex items-center justify-center gap-2">
-                            <button className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded" onClick={() => void handleRenameFolder(subFolder)}>
+                            <button onClick={() => { setEditingFolder(subFolder); setEditName(subFolder.file_name || subFolder.name); }} className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded">
                               <Edit2 className="w-4 h-4" />
                             </button>
-                            <button className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded" onClick={() => void handleDeleteFolder(subFolder)}>
+                            <button onClick={() => handleDeleteFolder(subFolder)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded">
                               <Trash2 className="w-4 h-4" />
                             </button>
                             <button className="p-1.5 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded">
@@ -322,10 +307,32 @@ export default function FoldersPage() {
               </button>
               <button
                 onClick={handleCreateFolder}
-                className="px-4 py-2 bg-[#1e6b87] text-white rounded-lg hover:bg-[#185a73] transition-colors text-sm font-medium"
+                disabled={creating}
+                className="px-4 py-2 bg-[#1e6b87] text-white rounded-lg hover:bg-[#185a73] transition-colors text-sm font-medium disabled:opacity-50"
               >
-                Create
+                {creating ? 'Creating...' : 'Create'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Folder Modal */}
+      {editingFolder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setEditingFolder(null)} />
+          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-800">Rename Folder</h3>
+              <button onClick={() => setEditingFolder(null)} className="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Folder Name</label>
+              <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div className="flex items-center justify-end gap-3 px-4 py-3 border-t border-gray-200">
+              <button onClick={() => setEditingFolder(null)} className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors text-sm font-medium">Cancel</button>
+              <button onClick={handleEditFolder} className="px-4 py-2 bg-[#1e6b87] text-white rounded-lg hover:bg-[#185a73] transition-colors text-sm font-medium">Save</button>
             </div>
           </div>
         </div>

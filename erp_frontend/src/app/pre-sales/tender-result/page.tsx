@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { 
-  Search, ChevronDown, ChevronUp, Download, Clock, MapPin, FileText, Plus, X
+  Search, ChevronDown, ChevronUp, Download, Clock, MapPin, FileText, Plus, Edit2, Trash2, X
 } from 'lucide-react';
 
 interface TenderResultRow {
@@ -24,27 +24,11 @@ export default function TenderResultPage() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [results, setResults] = useState<TenderResultRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [formData, setFormData] = useState({ tender: '', result_stage: '', winner_company: '', winning_amount: 0, organization_name: '', site_location: '' });
-
-  useEffect(() => {
-    const load = async () => {
-      setIsLoading(true);
-      try {
-        const response = await fetch('/api/tender-results');
-        const payload = await response.json();
-        if (payload.success) {
-          setResults(payload.data || []);
-        }
-      } catch (error) {
-        console.error('Failed to fetch tender results:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    load();
-  }, []);
+  const [busy, setBusy] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [editingName, setEditingName] = useState('');
+  const emptyForm = { result_id: '', winning_amount: '', result_stage: 'AOC', reference_no: '', winner_company: '', tender: '', organization_name: '', site_location: '', publication_date: '' };
+  const [form, setForm] = useState(emptyForm);
 
   const loadResults = async () => {
     setIsLoading(true);
@@ -52,26 +36,70 @@ export default function TenderResultPage() {
       const response = await fetch('/api/tender-results');
       const payload = await response.json();
       if (payload.success) setResults(payload.data || []);
+    } catch (error) {
+      console.error('Failed to fetch tender results:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const createResult = async () => {
-    const response = await fetch('/api/tender-results', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData),
+  useEffect(() => { loadResults(); }, []);
+
+  function openCreate() {
+    setEditingName('');
+    setForm(emptyForm);
+    setShowModal(true);
+  }
+
+  function openEdit(row: TenderResultRow) {
+    setEditingName(row.name);
+    setForm({
+      result_id: row.result_id || '',
+      winning_amount: String(row.winning_amount || ''),
+      result_stage: row.result_stage || 'AOC',
+      reference_no: row.reference_no || '',
+      winner_company: row.winner_company || '',
+      tender: row.tender || '',
+      organization_name: row.organization_name || '',
+      site_location: row.site_location || '',
+      publication_date: row.publication_date || '',
     });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok || !payload.success) {
-      alert(payload.message || 'Failed to create tender result');
-      return;
+    setShowModal(true);
+  }
+
+  async function handleSave() {
+    setBusy(true);
+    try {
+      const method = editingName ? 'update_tender_result' : 'create_tender_result';
+      const args = editingName
+        ? { name: editingName, data: { ...form, winning_amount: Number(form.winning_amount) || 0 } }
+        : { data: { ...form, winning_amount: Number(form.winning_amount) || 0 } };
+      const res = await fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method, args }) });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok || !payload.success) throw new Error(payload.message || 'Save failed');
+      setShowModal(false);
+      loadResults();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Save failed');
+    } finally {
+      setBusy(false);
     }
-    setShowCreateModal(false);
-    setFormData({ tender: '', result_stage: '', winner_company: '', winning_amount: 0, organization_name: '', site_location: '' });
-    await loadResults();
-  };
+  }
+
+  async function handleDelete(name: string) {
+    if (!confirm('Delete this tender result?')) return;
+    setBusy(true);
+    try {
+      const res = await fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method: 'delete_tender_result', args: { name } }) });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok || !payload.success) throw new Error(payload.message || 'Delete failed');
+      loadResults();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Delete failed');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   const tabs: { key: TabType; label: string; count?: number }[] = [
     { key: 'fresh', label: 'Fresh Result' },
@@ -171,8 +199,8 @@ export default function TenderResultPage() {
       </div>
 
       {/* Actions Bar */}
-      <div className="flex justify-end gap-3 mb-4">
-        <button onClick={() => setShowCreateModal(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm">
+      <div className="flex justify-end gap-2 mb-4">
+        <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm" onClick={openCreate}>
           <Plus className="w-4 h-4" />
           New Result
         </button>
@@ -270,6 +298,21 @@ export default function TenderResultPage() {
                 <div className="flex items-center gap-3 text-gray-400">
                   <button 
                     className="hover:text-blue-500 transition-colors"
+                    title="Edit"
+                    onClick={() => openEdit(result)}
+                  >
+                    <Edit2 className="w-5 h-5" />
+                  </button>
+                  <button 
+                    className="hover:text-red-500 transition-colors"
+                    title="Delete"
+                    onClick={() => handleDelete(result.name)}
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                  <span className="text-gray-200">|</span>
+                  <button 
+                    className="hover:text-blue-500 transition-colors"
                     title="View Document"
                   >
                     <FileText className="w-5 h-5" />
@@ -305,28 +348,52 @@ export default function TenderResultPage() {
         </div>
       </div>
 
-      {showCreateModal ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">Create Tender Result</h3>
-              <button onClick={() => setShowCreateModal(false)} className="rounded p-2 hover:bg-gray-100"><X className="w-5 h-5" /></button>
+      {/* Create / Edit Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg">
+            <div className="flex items-center justify-between px-5 py-4 border-b">
+              <h3 className="font-semibold text-gray-900">{editingName ? 'Edit Tender Result' : 'New Tender Result'}</h3>
+              <button onClick={() => setShowModal(false)}><X className="w-5 h-5 text-gray-400" /></button>
             </div>
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <input className="input" placeholder="Tender" value={formData.tender} onChange={(e) => setFormData((p) => ({ ...p, tender: e.target.value }))} />
-              <input className="input" placeholder="Result Stage" value={formData.result_stage} onChange={(e) => setFormData((p) => ({ ...p, result_stage: e.target.value }))} />
-              <input className="input" placeholder="Winner Company" value={formData.winner_company} onChange={(e) => setFormData((p) => ({ ...p, winner_company: e.target.value }))} />
-              <input className="input" type="number" placeholder="Winning Amount" value={formData.winning_amount} onChange={(e) => setFormData((p) => ({ ...p, winning_amount: Number(e.target.value || 0) }))} />
-              <input className="input" placeholder="Organization" value={formData.organization_name} onChange={(e) => setFormData((p) => ({ ...p, organization_name: e.target.value }))} />
-              <input className="input" placeholder="Site Location" value={formData.site_location} onChange={(e) => setFormData((p) => ({ ...p, site_location: e.target.value }))} />
+            <div className="p-5 space-y-3 max-h-[70vh] overflow-y-auto">
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Result ID</label>
+                  <input className="input w-full" value={form.result_id} onChange={e => setForm({ ...form, result_id: e.target.value })} /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Stage</label>
+                  <select className="input w-full" value={form.result_stage} onChange={e => setForm({ ...form, result_stage: e.target.value })}>
+                    <option value="AOC">AOC</option><option value="LoI Issued">LoI Issued</option><option value="Work Order">Work Order</option>
+                    <option value="Technical Evaluation">Technical Evaluation</option><option value="Financial Evaluation">Financial Evaluation</option>
+                  </select></div>
+              </div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Tender</label>
+                <input className="input w-full" value={form.tender} onChange={e => setForm({ ...form, tender: e.target.value })} /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Organization</label>
+                  <input className="input w-full" value={form.organization_name} onChange={e => setForm({ ...form, organization_name: e.target.value })} /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Site Location</label>
+                  <input className="input w-full" value={form.site_location} onChange={e => setForm({ ...form, site_location: e.target.value })} /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Winner Company</label>
+                  <input className="input w-full" value={form.winner_company} onChange={e => setForm({ ...form, winner_company: e.target.value })} /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Winning Amount</label>
+                  <input type="number" className="input w-full" value={form.winning_amount} onChange={e => setForm({ ...form, winning_amount: e.target.value })} /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Reference No</label>
+                  <input className="input w-full" value={form.reference_no} onChange={e => setForm({ ...form, reference_no: e.target.value })} /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Publication Date</label>
+                  <input type="date" className="input w-full" value={form.publication_date} onChange={e => setForm({ ...form, publication_date: e.target.value })} /></div>
+              </div>
             </div>
-            <div className="mt-4 flex justify-end gap-2">
-              <button className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>Cancel</button>
-              <button className="btn btn-primary" onClick={() => void createResult()}>Create</button>
+            <div className="flex justify-end gap-2 px-5 py-4 border-t">
+              <button className="btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
+              <button className="btn-primary" disabled={busy} onClick={handleSave}>{busy ? 'Saving…' : editingName ? 'Update' : 'Create'}</button>
             </div>
           </div>
         </div>
-      ) : null}
+      )}
     </div>
   );
 }

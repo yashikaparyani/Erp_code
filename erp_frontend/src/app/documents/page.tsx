@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Eye, FileText, FolderOpen, GitBranch, Lock, Shield, UploadCloud } from 'lucide-react';
+import { Eye, FileText, FolderOpen, FolderPlus, GitBranch, Lock, Shield, UploadCloud, X } from 'lucide-react';
 import { EmptyState, SectionCard, formatDateTime, useApiData } from '../../components/dashboards/shared';
 
 type FolderRecord = {
@@ -51,35 +51,32 @@ export default function DocumentsPage() {
 	const error = foldersState.error || docsState.error;
 	const lastUpdated = foldersState.lastUpdated || docsState.lastUpdated;
 	const linkedProjects = new Set(documents.map((doc) => doc.linked_project).filter(Boolean));
-	const [showFolderModal, setShowFolderModal] = useState(false);
-	const [showUploadModal, setShowUploadModal] = useState(false);
-	const [folderName, setFolderName] = useState('');
-	const [uploadForm, setUploadForm] = useState({ document_name: '', linked_project: '', folder: '', category: '', file_url: '' });
 
-	const createFolder = async () => {
-		const response = await fetch('/api/documents/folders', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ folder_name: folderName, file_name: folderName, folder: 'Home', source: 'custom' }),
-		});
-		const payload = await response.json().catch(() => ({}));
-		if (!response.ok || !payload.success) throw new Error(payload.message || 'Failed to create folder');
-		setFolderName('');
-		setShowFolderModal(false);
-		await foldersState.refresh();
+	const [showFolderModal, setShowFolderModal] = useState(false);
+	const [newFolderName, setNewFolderName] = useState('');
+	const [showUploadModal, setShowUploadModal] = useState(false);
+	const [uploadForm, setUploadForm] = useState({ document_name: '', linked_project: '', folder: '', category: '' });
+	const [uploadFile, setUploadFile] = useState<File | null>(null);
+	const [busy, setBusy] = useState(false);
+
+	const handleCreateFolder = async () => {
+		if (!newFolderName.trim()) return;
+		setBusy(true);
+		try {
+			await fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method: 'create_document_folder', args: { folder_name: newFolderName.trim() } }) });
+			setNewFolderName(''); setShowFolderModal(false); foldersState.refresh();
+		} catch (e) { console.error('Create folder failed:', e); }
+		setBusy(false);
 	};
 
-	const uploadDocument = async () => {
-		const response = await fetch('/api/documents', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ ...uploadForm, version: 1 }),
-		});
-		const payload = await response.json().catch(() => ({}));
-		if (!response.ok || !payload.success) throw new Error(payload.message || 'Failed to upload document');
-		setUploadForm({ document_name: '', linked_project: '', folder: '', category: '', file_url: '' });
-		setShowUploadModal(false);
-		await docsState.refresh();
+	const handleUpload = async () => {
+		if (!uploadForm.document_name.trim()) return;
+		setBusy(true);
+		try {
+			await fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method: 'upload_project_document', args: { document_name: uploadForm.document_name.trim(), linked_project: uploadForm.linked_project || undefined, folder: uploadForm.folder || undefined, category: uploadForm.category || undefined } }) });
+			setUploadForm({ document_name: '', linked_project: '', folder: '', category: '' }); setUploadFile(null); setShowUploadModal(false); docsState.refresh();
+		} catch (e) { console.error('Upload failed:', e); }
+		setBusy(false);
 	};
 
 	if (loading) {
@@ -120,9 +117,18 @@ export default function DocumentsPage() {
 						{lastUpdated ? ` • Last updated: ${lastUpdated}` : ''}
 					</p>
 				</div>
-				<div className="flex flex-wrap gap-2">
-					<button onClick={() => setShowFolderModal(true)} className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Create Folder</button>
-					<button onClick={() => setShowUploadModal(true)} className="inline-flex items-center gap-2 rounded-lg bg-[#1e6b87] px-4 py-2 text-sm font-medium text-white hover:bg-[#185a73]">
+				<div className="flex items-center gap-2">
+					<button
+						onClick={() => setShowFolderModal(true)}
+						className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+					>
+						<FolderPlus className="h-4 w-4" />
+						New Folder
+					</button>
+					<button
+						onClick={() => setShowUploadModal(true)}
+						className="inline-flex items-center gap-2 rounded-lg bg-[#1e6b87] px-4 py-2 text-sm font-medium text-white hover:bg-[#185a73]"
+					>
 						<UploadCloud className="h-4 w-4" />
 						Upload Document
 					</button>
@@ -198,8 +204,8 @@ export default function DocumentsPage() {
 						<div className="flex items-start gap-3 rounded-lg bg-gray-50 px-4 py-3">
 							<div className="rounded-lg bg-amber-100 p-2 text-amber-700"><Lock className="h-4 w-4" /></div>
 							<div>
-								<div className="text-sm font-semibold text-gray-900">Frontend upload still gated</div>
-								<div className="text-sm text-gray-500">Read APIs are live now; the upload/create flow still needs a matching Next POST proxy before the button can be enabled.</div>
+								<div className="text-sm font-semibold text-gray-900">Upload via ops proxy</div>
+								<div className="text-sm text-gray-500">Document uploads and folder creation are now wired through the /api/ops endpoint.</div>
 							</div>
 						</div>
 					</div>
@@ -245,37 +251,32 @@ export default function DocumentsPage() {
 				</SectionCard>
 			</div>
 
-			{showFolderModal ? (
+			{/* Create Folder Modal */}
+			{showFolderModal && (
 				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-					<div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-						<h3 className="text-lg font-semibold text-gray-900">Create Folder</h3>
-						<input className="input mt-4" value={folderName} onChange={(event) => setFolderName(event.target.value)} placeholder="Folder name" />
-						<div className="mt-4 flex justify-end gap-2">
-							<button className="btn btn-secondary" onClick={() => setShowFolderModal(false)}>Cancel</button>
-							<button className="btn btn-primary" onClick={() => void createFolder()}>Create</button>
-						</div>
+					<div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+						<div className="flex items-center justify-between px-4 py-3 border-b"><h3 className="text-lg font-semibold">Create Folder</h3><button onClick={() => setShowFolderModal(false)} className="p-1 hover:bg-gray-100 rounded"><X className="w-5 h-5" /></button></div>
+						<div className="p-4"><label className="block text-sm font-medium text-gray-700 mb-2">Folder Name</label><input type="text" value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} placeholder="e.g., Engineering Docs" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" /></div>
+						<div className="flex justify-end gap-3 px-4 py-3 border-t"><button onClick={() => setShowFolderModal(false)} className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg text-sm font-medium">Cancel</button><button onClick={handleCreateFolder} disabled={busy} className="px-4 py-2 bg-[#1e6b87] text-white rounded-lg text-sm font-medium disabled:opacity-50">{busy ? 'Creating...' : 'Create'}</button></div>
 					</div>
 				</div>
-			) : null}
+			)}
 
-			{showUploadModal ? (
+			{/* Upload Document Modal */}
+			{showUploadModal && (
 				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-					<div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl">
-						<h3 className="text-lg font-semibold text-gray-900">Upload Document</h3>
-						<div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-							<input className="input" value={uploadForm.document_name} onChange={(event) => setUploadForm((prev) => ({ ...prev, document_name: event.target.value }))} placeholder="Document name" />
-							<input className="input" value={uploadForm.linked_project} onChange={(event) => setUploadForm((prev) => ({ ...prev, linked_project: event.target.value }))} placeholder="Linked project" />
-							<input className="input" value={uploadForm.folder} onChange={(event) => setUploadForm((prev) => ({ ...prev, folder: event.target.value }))} placeholder="Folder" />
-							<input className="input" value={uploadForm.category} onChange={(event) => setUploadForm((prev) => ({ ...prev, category: event.target.value }))} placeholder="Category" />
-							<input className="input sm:col-span-2" value={uploadForm.file_url} onChange={(event) => setUploadForm((prev) => ({ ...prev, file_url: event.target.value }))} placeholder="File URL" />
+					<div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+						<div className="flex items-center justify-between px-4 py-3 border-b"><h3 className="text-lg font-semibold">Upload Document</h3><button onClick={() => setShowUploadModal(false)} className="p-1 hover:bg-gray-100 rounded"><X className="w-5 h-5" /></button></div>
+						<div className="p-4 space-y-3">
+							<div><label className="block text-sm font-medium text-gray-700 mb-1">Document Name *</label><input type="text" value={uploadForm.document_name} onChange={(e) => setUploadForm(p => ({ ...p, document_name: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" /></div>
+							<div><label className="block text-sm font-medium text-gray-700 mb-1">Linked Project</label><input type="text" value={uploadForm.linked_project} onChange={(e) => setUploadForm(p => ({ ...p, linked_project: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" /></div>
+							<div><label className="block text-sm font-medium text-gray-700 mb-1">Folder</label><select value={uploadForm.folder} onChange={(e) => setUploadForm(p => ({ ...p, folder: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"><option value="">Select folder</option>{folders.map(f => <option key={f.name} value={f.name}>{f.folder_name || f.file_name || f.name}</option>)}</select></div>
+							<div><label className="block text-sm font-medium text-gray-700 mb-1">Category</label><input type="text" value={uploadForm.category} onChange={(e) => setUploadForm(p => ({ ...p, category: e.target.value }))} placeholder="e.g., Drawing, Report" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" /></div>
 						</div>
-						<div className="mt-4 flex justify-end gap-2">
-							<button className="btn btn-secondary" onClick={() => setShowUploadModal(false)}>Cancel</button>
-							<button className="btn btn-primary" onClick={() => void uploadDocument()}>Upload</button>
-						</div>
+						<div className="flex justify-end gap-3 px-4 py-3 border-t"><button onClick={() => setShowUploadModal(false)} className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg text-sm font-medium">Cancel</button><button onClick={handleUpload} disabled={busy} className="px-4 py-2 bg-[#1e6b87] text-white rounded-lg text-sm font-medium disabled:opacity-50">{busy ? 'Uploading...' : 'Upload'}</button></div>
 					</div>
 				</div>
-			) : null}
+			)}
 		</div>
 	);
 }

@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import { Search, ChevronDown, ChevronUp, Eye, ChevronsLeft, ChevronsRight, Loader2 } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, Eye, ChevronsLeft, ChevronsRight, Loader2, CheckCircle, XCircle } from 'lucide-react';
 
 interface ApprovalData {
   id: string;
@@ -13,12 +13,46 @@ interface ApprovalData {
   type: string;
 }
 
+function getApproveMethod(row: ApprovalData): string | null {
+  const af = row.approval_for?.toLowerCase() || '';
+  if (af.includes('boq')) return 'approve_boq';
+  if (af.includes('cost sheet')) return 'approve_cost_sheet';
+  if (af.includes('onboarding')) return 'approve_onboarding';
+  if (af.includes('invoice')) return 'approve_invoice';
+  if (af.includes('dispatch')) return 'approve_dispatch_challan';
+  if (af.includes('overtime')) return 'approve_overtime_entry';
+  if (af.includes('petty cash')) return 'approve_petty_cash_entry';
+  if (af.includes('travel')) return 'approve_travel_log';
+  if (af.includes('vendor')) return 'approve_vendor_comparison';
+  if (af.includes('rma')) return 'approve_rma';
+  if (af.includes('sla')) return 'approve_sla_penalty';
+  return null;
+}
+
+function getRejectMethod(row: ApprovalData): string | null {
+  const m = getApproveMethod(row);
+  return m ? m.replace('approve_', 'reject_') : null;
+}
+
 export default function ApprovalsPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [data, setData] = useState<ApprovalData[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const handleAction = async (row: ApprovalData, action: 'approve' | 'reject') => {
+    const method = action === 'approve' ? getApproveMethod(row) : getRejectMethod(row);
+    if (!method) return alert('No matching workflow method for this approval type.');
+    if (!confirm(`${action === 'approve' ? 'Approve' : 'Reject'} "${row.approval_for}"?`)) return;
+    setBusyId(row.id);
+    try {
+      await fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method, args: { name: row.id } }) });
+      fetchData();
+    } catch (e) { console.error(`${action} failed:`, e); }
+    setBusyId(null);
+  };
 
   const fetchData = useCallback(async () => {
     try {
@@ -46,30 +80,6 @@ export default function ApprovalsPage() {
       case 'Rejected': return 'text-red-600';
       default: return 'text-gray-600';
     }
-  };
-
-  const getApprovalKind = (row: ApprovalData) => {
-    if (row.approval_for.toLowerCase().includes('vendor comparison')) return 'vendor_comparison';
-    return '';
-  };
-
-  const runApproval = async (row: ApprovalData, action: 'approve' | 'reject') => {
-    const kind = getApprovalKind(row);
-    if (!kind) {
-      alert('No direct workflow action is wired for this approval type yet.');
-      return;
-    }
-    const response = await fetch('/api/approvals', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ kind, action, name: row.id, reason: action === 'reject' ? prompt('Reject reason') || '' : '' }),
-    });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok || !payload.success) {
-      alert(payload.message || `Failed to ${action}`);
-      return;
-    }
-    await fetchData();
   };
 
   return (
@@ -157,7 +167,7 @@ export default function ApprovalsPage() {
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Requester</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Request Date</th>
                 <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Status</th>
-                <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider w-40">Action</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider w-36">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -183,16 +193,20 @@ export default function ApprovalsPage() {
                       {row.status}
                     </td>
                     <td className="px-3 py-3 text-center">
-                      <div className="flex items-center justify-center gap-2">
+                      <div className="flex items-center justify-center gap-1">
+                        {row.status === 'Pending' && (
+                          <>
+                            <button onClick={() => handleAction(row, 'approve')} disabled={busyId === row.id} className="p-1.5 text-green-600 hover:bg-green-50 rounded disabled:opacity-50" title="Approve">
+                              <CheckCircle className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => handleAction(row, 'reject')} disabled={busyId === row.id} className="p-1.5 text-red-600 hover:bg-red-50 rounded disabled:opacity-50" title="Reject">
+                              <XCircle className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
                         <button className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded">
                           <Eye className="w-4 h-4" />
                         </button>
-                        {getApprovalKind(row) ? (
-                          <>
-                            <button className="text-xs font-medium text-green-600 hover:text-green-800" onClick={() => void runApproval(row, 'approve')}>Approve</button>
-                            <button className="text-xs font-medium text-red-600 hover:text-red-800" onClick={() => void runApproval(row, 'reject')}>Reject</button>
-                          </>
-                        ) : null}
                       </div>
                     </td>
                   </tr>

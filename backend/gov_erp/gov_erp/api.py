@@ -71,6 +71,14 @@ def _require_roles(*roles):
 		frappe.throw(f"Insufficient role access. One of these roles is required: {role_list}", frappe.PermissionError)
 
 
+def _require_param(value, param_name):
+	if isinstance(value, str):
+		value = value.strip()
+	if value in (None, ""):
+		frappe.throw(f"{param_name} is required")
+	return value
+
+
 def _require_tender_read_access():
 	_require_roles(
 		ROLE_PRESALES_HEAD,
@@ -528,9 +536,10 @@ def get_tenders(filters=None, limit_page_length=50, limit_start=0):
 
 
 @frappe.whitelist()
-def get_tender(name):
+def get_tender(name=None):
 	"""Return a single tender with all fields."""
 	_require_tender_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Tender", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -824,9 +833,10 @@ def get_tender_results(tender=None, result_stage=None, is_fresh=None):
 
 
 @frappe.whitelist()
-def get_tender_result(name):
+def get_tender_result(name=None):
 	"""Return one tender result row with bidders."""
 	_require_tender_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Tender Result", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -900,9 +910,10 @@ def get_tender_checklists(status=None, checklist_type=None):
 
 
 @frappe.whitelist()
-def get_tender_checklist(name):
+def get_tender_checklist(name=None):
 	"""Return one tender checklist template."""
 	_require_tender_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Tender Checklist", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -963,9 +974,10 @@ def get_tender_reminders(tender=None, status=None, remind_user=None):
 
 
 @frappe.whitelist()
-def get_tender_reminder(name):
+def get_tender_reminder(name=None):
 	"""Return one tender reminder."""
 	_require_tender_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Tender Reminder", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -1058,9 +1070,10 @@ def get_competitors():
 
 
 @frappe.whitelist()
-def get_competitor(name):
+def get_competitor(name=None):
 	"""Return one competitor master row."""
 	_require_tender_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Competitor", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -1138,9 +1151,10 @@ def get_surveys(tender=None, status=None):
 
 
 @frappe.whitelist()
-def get_survey(name):
+def get_survey(name=None):
 	"""Return a single survey with all fields."""
 	_require_survey_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Survey", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -1244,9 +1258,10 @@ def get_boqs(tender=None, status=None):
 
 
 @frappe.whitelist()
-def get_boq(name):
+def get_boq(name=None):
 	"""Return a single BOQ with all fields and line items."""
 	_require_boq_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE BOQ", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -1398,9 +1413,10 @@ def get_cost_sheets(tender=None, status=None):
 
 
 @frappe.whitelist()
-def get_cost_sheet(name):
+def get_cost_sheet(name=None):
 	"""Return a single cost sheet with all fields and line items."""
 	_require_cost_sheet_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Cost Sheet", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -1587,9 +1603,10 @@ def get_vendor_comparisons(material_request=None, status=None):
 
 
 @frappe.whitelist()
-def get_vendor_comparison(name):
+def get_vendor_comparison(name=None):
 	"""Return a single vendor comparison with quote rows."""
 	_require_procurement_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Vendor Comparison", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -1756,9 +1773,10 @@ def get_dispatch_challans(status=None, warehouse=None):
 
 
 @frappe.whitelist()
-def get_dispatch_challan(name):
+def get_dispatch_challan(name=None):
 	"""Return a single dispatch challan with line items."""
 	_require_store_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Dispatch Challan", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -1945,9 +1963,10 @@ def get_indents(project=None, status=None, limit_page_length=50, limit_start=0):
 
 
 @frappe.whitelist()
-def get_indent(name):
+def get_indent(name=None):
 	"""Return one indent backed by Material Request."""
 	_require_procurement_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("Material Request", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -2066,9 +2085,10 @@ def get_purchase_orders(project=None, status=None, supplier=None, limit_page_len
 
 
 @frappe.whitelist()
-def get_purchase_order(name):
+def get_purchase_order(name=None):
 	"""Return one ERPNext purchase order."""
 	_require_procurement_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("Purchase Order", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -2107,7 +2127,16 @@ def get_grns(project=None, status=None, supplier=None, purchase_order=None, limi
 	if supplier:
 		filters["supplier"] = supplier
 	if purchase_order:
-		filters["purchase_order"] = purchase_order
+		# purchase_order lives on child Purchase Receipt Item, not the parent
+		pr_names = frappe.get_all(
+			"Purchase Receipt Item",
+			filters={"purchase_order": purchase_order},
+			pluck="parent",
+		)
+		if pr_names:
+			filters["name"] = ["in", list(set(pr_names))]
+		else:
+			return {"success": True, "data": [], "total": 0}
 
 	data = frappe.get_all(
 		"Purchase Receipt",
@@ -2119,7 +2148,6 @@ def get_grns(project=None, status=None, supplier=None, purchase_order=None, limi
 			"status",
 			"company",
 			"project",
-			"purchase_order",
 			"set_warehouse",
 			"grand_total",
 			"rounded_total",
@@ -2136,9 +2164,10 @@ def get_grns(project=None, status=None, supplier=None, purchase_order=None, limi
 
 
 @frappe.whitelist()
-def get_grn(name):
+def get_grn(name=None):
 	"""Return one ERPNext purchase receipt."""
 	_require_store_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("Purchase Receipt", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -2366,9 +2395,10 @@ def get_sites(project=None, status=None):
 
 
 @frappe.whitelist()
-def get_site(name):
+def get_site(name=None):
 	"""Return a single site."""
 	_require_execution_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Site", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -2426,9 +2456,10 @@ def get_milestones(project=None, site=None, status=None):
 
 
 @frappe.whitelist()
-def get_milestone(name):
+def get_milestone(name=None):
 	"""Return a single milestone."""
 	_require_milestone_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Milestone", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -2656,9 +2687,10 @@ def get_onboardings(status=None, company=None):
 
 
 @frappe.whitelist()
-def get_onboarding(name):
+def get_onboarding(name=None):
 	"""Return a single onboarding record with all fields and child tables."""
 	_require_hr_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Employee Onboarding", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -2867,9 +2899,10 @@ def get_attendance_logs(employee=None, attendance_date=None, status=None):
 
 
 @frappe.whitelist()
-def get_attendance_log(name):
+def get_attendance_log(name=None):
 	"""Return one attendance log."""
 	_require_hr_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Attendance Log", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -2947,9 +2980,10 @@ def get_travel_logs(employee=None, status=None):
 
 
 @frappe.whitelist()
-def get_travel_log(name):
+def get_travel_log(name=None):
 	"""Return one travel log."""
 	_require_hr_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Travel Log", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -3072,9 +3106,10 @@ def get_overtime_entries(employee=None, status=None):
 
 
 @frappe.whitelist()
-def get_overtime_entry(name):
+def get_overtime_entry(name=None):
 	"""Return one overtime entry."""
 	_require_hr_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Overtime Entry", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -3199,9 +3234,10 @@ def get_statutory_ledgers(employee=None, ledger_type=None, payment_status=None):
 
 
 @frappe.whitelist()
-def get_statutory_ledger(name):
+def get_statutory_ledger(name=None):
 	"""Return one statutory ledger entry."""
 	_require_hr_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Statutory Ledger", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -3286,9 +3322,10 @@ def get_technician_visit_logs(employee=None, status=None, site=None):
 
 
 @frappe.whitelist()
-def get_technician_visit_log(name):
+def get_technician_visit_log(name=None):
 	"""Return one technician visit log."""
 	_require_hr_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Technician Visit Log", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -3433,9 +3470,10 @@ def get_dprs(project=None, site=None, report_date=None):
 
 
 @frappe.whitelist()
-def get_dpr(name):
+def get_dpr(name=None):
 	"""Return a single DPR with child tables."""
 	_require_execution_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE DPR", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -3525,9 +3563,10 @@ def get_project_team_members(project=None, role=None, active=None):
 
 
 @frappe.whitelist()
-def get_project_team_member(name):
+def get_project_team_member(name=None):
 	"""Return a single team member record."""
 	_require_execution_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Project Team Member", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -3592,9 +3631,10 @@ def get_invoices(project=None, status=None, invoice_type=None):
 
 
 @frappe.whitelist()
-def get_invoice(name):
+def get_invoice(name=None):
 	"""Return a single invoice with line items."""
 	_require_billing_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Invoice", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -3758,9 +3798,10 @@ def get_payment_receipts(invoice=None, project=None):
 
 
 @frappe.whitelist()
-def get_payment_receipt(name):
+def get_payment_receipt(name=None):
 	"""Return a single payment receipt."""
 	_require_billing_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Payment Receipt", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -3840,9 +3881,10 @@ def get_retention_ledgers(project=None, status=None):
 
 
 @frappe.whitelist()
-def get_retention_ledger(name):
+def get_retention_ledger(name=None):
 	"""Return a single retention ledger entry."""
 	_require_billing_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Retention Ledger", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -3950,9 +3992,10 @@ def get_penalty_deductions(project=None, status=None, source=None):
 
 
 @frappe.whitelist()
-def get_penalty_deduction(name):
+def get_penalty_deduction(name=None):
 	"""Return a single penalty deduction."""
 	_require_billing_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Penalty Deduction", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -4093,9 +4136,10 @@ def get_tickets(project=None, site=None, status=None, priority=None, category=No
 
 
 @frappe.whitelist()
-def get_ticket(name):
+def get_ticket(name=None):
 	"""Return a single ticket with all actions."""
 	_require_om_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Ticket", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -4348,9 +4392,10 @@ def get_sla_profiles(project=None, active=None):
 
 
 @frappe.whitelist()
-def get_sla_profile(name):
+def get_sla_profile(name=None):
 	"""Return a single SLA profile."""
 	_require_om_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE SLA Profile", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -4412,9 +4457,10 @@ def get_sla_timers(ticket=None):
 
 
 @frappe.whitelist()
-def get_sla_timer(name):
+def get_sla_timer(name=None):
 	"""Return a single SLA timer."""
 	_require_om_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE SLA Timer", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -4569,9 +4615,10 @@ def get_sla_penalty_records(ticket=None, status=None):
 
 
 @frappe.whitelist()
-def get_sla_penalty_record(name):
+def get_sla_penalty_record(name=None):
 	"""Return a single SLA penalty record."""
 	_require_om_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE SLA Penalty Record", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -4689,9 +4736,10 @@ def get_rma_trackers(project=None, status=None, ticket=None):
 
 
 @frappe.whitelist()
-def get_rma_tracker(name):
+def get_rma_tracker(name=None):
 	"""Return a single RMA tracker."""
 	_require_rma_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE RMA Tracker", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -5291,9 +5339,10 @@ def upload_project_document(data):
 
 
 @frappe.whitelist()
-def get_document_versions(name):
+def get_document_versions(name=None):
 	"""Return all versions of a project document grouped by logical document name and project."""
 	_require_document_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Project Document", name)
 	data = frappe.get_all(
 		"GE Project Document",
@@ -5941,9 +5990,10 @@ def get_executive_dashboard():
 
 
 @frappe.whitelist()
-def get_project_document(name):
+def get_project_document(name=None):
 	"""Return a single custom project document."""
 	_require_document_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Project Document", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -6002,8 +6052,9 @@ def get_drawings(project=None, site=None, status=None, client_approval_status=No
 
 
 @frappe.whitelist()
-def get_drawing(name):
+def get_drawing(name=None):
 	_require_execution_read_access()
+	name = _require_param(name, "name")
 	return {"success": True, "data": frappe.get_doc("GE Drawing", name).as_dict()}
 
 
@@ -6048,8 +6099,9 @@ def get_technical_deviations(project=None, drawing=None, status=None):
 
 
 @frappe.whitelist()
-def get_technical_deviation(name):
+def get_technical_deviation(name=None):
 	_require_execution_read_access()
+	name = _require_param(name, "name")
 	return {"success": True, "data": frappe.get_doc("GE Technical Deviation", name).as_dict()}
 
 
@@ -6092,8 +6144,9 @@ def get_change_requests(project=None, status=None):
 
 
 @frappe.whitelist()
-def get_change_request(name):
+def get_change_request(name=None):
 	_require_execution_read_access()
+	name = _require_param(name, "name")
 	return {"success": True, "data": frappe.get_doc("GE Change Request", name).as_dict()}
 
 
@@ -6138,8 +6191,9 @@ def get_device_registers(project=None, site=None, device_type=None):
 
 
 @frappe.whitelist()
-def get_device_register(name):
+def get_device_register(name=None):
 	_require_execution_read_access()
+	name = _require_param(name, "name")
 	return {"success": True, "data": frappe.get_doc("GE Device Register", name).as_dict()}
 
 
@@ -6184,8 +6238,9 @@ def get_ip_pools(project=None, site=None, status=None):
 
 
 @frappe.whitelist()
-def get_ip_pool(name):
+def get_ip_pool(name=None):
 	_require_execution_read_access()
+	name = _require_param(name, "name")
 	return {"success": True, "data": frappe.get_doc("GE IP Pool", name).as_dict()}
 
 
@@ -6230,8 +6285,9 @@ def get_ip_allocations(pool=None, device=None, status=None):
 
 
 @frappe.whitelist()
-def get_ip_allocation(name):
+def get_ip_allocation(name=None):
 	_require_execution_read_access()
+	name = _require_param(name, "name")
 	return {"success": True, "data": frappe.get_doc("GE IP Allocation", name).as_dict()}
 
 
@@ -6276,8 +6332,9 @@ def get_commissioning_checklists(project=None, site=None, status=None):
 
 
 @frappe.whitelist()
-def get_commissioning_checklist(name):
+def get_commissioning_checklist(name=None):
 	_require_execution_read_access()
+	name = _require_param(name, "name")
 	return {"success": True, "data": frappe.get_doc("GE Commissioning Checklist", name).as_dict()}
 
 
@@ -6322,8 +6379,9 @@ def get_test_reports(project=None, site=None, status=None):
 
 
 @frappe.whitelist()
-def get_test_report(name):
+def get_test_report(name=None):
 	_require_execution_read_access()
+	name = _require_param(name, "name")
 	return {"success": True, "data": frappe.get_doc("GE Test Report", name).as_dict()}
 
 
@@ -6368,8 +6426,9 @@ def get_client_signoffs(project=None, site=None, status=None):
 
 
 @frappe.whitelist()
-def get_client_signoff(name):
+def get_client_signoff(name=None):
 	_require_execution_read_access()
+	name = _require_param(name, "name")
 	return {"success": True, "data": frappe.get_doc("GE Client Signoff", name).as_dict()}
 
 
@@ -6425,9 +6484,10 @@ def get_comm_logs(project=None, site=None, comm_type=None, direction=None):
 
 
 @frappe.whitelist()
-def get_comm_log(name):
+def get_comm_log(name=None):
 	"""Return a single communication log entry."""
 	_require_comm_log_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Project Communication Log", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -6495,9 +6555,10 @@ def get_project_assets(project=None, site=None, asset_type=None, status=None):
 
 
 @frappe.whitelist()
-def get_project_asset(name):
+def get_project_asset(name=None):
 	"""Return a single project asset record."""
 	_require_project_asset_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Project Asset", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -6584,9 +6645,10 @@ def get_petty_cash_entries(project=None, site=None, status=None, category=None):
 
 
 @frappe.whitelist()
-def get_petty_cash_entry(name):
+def get_petty_cash_entry(name=None):
 	"""Return a single petty cash entry."""
 	_require_petty_cash_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Petty Cash", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -6678,9 +6740,10 @@ def get_manpower_logs(project=None, site=None, log_date=None):
 
 
 @frappe.whitelist()
-def get_manpower_log(name):
+def get_manpower_log(name=None):
 	"""Return a single manpower log entry."""
 	_require_manpower_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Manpower Log", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -6778,9 +6841,10 @@ def get_device_uptime_logs(site=None, project=None, device_type=None, sla_status
 
 
 @frappe.whitelist()
-def get_device_uptime_log(name):
+def get_device_uptime_log(name=None):
 	"""Return a single device uptime log entry."""
 	_require_device_uptime_read_access()
+	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Device Uptime Log", name)
 	return {"success": True, "data": doc.as_dict()}
 
@@ -6818,9 +6882,10 @@ def delete_device_uptime_log(name):
 
 
 @frappe.whitelist()
-def get_site_uptime_summary(site):
+def get_site_uptime_summary(site=None):
 	"""Return per-device uptime summary for a site."""
 	_require_device_uptime_read_access()
+	site = _require_param(site, "site")
 	rows = frappe.get_all(
 		"GE Device Uptime Log",
 		filters={"linked_site": site},

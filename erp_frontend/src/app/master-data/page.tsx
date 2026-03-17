@@ -16,25 +16,20 @@ interface Party {
   active: number;
 }
 
-interface Organization {
-  name: string;
-  organization_name?: string;
-  active?: number;
-}
-
-type TabType = 'clients' | 'vendors' | 'organizations';
+type TabType = 'clients' | 'vendors';
 
 export default function MasterDataPage() {
   const [activeTab, setActiveTab] = useState<TabType>('clients');
   const [clients, setClients] = useState<Party[]>([]);
   const [vendors, setVendors] = useState<Party[]>([]);
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   
   // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingParty, setEditingParty] = useState<Party | null>(null);
+  const [editForm, setEditForm] = useState({ party_name: '', gstin: '', phone: '', email: '', city: '' });
   const [formData, setFormData] = useState({
     name: '',
     gstin: '',
@@ -55,19 +50,16 @@ export default function MasterDataPage() {
   const fetchAllData = async () => {
     setIsLoading(true);
     try {
-      const [clientsRes, vendorsRes, organizationsRes] = await Promise.all([
+      const [clientsRes, vendorsRes] = await Promise.all([
         fetch('/api/parties?type=CLIENT'),
-        fetch('/api/parties?type=VENDOR'),
-        fetch('/api/organizations')
+        fetch('/api/parties?type=VENDOR')
       ]);
       
       const clientsData = await clientsRes.json();
       const vendorsData = await vendorsRes.json();
-      const organizationsData = await organizationsRes.json();
       
       if (clientsData.success) setClients(clientsData.data);
       if (vendorsData.success) setVendors(vendorsData.data);
-      if (organizationsData.success) setOrganizations(organizationsData.data);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -83,25 +75,20 @@ export default function MasterDataPage() {
     
     setIsSubmitting(true);
     try {
-      const payload = activeTab === 'organizations'
-        ? {
-            organization_name: formData.name,
-            active: 1
-          }
-        : {
-            party_name: formData.name,
-            party_type: activeTab === 'clients' ? 'CLIENT' : 'VENDOR',
-            gstin: formData.gstin,
-            pan: formData.pan,
-            phone: formData.phone,
-            email: formData.email,
-            address: formData.address,
-            city: formData.city,
-            state: formData.state,
-            pincode: formData.pincode
-          };
+      const payload = {
+        party_name: formData.name,
+        party_type: activeTab === 'clients' ? 'CLIENT' : 'VENDOR',
+        gstin: formData.gstin,
+        pan: formData.pan,
+        phone: formData.phone,
+        email: formData.email,
+        address: formData.address,
+        city: formData.city,
+        state: formData.state,
+        pincode: formData.pincode
+      };
       
-      const response = await fetch(activeTab === 'organizations' ? '/api/organizations' : '/api/parties', {
+      const response = await fetch('/api/parties', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -139,6 +126,24 @@ export default function MasterDataPage() {
     });
   };
 
+  const handleEditParty = async () => {
+    if (!editingParty) return;
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method: 'update_party', args: { name: editingParty.name, ...editForm } }) });
+      if (res.ok) { setEditingParty(null); fetchAllData(); }
+    } catch (e) { console.error('Edit failed:', e); }
+    setIsSubmitting(false);
+  };
+
+  const handleDeleteParty = async (party: Party) => {
+    if (!confirm(`Delete "${party.party_name}"? This cannot be undone.`)) return;
+    try {
+      await fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method: 'delete_party', args: { name: party.name } }) });
+      fetchAllData();
+    } catch (e) { console.error('Delete failed:', e); }
+  };
+
   const getTabData = () => {
     const term = searchTerm.toLowerCase();
     switch (activeTab) {
@@ -152,10 +157,6 @@ export default function MasterDataPage() {
           v.party_name.toLowerCase().includes(term) || 
           v.city?.toLowerCase().includes(term)
         );
-      case 'organizations':
-        return organizations.filter(org =>
-          (org.organization_name || org.name || '').toLowerCase().includes(term)
-        );
       default:
         return [];
     }
@@ -165,50 +166,13 @@ export default function MasterDataPage() {
     switch (activeTab) {
       case 'clients': return 'Client';
       case 'vendors': return 'Vendor';
-      case 'organizations': return 'Organization';
     }
   };
 
   const tabs = [
     { id: 'clients' as TabType, label: 'Clients', count: clients.length, icon: Users2 },
     { id: 'vendors' as TabType, label: 'Vendors', count: vendors.length, icon: Package },
-    { id: 'organizations' as TabType, label: 'Organizations', count: organizations.length, icon: Users2 },
   ];
-
-  const handleEdit = async (item: any) => {
-    const nextName = prompt('Update name', item.party_name || item.organization_name || item.name);
-    if (!nextName) return;
-    if (activeTab === 'organizations') {
-      alert('Organization edit backend is not available yet.');
-      return;
-    }
-    const response = await fetch('/api/parties', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: item.name, party_name: nextName }),
-    });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok || !result.success) {
-      alert(result.message || 'Failed to update');
-      return;
-    }
-    fetchAllData();
-  };
-
-  const handleDelete = async (item: any) => {
-    if (activeTab === 'organizations') {
-      alert('Organization delete backend is not available yet.');
-      return;
-    }
-    if (!confirm(`Delete ${item.party_name || item.name}?`)) return;
-    const response = await fetch(`/api/parties?name=${encodeURIComponent(item.name)}`, { method: 'DELETE' });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok || !result.success) {
-      alert(result.message || 'Failed to delete');
-      return;
-    }
-    fetchAllData();
-  };
 
   return (
     <div>
@@ -302,9 +266,9 @@ export default function MasterDataPage() {
                 <tr>
                   <th>Name</th>
                   <th>Type</th>
-                  <th>{activeTab === 'organizations' ? 'Code' : 'GSTIN'}</th>
+                  <th>GSTIN</th>
                   <th>City</th>
-                  <th>{activeTab === 'organizations' ? 'Status' : 'Phone'}</th>
+                  <th>Phone</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -312,23 +276,21 @@ export default function MasterDataPage() {
               <tbody>
                 {getTabData().map((item: any) => (
                   <tr key={item.name}>
-                    <td className="font-medium text-gray-900">{item.party_name || item.organization_name || item.name}</td>
+                    <td className="font-medium text-gray-900">{item.party_name}</td>
                     <td>
                       <span className={`px-2 py-1 text-xs rounded-full ${
-                        activeTab === 'organizations'
-                          ? 'bg-blue-100 text-blue-700'
-                          : item.party_type === 'CLIENT' 
+                        item.party_type === 'CLIENT' 
                           ? 'bg-green-100 text-green-700'
                           : item.party_type === 'VENDOR'
                           ? 'bg-purple-100 text-purple-700'
                           : 'bg-blue-100 text-blue-700'
                       }`}>
-                        {activeTab === 'organizations' ? 'ORGANIZATION' : item.party_type}
+                        {item.party_type}
                       </span>
                     </td>
-                    <td className="text-gray-600">{item.gstin || item.name || '-'}</td>
+                    <td className="text-gray-600">{item.gstin || '-'}</td>
                     <td className="text-gray-600">{item.city || '-'}</td>
-                    <td className="text-gray-600">{activeTab === 'organizations' ? (item.active ? 'Active' : 'Inactive') : (item.phone || '-')}</td>
+                    <td className="text-gray-600">{item.phone || '-'}</td>
                     <td>
                       <span className={`px-2 py-1 text-xs rounded-full ${
                         item.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
@@ -338,10 +300,10 @@ export default function MasterDataPage() {
                     </td>
                     <td>
                       <div className="flex items-center gap-2">
-                        <button className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" onClick={() => void handleEdit(item)}>
+                        <button onClick={() => { setEditingParty(item); setEditForm({ party_name: item.party_name, gstin: item.gstin || '', phone: item.phone || '', email: item.email || '', city: item.city || '' }); }} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors">
                           <Edit className="w-4 h-4" />
                         </button>
-                        <button className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" onClick={() => void handleDelete(item)}>
+                        <button onClick={() => handleDeleteParty(item)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -504,6 +466,37 @@ export default function MasterDataPage() {
                   </>
                 )}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editingParty && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setEditingParty(null)} />
+          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
+              <h2 className="text-xl font-semibold text-gray-900">Edit Party</h2>
+              <button onClick={() => setEditingParty(null)} className="p-2 hover:bg-gray-200 rounded-lg"><X className="w-5 h-5 text-gray-500" /></button>
+            </div>
+            <div className="px-6 py-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Party Name</label>
+                <input type="text" value={editForm.party_name} onChange={(e) => setEditForm(p => ({ ...p, party_name: e.target.value }))} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">GSTIN</label><input type="text" value={editForm.gstin} onChange={(e) => setEditForm(p => ({ ...p, gstin: e.target.value }))} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Phone</label><input type="text" value={editForm.phone} onChange={(e) => setEditForm(p => ({ ...p, phone: e.target.value }))} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" value={editForm.email} onChange={(e) => setEditForm(p => ({ ...p, email: e.target.value }))} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">City</label><input type="text" value={editForm.city} onChange={(e) => setEditForm(p => ({ ...p, city: e.target.value }))} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+              <button onClick={() => setEditingParty(null)} className="px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-lg text-sm font-medium">Cancel</button>
+              <button onClick={handleEditParty} disabled={isSubmitting} className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">{isSubmitting ? 'Saving...' : 'Save Changes'}</button>
             </div>
           </div>
         </div>

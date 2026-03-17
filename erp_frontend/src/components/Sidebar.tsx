@@ -33,13 +33,7 @@ import {
   GitBranch,
   FolderTree,
   Cpu,
-  ClipboardList,
-  Briefcase,
-  CalendarCheck2,
-  Plane,
-  Clock,
-  Flag,
-  ShieldCheck
+  ClipboardList
 } from 'lucide-react';
 import { useRole } from '../context/RoleContext';
 
@@ -171,9 +165,9 @@ const navLinks: NavLink[] = [
     children: [
       { name: 'Survey', href: '/survey', icon: MapPin },
       { name: 'BOQ', href: '/engineering/boq', icon: FileText },
-      { name: 'Drawings', href: '/engineering/drawings', icon: FileText },
-      { name: 'Change Requests', href: '/engineering/change-requests', icon: RefreshCcw },
       { name: 'Technical Deviations', href: '/engineering/deviations', icon: AlertTriangle },
+      { name: 'Drawings', href: '/drawings', icon: FileText },
+      { name: 'Change Requests', href: '/change-requests', icon: GitBranch },
     ]
   },
   {
@@ -181,10 +175,9 @@ const navLinks: NavLink[] = [
     href: '/procurement',
     icon: ShoppingCart,
     children: [
-      { name: 'Vendor Comparisons', href: '/procurement', icon: ClipboardList },
-      { name: 'Indents', href: '/indents', icon: FileText },
       { name: 'Purchase Orders', href: '/purchase-orders', icon: ShoppingCart },
-      { name: 'Petty Cash', href: '/petty-cash', icon: CreditCard },
+      { name: 'GRNs', href: '/grns', icon: Package },
+      { name: 'Indents', href: '/indents', icon: ClipboardList },
     ]
   },
   {
@@ -192,9 +185,7 @@ const navLinks: NavLink[] = [
     href: '/inventory',
     icon: Package,
     children: [
-      { name: 'Overview', href: '/inventory', icon: Package },
-      { name: 'GRNs', href: '/grns', icon: Package },
-      { name: 'Stock Position', href: '/stock-position', icon: Database },
+      { name: 'Stock Position', href: '/stock-position', icon: Package },
       { name: 'Stock Aging', href: '/stock-aging', icon: BarChart3 },
     ]
   },
@@ -205,6 +196,9 @@ const navLinks: NavLink[] = [
     children: [
       { name: 'Dependencies', href: '/execution/dependencies', icon: GitBranch },
       { name: 'Project Structure', href: '/execution/project-structure', icon: FolderTree },
+      { name: 'Milestones', href: '/milestones', icon: ListTodo },
+      { name: 'Manpower Logs', href: '/manpower', icon: Users2 },
+      { name: 'Comm Logs', href: '/comm-logs', icon: FileText },
       {
         name: 'Commissioning',
         href: '/execution/commissioning',
@@ -214,9 +208,6 @@ const navLinks: NavLink[] = [
           { name: 'Test Reports & Signoffs', href: '/execution/commissioning/test-reports' },
         ]
       },
-      { name: 'Milestones', href: '/milestones', icon: Flag },
-      { name: 'Manpower Logs', href: '/manpower', icon: Users2 },
-      { name: 'Communication Logs', href: '/execution/comm-logs', icon: ClipboardList },
     ]
   },
   {
@@ -226,31 +217,32 @@ const navLinks: NavLink[] = [
     children: [
       { name: 'Costing', href: '/finance/costing', icon: PieChart },
       { name: 'Billing', href: '/finance/billing', icon: CreditCard },
-      { name: 'Payment Receipts', href: '/finance/payment-receipts', icon: CreditCard },
-      { name: 'Retention Ledger', href: '/finance/retention', icon: ShieldCheck },
-      { name: 'Penalty Deductions', href: '/finance/penalties', icon: AlertTriangle },
+      { name: 'Petty Cash', href: '/petty-cash', icon: DollarSign },
+      { name: 'Payment Receipts', href: '/payment-receipts', icon: CreditCard },
+      { name: 'Retention Money', href: '/retention', icon: DollarSign },
+      { name: 'Penalties', href: '/penalties', icon: AlertTriangle },
     ]
   },
   {
     name: 'HR',
     href: '/hr',
     icon: Users2,
-    children: [
-      { name: 'Overview', href: '/hr', icon: Users2 },
-      { name: 'Onboarding', href: '/hr/onboarding', icon: Briefcase },
-      { name: 'Attendance', href: '/hr/attendance', icon: CalendarCheck2 },
-      { name: 'Travel Logs', href: '/hr/travel-logs', icon: Plane },
-      { name: 'Overtime', href: '/hr/overtime', icon: Clock },
-      { name: 'Technician Visits', href: '/hr/technician-visits', icon: Wrench },
-    ]
   },
   {
     name: 'RMA',
     href: '/rma',
     icon: RefreshCcw,
   },
-  { name: 'O&M & Helpdesk', href: '/om-helpdesk', icon: HeadphonesIcon },
-  { name: 'SLA Profiles', href: '/sla', icon: Clock },
+  {
+    name: 'O&M & Helpdesk',
+    href: '/om-helpdesk',
+    icon: HeadphonesIcon,
+    children: [
+      { name: 'Technician Visits', href: '/technician-visits', icon: Wrench },
+      { name: 'SLA Profiles', href: '/sla-profiles', icon: ClipboardList },
+      { name: 'Device Uptime', href: '/device-uptime', icon: Cpu },
+    ]
+  },
   { name: 'Reports', href: '/reports', icon: BarChart3 },
   { name: 'Document Management', href: '/documents', icon: FolderOpen },
   { name: 'Master Data', href: '/master-data', icon: Database },
