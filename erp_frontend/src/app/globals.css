@@ -2,47 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
-/* =========================================================
-   Safe Scoped Windows 10/11 Inspired ERP Theme Strategy
-   =========================================================
-   This CSS safely restyles the ERP to a professional Windows 
-   desktop feel without destroying global styles.
-   
-   Features:
-   - Uses `.windows-erp-theme` wrapper to prevent leaking.
-   - Enforces specific background/text pairs for components.
-   - Prevents light text from disappearing on light backgrounds.
-   ========================================================= */
-
 .windows-erp-theme {
-  /* Brand + Accent */
-  --accent: #0078d4;         /* Windows standard blue */
-  --accent-strong: #005a9e;  /* Windows hover blue */
-  --accent-soft: #c8e0f5;    /* Soft blue for selections */
-  --brand-orange: #f97316;   /* Legacy brand preserved */
+  --accent: #f58220;
+  --accent-strong: #dc6803;
+  --accent-soft: #ffedd5;
+  --accent-tint: #fff6ed;
+  --brand-orange: #f58220;
 
-  /* Surfaces */
-  --app-bg: #f3f3f3;         /* Classic Win grey background */
-  --app-bg-alt: #e5e5e5;     
-  --surface: #ffffff;        /* White cards */
-  --surface-alt: #fafafa;
-  --surface-hover: #f0f0f0;
+  --app-bg: #f7f4ef;
+  --app-bg-alt: #efe7dc;
+  --surface: #ffffff;
+  --surface-alt: #fffaf5;
+  --surface-hover: #fff3e6;
+  --surface-strong: #fffdf9;
 
-  /* Borders & Dividers */
-  --border-subtle: #e5e5e5;
-  --border-strong: #cccccc;
-  
-  /* Shadows */
-  --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.05);
-  --shadow-subtle: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --border-subtle: #eadfce;
+  --border-strong: #d7c2a4;
 
-  /* Typography Colors (Safe Contrast) */
-  --text-main: #202020;      /* Near black for readability */
-  --text-muted: #606060;     /* Grey text for secondary info */
-  --text-soft: #8a8a8a;      
-  --text-inverse: #ffffff;   /* Safe white text for dark surfaces */
+  --shadow-soft: 0 18px 40px rgba(168, 96, 28, 0.12);
+  --shadow-subtle: 0 2px 8px rgba(94, 68, 40, 0.07);
+  --shadow-focus: 0 0 0 3px rgba(245, 130, 32, 0.16);
 
-  /* Status Colors */
+  --text-main: #1f2937;
+  --text-muted: #6b7280;
+  --text-soft: #9ca3af;
+  --text-inverse: #ffffff;
+
   --success-bg: #dff6dd;
   --success-border: #107c10;
   --success-text: #0f540f;
@@ -55,14 +40,11 @@
   --error-border: #d13438;
   --error-text: #a4262c;
 
-  --info-bg: #e1f5fe;
-  --info-border: #0078d4;
-  --info-text: #004578;
+  --info-bg: #fff1de;
+  --info-border: #f58220;
+  --info-text: #9a4d00;
 }
 
-/* ===========================
-   Global Resets & Scrollbars
-   =========================== */
 *,
 *::before,
 *::after {
@@ -75,58 +57,58 @@ body.windows-erp-theme {
 }
 
 body.windows-erp-theme {
-  background-color: var(--app-bg);
+  background:
+    radial-gradient(circle at top left, rgba(245, 130, 32, 0.08), transparent 26%),
+    linear-gradient(180deg, #fffdf9 0%, var(--app-bg) 42%, #f4eee6 100%);
   color: var(--text-main);
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Scrollbars */
 .windows-erp-theme ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
+
 .windows-erp-theme ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 .windows-erp-theme ::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 5px;
+  background: #d7c2a4;
+  border-radius: 999px;
   border: 2px solid transparent;
   background-clip: content-box;
 }
+
 .windows-erp-theme ::-webkit-scrollbar-thumb:hover {
-  background-color: #a8a8a8;
+  background-color: #c79b62;
 }
 
-/* ===========================
-   App Layout Adjustments
-   =========================== */
 .windows-erp-theme > div > .flex.min-h-screen {
-  background-color: var(--app-bg);
+  background: transparent;
 }
 
 .windows-erp-theme aside {
-  background-color: var(--surface);
-  border-right: 1px solid var(--border-subtle);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 249, 242, 0.96) 100%);
+  border-right: 1px solid rgba(215, 194, 164, 0.8);
   color: var(--text-main);
+  box-shadow: 12px 0 32px rgba(156, 109, 47, 0.06);
 }
 
 .windows-erp-theme header {
-  background-color: var(--surface);
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--border-subtle);
   box-shadow: var(--shadow-subtle);
 }
 
-/* ===========================
-   Cards & Panels
-   =========================== */
 .windows-erp-theme .card {
-  background-color: var(--surface);
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-strong) 100%);
   border: 1px solid var(--border-subtle);
-  border-radius: 4px; /* Windows sharp edges */
+  border-radius: 18px;
   box-shadow: var(--shadow-soft);
-  color: var(--text-main); /* Ensure text is dark */
+  color: var(--text-main);
 }
 
 .windows-erp-theme .card-header {
@@ -135,8 +117,8 @@ body.windows-erp-theme {
   justify-content: space-between;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--border-subtle);
-  background-color: var(--surface-alt);
-  border-radius: 4px 4px 0 0;
+  background: linear-gradient(180deg, #fff7ef 0%, #fffdf9 100%);
+  border-radius: 18px 18px 0 0;
   color: var(--text-main);
 }
 
@@ -144,38 +126,39 @@ body.windows-erp-theme {
   padding: 1.5rem;
 }
 
-/* Stat Cards */
 .windows-erp-theme .stat-card {
-  background-color: var(--surface);
+  background: linear-gradient(180deg, #ffffff 0%, #fffaf4 100%);
   border: 1px solid var(--border-subtle);
-  border-radius: 4px;
+  border-radius: 20px;
   padding: 1.25rem;
   box-shadow: var(--shadow-subtle);
-  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
+
 .windows-erp-theme .stat-card:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
   box-shadow: var(--shadow-soft);
 }
+
 .windows-erp-theme .stat-value {
   font-size: 1.5rem;
   font-weight: 600;
   color: var(--text-main);
 }
+
 .windows-erp-theme .stat-label {
   font-size: 0.875rem;
   color: var(--text-muted);
 }
+
 .windows-erp-theme .stat-change {
   font-size: 0.75rem;
   margin-top: 0.25rem;
 }
+
 .windows-erp-theme .stat-change.positive { color: #107c10; }
 .windows-erp-theme .stat-change.negative { color: #d13438; }
 
-/* ===========================
-   Data Tables
-   =========================== */
 .windows-erp-theme .data-table {
   width: 100%;
   font-size: 0.875rem;
@@ -183,118 +166,126 @@ body.windows-erp-theme {
   border-spacing: 0;
   color: var(--text-main);
 }
+
 .windows-erp-theme .data-table th {
   text-align: left;
-  padding: 0.5rem 0.75rem;
-  font-weight: 600;
+  padding: 0.7rem 0.9rem;
+  font-weight: 700;
   color: var(--text-main);
-  background-color: var(--surface-alt);
-  border-bottom: 2px solid var(--border-subtle);
+  background-color: #fff7ef;
+  border-bottom: 1px solid var(--border-subtle);
 }
+
 .windows-erp-theme .data-table td {
-  padding: 0.5rem 0.75rem;
+  padding: 0.7rem 0.9rem;
   border-top: 1px solid var(--border-subtle);
   background-color: var(--surface);
 }
+
 .windows-erp-theme .data-table tbody tr:nth-child(2n) td {
-  background-color: #fafafa;
+  background-color: #fffdf9;
 }
+
 .windows-erp-theme .data-table tbody tr:hover td {
   background-color: var(--surface-hover);
 }
 
-/* ===========================
-   Badges & Status
-   =========================== */
 .windows-erp-theme .badge {
   display: inline-flex;
   align-items: center;
   font-size: 0.75rem;
   font-weight: 600;
-  padding: 0.15rem 0.5rem;
-  border-radius: 2px;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
   border: 1px solid transparent;
 }
+
 .windows-erp-theme .badge-success {
   background-color: var(--success-bg);
   color: var(--success-text);
   border-color: var(--success-border);
 }
+
 .windows-erp-theme .badge-warning {
   background-color: var(--warning-bg);
   color: var(--warning-text);
   border-color: var(--warning-border);
 }
+
 .windows-erp-theme .badge-error {
   background-color: var(--error-bg);
   color: var(--error-text);
   border-color: var(--error-border);
 }
+
 .windows-erp-theme .badge-info {
   background-color: var(--info-bg);
   color: var(--info-text);
   border-color: var(--info-border);
 }
+
 .windows-erp-theme .badge-gray {
-  background-color: #f3f3f3;
+  background-color: #f8f4ee;
   color: var(--text-muted);
   border-color: var(--border-strong);
 }
 
-/* ===========================
-   Buttons (Safe Text Contrast)
-   =========================== */
 .windows-erp-theme .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  font-weight: 500;
+  font-weight: 600;
   font-size: 0.875rem;
-  padding: 0.35rem 1rem;
-  border-radius: 4px;
+  padding: 0.55rem 1rem;
+  border-radius: 14px;
   border: 1px solid transparent;
   cursor: pointer;
-  transition: all 0.1s ease;
+  transition: all 0.12s ease;
 }
+
 .windows-erp-theme .btn-primary {
-  background-color: var(--accent);
-  border-color: var(--accent);
-  color: var(--text-inverse); /* Guaranteed white on blue */
+  background: linear-gradient(180deg, #ff9b43 0%, var(--accent) 100%);
+  border-color: rgba(220, 104, 3, 0.75);
+  color: var(--text-inverse);
+  box-shadow: 0 10px 24px rgba(245, 130, 32, 0.18);
 }
+
 .windows-erp-theme .btn-primary:hover {
-  background-color: var(--accent-strong);
+  background: linear-gradient(180deg, #ffab5f 0%, var(--accent-strong) 100%);
   border-color: var(--accent-strong);
 }
+
 .windows-erp-theme .btn-secondary {
   background-color: var(--surface);
   border-color: var(--border-strong);
-  color: var(--text-main); /* Dark text on white button */
+  color: var(--text-main);
 }
+
 .windows-erp-theme .btn-secondary:hover {
   background-color: var(--surface-hover);
-  border-color: #8a8a8a;
+  border-color: #c89b67;
 }
+
 .windows-erp-theme .btn-outline {
   background-color: transparent;
   border-color: var(--border-strong);
   color: var(--text-main);
 }
+
 .windows-erp-theme .btn-outline:hover {
   background-color: var(--surface-hover);
 }
+
 .windows-erp-theme .btn:disabled,
 .windows-erp-theme .btn[disabled] {
   background-color: #cccccc !important;
-  color: rgba(0,0,0,0.4) !important;
+  color: rgba(0, 0, 0, 0.4) !important;
   border-color: transparent !important;
   cursor: not-allowed;
   box-shadow: none;
 }
 
-/* ===========================
-   Inputs & Forms
-   =========================== */
 .windows-erp-theme input[type='text'],
 .windows-erp-theme input[type='password'],
 .windows-erp-theme input[type='email'],
@@ -306,19 +297,19 @@ body.windows-erp-theme {
 .windows-erp-theme select,
 .windows-erp-theme textarea {
   width: 100%;
-  border-radius: 4px;
+  border-radius: 14px;
   border: 1px solid var(--border-strong);
-  background-color: var(--surface);
+  background-color: rgba(255, 255, 255, 0.9);
   color: var(--text-main);
-  padding: 0.35rem 0.5rem;
+  padding: 0.65rem 0.85rem;
   font-size: 0.875rem;
-  transition: border-color 0.1s ease, box-shadow 0.1s ease;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease, background-color 0.12s ease;
 }
 
 .windows-erp-theme input::placeholder,
 .windows-erp-theme textarea::placeholder {
   color: var(--text-soft);
-  opacity: 1; /* Fixes browser overriding opacity on placeholders */
+  opacity: 1;
 }
 
 .windows-erp-theme input:focus,
@@ -326,7 +317,7 @@ body.windows-erp-theme {
 .windows-erp-theme textarea:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent);
+  box-shadow: var(--shadow-focus);
   background-color: var(--surface);
 }
 
@@ -339,30 +330,47 @@ body.windows-erp-theme {
   cursor: not-allowed;
 }
 
-/* Dropdown specific styling */
 .windows-erp-theme select {
   padding-right: 2rem;
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23606060' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 0.5rem center;
+  background-position: right 0.75rem center;
   background-size: 1rem;
 }
 
-/* ===========================
-   Progress Bar
-   =========================== */
 .windows-erp-theme .progress-bar {
   width: 100%;
-  border-radius: 2px;
-  height: 0.25rem;
+  border-radius: 999px;
+  height: 0.35rem;
   background-color: var(--border-subtle);
   overflow: hidden;
 }
 
 .windows-erp-theme .progress-fill {
-  border-radius: 2px;
+  border-radius: 999px;
   height: 100%;
   background-color: var(--accent);
   transition: width 0.25s ease;
+}
+
+.windows-erp-theme .shell-panel {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(255, 250, 245, 0.98) 100%);
+  border: 1px solid rgba(234, 223, 206, 0.95);
+  border-radius: 24px;
+  box-shadow: var(--shadow-soft);
+}
+
+.windows-erp-theme .shell-glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.78);
+}
+
+.windows-erp-theme .shell-section-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #9a6f3f;
 }

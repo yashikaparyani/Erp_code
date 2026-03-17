@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { NextRequest, NextResponse } from 'next/server';
 import { callFrappeMethod } from '../_lib/frappe';
 
@@ -27,3 +28,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, message: error instanceof Error ? error.message : 'Failed to create drawing' }, { status: 500 });
   }
 }
+=======
+export { dynamic, GET, POST } from '../engineering/drawings/route';
+>>>>>>> 41b381c (improved ui)

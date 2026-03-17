@@ -14,7 +14,6 @@ import {
   DollarSign,
   BarChart3,
   FolderOpen,
-  Building2,
   Database,
   ChevronRight,
   ChevronDown,
@@ -33,7 +32,18 @@ import {
   GitBranch,
   FolderTree,
   Cpu,
+<<<<<<< HEAD
   ClipboardList
+=======
+  ClipboardList,
+  Briefcase,
+  CalendarCheck2,
+  Plane,
+  Clock,
+  Flag,
+  ShieldCheck,
+  Layers3,
+>>>>>>> 41b381c (improved ui)
 } from 'lucide-react';
 import { useRole } from '../context/RoleContext';
 
@@ -58,7 +68,7 @@ const isItemActive = (pathname: string, item: SubMenuItem) => {
     return true;
   }
 
-  return item.children?.some(child => isItemActive(pathname, child)) ?? false;
+  return item.children?.some((child) => isItemActive(pathname, child)) ?? false;
 };
 
 const filterAccessibleItems = (items: SubMenuItem[], hasAccess: (path: string) => boolean): SubMenuItem[] => {
@@ -111,7 +121,7 @@ const navLinks: NavLink[] = [
           { name: 'MIS Reports', href: '/pre-sales/analytics/mis-reports' },
           { name: 'Compare Bidders', href: '/pre-sales/analytics/compare-bidders' },
           { name: 'Missed Opportunity', href: '/pre-sales/analytics/missed-opportunity' },
-        ]
+        ],
       },
       {
         name: 'Tender Task',
@@ -123,7 +133,7 @@ const navLinks: NavLink[] = [
           { name: 'Assigned To Team', href: '/pre-sales/tender-task/assigned-to-team' },
           { name: 'Submitted Tender', href: '/pre-sales/tender-task/submitted' },
           { name: 'Dropped Tender', href: '/pre-sales/tender-task/dropped' },
-        ]
+        ],
       },
       {
         name: 'Finance Management',
@@ -134,7 +144,7 @@ const navLinks: NavLink[] = [
           { name: 'Approve Request', href: '/pre-sales/finance/approve-request' },
           { name: 'Denied Request', href: '/pre-sales/finance/denied-request' },
           { name: 'Completed Request', href: '/pre-sales/finance/completed-request' },
-        ]
+        ],
       },
       {
         name: 'MIS',
@@ -144,7 +154,7 @@ const navLinks: NavLink[] = [
           { name: 'Finance MIS', href: '/pre-sales/mis/finance' },
           { name: 'Sales MIS', href: '/pre-sales/mis/sales' },
           { name: 'Login MIS', href: '/pre-sales/mis/login' },
-        ]
+        ],
       },
       {
         name: 'Document Management',
@@ -153,10 +163,10 @@ const navLinks: NavLink[] = [
         children: [
           { name: 'Document Brief Case', href: '/pre-sales/documents/briefcase' },
           { name: 'Folders', href: '/pre-sales/documents/folders' },
-        ]
+        ],
       },
       { name: "Approval's", href: '/pre-sales/approvals', icon: CheckSquare },
-    ]
+    ],
   },
   {
     name: 'Engineering',
@@ -166,9 +176,13 @@ const navLinks: NavLink[] = [
       { name: 'Survey', href: '/survey', icon: MapPin },
       { name: 'BOQ', href: '/engineering/boq', icon: FileText },
       { name: 'Technical Deviations', href: '/engineering/deviations', icon: AlertTriangle },
+<<<<<<< HEAD
       { name: 'Drawings', href: '/drawings', icon: FileText },
       { name: 'Change Requests', href: '/change-requests', icon: GitBranch },
     ]
+=======
+    ],
+>>>>>>> 41b381c (improved ui)
   },
   {
     name: 'Procurement',
@@ -176,9 +190,14 @@ const navLinks: NavLink[] = [
     icon: ShoppingCart,
     children: [
       { name: 'Purchase Orders', href: '/purchase-orders', icon: ShoppingCart },
+<<<<<<< HEAD
       { name: 'GRNs', href: '/grns', icon: Package },
       { name: 'Indents', href: '/indents', icon: ClipboardList },
     ]
+=======
+      { name: 'Petty Cash', href: '/petty-cash', icon: CreditCard },
+    ],
+>>>>>>> 41b381c (improved ui)
   },
   {
     name: 'Inventory',
@@ -187,7 +206,7 @@ const navLinks: NavLink[] = [
     children: [
       { name: 'Stock Position', href: '/stock-position', icon: Package },
       { name: 'Stock Aging', href: '/stock-aging', icon: BarChart3 },
-    ]
+    ],
   },
   {
     name: 'Execution (I&C)',
@@ -206,9 +225,16 @@ const navLinks: NavLink[] = [
         children: [
           { name: 'Devices & IP', href: '/execution/commissioning/devices' },
           { name: 'Test Reports & Signoffs', href: '/execution/commissioning/test-reports' },
-        ]
+        ],
       },
+<<<<<<< HEAD
     ]
+=======
+      { name: 'Milestones', href: '/milestones', icon: Flag },
+      { name: 'Manpower Logs', href: '/manpower', icon: Users2 },
+      { name: 'Communication Logs', href: '/execution/comm-logs', icon: ClipboardList },
+    ],
+>>>>>>> 41b381c (improved ui)
   },
   {
     name: 'Finance',
@@ -217,16 +243,24 @@ const navLinks: NavLink[] = [
     children: [
       { name: 'Costing', href: '/finance/costing', icon: PieChart },
       { name: 'Billing', href: '/finance/billing', icon: CreditCard },
+<<<<<<< HEAD
       { name: 'Petty Cash', href: '/petty-cash', icon: DollarSign },
       { name: 'Payment Receipts', href: '/payment-receipts', icon: CreditCard },
       { name: 'Retention Money', href: '/retention', icon: DollarSign },
       { name: 'Penalties', href: '/penalties', icon: AlertTriangle },
     ]
+=======
+      { name: 'Payment Receipts', href: '/finance/payment-receipts', icon: CreditCard },
+      { name: 'Retention Ledger', href: '/finance/retention', icon: ShieldCheck },
+      { name: 'Penalty Deductions', href: '/finance/penalties', icon: AlertTriangle },
+    ],
+>>>>>>> 41b381c (improved ui)
   },
   {
     name: 'HR',
     href: '/hr',
     icon: Users2,
+<<<<<<< HEAD
   },
   {
     name: 'RMA',
@@ -243,6 +277,20 @@ const navLinks: NavLink[] = [
       { name: 'Device Uptime', href: '/device-uptime', icon: Cpu },
     ]
   },
+=======
+    children: [
+      { name: 'Overview', href: '/hr', icon: Users2 },
+      { name: 'Onboarding', href: '/hr/onboarding', icon: Briefcase },
+      { name: 'Attendance', href: '/hr/attendance', icon: CalendarCheck2 },
+      { name: 'Travel Logs', href: '/hr/travel-logs', icon: Plane },
+      { name: 'Overtime', href: '/hr/overtime', icon: Clock },
+      { name: 'Technician Visits', href: '/hr/technician-visits', icon: Wrench },
+    ],
+  },
+  { name: 'RMA', href: '/rma', icon: RefreshCcw },
+  { name: 'O&M & Helpdesk', href: '/om-helpdesk', icon: HeadphonesIcon },
+  { name: 'SLA Profiles', href: '/sla', icon: Clock },
+>>>>>>> 41b381c (improved ui)
   { name: 'Reports', href: '/reports', icon: BarChart3 },
   { name: 'Document Management', href: '/documents', icon: FolderOpen },
   { name: 'Master Data', href: '/master-data', icon: Database },
@@ -256,65 +304,71 @@ const navLinks: NavLink[] = [
       { name: 'Role', href: '/pre-sales/settings/role' },
       { name: 'User Management', href: '/pre-sales/settings/user-management' },
       { name: 'Check List', href: '/pre-sales/settings/checklist' },
-    ]
+    ],
   },
 ];
 
-// Recursive SubMenu Component
-function SubMenu({ items, level = 0, onNavigate }: { items: SubMenuItem[], level?: number, onNavigate?: () => void }) {
+const getSubMenuClasses = (level: number) => ({
+  wrapper: level === 0 ? 'mt-2 ml-3 pl-3 border-l border-orange-100 space-y-1.5' : 'mt-2 ml-4 pl-3 border-l border-orange-100/80 space-y-1.5',
+  item: level === 0 ? 'rounded-2xl px-3 py-2.5' : 'rounded-xl px-3 py-2',
+  text: level === 0 ? 'text-[13px]' : 'text-[12.5px]',
+});
+
+function SubMenu({ items, level = 0, onNavigate }: { items: SubMenuItem[]; level?: number; onNavigate?: () => void }) {
   const pathname = usePathname();
   const { hasAccess } = useRole();
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean | undefined>>({});
   const accessibleItems = filterAccessibleItems(items, hasAccess);
+  const menuClasses = getSubMenuClasses(level);
 
   const toggleExpand = (href: string, isExpanded: boolean) => {
-    setExpandedItems(prev => ({
+    setExpandedItems((prev) => ({
       ...prev,
       [href]: !isExpanded,
     }));
   };
 
   return (
-    <ul className={`space-y-0.5 ${level === 0 ? 'mt-1' : 'mt-0.5'}`}>
-      {accessibleItems.map(item => {
+    <ul className={menuClasses.wrapper}>
+      {accessibleItems.map((item) => {
         const isCurrentRoute = matchesPath(pathname, item.href);
         const hasChildren = item.children && item.children.length > 0;
-        const isDescendantActive = item.children?.some(child => isItemActive(pathname, child)) ?? false;
+        const isDescendantActive = item.children?.some((child) => isItemActive(pathname, child)) ?? false;
         const isExpanded = hasChildren ? expandedItems[item.href] ?? isDescendantActive : false;
         const Icon = item.icon;
-        const paddingLeft = level === 0 ? 'pl-8' : level === 1 ? 'pl-12' : 'pl-16';
 
         return (
           <li key={item.href}>
             <div
-              className={`flex items-center justify-between ${paddingLeft} pr-3 py-2 rounded-lg text-sm transition-all duration-200 cursor-pointer ${isCurrentRoute && !hasChildren
-                ? 'bg-blue-600/20 text-blue-400'
-                : hasChildren && (isCurrentRoute || isDescendantActive)
-                  ? 'bg-slate-800 text-slate-100'
-                  : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-                }`}
+              className={`group flex items-center justify-between border transition-all duration-200 cursor-pointer ${menuClasses.item} ${
+                isCurrentRoute && !hasChildren
+                  ? 'border-orange-400 bg-gradient-to-r from-orange-500 to-[var(--brand-orange)] text-white shadow-lg shadow-orange-100'
+                  : hasChildren && (isCurrentRoute || isDescendantActive)
+                    ? 'border-orange-200 bg-orange-50 text-orange-900'
+                    : 'border-transparent bg-white/70 text-gray-600 hover:border-orange-100 hover:bg-orange-50 hover:text-gray-900'
+              }`}
               onClick={() => hasChildren ? toggleExpand(item.href, isExpanded) : null}
             >
               {hasChildren ? (
-                <div className="flex items-center gap-2 flex-1">
-                  {Icon && <Icon className="w-4 h-4" />}
-                  <span>{item.name}</span>
+                <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                  {Icon ? <Icon className="w-4 h-4 flex-shrink-0" /> : <Layers3 className="w-4 h-4 flex-shrink-0" />}
+                  <span className={`truncate font-medium ${menuClasses.text}`}>{item.name}</span>
                 </div>
               ) : (
-                <Link href={item.href} className="flex items-center gap-2 flex-1" onClick={onNavigate}>
-                  {Icon && <Icon className="w-4 h-4" />}
-                  <span>{item.name}</span>
+                <Link href={item.href} className="flex items-center gap-2.5 flex-1 min-w-0" onClick={onNavigate}>
+                  {Icon ? <Icon className="w-4 h-4 flex-shrink-0" /> : <Layers3 className="w-4 h-4 flex-shrink-0" />}
+                  <span className={`truncate font-medium ${menuClasses.text}`}>{item.name}</span>
                 </Link>
               )}
-              {hasChildren && (
+              {hasChildren ? (
                 isExpanded
-                  ? <ChevronDown className="w-4 h-4 text-slate-500" />
-                  : <ChevronRight className="w-4 h-4 text-slate-500" />
-              )}
+                  ? <ChevronDown className={`w-4 h-4 flex-shrink-0 ${isCurrentRoute || isDescendantActive ? 'text-orange-600' : 'text-gray-400 group-hover:text-orange-500'}`} />
+                  : <ChevronRight className={`w-4 h-4 flex-shrink-0 ${isCurrentRoute || isDescendantActive ? 'text-orange-600' : 'text-gray-400 group-hover:text-orange-500'}`} />
+              ) : null}
             </div>
-            {hasChildren && isExpanded && (
+            {hasChildren && isExpanded ? (
               <SubMenu items={item.children!} level={level + 1} onNavigate={onNavigate} />
-            )}
+            ) : null}
           </li>
         );
       })}
@@ -327,29 +381,24 @@ export default function Sidebar() {
   const { hasAccess } = useRole();
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean | undefined>>({});
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-
-  // Filter navigation links based on role access
   const accessibleLinks = filterAccessibleNavLinks(navLinks, hasAccess);
 
   const toggleMenu = (name: string, isExpanded: boolean) => {
-    setExpandedMenus(prev => ({
+    setExpandedMenus((prev) => ({
       ...prev,
       [name]: !isExpanded,
     }));
   };
 
-  // Close mobile menu when route changes
   const handleLinkClick = () => {
     setIsMobileOpen(false);
   };
 
   return (
     <>
-      {/* Mobile Menu Button */}
       <button
         onClick={() => setIsMobileOpen(!isMobileOpen)}
-        className="lg:hidden fixed bottom-4 right-4 z-50 p-3 text-white rounded-full shadow-lg transition-colors"
-        style={{ backgroundColor: 'var(--brand-orange)' }}
+        className="lg:hidden fixed bottom-4 right-4 z-50 p-3 text-white rounded-full shadow-lg transition-colors bg-[var(--brand-orange)]"
       >
         {isMobileOpen ? (
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -362,44 +411,45 @@ export default function Sidebar() {
         )}
       </button>
 
-      {/* Mobile Overlay */}
-      {isMobileOpen && (
+      {isMobileOpen ? (
         <div
           className="lg:hidden fixed inset-0 bg-black/50 z-40"
           onClick={() => setIsMobileOpen(false)}
         />
-      )}
+      ) : null}
 
-      {/* Sidebar */}
-      <aside className={`
-        w-72 min-w-[288px] flex-shrink-0 bg-white min-h-screen flex flex-col overflow-y-auto
-        fixed lg:static inset-y-0 left-0 z-50 border-r border-gray-200
-        transform transition-transform duration-300 ease-in-out
-        ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-      `}>
-        {/* Logo Section */}
-        <div className="p-4 lg:p-6 border-b border-gray-200 bg-white">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 flex items-center justify-center shrink-0">
-              <img src="/logo.png" alt="Technosys Logo" className="object-contain w-full h-full drop-shadow-sm" />
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-sm lg:text-base font-bold text-gray-900 leading-tight truncate">
-                Technosys ERP
-              </h1>
-              <div className="text-[11px] text-gray-500 truncate" title="tailored for your needs and as per experiences">
-                tailored for your needs and as per experiences
+      <aside
+        className={`
+          w-80 min-w-[320px] flex-shrink-0 h-screen flex flex-col overflow-hidden
+          fixed lg:static inset-y-0 left-0 z-50 border-r border-[var(--border-subtle)]
+          transform transition-transform duration-300 ease-in-out
+          ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        `}
+      >
+        <div className="p-4 lg:p-5 border-b border-[var(--border-subtle)] bg-transparent">
+          <div className="shell-panel px-4 py-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-orange-50 flex items-center justify-center shrink-0 border border-orange-100">
+                <img src="/logo.png" alt="Technosys Logo" className="object-contain w-full h-full drop-shadow-sm" />
+              </div>
+              <div className="min-w-0">
+                <h1 className="text-sm lg:text-base font-bold text-gray-900 leading-tight truncate">
+                  Technosys ERP
+                </h1>
+                <div className="text-[11px] text-gray-500 truncate">
+                  tailored for your needs and as per experiences
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 p-4">
-          <ul className="space-y-1">
-            {accessibleLinks.map(link => {
+        <nav className="flex-1 min-h-0 overflow-y-auto px-4 pb-4">
+          <div className="shell-section-title mb-3 px-2 pt-4">Navigation</div>
+          <ul className="space-y-2">
+            {accessibleLinks.map((link) => {
               const isActive = matchesPath(pathname, link.href);
-              const isInSection = link.children?.some(child => isItemActive(pathname, child)) ?? false;
+              const isInSection = link.children?.some((child) => isItemActive(pathname, child)) ?? false;
               const hasChildren = link.children && link.children.length > 0;
               const isExpanded = hasChildren ? expandedMenus[link.name] ?? (isActive || isInSection) : false;
               const canAccessLink = hasAccess(link.href);
@@ -408,17 +458,18 @@ export default function Sidebar() {
               return (
                 <li key={link.href}>
                   <div
-                    className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
-                      ? 'bg-[var(--brand-orange)] text-white'
-                      : isInSection
-                        ? 'bg-orange-50 text-orange-700'
-                        : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-                      }`}
+                    className={`group flex items-center justify-between rounded-3xl border px-3.5 py-3 transition-all duration-200 ${
+                      isActive
+                        ? 'border-orange-400 bg-gradient-to-r from-orange-500 to-[var(--brand-orange)] text-white shadow-lg shadow-orange-100'
+                        : isInSection
+                          ? 'border-orange-200 bg-orange-50 text-orange-900'
+                          : 'border-transparent bg-white/60 text-gray-700 hover:border-orange-100 hover:bg-white hover:text-gray-900'
+                    }`}
                   >
                     {canAccessLink ? (
                       <Link
                         href={link.href}
-                        className="flex items-center gap-3 flex-1"
+                        className="flex items-center gap-3 flex-1 min-w-0"
                         onClick={() => {
                           if (hasChildren && !isExpanded) {
                             toggleMenu(link.name, isExpanded);
@@ -426,48 +477,69 @@ export default function Sidebar() {
                           handleLinkClick();
                         }}
                       >
-                        <Icon className="w-5 h-5" />
-                        <span>{link.name}</span>
+                        <div className={`flex h-10 w-10 items-center justify-center rounded-2xl border ${
+                          isActive
+                            ? 'bg-white/20 border-white/20 text-white'
+                            : isInSection
+                              ? 'bg-white border-orange-200 text-orange-700'
+                              : 'bg-orange-50 border-orange-100 text-orange-600'
+                        }`}>
+                          <Icon className="w-5 h-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold">{link.name}</div>
+                          {hasChildren ? (
+                            <div className={`text-[11px] ${isActive ? 'text-orange-100' : isInSection ? 'text-orange-600' : 'text-gray-400'}`}>
+                              {link.children?.length} sections
+                            </div>
+                          ) : null}
+                        </div>
                       </Link>
                     ) : (
                       <button
                         type="button"
-                        className="flex items-center gap-3 flex-1 text-left"
+                        className="flex items-center gap-3 flex-1 text-left min-w-0"
                         onClick={() => hasChildren ? toggleMenu(link.name, isExpanded) : null}
                       >
-                        <Icon className="w-5 h-5" />
-                        <span>{link.name}</span>
+                        <div className={`flex h-10 w-10 items-center justify-center rounded-2xl border ${
+                          isInSection
+                            ? 'bg-white border-orange-200 text-orange-700'
+                            : 'bg-orange-50 border-orange-100 text-orange-600'
+                        }`}>
+                          <Icon className="w-5 h-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold">{link.name}</div>
+                          {hasChildren ? <div className="text-[11px] text-gray-400">{link.children?.length} sections</div> : null}
+                        </div>
                       </button>
                     )}
-                    {hasChildren && (
+                    {hasChildren ? (
                       <button
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
                           toggleMenu(link.name, isExpanded);
                         }}
-                        className="p-1 hover:bg-gray-200 rounded"
+                        className={`p-2 rounded-xl ${isActive ? 'hover:bg-white/20' : 'hover:bg-orange-100/80'}`}
                       >
-                        {isExpanded
-                          ? <ChevronDown className="w-4 h-4" />
-                          : <ChevronRight className="w-4 h-4" />
-                        }
+                        {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                       </button>
-                    )}
+                    ) : null}
                   </div>
-                  {hasChildren && isExpanded && (
+                  {hasChildren && isExpanded ? (
                     <SubMenu items={link.children!} onNavigate={handleLinkClick} />
-                  )}
+                  ) : null}
                 </li>
               );
             })}
           </ul>
         </nav>
 
-        {/* Footer */}
-        <div className="p-4 border-t border-gray-200 bg-white">
-          <div className="text-xs text-gray-400 text-center">
-            © 2026 technosys ERP
+        <div className="shrink-0 p-4 border-t border-[var(--border-subtle)] bg-transparent">
+          <div className="shell-panel px-4 py-3 text-center">
+            <div className="text-xs font-semibold text-gray-700">Technosys ERP</div>
+            <div className="mt-1 text-[11px] text-gray-400">2026</div>
           </div>
         </div>
       </aside>

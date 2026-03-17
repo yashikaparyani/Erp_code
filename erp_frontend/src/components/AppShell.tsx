@@ -27,10 +27,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   // Still checking session storage
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="flex flex-col items-center gap-3">
-          <div className="animate-spin w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full" />
-          <p className="text-sm text-gray-500">Loading...</p>
+      <div className="min-h-screen flex items-center justify-center px-6">
+        <div className="shell-panel flex flex-col items-center gap-4 px-10 py-12">
+          <div className="animate-spin w-10 h-10 border-4 border-[var(--brand-orange)] border-t-transparent rounded-full" />
+          <p className="text-sm text-gray-500">Loading workspace...</p>
         </div>
       </div>
     );
@@ -42,11 +42,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-transparent">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <TopHeader />
-        <main className="flex-1 p-3 sm:p-4 md:p-6 overflow-auto">
+        <main className="flex-1 overflow-auto px-3 py-3 sm:px-4 sm:py-4 md:px-6 md:py-5">
           {children}
         </main>
       </div>

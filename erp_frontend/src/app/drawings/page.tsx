@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 'use client';
 import { useEffect, useState } from 'react';
 import { PenTool, Plus, CheckCircle2, Clock, X } from 'lucide-react';
@@ -120,3 +121,6 @@ export default function DrawingsPage() {
     </div>
   );
 }
+=======
+export { default } from '../engineering/drawings/page';
+>>>>>>> 41b381c (improved ui)

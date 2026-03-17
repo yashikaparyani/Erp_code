@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, RefreshCcw, X } from 'lucide-react';
+import { Plus, RefreshCcw } from 'lucide-react';
 import { DashboardShell, SectionCard, StatCard } from '../dashboards/shared';
+import ModalFrame from '../ui/ModalFrame';
 
 type Tone = 'blue' | 'green' | 'orange' | 'purple' | 'red' | 'amber' | 'cyan' | 'slate' | 'teal';
 
@@ -43,6 +44,12 @@ type WorkspaceStatsCard = {
   icon: any;
   tone: Tone;
 };
+
+type PendingActionState<T extends Record<string, any>> = {
+  row: T;
+  action: WorkspaceAction<T>;
+  value: string;
+} | null;
 
 function getByPath(source: Record<string, any>, path: string) {
   return path.split('.').reduce<any>((value, part) => value?.[part], source);
@@ -123,6 +130,7 @@ export default function OpsWorkspace<T extends Record<string, any>>({
   const [creating, setCreating] = useState(false);
   const [formValues, setFormValues] = useState<Record<string, string>>(() => buildInitialForm(createFields));
   const [actionLoadingKey, setActionLoadingKey] = useState('');
+  const [pendingAction, setPendingAction] = useState<PendingActionState<T>>(null);
 
   const canCreate = Boolean(createMethod && createFields.length);
 
@@ -182,18 +190,14 @@ export default function OpsWorkspace<T extends Record<string, any>>({
     }
   };
 
-  const runAction = async (row: T, action: WorkspaceAction<T>) => {
+  const executeAction = async (row: T, action: WorkspaceAction<T>, promptValue = '') => {
     let request = action.buildRequest(row);
-    if (action.confirmMessage && !window.confirm(action.confirmMessage)) {
-      return;
-    }
     if (action.prompt) {
-      const value = window.prompt(action.prompt.message, '') || '';
       request = {
         ...request,
         args: {
           ...request.args,
-          [action.prompt.field]: value,
+          [action.prompt.field]: promptValue,
         },
       };
     }
@@ -202,12 +206,21 @@ export default function OpsWorkspace<T extends Record<string, any>>({
     setError('');
     try {
       await callOps(request.method, request.args);
+      setPendingAction(null);
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Action failed');
     } finally {
       setActionLoadingKey('');
     }
+  };
+
+  const runAction = async (row: T, action: WorkspaceAction<T>) => {
+    if (action.confirmMessage || action.prompt) {
+      setPendingAction({ row, action, value: '' });
+      return;
+    }
+    await executeAction(row, action);
   };
 
   return (
@@ -290,58 +303,86 @@ export default function OpsWorkspace<T extends Record<string, any>>({
         </div>
       </SectionCard>
 
-      {showCreateModal ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-3xl rounded-2xl bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
-              <h2 className="text-lg font-semibold text-gray-900">{createLabel}</h2>
-              <button className="rounded-lg p-2 hover:bg-gray-100" onClick={() => setShowCreateModal(false)}>
-                <X className="h-5 w-5" />
-              </button>
+      <ModalFrame
+        open={showCreateModal}
+        title={createLabel}
+        onClose={() => setShowCreateModal(false)}
+        widthClassName="max-w-3xl"
+        footer={
+          <>
+            <button className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>Cancel</button>
+            <button className="btn btn-primary" disabled={creating} onClick={() => void submitCreate()}>
+              {creating ? 'Saving...' : createLabel}
+            </button>
+          </>
+        }
+      >
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {createFields.map((field) => (
+            <div key={field.name} className={field.type === 'textarea' ? 'sm:col-span-2' : ''}>
+              <label className="mb-1 block text-sm font-medium text-gray-700">{field.label}</label>
+              {field.type === 'textarea' ? (
+                <textarea
+                  className="input min-h-24"
+                  placeholder={field.placeholder}
+                  value={formValues[field.name] || ''}
+                  onChange={(event) => setFormValues((prev) => ({ ...prev, [field.name]: event.target.value }))}
+                />
+              ) : field.type === 'select' ? (
+                <select
+                  className="input"
+                  value={formValues[field.name] || ''}
+                  onChange={(event) => setFormValues((prev) => ({ ...prev, [field.name]: event.target.value }))}
+                >
+                  <option value="">Select</option>
+                  {(field.options || []).map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  className="input"
+                  type={field.type || 'text'}
+                  placeholder={field.placeholder}
+                  value={formValues[field.name] || ''}
+                  onChange={(event) => setFormValues((prev) => ({ ...prev, [field.name]: event.target.value }))}
+                />
+              )}
             </div>
-            <div className="grid grid-cols-1 gap-4 p-6 sm:grid-cols-2">
-              {createFields.map((field) => (
-                <div key={field.name} className={field.type === 'textarea' ? 'sm:col-span-2' : ''}>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">{field.label}</label>
-                  {field.type === 'textarea' ? (
-                    <textarea
-                      className="input min-h-24"
-                      placeholder={field.placeholder}
-                      value={formValues[field.name] || ''}
-                      onChange={(event) => setFormValues((prev) => ({ ...prev, [field.name]: event.target.value }))}
-                    />
-                  ) : field.type === 'select' ? (
-                    <select
-                      className="input"
-                      value={formValues[field.name] || ''}
-                      onChange={(event) => setFormValues((prev) => ({ ...prev, [field.name]: event.target.value }))}
-                    >
-                      <option value="">Select</option>
-                      {(field.options || []).map((option) => (
-                        <option key={option.value} value={option.value}>{option.label}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      className="input"
-                      type={field.type || 'text'}
-                      placeholder={field.placeholder}
-                      value={formValues[field.name] || ''}
-                      onChange={(event) => setFormValues((prev) => ({ ...prev, [field.name]: event.target.value }))}
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-            <div className="flex justify-end gap-2 border-t border-gray-100 px-6 py-4">
-              <button className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>Cancel</button>
-              <button className="btn btn-primary" disabled={creating} onClick={() => void submitCreate()}>
-                {creating ? 'Saving...' : createLabel}
-              </button>
-            </div>
-          </div>
+          ))}
         </div>
-      ) : null}
+      </ModalFrame>
+
+      <ModalFrame
+        open={Boolean(pendingAction)}
+        title={pendingAction?.action.label || 'Confirm Action'}
+        onClose={() => setPendingAction(null)}
+        widthClassName="max-w-lg"
+        footer={
+          <>
+            <button className="btn btn-secondary" onClick={() => setPendingAction(null)}>Cancel</button>
+            <button className="btn btn-primary" disabled={!pendingAction} onClick={() => pendingAction ? void executeAction(pendingAction.row, pendingAction.action, pendingAction.value) : undefined}>
+              Continue
+            </button>
+          </>
+        }
+      >
+        {pendingAction ? (
+          <div className="space-y-3">
+            {pendingAction.action.confirmMessage ? <p className="text-sm text-gray-600">{pendingAction.action.confirmMessage}</p> : null}
+            {pendingAction.action.prompt ? (
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">{pendingAction.action.prompt.message}</label>
+                <textarea
+                  className="input min-h-24"
+                  value={pendingAction.value}
+                  onChange={(event) => setPendingAction((prev) => (prev ? { ...prev, value: event.target.value } : prev))}
+                />
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </ModalFrame>
     </DashboardShell>
   );
 }
