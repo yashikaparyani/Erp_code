@@ -38,6 +38,11 @@ After conversion:
 - presales should not own project-stage visibility
 - presales should not be treated as a project operations department
 
+Implementation override:
+
+- `Presales Tendering Head` may still retain cross-flow oversight access when the business requires top-level tender-to-project continuity.
+- That oversight access should not be interpreted as day-to-day department ownership of execution work.
+
 The project operating model begins after the tender becomes a project.
 
 ## Backbone

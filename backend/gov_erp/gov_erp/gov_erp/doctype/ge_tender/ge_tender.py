@@ -1,5 +1,8 @@
+import json
+
 import frappe
 from frappe.model.document import Document
+from gov_erp.project_workflow import get_workflow_stage
 
 
 class GETender(Document):
@@ -15,6 +18,7 @@ class GETender(Document):
 
 	def _convert_to_project(self):
 		"""Create an ERPNext Project from this WON tender and link it back."""
+		stage_config = get_workflow_stage("SURVEY")
 		project = frappe.get_doc(
 			{
 				"doctype": "Project",
@@ -24,6 +28,26 @@ class GETender(Document):
 				"company": frappe.defaults.get_defaults().get("company"),
 				"estimated_costing": self.estimated_value or 0,
 				"notes": f"Auto-created from Tender {self.tender_number}",
+				"linked_tender": self.name,
+				"current_project_stage": "SURVEY",
+				"current_stage_status": "IN_PROGRESS",
+				"current_stage_owner_department": stage_config["owner_department"],
+				"workflow_last_action": "TENDER_CONVERTED_TO_PROJECT",
+				"workflow_last_actor": frappe.session.user,
+				"workflow_last_action_at": frappe.utils.now(),
+				"workflow_history_json": json.dumps(
+					[
+						{
+							"timestamp": frappe.utils.now(),
+							"actor": frappe.session.user,
+							"action": "TENDER_CONVERTED_TO_PROJECT",
+							"stage": "SURVEY",
+							"next_stage": None,
+							"remarks": f"Converted from tender {self.name}",
+							"metadata": {"tender": self.name},
+						}
+					]
+				),
 			}
 		)
 		project.insert()

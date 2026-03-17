@@ -44,6 +44,7 @@ export const roles: Role[] = [
 // Project-side roles: only these see the top-level Projects tab
 export const PROJECT_SIDE_ROLES: Role[] = [
   'Director',
+  'Presales Tendering Head',
   'Project Head',
   'Project Manager',
 ];
@@ -171,6 +172,7 @@ export const roleAccess: Record<Role, string[]> = {
   ],
   'Presales Tendering Head': [
     '/',
+    '/projects',
     '/pre-sales',
     '/survey',
     '/finance',

@@ -25,6 +25,7 @@ from gov_erp.api import (
 	create_onboarding,
 	create_organization,
 	create_payment_receipt,
+	create_project,
 	create_competitor,
 	create_po_from_comparison,
 	create_tender_checklist,
@@ -36,11 +37,16 @@ from gov_erp.api import (
 	create_tender,
 	create_ticket,
 	create_vendor_comparison,
+	create_project_team_member,
+	get_project_workflow_state,
 	map_onboarding_to_employee,
 	mark_dispatch_challan_dispatched,
 	mark_invoice_paid,
+	override_project_stage,
 	pause_sla_timer,
+	reject_project_stage,
 	resolve_ticket,
+	restart_project_stage,
 	resume_sla_timer,
 	review_onboarding,
 	start_ticket,
@@ -49,9 +55,14 @@ from gov_erp.api import (
 	submit_dispatch_challan_for_approval,
 	submit_invoice,
 	submit_onboarding,
+	submit_project_stage_for_approval,
 	submit_vendor_comparison_for_approval,
+	approve_project_stage,
+	get_project,
 	update_rma_status,
 	update_boq,
+	update_project,
+	delete_project,
 )
 
 
@@ -86,6 +97,7 @@ class TestAppRuntime(FrappeTestCase):
 			self._track_doc("Project", project_name)
 
 		self.assertTrue(project_name)
+		self.assertEqual(frappe.get_value("Project", project_name, "linked_tender"), tender_name)
 
 		manual_tender = frappe.get_doc(
 			{
@@ -103,6 +115,113 @@ class TestAppRuntime(FrappeTestCase):
 		self.assertTrue(manual_result["success"])
 		self.assertTrue(manual_result["data"]["project"])
 		self._track_doc("Project", manual_result["data"]["project"])
+		self.assertEqual(frappe.get_value("Project", manual_result["data"]["project"], "linked_tender"), manual_tender.name)
+
+	def test_project_workspace_crud_runtime_flow(self):
+		project_result = create_project(
+			{
+				"project_name": self._unique("Workspace CRUD Project"),
+				"expected_start_date": today(),
+				"project_head": "project.head@technosys.local",
+				"project_manager_user": "project.manager@technosys.local",
+				"current_project_stage": "SURVEY",
+				"notes": "Created from runtime CRUD smoke test.",
+			}
+		)
+		self.assertTrue(project_result["success"])
+		project_name = project_result["data"]["name"]
+		self._track_doc("Project", project_name)
+
+		fetched = get_project(project_name)
+		self.assertTrue(fetched["success"])
+		self.assertEqual(fetched["data"]["project_name"], project_result["data"]["project_name"])
+
+		update_result = update_project(
+			project_name,
+			{
+				"customer": "Runtime Customer",
+				"status": "Completed",
+				"spine_blocked": 1,
+				"blocker_summary": "Runtime blocker note",
+			},
+		)
+		self.assertTrue(update_result["success"])
+		self.assertEqual(update_result["data"]["customer"], "Runtime Customer")
+		self.assertEqual(update_result["data"]["status"], "Completed")
+		self.assertEqual(update_result["data"]["spine_blocked"], 1)
+
+		delete_result = delete_project(project_name)
+		self.assertTrue(delete_result["success"])
+		self.assertFalse(frappe.db.exists("Project", project_name))
+
+	def test_project_workflow_runtime_flow(self):
+		project_result = create_project(
+			{
+				"project_name": self._unique("Workflow Runtime Project"),
+				"expected_start_date": today(),
+				"current_project_stage": "SURVEY",
+				"notes": "Created from workflow runtime smoke test.",
+			}
+		)
+		project_name = project_result["data"]["name"]
+		self._track_doc("Project", project_name)
+
+		team_result = create_project_team_member(
+			{
+				"linked_project": project_name,
+				"user": "Administrator",
+				"role_in_project": "PROJECT_MANAGER",
+				"is_active": 1,
+			}
+		)
+		self._track_doc("GE Project Team Member", team_result["data"]["name"])
+
+		initial_state = get_project_workflow_state(project_name)["data"]
+		self.assertEqual(initial_state["stage"], "SURVEY")
+		self.assertTrue(initial_state["readiness"]["ready"])
+
+		submitted = submit_project_stage_for_approval(project_name, "runtime submit")
+		self.assertTrue(submitted["success"])
+		self.assertEqual(submitted["data"]["stage_status"], "PENDING_APPROVAL")
+
+		approved = approve_project_stage(project_name, "runtime approve")
+		self.assertTrue(approved["success"])
+		self.assertEqual(approved["data"]["stage"], "BOQ_DESIGN")
+		self.assertEqual(approved["data"]["stage_status"], "IN_PROGRESS")
+
+		override_closed = override_project_stage(project_name, "CLOSED", "runtime close")
+		self.assertTrue(override_closed["success"])
+		self.assertEqual(override_closed["data"]["stage"], "CLOSED")
+		self.assertEqual(override_closed["data"]["stage_status"], "COMPLETED")
+
+		reject_project = create_project(
+			{
+				"project_name": self._unique("Workflow Reject Runtime"),
+				"expected_start_date": today(),
+				"current_project_stage": "SURVEY",
+			}
+		)
+		reject_project_name = reject_project["data"]["name"]
+		self._track_doc("Project", reject_project_name)
+
+		reject_team = create_project_team_member(
+			{
+				"linked_project": reject_project_name,
+				"user": "Administrator",
+				"role_in_project": "PROJECT_MANAGER",
+				"is_active": 1,
+			}
+		)
+		self._track_doc("GE Project Team Member", reject_team["data"]["name"])
+
+		self.assertTrue(submit_project_stage_for_approval(reject_project_name, "submit reject path")["success"])
+		rejected = reject_project_stage(reject_project_name, "runtime reject")
+		self.assertTrue(rejected["success"])
+		self.assertEqual(rejected["data"]["stage_status"], "REJECTED")
+
+		restarted = restart_project_stage(reject_project_name, "runtime restart")
+		self.assertTrue(restarted["success"])
+		self.assertEqual(restarted["data"]["stage_status"], "IN_PROGRESS")
 
 	def test_extended_tendering_runtime_flow(self):
 		party = self._make_party()

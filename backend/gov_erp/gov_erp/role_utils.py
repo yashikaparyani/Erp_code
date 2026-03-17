@@ -74,7 +74,7 @@ def ensure_business_roles():
 
 
 def grant_director_full_access():
-	"""Ensure Director has full DocType permissions across Gov ERP doctypes."""
+	"""Ensure Director has full DocType permissions across Gov ERP doctypes and Project."""
 	permission_flags = [
 		"read",
 		"write",
@@ -90,14 +90,15 @@ def grant_director_full_access():
 	]
 	submittable_flags = ["submit", "cancel", "amend"]
 
-	doctypes = frappe.get_all(
+	doctypes = set(frappe.get_all(
 		"DocType",
 		filters={"module": "Gov ERP", "istable": 0},
 		pluck="name",
-	)
+	))
+	doctypes.add("Project")
 
 	updated_doctypes = []
-	for doctype_name in doctypes:
+	for doctype_name in sorted(doctypes):
 		is_submittable = cint(frappe.db.get_value("DocType", doctype_name, "is_submittable") or 0) == 1
 		perm_name = frappe.db.get_value(
 			"DocPerm",
@@ -131,6 +132,72 @@ def grant_director_full_access():
 
 		for flag in submittable_flags:
 			update_values[flag] = 1 if is_submittable else 0
+
+		frappe.db.set_value("DocPerm", perm_name, update_values, update_modified=False)
+		updated_doctypes.append(doctype_name)
+
+	if updated_doctypes:
+		frappe.db.commit()
+
+	return {
+		"updated_doctypes": updated_doctypes,
+		"count": len(updated_doctypes),
+	}
+
+
+def grant_presales_head_project_flow_access():
+	"""Ensure Presales Head can always access the end-to-end project flow workspace."""
+	permission_flags = [
+		"read",
+		"write",
+		"create",
+		"delete",
+		"report",
+		"export",
+		"print",
+		"email",
+		"select",
+	]
+	doctypes = [
+		"Project",
+		"GE Project Team Member",
+		"GE Project Asset",
+		"GE Site",
+		"GE Milestone",
+		"GE Project Communication Log",
+	]
+
+	updated_doctypes = []
+	for doctype_name in doctypes:
+		perm_name = frappe.db.get_value(
+			"DocPerm",
+			{
+				"parent": doctype_name,
+				"parenttype": "DocType",
+				"parentfield": "permissions",
+				"role": ROLE_PRESALES_HEAD,
+				"permlevel": 0,
+			},
+			"name",
+		)
+
+		if not perm_name:
+			perm_doc = frappe.get_doc(
+				{
+					"doctype": "DocPerm",
+					"parent": doctype_name,
+					"parenttype": "DocType",
+					"parentfield": "permissions",
+					"role": ROLE_PRESALES_HEAD,
+					"permlevel": 0,
+				}
+			)
+			perm_doc.insert(ignore_permissions=True)
+			perm_name = perm_doc.name
+
+		update_values = {"if_owner": 0}
+		for flag in permission_flags:
+			update_values[flag] = 1
 
 		frappe.db.set_value("DocPerm", perm_name, update_values, update_modified=False)
 		updated_doctypes.append(doctype_name)

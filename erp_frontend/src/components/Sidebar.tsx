@@ -115,7 +115,6 @@ const shouldShowNavLinkForRole = (link: NavLink, role: Role) => {
 
 const navLinks: NavLink[] = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Projects', href: '/projects', icon: Layers3 },
   {
     name: 'Pre-Sales & Budgeting',
     href: '/pre-sales',
@@ -181,6 +180,7 @@ const navLinks: NavLink[] = [
       { name: "Approval's", href: '/pre-sales/approvals', icon: CheckSquare },
     ],
   },
+  { name: 'Projects', href: '/projects', icon: Layers3 },
   {
     name: 'Engineering',
     href: '/engineering',

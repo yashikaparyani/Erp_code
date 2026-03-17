@@ -7,6 +7,12 @@ from gov_erp.gov_erp.doctype.ge_dependency_rule.ge_dependency_rule import (
 	evaluate_dependency_state,
 	resolve_reference_status,
 )
+from gov_erp.project_workflow import (
+	WORKFLOW_STAGE_KEYS,
+	WORKFLOW_SUPER_ROLES,
+	get_next_workflow_stage,
+	get_workflow_stage,
+)
 from gov_erp.role_utils import (
 	ROLE_ACCOUNTS,
 	ROLE_ACCOUNTS_HEAD,
@@ -77,6 +83,262 @@ def _require_param(value, param_name):
 	if value in (None, ""):
 		frappe.throw(f"{param_name} is required")
 	return value
+
+
+def _parse_json_list(raw_value):
+	if not raw_value:
+		return []
+	if isinstance(raw_value, list):
+		return raw_value
+	try:
+		parsed = json.loads(raw_value)
+	except Exception:
+		return []
+	return parsed if isinstance(parsed, list) else []
+
+
+def _user_has_any_role(*roles):
+	user_roles = set(frappe.get_roles(frappe.session.user))
+	if ROLE_DIRECTOR in user_roles:
+		return True
+	return not user_roles.isdisjoint(set(roles) | {ROLE_SYSTEM_MANAGER})
+
+
+def _build_workflow_event(action, stage, remarks=None, next_stage=None, metadata=None):
+	return {
+		"timestamp": frappe.utils.now(),
+		"actor": frappe.session.user,
+		"action": action,
+		"stage": stage,
+		"next_stage": next_stage,
+		"remarks": remarks or None,
+		"metadata": metadata or {},
+	}
+
+
+def _append_project_workflow_event(doc, action, stage, remarks=None, next_stage=None, metadata=None):
+	history = _parse_json_list(getattr(doc, "workflow_history_json", None))
+	history.append(_build_workflow_event(action, stage, remarks=remarks, next_stage=next_stage, metadata=metadata))
+	doc.workflow_history_json = json.dumps(history[-100:], default=str)
+	doc.workflow_last_action = action
+	doc.workflow_last_actor = frappe.session.user
+	doc.workflow_last_action_at = frappe.utils.now()
+
+
+def _sync_project_workflow_fields(doc, reset_submission=False):
+	stage_key = getattr(doc, "current_project_stage", None) or WORKFLOW_STAGE_KEYS[0]
+	stage_config = get_workflow_stage(stage_key)
+	doc.current_project_stage = stage_config["key"]
+	doc.current_stage_owner_department = stage_config["owner_department"]
+	doc.current_stage_status = getattr(doc, "current_stage_status", None) or "IN_PROGRESS"
+
+	if reset_submission:
+		doc.current_stage_status = "IN_PROGRESS"
+		doc.stage_submitted_by = None
+		doc.stage_submitted_at = None
+
+
+def _project_related_filters(project_doc, extra=None):
+	filters = dict(extra or {})
+	if project_doc.name:
+		filters["linked_project"] = project_doc.name
+	return filters
+
+
+def _count_records(doctype, filters):
+	try:
+		return frappe.db.count(doctype, filters=filters)
+	except Exception:
+		return 0
+
+
+def _ensure_customer_exists(customer_name):
+	if not customer_name:
+		return None
+
+	if frappe.db.exists("Customer", customer_name):
+		return customer_name
+
+	customer_group = (
+		frappe.db.get_single_value("Selling Settings", "customer_group")
+		or frappe.db.exists("Customer Group", "All Customer Groups")
+		or (frappe.get_all("Customer Group", pluck="name") or [None])[0]
+	)
+	territory = (
+		frappe.db.get_single_value("Selling Settings", "territory")
+		or frappe.db.exists("Territory", "All Territories")
+		or (frappe.get_all("Territory", pluck="name") or [None])[0]
+	)
+
+	doc = frappe.get_doc(
+		{
+			"doctype": "Customer",
+			"customer_name": customer_name,
+			"customer_type": "Company",
+			"customer_group": customer_group,
+			"territory": territory,
+		}
+	)
+	doc.insert(ignore_permissions=True)
+	return doc.name
+
+
+def _get_project_workflow_readiness(project_doc):
+	stage_key = getattr(project_doc, "current_project_stage", None) or WORKFLOW_STAGE_KEYS[0]
+	stage_config = get_workflow_stage(stage_key)
+	requirements = []
+	linked_tender = getattr(project_doc, "linked_tender", None)
+
+	def add_requirement(label, satisfied, detail):
+		requirements.append({
+			"label": label,
+			"satisfied": bool(satisfied),
+			"detail": detail,
+		})
+
+	def complete_result(mode, summary):
+		return {
+			"ready": all(item["satisfied"] for item in requirements) if requirements else True,
+			"mode": mode,
+			"summary": summary,
+			"requirements": requirements,
+		}
+
+	if stage_key == "SURVEY":
+		if linked_tender:
+			survey_state = check_survey_complete(linked_tender)
+			add_requirement(
+				"All linked tender surveys completed",
+				survey_state.get("complete"),
+				f"{survey_state.get('completed', 0)} of {survey_state.get('total', 0)} survey records are completed.",
+			)
+			return complete_result("tender-linked", "Survey stage is driven by linked tender survey completion.")
+
+		site_count = _count_records("GE Site", {"linked_project": project_doc.name})
+		team_count = _count_records("GE Project Team Member", {"linked_project": project_doc.name, "is_active": 1})
+		add_requirement(
+			"Direct project setup exists",
+			site_count > 0 or team_count > 0,
+			f"Direct projects can continue once at least one site or active team assignment exists. Sites: {site_count}, active team members: {team_count}.",
+		)
+		return complete_result("manual-project", "Direct projects use manual survey readiness when no tender is linked.")
+
+	if stage_key == "BOQ_DESIGN":
+		boq_filters = _project_related_filters(project_doc, {})
+		if linked_tender:
+			boq_filters["linked_tender"] = linked_tender
+		approved_boq = _count_records("GE BOQ", {**boq_filters, "status": "APPROVED"})
+		add_requirement("Approved BOQ is available", approved_boq > 0, f"Approved BOQ records found: {approved_boq}.")
+		return complete_result("document-driven", "BOQ/design stage closes only after approved BOQ output exists.")
+
+	if stage_key == "COSTING":
+		cost_filters = _project_related_filters(project_doc, {})
+		if linked_tender:
+			cost_filters["linked_tender"] = linked_tender
+		approved_cost = _count_records("GE Cost Sheet", {**cost_filters, "status": "APPROVED"})
+		add_requirement("Approved cost sheet is available", approved_cost > 0, f"Approved cost sheets found: {approved_cost}.")
+		return complete_result("document-driven", "Costing stage closes only after approved cost sheet output exists.")
+
+	if stage_key == "PROCUREMENT":
+		proc_filters = _project_related_filters(project_doc, {})
+		if linked_tender:
+			proc_filters["linked_tender"] = linked_tender
+		approved_proc = _count_records("GE Vendor Comparison", {**proc_filters, "status": "APPROVED"})
+		add_requirement("Approved vendor comparison is available", approved_proc > 0, f"Approved vendor comparisons found: {approved_proc}.")
+		return complete_result("document-driven", "Procurement stage closes after approved procurement evaluation exists.")
+
+	if stage_key == "STORES_DISPATCH":
+		dispatch_filters = _project_related_filters(project_doc, {})
+		if linked_tender:
+			dispatch_filters["linked_tender"] = linked_tender
+		approved_dispatch = _count_records("GE Dispatch Challan", {**dispatch_filters, "status": "APPROVED"})
+		add_requirement("Approved dispatch challan is available", approved_dispatch > 0, f"Approved dispatch challans found: {approved_dispatch}.")
+		return complete_result("document-driven", "Dispatch stage closes after dispatch approval exists.")
+
+	if stage_key == "EXECUTION":
+		sites = frappe.get_all(
+			"GE Site",
+			filters={"linked_project": project_doc.name},
+			fields=["current_site_stage", "site_blocked"],
+		)
+		if sites:
+			execution_ready = all((row.current_site_stage or "SURVEY") in {"EXECUTION", "BILLING_PAYMENT", "OM_RMA", "CLOSED"} for row in sites)
+			blocked_count = sum(1 for row in sites if row.site_blocked)
+			add_requirement(
+				"All linked sites have entered execution or later",
+				execution_ready,
+				f"Sites checked: {len(sites)}; blocked sites: {blocked_count}.",
+			)
+			add_requirement("No linked sites are blocked", blocked_count == 0, f"Blocked sites found: {blocked_count}.")
+		else:
+			add_requirement(
+				"Manual execution completion",
+				(project_doc.percent_complete or 0) >= 100 or project_doc.status == "Completed",
+				f"No sites linked. Use project completion metrics for manual execution closure. Current percent complete: {project_doc.percent_complete or 0}.",
+			)
+		return complete_result("site-driven", "Execution stage uses linked site progression where available.")
+
+	if stage_key == "BILLING_PAYMENT":
+		invoice_filters = _project_related_filters(project_doc, {})
+		paid_invoices = _count_records("GE Invoice", {**invoice_filters, "status": ["in", ["APPROVED", "PAID"]]})
+		add_requirement("Billing record exists in approved or paid state", paid_invoices > 0, f"Approved/paid invoices found: {paid_invoices}.")
+		return complete_result("billing-driven", "Billing stage closes after invoice approval or payment closure.")
+
+	if stage_key == "OM_RMA":
+		open_rma = _count_records("GE RMA Tracker", {**_project_related_filters(project_doc, {}), "rma_status": ["not in", ["CLOSED", "COMPLETED"]]})
+		add_requirement("No open RMA remains", open_rma == 0, f"Open RMA records found: {open_rma}.")
+		return complete_result("support-driven", "Support stage closes after open RMA items are cleared.")
+
+	if stage_key == "CLOSED":
+		add_requirement("Project is marked completed or closed", project_doc.status in {"Completed", "Cancelled"} or stage_key == "CLOSED", f"Project status is {project_doc.status or 'Open'}.")
+		return complete_result("closure", "Closed is the final project state.")
+
+	return complete_result("manual", "No additional workflow rule is defined for this stage.")
+
+
+def _serialize_workflow_state(project_doc):
+	stage_key = getattr(project_doc, "current_project_stage", None) or WORKFLOW_STAGE_KEYS[0]
+	stage_config = get_workflow_stage(stage_key)
+	stage_status = getattr(project_doc, "current_stage_status", None) or "IN_PROGRESS"
+	readiness = _get_project_workflow_readiness(project_doc)
+	user_roles = set(frappe.get_roles(frappe.session.user))
+	history = list(reversed(_parse_json_list(getattr(project_doc, "workflow_history_json", None))))
+	is_terminal_project = stage_key == "CLOSED" or project_doc.status == "Completed"
+	can_submit = (
+		not is_terminal_project
+		and stage_status in {"IN_PROGRESS", "REJECTED"}
+		and readiness["ready"]
+		and _user_has_any_role(*stage_config["submit_roles"], *WORKFLOW_SUPER_ROLES)
+	)
+	can_approve = stage_status == "PENDING_APPROVAL" and _user_has_any_role(*stage_config["approve_roles"], *WORKFLOW_SUPER_ROLES)
+	can_reject = stage_status == "PENDING_APPROVAL" and _user_has_any_role(*stage_config["approve_roles"], *WORKFLOW_SUPER_ROLES)
+	can_restart = stage_status == "REJECTED" and _user_has_any_role(*stage_config["submit_roles"], *WORKFLOW_SUPER_ROLES)
+	can_override = not user_roles.isdisjoint(set(WORKFLOW_SUPER_ROLES) | {ROLE_PROJECT_HEAD, ROLE_SYSTEM_MANAGER})
+
+	return {
+		"stage": stage_key,
+		"stage_label": stage_config["label"],
+		"stage_status": stage_status,
+		"owner_department": getattr(project_doc, "current_stage_owner_department", None) or stage_config["owner_department"],
+		"owner_roles": stage_config["owner_roles"],
+		"description": stage_config["description"],
+		"next_stage": stage_config.get("next_stage"),
+		"next_stage_label": get_workflow_stage(stage_config.get("next_stage")).get("label") if stage_config.get("next_stage") else None,
+		"readiness": readiness,
+		"submitted_by": getattr(project_doc, "stage_submitted_by", None),
+		"submitted_at": str(getattr(project_doc, "stage_submitted_at", None)) if getattr(project_doc, "stage_submitted_at", None) else None,
+		"last_action": getattr(project_doc, "workflow_last_action", None),
+		"last_actor": getattr(project_doc, "workflow_last_actor", None),
+		"last_action_at": str(getattr(project_doc, "workflow_last_action_at", None)) if getattr(project_doc, "workflow_last_action_at", None) else None,
+		"actions": {
+			"can_submit": can_submit,
+			"can_approve": can_approve,
+			"can_reject": can_reject,
+			"can_restart": can_restart,
+			"can_override": can_override,
+		},
+		"history": history,
+	}
 
 
 def _require_tender_read_access():
@@ -226,6 +488,7 @@ def _require_document_write_access():
 
 def _require_execution_read_access():
 	_require_roles(
+		ROLE_PRESALES_HEAD,
 		ROLE_PROJECT_MANAGER,
 		ROLE_PROJECT_HEAD,
 		ROLE_ENGINEERING_HEAD,
@@ -237,7 +500,7 @@ def _require_execution_read_access():
 
 
 def _require_execution_write_access():
-	_require_roles(ROLE_PROJECT_MANAGER, ROLE_PROJECT_HEAD, ROLE_ENGINEERING_HEAD, ROLE_ENGINEER)
+	_require_roles(ROLE_PRESALES_HEAD, ROLE_PROJECT_MANAGER, ROLE_PROJECT_HEAD, ROLE_ENGINEERING_HEAD, ROLE_ENGINEER)
 
 
 def _require_comm_log_read_access():
@@ -258,7 +521,7 @@ def _require_comm_log_write_access():
 
 
 def _require_project_asset_access():
-	_require_roles(ROLE_PROJECT_HEAD, ROLE_PROJECT_MANAGER)
+	_require_roles(ROLE_PRESALES_HEAD, ROLE_PROJECT_HEAD, ROLE_PROJECT_MANAGER)
 
 
 def _require_hr_read_access():
@@ -620,6 +883,18 @@ def convert_tender_to_project(tender_name):
 	if doc.linked_project:
 		return {"success": False, "message": f"Tender already linked to project {doc.linked_project}"}
 	doc._convert_to_project()
+	project_doc = frappe.get_doc("Project", doc.linked_project)
+	if not getattr(project_doc, "linked_tender", None):
+		project_doc.linked_tender = doc.name
+	_sync_project_workflow_fields(project_doc, reset_submission=True)
+	_append_project_workflow_event(
+		project_doc,
+		"TENDER_CONVERTED_TO_PROJECT",
+		project_doc.current_project_stage,
+		remarks=f"Converted from tender {doc.name}",
+		metadata={"tender": doc.name},
+	)
+	project_doc.save()
 	frappe.db.commit()
 	return {
 		"success": True,
@@ -7251,14 +7526,33 @@ DEPARTMENT_STAGE_MAP = {
 def _require_project_workspace_access():
         _require_roles(
                 ROLE_DIRECTOR,
+                ROLE_PRESALES_HEAD,
                 ROLE_PROJECT_HEAD,
                 ROLE_PROJECT_MANAGER,
+        )
+
+
+def _require_project_workspace_write_access():
+        _require_roles(
+                ROLE_DIRECTOR,
+                ROLE_PRESALES_HEAD,
+                ROLE_PROJECT_HEAD,
+                ROLE_PROJECT_MANAGER,
+        )
+
+
+def _require_project_workspace_delete_access():
+        _require_roles(
+                ROLE_DIRECTOR,
+                ROLE_PRESALES_HEAD,
+                ROLE_PROJECT_HEAD,
         )
 
 
 def _require_spine_read_access():
         _require_roles(
                 ROLE_DIRECTOR,
+                ROLE_PRESALES_HEAD,
                 ROLE_DEPARTMENT_HEAD,
                 ROLE_PROJECT_HEAD,
                 ROLE_PROJECT_MANAGER,
@@ -7282,6 +7576,7 @@ def _require_spine_read_access():
 def _require_spine_write_access():
         _require_roles(
                 ROLE_DIRECTOR,
+                ROLE_PRESALES_HEAD,
                 ROLE_PROJECT_HEAD,
                 ROLE_PROJECT_MANAGER,
                 ROLE_ENGINEERING_HEAD,
@@ -7370,6 +7665,195 @@ def _build_action_queue(sites, project=None):
         }
 
 
+PROJECT_EDITABLE_FIELDS = {
+        "project_name",
+        "status",
+        "customer",
+        "company",
+        "expected_start_date",
+        "expected_end_date",
+        "percent_complete",
+        "estimated_costing",
+        "notes",
+        "linked_tender",
+        "project_head",
+        "project_manager_user",
+        "current_project_stage",
+        "spine_blocked",
+        "blocker_summary",
+}
+
+
+def _serialize_project_record(doc):
+        return {
+                "name": doc.name,
+                "project_name": doc.project_name,
+                "status": doc.status,
+                "customer": doc.customer,
+                "company": doc.company,
+                "expected_start_date": str(doc.expected_start_date) if doc.expected_start_date else None,
+                "expected_end_date": str(doc.expected_end_date) if doc.expected_end_date else None,
+                "percent_complete": doc.percent_complete,
+                "estimated_costing": getattr(doc, "estimated_costing", None),
+                "notes": doc.notes,
+                "linked_tender": getattr(doc, "linked_tender", None),
+                "project_head": getattr(doc, "project_head", None),
+                "project_manager_user": getattr(doc, "project_manager_user", None),
+                "total_sites": getattr(doc, "total_sites", 0),
+                "current_project_stage": getattr(doc, "current_project_stage", None),
+                "current_stage_status": getattr(doc, "current_stage_status", None),
+                "current_stage_owner_department": getattr(doc, "current_stage_owner_department", None),
+                "stage_submitted_by": getattr(doc, "stage_submitted_by", None),
+                "stage_submitted_at": str(getattr(doc, "stage_submitted_at", None)) if getattr(doc, "stage_submitted_at", None) else None,
+                "workflow_last_action": getattr(doc, "workflow_last_action", None),
+                "workflow_last_actor": getattr(doc, "workflow_last_actor", None),
+                "workflow_last_action_at": str(getattr(doc, "workflow_last_action_at", None)) if getattr(doc, "workflow_last_action_at", None) else None,
+                "spine_progress_pct": getattr(doc, "spine_progress_pct", 0),
+                "spine_blocked": getattr(doc, "spine_blocked", 0),
+                "blocker_summary": getattr(doc, "blocker_summary", None),
+                "creation": str(doc.creation) if doc.creation else None,
+                "modified": str(doc.modified) if doc.modified else None,
+        }
+
+
+def _normalize_project_payload(data, existing_doc=None):
+        values = {key: value for key, value in (data or {}).items() if key in PROJECT_EDITABLE_FIELDS}
+        string_fields = [
+                "project_name",
+                "status",
+                "customer",
+                "company",
+                "notes",
+                "linked_tender",
+                "project_head",
+                "project_manager_user",
+                "current_project_stage",
+                "blocker_summary",
+        ]
+        for fieldname in string_fields:
+                if fieldname not in values or not isinstance(values[fieldname], str):
+                        continue
+                cleaned = values[fieldname].strip()
+                values[fieldname] = cleaned or None
+
+        if values.get("customer"):
+                values["customer"] = _ensure_customer_exists(values["customer"])
+
+        if existing_doc:
+                if "project_name" in values:
+                        values["project_name"] = _require_param(values.get("project_name"), "project_name")
+                if "company" in values and not values.get("company"):
+                        values["company"] = existing_doc.company or _get_default_company()
+        else:
+                values["project_name"] = _require_param(values.get("project_name"), "project_name")
+                values["company"] = values.get("company") or _get_default_company()
+                if not values.get("company"):
+                        frappe.throw("company is required to create a Project")
+                values["status"] = values.get("status") or "Open"
+                values["expected_start_date"] = values.get("expected_start_date") or frappe.utils.today()
+                values["current_project_stage"] = values.get("current_project_stage") or "SURVEY"
+                values["current_stage_status"] = "IN_PROGRESS"
+                values["spine_blocked"] = cint(values.get("spine_blocked") or 0)
+                values["spine_progress_pct"] = 0
+                values["total_sites"] = 0
+
+        if "percent_complete" in values and values["percent_complete"] not in (None, ""):
+                values["percent_complete"] = float(values["percent_complete"])
+        if "estimated_costing" in values and values["estimated_costing"] not in (None, ""):
+                values["estimated_costing"] = float(values["estimated_costing"])
+        if "spine_blocked" in values:
+                values["spine_blocked"] = cint(values["spine_blocked"])
+                if not values["spine_blocked"] and "blocker_summary" not in values:
+                        values["blocker_summary"] = None
+        return values
+
+
+def _get_project_delete_dependencies(project_name):
+        dependencies = []
+        link_fields = frappe.get_all(
+                "DocField",
+                filters={"fieldtype": "Link", "options": "Project"},
+                fields=["parent", "fieldname"],
+        )
+        for field in link_fields:
+                if field.parent in {"Project", "DocField", "Custom Field"}:
+                        continue
+                try:
+                        count = frappe.db.count(field.parent, filters={field.fieldname: project_name})
+                except Exception:
+                        continue
+                if count:
+                        dependencies.append(
+                                {
+                                        "doctype": field.parent,
+                                        "fieldname": field.fieldname,
+                                        "count": count,
+                                }
+                        )
+        return dependencies
+
+
+@frappe.whitelist()
+def get_project(name=None):
+        """Return a single editable project record."""
+        _require_project_workspace_access()
+        name = _require_param(name, "name")
+        doc = frappe.get_doc("Project", name)
+        return {"success": True, "data": _serialize_project_record(doc)}
+
+
+@frappe.whitelist()
+def create_project(data):
+        """Create a Project record with project-spine custom fields."""
+        _require_project_workspace_write_access()
+        values = _normalize_project_payload(_parse_payload(data))
+        doc = frappe.get_doc({"doctype": "Project", **values})
+        _sync_project_workflow_fields(doc, reset_submission=True)
+        _append_project_workflow_event(doc, "PROJECT_CREATED", doc.current_project_stage, remarks="Project created from workspace")
+        doc.insert()
+        frappe.db.commit()
+        return {"success": True, "data": _serialize_project_record(doc), "message": "Project created"}
+
+
+@frappe.whitelist()
+def update_project(name, data):
+        """Update a Project record."""
+        _require_project_workspace_write_access()
+        name = _require_param(name, "name")
+        doc = frappe.get_doc("Project", name)
+        previous_stage = getattr(doc, "current_project_stage", None)
+        values = _normalize_project_payload(_parse_payload(data), existing_doc=doc)
+        doc.update(values)
+        if values.get("current_project_stage") and values.get("current_project_stage") != previous_stage:
+                _sync_project_workflow_fields(doc, reset_submission=True)
+                _append_project_workflow_event(
+                        doc,
+                        "PROJECT_STAGE_MANUALLY_SET",
+                        doc.current_project_stage,
+                        remarks=f"Stage manually changed from {previous_stage or 'unset'} to {doc.current_project_stage}",
+                        metadata={"previous_stage": previous_stage, "new_stage": doc.current_project_stage},
+                )
+        else:
+                _sync_project_workflow_fields(doc)
+        doc.save()
+        frappe.db.commit()
+        return {"success": True, "data": _serialize_project_record(doc), "message": "Project updated"}
+
+
+@frappe.whitelist()
+def delete_project(name):
+        """Delete a Project record after dependency check."""
+        _require_project_workspace_delete_access()
+        name = _require_param(name, "name")
+        dependencies = _get_project_delete_dependencies(name)
+        if dependencies:
+                summary = ", ".join(f"{row['doctype']} ({row['count']})" for row in dependencies[:5])
+                frappe.throw(f"Cannot delete project while linked records still exist: {summary}")
+        frappe.delete_doc("Project", name)
+        frappe.db.commit()
+        return {"success": True, "message": "Project deleted"}
+
+
 @frappe.whitelist()
 def get_project_spine_list():
         """List all projects with spine summary data."""
@@ -7380,7 +7864,7 @@ def get_project_spine_list():
                         "name", "project_name", "status", "customer",
                         "percent_complete", "expected_start_date", "expected_end_date",
                         "linked_tender", "project_head", "project_manager_user",
-                        "total_sites", "current_project_stage", "spine_progress_pct",
+                        "total_sites", "current_project_stage", "current_stage_status", "current_stage_owner_department", "spine_progress_pct",
                         "spine_blocked", "blocker_summary",
                 ],
                 order_by="creation desc",
@@ -7413,6 +7897,8 @@ def get_project_spine_summary(project=None):
                         "project_head": getattr(proj, "project_head", None),
                         "project_manager": getattr(proj, "project_manager_user", None),
                         "current_project_stage": getattr(proj, "current_project_stage", None),
+                        "current_stage_status": getattr(proj, "current_stage_status", None),
+                        "current_stage_owner_department": getattr(proj, "current_stage_owner_department", None),
                         "spine_progress_pct": getattr(proj, "spine_progress_pct", 0),
                         "spine_blocked": getattr(proj, "spine_blocked", 0),
                         "blocker_summary": getattr(proj, "blocker_summary", None),
@@ -7455,6 +7941,140 @@ def get_project_spine_summary(project=None):
                         "action_queue": action_queue,
                 },
         }
+
+
+@frappe.whitelist()
+def get_project_workflow_state(project=None):
+        """Return the current workflow state, readiness, and history for a project."""
+        _require_project_workspace_access()
+        project = _require_param(project, "project")
+        doc = frappe.get_doc("Project", project)
+        _sync_project_workflow_fields(doc)
+        return {"success": True, "data": _serialize_workflow_state(doc)}
+
+
+@frappe.whitelist()
+def submit_project_stage_for_approval(project=None, remarks=None):
+        """Submit the current project stage for approval once readiness checks pass."""
+        _require_project_workspace_write_access()
+        project = _require_param(project, "project")
+        doc = frappe.get_doc("Project", project)
+        _sync_project_workflow_fields(doc)
+        workflow_state = _serialize_workflow_state(doc)
+
+        if not workflow_state["actions"]["can_submit"]:
+                frappe.throw("Current stage cannot be submitted by this user right now.")
+
+        doc.current_stage_status = "PENDING_APPROVAL"
+        doc.stage_submitted_by = frappe.session.user
+        doc.stage_submitted_at = frappe.utils.now()
+        _append_project_workflow_event(doc, "STAGE_SUBMITTED", doc.current_project_stage, remarks=remarks)
+        doc.save()
+        frappe.db.commit()
+        return {"success": True, "data": _serialize_workflow_state(doc), "message": "Stage submitted for approval"}
+
+
+@frappe.whitelist()
+def approve_project_stage(project=None, remarks=None):
+        """Approve the current stage and advance the project to the next stage."""
+        _require_project_workspace_access()
+        project = _require_param(project, "project")
+        doc = frappe.get_doc("Project", project)
+        _sync_project_workflow_fields(doc)
+        workflow_state = _serialize_workflow_state(doc)
+
+        if not workflow_state["actions"]["can_approve"]:
+                frappe.throw("Current stage cannot be approved by this user right now.")
+
+        current_stage = doc.current_project_stage
+        next_stage = get_next_workflow_stage(current_stage)
+        if not next_stage:
+                _sync_project_workflow_fields(doc, reset_submission=True)
+                doc.current_stage_status = "COMPLETED"
+                doc.status = "Completed"
+                _append_project_workflow_event(doc, "PROJECT_CLOSED", current_stage, remarks=remarks)
+        else:
+                _append_project_workflow_event(doc, "STAGE_APPROVED", current_stage, remarks=remarks, next_stage=next_stage)
+                doc.current_project_stage = next_stage
+                _sync_project_workflow_fields(doc, reset_submission=True)
+                if next_stage == "CLOSED":
+                        doc.current_stage_status = "COMPLETED"
+                        doc.status = "Completed"
+
+        doc.save()
+        frappe.db.commit()
+        return {"success": True, "data": _serialize_workflow_state(doc), "message": "Stage approved"}
+
+
+@frappe.whitelist()
+def reject_project_stage(project=None, remarks=None):
+        """Reject the current project stage and return it to the owning department."""
+        _require_project_workspace_access()
+        project = _require_param(project, "project")
+        doc = frappe.get_doc("Project", project)
+        _sync_project_workflow_fields(doc)
+        workflow_state = _serialize_workflow_state(doc)
+
+        if not workflow_state["actions"]["can_reject"]:
+                frappe.throw("Current stage cannot be rejected by this user right now.")
+
+        doc.current_stage_status = "REJECTED"
+        _append_project_workflow_event(doc, "STAGE_REJECTED", doc.current_project_stage, remarks=remarks)
+        doc.save()
+        frappe.db.commit()
+        return {"success": True, "data": _serialize_workflow_state(doc), "message": "Stage rejected"}
+
+
+@frappe.whitelist()
+def restart_project_stage(project=None, remarks=None):
+        """Move a rejected project stage back into active working state."""
+        _require_project_workspace_write_access()
+        project = _require_param(project, "project")
+        doc = frappe.get_doc("Project", project)
+        _sync_project_workflow_fields(doc)
+        workflow_state = _serialize_workflow_state(doc)
+
+        if not workflow_state["actions"]["can_restart"]:
+                frappe.throw("Current stage cannot be restarted by this user right now.")
+
+        doc.current_stage_status = "IN_PROGRESS"
+        doc.stage_submitted_by = None
+        doc.stage_submitted_at = None
+        _append_project_workflow_event(doc, "STAGE_RESTARTED", doc.current_project_stage, remarks=remarks)
+        doc.save()
+        frappe.db.commit()
+        return {"success": True, "data": _serialize_workflow_state(doc), "message": "Stage moved back to in-progress"}
+
+
+@frappe.whitelist()
+def override_project_stage(project=None, new_stage=None, remarks=None):
+        """Manual workflow override for Director, Presales Head, and Project Head."""
+        _require_project_workspace_access()
+        project = _require_param(project, "project")
+        new_stage = _require_param(new_stage, "new_stage")
+        if not _user_has_any_role(*WORKFLOW_SUPER_ROLES, ROLE_PROJECT_HEAD):
+                frappe.throw("Only Director, Presales Head, or Project Head can override project stage.")
+        if new_stage not in WORKFLOW_STAGE_KEYS:
+                frappe.throw(f"Invalid stage override: {new_stage}")
+
+        doc = frappe.get_doc("Project", project)
+        previous_stage = doc.current_project_stage or WORKFLOW_STAGE_KEYS[0]
+        doc.current_project_stage = new_stage
+        _sync_project_workflow_fields(doc, reset_submission=True)
+        _append_project_workflow_event(
+                doc,
+                "STAGE_OVERRIDDEN",
+                previous_stage,
+                remarks=remarks,
+                next_stage=new_stage,
+                metadata={"previous_stage": previous_stage, "new_stage": new_stage},
+        )
+        if new_stage == "CLOSED":
+                doc.current_stage_status = "COMPLETED"
+                doc.status = "Completed"
+        doc.save()
+        frappe.db.commit()
+        return {"success": True, "data": _serialize_workflow_state(doc), "message": "Project stage overridden"}
 
 
 @frappe.whitelist()

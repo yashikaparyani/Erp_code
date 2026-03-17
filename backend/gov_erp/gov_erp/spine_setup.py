@@ -11,19 +11,7 @@ Called from ``after_install`` / ``after_migrate`` in install.py.
 
 import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
-
-# ── Stage enum shared across Project & Site ──────────────────
-SPINE_STAGES = "\n".join([
-    "SURVEY",
-    "BOQ_DESIGN",
-    "COSTING",
-    "PROCUREMENT",
-    "STORES_DISPATCH",
-    "EXECUTION",
-    "BILLING_PAYMENT",
-    "OM_RMA",
-    "CLOSED",
-])
+from gov_erp.project_workflow import WORKFLOW_STAGE_OPTIONS, WORKFLOW_STAGE_STATUS_OPTIONS
 
 # ── Custom fields to graft onto ERPNext Project ─────────────
 PROJECT_CUSTOM_FIELDS = {
@@ -72,14 +60,28 @@ PROJECT_CUSTOM_FIELDS = {
             "fieldname": "current_project_stage",
             "fieldtype": "Select",
             "label": "Current Project Stage",
-            "options": SPINE_STAGES,
+            "options": WORKFLOW_STAGE_OPTIONS,
             "insert_after": "total_sites",
+        },
+        {
+            "fieldname": "current_stage_status",
+            "fieldtype": "Select",
+            "label": "Current Stage Status",
+            "options": WORKFLOW_STAGE_STATUS_OPTIONS,
+            "insert_after": "current_project_stage",
+        },
+        {
+            "fieldname": "current_stage_owner_department",
+            "fieldtype": "Data",
+            "label": "Current Owner Department",
+            "insert_after": "current_stage_status",
+            "read_only": 1,
         },
         {
             "fieldname": "spine_progress_pct",
             "fieldtype": "Percent",
             "label": "Spine Progress %",
-            "insert_after": "current_project_stage",
+            "insert_after": "current_stage_owner_department",
             "read_only": 1,
         },
         {
@@ -88,10 +90,47 @@ PROJECT_CUSTOM_FIELDS = {
             "insert_after": "spine_progress_pct",
         },
         {
+            "fieldname": "stage_submitted_by",
+            "fieldtype": "Link",
+            "label": "Stage Submitted By",
+            "options": "User",
+            "insert_after": "spine_col2",
+            "read_only": 1,
+        },
+        {
+            "fieldname": "stage_submitted_at",
+            "fieldtype": "Datetime",
+            "label": "Stage Submitted At",
+            "insert_after": "stage_submitted_by",
+            "read_only": 1,
+        },
+        {
+            "fieldname": "workflow_last_action",
+            "fieldtype": "Data",
+            "label": "Workflow Last Action",
+            "insert_after": "stage_submitted_at",
+            "read_only": 1,
+        },
+        {
+            "fieldname": "workflow_last_actor",
+            "fieldtype": "Link",
+            "label": "Workflow Last Actor",
+            "options": "User",
+            "insert_after": "workflow_last_action",
+            "read_only": 1,
+        },
+        {
+            "fieldname": "workflow_last_action_at",
+            "fieldtype": "Datetime",
+            "label": "Workflow Last Action At",
+            "insert_after": "workflow_last_actor",
+            "read_only": 1,
+        },
+        {
             "fieldname": "spine_blocked",
             "fieldtype": "Check",
             "label": "Blocked",
-            "insert_after": "spine_col2",
+            "insert_after": "workflow_last_action_at",
         },
         {
             "fieldname": "blocker_summary",
@@ -100,6 +139,14 @@ PROJECT_CUSTOM_FIELDS = {
             "insert_after": "spine_blocked",
             "depends_on": "spine_blocked",
         },
+        {
+            "fieldname": "workflow_history_json",
+            "fieldtype": "Long Text",
+            "label": "Workflow History JSON",
+            "insert_after": "blocker_summary",
+            "hidden": 1,
+            "read_only": 1,
+        },
     ],
 }
 
@@ -107,4 +154,26 @@ PROJECT_CUSTOM_FIELDS = {
 def ensure_spine_custom_fields():
     """Idempotently create / update spine custom fields on Project."""
     create_custom_fields(PROJECT_CUSTOM_FIELDS, update=True)
+    _sync_project_workflow_select_options()
     frappe.db.commit()
+
+
+def _sync_project_workflow_select_options():
+    """Force-refresh select options on existing custom fields after workflow changes."""
+    option_map = {
+        "current_project_stage": WORKFLOW_STAGE_OPTIONS,
+        "current_stage_status": WORKFLOW_STAGE_STATUS_OPTIONS,
+    }
+    for fieldname, options in option_map.items():
+        custom_field_name = frappe.db.get_value(
+            "Custom Field",
+            {"dt": "Project", "fieldname": fieldname},
+            "name",
+        )
+        if not custom_field_name:
+            continue
+        custom_field = frappe.get_doc("Custom Field", custom_field_name)
+        if custom_field.options == options:
+            continue
+        custom_field.options = options
+        custom_field.save(ignore_permissions=True)

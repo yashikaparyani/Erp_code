@@ -65,10 +65,13 @@ def test_business_doctypes_do_not_grant_guest_permissions():
 def test_hooks_enable_role_bootstrap_and_remove_guest_rw_config():
 	hooks_path = APP_ROOT / "hooks.py"
 	hooks_text = hooks_path.read_text()
+	install_text = (APP_ROOT / "install.py").read_text()
 
 	assert 'after_install = "gov_erp.install.after_install"' in hooks_text
 	assert 'after_migrate = ["gov_erp.install.after_migrate"]' in hooks_text
 	assert "guest_rw_doctypes" not in hooks_text
+	assert "grant_director_full_access" in install_text
+	assert "grant_presales_head_project_flow_access" in install_text
 
 
 def test_business_role_list_matches_backend_plan():
@@ -117,3 +120,40 @@ def test_priority9_doctypes_drop_generic_department_head_permissions():
 		roles = {perm.get("role") for perm in data.get("permissions", [])}
 		assert "Department Head" not in roles
 		assert roles == expected_role_sets[doctype_name]
+
+
+def test_project_workspace_crud_apis_exist():
+	tree = _load_api_tree()
+	functions = {node.name for node in tree.body if isinstance(node, ast.FunctionDef)}
+
+	assert {"get_project", "create_project", "update_project", "delete_project"}.issubset(functions)
+
+
+def test_project_workflow_apis_exist():
+	tree = _load_api_tree()
+	functions = {node.name for node in tree.body if isinstance(node, ast.FunctionDef)}
+
+	assert {
+		"get_project_workflow_state",
+		"submit_project_stage_for_approval",
+		"approve_project_stage",
+		"reject_project_stage",
+		"restart_project_stage",
+		"override_project_stage",
+	}.issubset(functions)
+
+
+def test_project_spine_setup_includes_workflow_fields():
+	spine_text = (APP_ROOT / "spine_setup.py").read_text()
+
+	for fieldname in [
+		"current_stage_status",
+		"current_stage_owner_department",
+		"stage_submitted_by",
+		"stage_submitted_at",
+		"workflow_last_action",
+		"workflow_last_actor",
+		"workflow_last_action_at",
+		"workflow_history_json",
+	]:
+		assert fieldname in spine_text
