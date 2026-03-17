@@ -1,8 +1,23 @@
 # POC Login List
 
-Temporary password for the POC accounts:
+> **Canonical credential reference** for the `dev.localhost` POC site.
 
-- Not stored in Git. Ask the admin, or provision via `GOV_ERP_POC_PASSWORD` using `bench --site dev.localhost execute gov_erp.poc_setup.create_poc_users`.
+Login URL: `http://127.0.0.1:3010/login`
+
+Password: stored in site config — not committed to Git.  
+To check/set:
+
+```bash
+# Check current credential state (safe — no secrets printed)
+bench --site dev.localhost execute gov_erp.poc_setup.get_poc_credential_status
+
+# Set or reset password and reprovision all users
+bench --site dev.localhost execute gov_erp.poc_setup.set_poc_password --args "['<your-password>']"
+
+# Or via env var (ephemeral)
+export GOV_ERP_POC_PASSWORD=<your-password>
+bench --site dev.localhost execute gov_erp.poc_setup.create_poc_users
+```
 
 Role-based logins:
 

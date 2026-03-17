@@ -1,10 +1,12 @@
 # Remaining To Do
 
-## Purpose
+## Status
 
-This is the clean remaining-work list for the current ERP state.
+This file is now a detailed historical reference, not the canonical active tracker.
 
-Use this instead of reconstructing status from chat.
+Use [TODO.md](/workspace/development/Erp_code/TODO.md) as the master current task list.
+
+Keep this file for execution history, rationale, and deeper backlog context.
 
 ## Current Position
 

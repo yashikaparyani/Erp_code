@@ -1,10 +1,12 @@
 import os
 
 import frappe
+from frappe.installer import update_site_config
 from frappe.utils.password import update_password
 
 
-POC_PASSWORD = os.environ.get("GOV_ERP_POC_PASSWORD")
+POC_PASSWORD_ENV_KEY = "GOV_ERP_POC_PASSWORD"
+POC_PASSWORD_CONFIG_KEY = "gov_erp_poc_password"
 ROLE_TO_STRIP = "Top Management"
 
 POC_USERS = [
@@ -39,9 +41,17 @@ def _remove_role_if_present(user, role_name):
 	return True
 
 
-def create_poc_users():
-	if not POC_PASSWORD:
-		frappe.throw("Set GOV_ERP_POC_PASSWORD to provision POC users.")
+def _resolve_poc_password(password=None, required=True):
+	resolved_password = password or os.environ.get(POC_PASSWORD_ENV_KEY) or frappe.conf.get(POC_PASSWORD_CONFIG_KEY)
+	if required and not resolved_password:
+		frappe.throw(
+			f"Set {POC_PASSWORD_ENV_KEY} or store {POC_PASSWORD_CONFIG_KEY} via gov_erp.poc_setup.set_poc_password."
+		)
+	return resolved_password
+
+
+def create_poc_users(password=None):
+	resolved_password = _resolve_poc_password(password=password)
 
 	created = []
 	updated = []
@@ -76,7 +86,7 @@ def create_poc_users():
 		user.user_type = "System User"
 		user.send_welcome_email = 0
 		user.save(ignore_permissions=True)
-		update_password(user=email, pwd=POC_PASSWORD, logout_all_sessions=True)
+		update_password(user=email, pwd=resolved_password, logout_all_sessions=True)
 
 	frappe.db.commit()
 	return {
@@ -84,6 +94,44 @@ def create_poc_users():
 		"updated": updated,
 		"roles_stripped": roles_stripped,
 		"count": len(POC_USERS),
+	}
+
+
+def set_poc_password(password, reprovision=True):
+	"""Persist the POC password in site config and optionally reprovision all POC users."""
+	if not password:
+		frappe.throw("Password is required.")
+
+	update_site_config(POC_PASSWORD_CONFIG_KEY, password)
+	frappe.clear_cache()
+
+	result = {
+		"stored_in_site_config": True,
+		"site_config_key": POC_PASSWORD_CONFIG_KEY,
+		"reprovisioned": False,
+	}
+
+	if reprovision:
+		result["provisioning"] = create_poc_users(password=password)
+		result["reprovisioned"] = True
+
+	return result
+
+
+def get_poc_credential_status():
+	"""Return non-secret credential state for operators debugging login issues."""
+	users = []
+	for email, *_ in POC_USERS:
+		enabled = None
+		if frappe.db.exists("User", email):
+			enabled = frappe.db.get_value("User", email, "enabled")
+		users.append({"email": email, "exists": enabled is not None, "enabled": bool(enabled) if enabled is not None else False})
+
+	return {
+		"has_env_password": bool(os.environ.get(POC_PASSWORD_ENV_KEY)),
+		"has_site_config_password": bool(frappe.conf.get(POC_PASSWORD_CONFIG_KEY)),
+		"site_config_key": POC_PASSWORD_CONFIG_KEY,
+		"users": users,
 	}
 
 

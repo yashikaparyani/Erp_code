@@ -7236,15 +7236,24 @@ SPINE_STAGES = [
         "CLOSED",
 ]
 
-# Map each department to the stages it owns (for filtered views)
+# Map each department to the stages it can see in its operational lane.
+# The frontend matrix can further distinguish read-only vs full access.
 DEPARTMENT_STAGE_MAP = {
-        "engineering": ["SURVEY", "BOQ_DESIGN", "EXECUTION"],
-        "procurement": ["PROCUREMENT"],
-        "stores": ["STORES_DISPATCH"],
-        "accounts": ["COSTING", "BILLING_PAYMENT"],
-        "hr": SPINE_STAGES,              # cross-cutting
-        "om_rma": ["OM_RMA"],
+        "engineering": ["SURVEY", "BOQ_DESIGN", "COSTING", "PROCUREMENT", "EXECUTION"],
+        "procurement": ["COSTING", "PROCUREMENT", "STORES_DISPATCH", "BILLING_PAYMENT"],
+        "stores": ["PROCUREMENT", "STORES_DISPATCH", "EXECUTION"],
+        "accounts": ["COSTING", "PROCUREMENT", "BILLING_PAYMENT", "CLOSED"],
+        "hr": SPINE_STAGES,              # cross-cutting visibility
+        "om_rma": ["OM_RMA", "CLOSED"],
 }
+
+
+def _require_project_workspace_access():
+        _require_roles(
+                ROLE_DIRECTOR,
+                ROLE_PROJECT_HEAD,
+                ROLE_PROJECT_MANAGER,
+        )
 
 
 def _require_spine_read_access():
@@ -7364,7 +7373,7 @@ def _build_action_queue(sites, project=None):
 @frappe.whitelist()
 def get_project_spine_list():
         """List all projects with spine summary data."""
-        _require_spine_read_access()
+        _require_project_workspace_access()
         projects = frappe.get_all(
                 "Project",
                 fields=[
@@ -7389,7 +7398,7 @@ def get_project_spine_summary(project=None):
           2. Site coverage by stage
           3. Action queue
         """
-        _require_spine_read_access()
+        _require_project_workspace_access()
 
         # Layer 1 – Project summary
         if project:
@@ -7456,7 +7465,7 @@ def get_department_spine_view(department=None, project=None):
         Shows only the stages that belong to the given department
         and the sites currently in those stages.
         """
-        _require_spine_read_access()
+        _require_project_workspace_access()
         department = _require_param(department, "department")
         dept_key = department.lower().replace(" ", "_")
         allowed_stages = DEPARTMENT_STAGE_MAP.get(dept_key, SPINE_STAGES)

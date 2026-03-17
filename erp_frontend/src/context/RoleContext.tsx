@@ -41,10 +41,29 @@ export const roles: Role[] = [
   'OM Operator',
 ];
 
+// Project-side roles: only these see the top-level Projects tab
+export const PROJECT_SIDE_ROLES: Role[] = [
+  'Director',
+  'Project Head',
+  'Project Manager',
+];
+
+// Settings-capable roles
+export const SETTINGS_ROLES: Role[] = [
+  'Director',
+  'Department Head',
+  'Project Head',
+  'Project Manager',
+];
+
 // Role-based access configuration for sidebar navigation
+// NOTE: /projects is NOT listed here for department roles — it is gated
+// separately via PROJECT_SIDE_ROLES in shouldShowNavLinkForRole.
 export const roleAccess: Record<Role, string[]> = {
   'Director': [
     '/',
+    '/projects',
+    '/settings',
     '/hr',
     '/purchase-orders',
     '/grns',
@@ -67,15 +86,7 @@ export const roleAccess: Record<Role, string[]> = {
     '/reports',
     '/documents',
     '/master-data',
-    '/purchase-orders',
-    '/grns',
-    '/indents',
-    '/stock-position',
-    '/stock-aging',
-    '/milestones',
-    '/manpower',
     '/comm-logs',
-    '/petty-cash',
     '/payment-receipts',
     '/retention',
     '/penalties',
@@ -87,6 +98,7 @@ export const roleAccess: Record<Role, string[]> = {
   ],
   'Department Head': [
     '/',
+    '/settings',
     '/hr',
     '/purchase-orders',
     '/grns',
@@ -108,15 +120,7 @@ export const roleAccess: Record<Role, string[]> = {
     '/finance',
     '/reports',
     '/documents',
-    '/purchase-orders',
-    '/grns',
-    '/indents',
-    '/stock-position',
-    '/stock-aging',
-    '/milestones',
-    '/manpower',
     '/comm-logs',
-    '/petty-cash',
     '/payment-receipts',
     '/retention',
     '/penalties',
@@ -128,10 +132,11 @@ export const roleAccess: Record<Role, string[]> = {
   ],
   'Project Head': [
     '/',
+    '/projects',
+    '/settings',
     '/hr',
     '/milestones',
     '/manpower',
-    '/pre-sales',
     '/survey',
     '/engineering',
     '/procurement',
@@ -147,8 +152,6 @@ export const roleAccess: Record<Role, string[]> = {
     '/indents',
     '/stock-position',
     '/stock-aging',
-    '/milestones',
-    '/manpower',
     '/comm-logs',
     '/petty-cash',
     '/payment-receipts',
@@ -196,8 +199,6 @@ export const roleAccess: Record<Role, string[]> = {
     '/indents',
     '/stock-position',
     '/stock-aging',
-    '/milestones',
-    '/manpower',
     '/comm-logs',
     '/drawings',
     '/change-requests',
@@ -224,12 +225,9 @@ export const roleAccess: Record<Role, string[]> = {
     '/finance',
     '/reports',
     '/documents',
-    '/purchase-orders',
     '/grns',
-    '/indents',
     '/stock-position',
     '/stock-aging',
-    '/petty-cash',
     '/payment-receipts',
     '/retention',
     '/penalties',
@@ -244,9 +242,7 @@ export const roleAccess: Record<Role, string[]> = {
     '/finance',
     '/reports',
     '/documents',
-    '/purchase-orders',
     '/grns',
-    '/indents',
     '/stock-position',
     '/stock-aging',
   ],
@@ -259,10 +255,7 @@ export const roleAccess: Record<Role, string[]> = {
     '/inventory',
     '/execution',
     '/documents',
-    '/grns',
     '/indents',
-    '/stock-position',
-    '/stock-aging',
   ],
   'Stores Logistics Head': [
     '/',
@@ -274,16 +267,14 @@ export const roleAccess: Record<Role, string[]> = {
     '/execution',
     '/reports',
     '/documents',
-    '/grns',
     '/indents',
-    '/stock-position',
-    '/stock-aging',
   ],
   'Project Manager': [
     '/',
+    '/projects',
+    '/settings',
     '/milestones',
     '/manpower',
-    '/pre-sales',
     '/survey',
     '/engineering',
     '/procurement',
@@ -298,8 +289,6 @@ export const roleAccess: Record<Role, string[]> = {
     '/indents',
     '/stock-position',
     '/stock-aging',
-    '/milestones',
-    '/manpower',
     '/comm-logs',
     '/petty-cash',
     '/payment-receipts',
@@ -313,7 +302,6 @@ export const roleAccess: Record<Role, string[]> = {
   ],
   'Accounts': [
     '/',
-    '/pre-sales',
     '/procurement',
     '/finance',
     '/reports',
@@ -397,11 +385,16 @@ const RoleContext = createContext<RoleContextType | undefined>(undefined);
 export function RoleProvider({ children }: { children: ReactNode }) {
   const { currentUser } = useAuth();
   const currentRole = (currentUser?.role as Role | undefined) ?? 'Project Manager';
-  const settingsAllowedRoles: Role[] = ['Director', 'Department Head', 'Project Head', 'Project Manager'];
 
   const hasAccess = (path: string): boolean => {
+    // ERP-level settings: restricted to SETTINGS_ROLES
+    if (path === '/settings' || path.startsWith('/settings/')) {
+      return SETTINGS_ROLES.includes(currentRole);
+    }
+
+    // Legacy pre-sales settings: same gate
     if (path === '/pre-sales/settings' || path.startsWith('/pre-sales/settings/')) {
-      return settingsAllowedRoles.includes(currentRole);
+      return SETTINGS_ROLES.includes(currentRole);
     }
 
     const allowedPaths = roleAccess[currentRole] ?? roleAccess['Project Manager'];

@@ -40,8 +40,11 @@ import {
   Flag,
   ShieldCheck,
   Layers3,
+  Lock,
+  Shield,
+  Eye,
 } from 'lucide-react';
-import { useRole } from '../context/RoleContext';
+import { useRole, type Role, PROJECT_SIDE_ROLES } from '../context/RoleContext';
 
 interface SubMenuItem {
   name: string;
@@ -97,8 +100,22 @@ const filterAccessibleNavLinks = (links: NavLink[], hasAccess: (path: string) =>
   }, []);
 };
 
+const shouldShowNavLinkForRole = (link: NavLink, role: Role) => {
+  // Projects tab: only project-side roles (Director, Project Head, Project Manager)
+  if (link.name === 'Projects') {
+    return PROJECT_SIDE_ROLES.includes(role);
+  }
+
+  if (link.name === 'Execution (I&C)') {
+    return role === 'Director' || role === 'Project Head';
+  }
+
+  return true;
+};
+
 const navLinks: NavLink[] = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { name: 'Projects', href: '/projects', icon: Layers3 },
   {
     name: 'Pre-Sales & Budgeting',
     href: '/pre-sales',
@@ -252,14 +269,16 @@ const navLinks: NavLink[] = [
   { name: 'Master Data', href: '/master-data', icon: Database },
   {
     name: 'Settings',
-    href: '/pre-sales/settings',
+    href: '/settings',
     icon: Cog,
     children: [
-      { name: 'Department', href: '/pre-sales/settings/department' },
-      { name: 'Designation', href: '/pre-sales/settings/designation' },
-      { name: 'Role', href: '/pre-sales/settings/role' },
-      { name: 'User Management', href: '/pre-sales/settings/user-management' },
-      { name: 'Check List', href: '/pre-sales/settings/checklist' },
+      { name: 'Department', href: '/settings/department', icon: Users2 },
+      { name: 'Designation', href: '/settings/designation', icon: Briefcase },
+      { name: 'Roles', href: '/settings/roles', icon: Shield },
+      { name: 'Permissions', href: '/settings/permissions', icon: Lock },
+      { name: 'Stage Visibility', href: '/settings/stage-visibility', icon: Eye },
+      { name: 'User Management', href: '/settings/user-management', icon: Users2 },
+      { name: 'Checklist', href: '/settings/checklist', icon: CheckSquare },
     ],
   },
 ];
@@ -334,10 +353,13 @@ function SubMenu({ items, level = 0, onNavigate }: { items: SubMenuItem[]; level
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { hasAccess } = useRole();
+  const { hasAccess, currentRole } = useRole();
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean | undefined>>({});
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const accessibleLinks = filterAccessibleNavLinks(navLinks, hasAccess);
+  const accessibleLinks = filterAccessibleNavLinks(
+    navLinks.filter((link) => shouldShowNavLinkForRole(link, currentRole)),
+    hasAccess,
+  );
 
   const toggleMenu = (name: string, isExpanded: boolean) => {
     setExpandedMenus((prev) => ({

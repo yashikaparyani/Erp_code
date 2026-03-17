@@ -1,5 +1,13 @@
 # Frontend Gap Status
 
+## Status
+
+This file is now a frontend audit/reference document, not the canonical active tracker.
+
+Use [TODO.md](/workspace/development/Erp_code/TODO.md) as the master current task list.
+
+Keep this file for detailed notes on what was built, what remains partial, and which gaps were blocked by missing backend support.
+
 ## What Was Done
 
 This round focused on verifying the `3A Missing Frontend Pages` research against the actual repo, then creating first-pass frontend pages for backend-supported modules that were truly missing.

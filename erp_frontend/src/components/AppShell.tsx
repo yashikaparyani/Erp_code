@@ -4,6 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from './Sidebar';
 import TopHeader from './TopHeader';
+import RouteGuard from './RouteGuard';
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -47,7 +48,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <div className="flex-1 flex flex-col min-w-0">
         <TopHeader />
         <main className="flex-1 overflow-auto px-3 py-3 sm:px-4 sm:py-4 md:px-6 md:py-5">
-          {children}
+          <RouteGuard>
+            {children}
+          </RouteGuard>
         </main>
       </div>
     </div>

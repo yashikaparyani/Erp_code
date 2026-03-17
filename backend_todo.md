@@ -1,5 +1,13 @@
 # Backend Task Split
 
+## Status
+
+This file is now backend-specific reference material, not the canonical active tracker.
+
+Use [TODO.md](/workspace/development/Erp_code/TODO.md) as the master current task list.
+
+Keep this file for backend scope breakdown, implementation history, and deeper technical notes.
+
 ## BMD Tendering Port
 
 - Use the absorbed BMD tendering design as input only; the `BMD` folder is now removed.

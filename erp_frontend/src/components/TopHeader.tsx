@@ -4,19 +4,12 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronDown, Bell, Search, LogOut, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { getRoleInitials } from '../context/RoleContext';
-
-const projects = [
-  'Indore Smart City Surveillance Phase II',
-  'Bhopal Traffic Management System',
-  'Gwalior Police Surveillance Network',
-];
+import { getRoleInitials, useRole } from '../context/RoleContext';
 
 export default function TopHeader() {
   const { currentUser, logout } = useAuth();
+  const { currentRole } = useRole();
   const router = useRouter();
-  const [currentProject, setCurrentProject] = useState('Indore Smart City Surveillance Phase II');
-  const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -28,41 +21,20 @@ export default function TopHeader() {
 
   return (
     <header className="sticky top-0 z-30 h-20 flex items-center justify-between px-4 lg:px-6">
-      {/* Left section - Project */}
+      {/* Left section */}
       <div className="flex items-center gap-2 lg:gap-6 min-w-0 flex-1">
-        {/* Project Dropdown */}
-        <div className="relative min-w-0 flex-shrink">
-          <button
-            onClick={() => setProjectDropdownOpen(!projectDropdownOpen)}
-            className="shell-glass flex items-center gap-3 px-3 lg:px-4 py-3 rounded-2xl transition-colors min-w-0 border border-[var(--border-subtle)]"
-          >
-            <div className="hidden sm:flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent-strong)] font-semibold">
-              TS
-            </div>
-            <div className="min-w-0 text-left">
-              <div className="shell-section-title text-[10px] mb-0.5">Current Project</div>
-              <span className="block text-sm text-gray-800 max-w-[140px] sm:max-w-[240px] lg:max-w-[360px] truncate font-semibold">
-                {currentProject}
-              </span>
-            </div>
-            <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
-          </button>
-
-          {projectDropdownOpen && (
-            <div className="absolute top-full left-0 mt-2 w-80 shell-panel py-2 z-50">
-              {projects.map(project => (
-                <button
-                  key={project}
-                  onClick={() => { setCurrentProject(project); setProjectDropdownOpen(false); }}
-                  className={`mx-2 w-[calc(100%-1rem)] rounded-2xl text-left px-4 py-3 text-sm ${
-                    currentProject === project ? 'bg-[var(--accent-soft)] text-[var(--accent-strong)]' : 'text-gray-700 hover:bg-orange-50'
-                  }`}
-                >
-                  {project}
-                </button>
-              ))}
-            </div>
-          )}
+        <div className="shell-glass flex items-center gap-3 px-4 py-3 rounded-2xl transition-colors min-w-0 border border-[var(--border-subtle)]">
+          <div className="hidden sm:flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent-strong)] font-semibold">
+            TS
+          </div>
+          <div className="min-w-0 text-left">
+            <div className="shell-section-title text-[10px] mb-0.5">Lifecycle Workspace</div>
+            <span className="block text-sm text-gray-800 max-w-[160px] sm:max-w-[260px] lg:max-w-[420px] truncate font-semibold">
+              {currentRole === 'Director' || currentRole === 'Project Head'
+                ? 'Cross-stage project visibility'
+                : `${currentRole} project-stage view`}
+            </span>
+          </div>
         </div>
       </div>
 
