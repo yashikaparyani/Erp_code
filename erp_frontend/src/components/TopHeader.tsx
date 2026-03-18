@@ -23,7 +23,7 @@ export default function TopHeader() {
     <header className="sticky top-0 z-30 h-20 flex items-center justify-between px-4 lg:px-6">
       {/* Left section */}
       <div className="flex items-center gap-2 lg:gap-6 min-w-0 flex-1">
-        <div className="shell-glass flex items-center gap-3 px-4 py-3 rounded-[24px] transition-colors min-w-0 border border-[var(--border-subtle)] shadow-[0_8px_22px_rgba(122,94,53,0.05)]">
+        <div className="shell-glass flex items-center gap-3 px-4 py-3 rounded-[24px] transition-colors min-w-0 border border-[var(--border-subtle)] shadow-[var(--shadow-subtle)]">
           <div className="hidden sm:flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--accent-soft)] text-[var(--accent-strong)] font-semibold">
             TS
           </div>
@@ -62,7 +62,7 @@ export default function TopHeader() {
             onClick={() => setUserMenuOpen(!userMenuOpen)}
             className="shell-glass flex items-center gap-2 lg:gap-3 pl-2 lg:pl-4 hover:bg-[var(--surface-hover)] rounded-[24px] px-2 py-2 transition-colors"
           >
-            <div className="w-10 h-10 rounded-2xl flex-shrink-0 flex items-center justify-center text-white text-xs font-semibold bg-gradient-to-br from-[#f0a15f] to-[var(--brand-orange)] shadow-md">
+            <div className="w-10 h-10 rounded-2xl flex-shrink-0 flex items-center justify-center text-white text-xs font-semibold bg-gradient-to-br from-[#aeb0ff] to-[var(--brand-orange)] shadow-md">
               {getRoleInitials(currentUser.role)}
             </div>
             <div className="text-left min-w-0 hidden sm:block">
@@ -81,7 +81,7 @@ export default function TopHeader() {
               {/* User info header */}
               <div className="px-4 py-3 border-b border-[var(--border-subtle)]">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-white text-xs font-semibold flex-shrink-0 bg-gradient-to-br from-[#f0a15f] to-[var(--brand-orange)]">
+                    <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-white text-xs font-semibold flex-shrink-0 bg-gradient-to-br from-[#aeb0ff] to-[var(--brand-orange)]">
                       {getRoleInitials(currentUser.role)}
                     </div>
                     <div className="min-w-0">

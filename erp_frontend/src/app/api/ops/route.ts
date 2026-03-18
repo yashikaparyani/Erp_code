@@ -192,6 +192,7 @@ const CONNECTED_METHODS = new Set([
   'get_project_document',
   'get_project_documents',
   'get_project_spine_list',
+  'get_project_spine_detail',
   'get_project_spine_summary',
   'get_project_workflow_state',
   'get_project_team_member',

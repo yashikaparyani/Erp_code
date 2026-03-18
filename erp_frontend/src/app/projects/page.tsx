@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Boxes, Flag, FolderTree, Layers3, Pencil, Plus, ShieldAlert, Trash2, Users, X } from 'lucide-react';
 import {
   DashboardShell,
@@ -370,6 +371,7 @@ function Field({
 
 export default function ProjectsPage() {
   const { currentRole } = useRole();
+  const router = useRouter();
 
   const [projects, setProjects] = useState<ProjectListItem[]>([]);
   const [selectedProject, setSelectedProject] = useState('');
@@ -851,6 +853,9 @@ export default function ProjectsPage() {
         <div className="flex flex-col gap-2 sm:flex-row">
           <button className="btn btn-primary" onClick={openCreateProjectModal}>
             <Plus className="h-4 w-4" /> New Project
+          </button>
+          <button className="btn btn-secondary" onClick={() => selectedProject && router.push(`/projects/${encodeURIComponent(selectedProject)}`)} disabled={!selectedProject}>
+            <FolderTree className="h-4 w-4" /> Open Site Breakdown
           </button>
           <button className="btn btn-secondary" onClick={openEditProjectModal} disabled={!projectRecord}>
             <Pencil className="h-4 w-4" /> Edit Project
@@ -1626,5 +1631,3 @@ export default function ProjectsPage() {
     </DashboardShell>
   );
 }
-
-

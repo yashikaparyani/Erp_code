@@ -7724,6 +7724,230 @@ def _build_action_queue(sites, project=None):
         }
 
 
+def _department_lane_for_stage(stage):
+        stage = stage or "SURVEY"
+        for department, stages in DEPARTMENT_STAGE_MAP.items():
+                if department == "hr":
+                        continue
+                if stage in stages:
+                        return department
+        return "hr"
+
+
+def _format_department_label(department):
+        return cstr(department or "").replace("_", " ").title()
+
+
+def _serialize_site_row(site, milestone_meta=None, dpr_meta=None):
+        milestone_meta = milestone_meta or {}
+        dpr_meta = dpr_meta or {}
+        stage = site.current_site_stage or "SURVEY"
+        return {
+                "name": site.name,
+                "site_code": site.site_code,
+                "site_name": site.site_name,
+                "status": site.status,
+                "linked_project": site.linked_project,
+                "installation_stage": getattr(site, "installation_stage", None),
+                "current_site_stage": stage,
+                "department_lane": _department_lane_for_stage(stage),
+                "site_blocked": cint(site.site_blocked),
+                "blocker_reason": getattr(site, "blocker_reason", None),
+                "current_owner_role": getattr(site, "current_owner_role", None),
+                "current_owner_user": getattr(site, "current_owner_user", None),
+                "site_progress_pct": flt(getattr(site, "site_progress_pct", None) or getattr(site, "location_progress_pct", None) or 0),
+                "milestone_count": milestone_meta.get(site.name, {}).get("count", 0),
+                "open_milestone_count": milestone_meta.get(site.name, {}).get("open_count", 0),
+                "latest_planned_end_date": milestone_meta.get(site.name, {}).get("latest_planned_end_date"),
+                "latest_dpr_date": dpr_meta.get(site.name),
+        }
+
+
+def _build_department_lane_breakdown(serialized_sites):
+        lane_map = {}
+        for department, stages in DEPARTMENT_STAGE_MAP.items():
+                visible_sites = [site for site in serialized_sites if (site.get("current_site_stage") or "SURVEY") in stages]
+                lane_map[department] = {
+                        "department": department,
+                        "label": _format_department_label(department),
+                        "allowed_stages": list(stages),
+                        "site_count": len(visible_sites),
+                        "blocked_count": sum(1 for site in visible_sites if cint(site.get("site_blocked"))),
+                        "avg_progress_pct": round(
+                                (sum(flt(site.get("site_progress_pct") or 0) for site in visible_sites) / len(visible_sites)),
+                                2,
+                        ) if visible_sites else 0,
+                        "stage_coverage": {
+                                stage: sum(1 for site in visible_sites if (site.get("current_site_stage") or "SURVEY") == stage)
+                                for stage in stages
+                        },
+                        "sites": visible_sites,
+                }
+        return lane_map
+
+
+def _get_project_site_rollup(project):
+        site_rows = frappe.get_all(
+                "GE Site",
+                filters={"linked_project": project},
+                fields=[
+                        "name", "site_code", "site_name", "status", "linked_project",
+                        "installation_stage", "current_site_stage", "site_blocked", "blocker_reason",
+                        "current_owner_role", "current_owner_user", "site_progress_pct", "location_progress_pct",
+                ],
+                order_by="site_code asc, site_name asc",
+        )
+
+        milestone_rows = frappe.get_all(
+                "GE Milestone",
+                filters={"linked_project": project},
+                fields=["linked_site", "status", "planned_end_date"],
+        )
+        milestone_meta = {}
+        for row in milestone_rows:
+                linked_site = row.linked_site
+                if not linked_site:
+                        continue
+                bucket = milestone_meta.setdefault(linked_site, {"count": 0, "open_count": 0, "latest_planned_end_date": None})
+                bucket["count"] += 1
+                if cstr(row.status or "").strip().upper() not in {"COMPLETED", "APPROVED", "CLOSED"}:
+                        bucket["open_count"] += 1
+                planned_end_date = str(row.planned_end_date) if row.planned_end_date else None
+                if planned_end_date and (not bucket["latest_planned_end_date"] or planned_end_date > bucket["latest_planned_end_date"]):
+                        bucket["latest_planned_end_date"] = planned_end_date
+
+        dpr_rows = frappe.get_all(
+                "GE DPR",
+                filters={"linked_project": project},
+                fields=["linked_site", "report_date"],
+                order_by="report_date desc",
+        )
+        dpr_meta = {}
+        for row in dpr_rows:
+                if row.linked_site and row.linked_site not in dpr_meta:
+                        dpr_meta[row.linked_site] = str(row.report_date) if row.report_date else None
+
+        serialized_sites = [_serialize_site_row(site, milestone_meta, dpr_meta) for site in site_rows]
+        return {
+                "sites": serialized_sites,
+                "stage_coverage": _site_stage_coverage(site_rows),
+                "department_lanes": _build_department_lane_breakdown(serialized_sites),
+                "action_queue": _build_action_queue(site_rows, project),
+        }
+
+
+def _department_lane_for_stage(stage):
+        stage = stage or "SURVEY"
+        for department, stages in DEPARTMENT_STAGE_MAP.items():
+                if department == "hr":
+                        continue
+                if stage in stages:
+                        return department
+        return "hr"
+
+
+def _format_department_label(department):
+        return cstr(department or "").replace("_", " ").title()
+
+
+def _serialize_site_row(site, milestone_meta=None, dpr_meta=None):
+        milestone_meta = milestone_meta or {}
+        dpr_meta = dpr_meta or {}
+        stage = site.current_site_stage or "SURVEY"
+        return {
+                "name": site.name,
+                "site_code": site.site_code,
+                "site_name": site.site_name,
+                "status": site.status,
+                "linked_project": site.linked_project,
+                "installation_stage": getattr(site, "installation_stage", None),
+                "current_site_stage": stage,
+                "department_lane": _department_lane_for_stage(stage),
+                "site_blocked": cint(site.site_blocked),
+                "blocker_reason": getattr(site, "blocker_reason", None),
+                "current_owner_role": getattr(site, "current_owner_role", None),
+                "current_owner_user": getattr(site, "current_owner_user", None),
+                "site_progress_pct": flt(getattr(site, "site_progress_pct", None) or getattr(site, "location_progress_pct", None) or 0),
+                "milestone_count": milestone_meta.get(site.name, {}).get("count", 0),
+                "open_milestone_count": milestone_meta.get(site.name, {}).get("open_count", 0),
+                "latest_planned_end_date": milestone_meta.get(site.name, {}).get("latest_planned_end_date"),
+                "latest_dpr_date": dpr_meta.get(site.name),
+        }
+
+
+def _build_department_lane_breakdown(serialized_sites):
+        lane_map = {}
+        for department, stages in DEPARTMENT_STAGE_MAP.items():
+                visible_sites = [site for site in serialized_sites if (site.get("current_site_stage") or "SURVEY") in stages]
+                lane_map[department] = {
+                        "department": department,
+                        "label": _format_department_label(department),
+                        "allowed_stages": list(stages),
+                        "site_count": len(visible_sites),
+                        "blocked_count": sum(1 for site in visible_sites if cint(site.get("site_blocked"))),
+                        "avg_progress_pct": round(
+                                (sum(flt(site.get("site_progress_pct") or 0) for site in visible_sites) / len(visible_sites)),
+                                2,
+                        ) if visible_sites else 0,
+                        "stage_coverage": {
+                                stage: sum(1 for site in visible_sites if (site.get("current_site_stage") or "SURVEY") == stage)
+                                for stage in stages
+                        },
+                        "sites": visible_sites,
+                }
+        return lane_map
+
+
+def _get_project_site_rollup(project):
+        site_rows = frappe.get_all(
+                "GE Site",
+                filters={"linked_project": project},
+                fields=[
+                        "name", "site_code", "site_name", "status", "linked_project",
+                        "installation_stage", "current_site_stage", "site_blocked", "blocker_reason",
+                        "current_owner_role", "current_owner_user", "site_progress_pct", "location_progress_pct",
+                ],
+                order_by="site_code asc, site_name asc",
+        )
+
+        milestone_rows = frappe.get_all(
+                "GE Milestone",
+                filters={"linked_project": project},
+                fields=["linked_site", "status", "planned_end_date"],
+        )
+        milestone_meta = {}
+        for row in milestone_rows:
+                linked_site = row.linked_site
+                if not linked_site:
+                        continue
+                bucket = milestone_meta.setdefault(linked_site, {"count": 0, "open_count": 0, "latest_planned_end_date": None})
+                bucket["count"] += 1
+                if cstr(row.status or "").strip().upper() not in {"COMPLETED", "APPROVED", "CLOSED"}:
+                        bucket["open_count"] += 1
+                planned_end_date = str(row.planned_end_date) if row.planned_end_date else None
+                if planned_end_date and (not bucket["latest_planned_end_date"] or planned_end_date > bucket["latest_planned_end_date"]):
+                        bucket["latest_planned_end_date"] = planned_end_date
+
+        dpr_rows = frappe.get_all(
+                "GE DPR",
+                filters={"linked_project": project},
+                fields=["linked_site", "report_date"],
+                order_by="report_date desc",
+        )
+        dpr_meta = {}
+        for row in dpr_rows:
+                if row.linked_site and row.linked_site not in dpr_meta:
+                        dpr_meta[row.linked_site] = str(row.report_date) if row.report_date else None
+
+        serialized_sites = [_serialize_site_row(site, milestone_meta, dpr_meta) for site in site_rows]
+        return {
+                "sites": serialized_sites,
+                "stage_coverage": _site_stage_coverage(site_rows),
+                "department_lanes": _build_department_lane_breakdown(serialized_sites),
+                "action_queue": _build_action_queue(site_rows, project),
+        }
+
+
 PROJECT_EDITABLE_FIELDS = {
         "project_name",
         "status",
@@ -7998,6 +8222,136 @@ def get_project_spine_summary(project=None):
                         "site_count": len(sites),
                         "stage_coverage": stage_coverage,
                         "action_queue": action_queue,
+                },
+        }
+
+
+@frappe.whitelist()
+def get_project_spine_detail(project=None, department=None):
+        """
+        Detailed project view centered on site-level execution.
+
+        A project is treated as an aggregation of its sites so each department can
+        break the project down only through site/stage reality.
+        """
+        _require_spine_read_access()
+        project = _require_param(project, "project")
+        proj = frappe.get_doc("Project", project)
+        rollup = _get_project_site_rollup(project)
+        team_members = frappe.get_all(
+                "GE Project Team Member",
+                filters={"linked_project": project},
+                fields=["name", "user", "role_in_project", "linked_site", "is_active"],
+                order_by="creation asc",
+        )
+        project_assets = frappe.get_all(
+                "GE Project Asset",
+                filters={"linked_project": project},
+                fields=["name", "asset_name", "asset_type", "status", "linked_site", "assigned_to"],
+                order_by="creation desc",
+                limit_page_length=50,
+        )
+
+        selected_lane = None
+        if department:
+                department_key = cstr(department).strip().lower().replace(" ", "_")
+                selected_lane = rollup["department_lanes"].get(department_key)
+
+        return {
+                "success": True,
+                "data": {
+                        "project_summary": {
+                                "name": proj.name,
+                                "project_name": proj.project_name,
+                                "status": proj.status,
+                                "customer": proj.customer,
+                                "company": proj.company,
+                                "linked_tender": getattr(proj, "linked_tender", None),
+                                "project_head": getattr(proj, "project_head", None),
+                                "project_manager_user": getattr(proj, "project_manager_user", None),
+                                "current_project_stage": getattr(proj, "current_project_stage", None),
+                                "current_stage_status": getattr(proj, "current_stage_status", None),
+                                "current_stage_owner_department": getattr(proj, "current_stage_owner_department", None),
+                                "spine_progress_pct": getattr(proj, "spine_progress_pct", 0),
+                                "spine_blocked": cint(getattr(proj, "spine_blocked", 0)),
+                                "blocker_summary": getattr(proj, "blocker_summary", None),
+                                "total_sites": len(rollup["sites"]),
+                                "expected_start_date": str(proj.expected_start_date) if proj.expected_start_date else None,
+                                "expected_end_date": str(proj.expected_end_date) if proj.expected_end_date else None,
+                        },
+                        "site_count": len(rollup["sites"]),
+                        "sites": rollup["sites"],
+                        "stage_coverage": rollup["stage_coverage"],
+                        "department_lanes": rollup["department_lanes"],
+                        "selected_department_lane": selected_lane,
+                        "action_queue": rollup["action_queue"],
+                        "team_members": team_members,
+                        "project_assets": project_assets,
+                },
+        }
+
+
+@frappe.whitelist()
+def get_project_spine_detail(project=None, department=None):
+        """
+        Detailed project view centered on site-level execution.
+
+        A project is treated as an aggregation of its sites so each department can
+        break the project down only through site/stage reality.
+        """
+        _require_spine_read_access()
+        project = _require_param(project, "project")
+        proj = frappe.get_doc("Project", project)
+        rollup = _get_project_site_rollup(project)
+        team_members = frappe.get_all(
+                "GE Project Team Member",
+                filters={"linked_project": project},
+                fields=["name", "user", "role_in_project", "linked_site", "is_active"],
+                order_by="creation asc",
+        )
+        project_assets = frappe.get_all(
+                "GE Project Asset",
+                filters={"linked_project": project},
+                fields=["name", "asset_name", "asset_type", "status", "linked_site", "assigned_to"],
+                order_by="creation desc",
+                limit_page_length=50,
+        )
+
+        selected_lane = None
+        if department:
+                department_key = cstr(department).strip().lower().replace(" ", "_")
+                selected_lane = rollup["department_lanes"].get(department_key)
+
+        return {
+                "success": True,
+                "data": {
+                        "project_summary": {
+                                "name": proj.name,
+                                "project_name": proj.project_name,
+                                "status": proj.status,
+                                "customer": proj.customer,
+                                "company": proj.company,
+                                "linked_tender": getattr(proj, "linked_tender", None),
+                                "project_head": getattr(proj, "project_head", None),
+                                "project_manager_user": getattr(proj, "project_manager_user", None),
+                                "current_project_stage": getattr(proj, "current_project_stage", None),
+                                "current_stage_status": getattr(proj, "current_stage_status", None),
+                                "current_stage_owner_department": getattr(proj, "current_stage_owner_department", None),
+                                "spine_progress_pct": getattr(proj, "spine_progress_pct", 0),
+                                "spine_blocked": cint(getattr(proj, "spine_blocked", 0)),
+                                "blocker_summary": getattr(proj, "blocker_summary", None),
+                                "total_sites": len(rollup["sites"]),
+                                "expected_start_date": str(proj.expected_start_date) if proj.expected_start_date else None,
+                                "expected_end_date": str(proj.expected_end_date) if proj.expected_end_date else None,
+                        },
+                        "site_count": len(rollup["sites"]),
+                        "sites": rollup["sites"],
+                        "stage_coverage": rollup["stage_coverage"],
+                        "department_lanes": rollup["department_lanes"],
+                        "selected_department_lane": selected_lane,
+                        "action_queue": rollup["action_queue"],
+                        "team_members": team_members,
+                        "project_assets": project_assets,
                 },
         }
 

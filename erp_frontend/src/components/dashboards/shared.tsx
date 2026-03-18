@@ -21,23 +21,23 @@ type StatTone = 'blue' | 'green' | 'orange' | 'purple' | 'red' | 'amber' | 'cyan
 type ValueTone = 'default' | 'positive' | 'negative' | 'warning' | 'info';
 
 const statToneClasses: Record<StatTone, string> = {
-	blue: 'bg-[#eef5ff] text-[#235d93]',
-	green: 'bg-[#edf8f1] text-[#2d6b4f]',
+	blue: 'bg-[#edf4ff] text-[#5b78ba]',
+	green: 'bg-[#eefcf3] text-[#4b8b67]',
 	orange: 'bg-[var(--accent-soft)] text-[var(--accent-strong)]',
-	purple: 'bg-[#f4f1fb] text-[#6a549a]',
-	red: 'bg-[#fff0ef] text-[#b74231]',
-	amber: 'bg-[#fff7e8] text-[#a66311]',
-	cyan: 'bg-[#edf8fb] text-[#2d7080]',
-	slate: 'bg-[#f2f3f5] text-[#5c6472]',
-	teal: 'bg-[#eef7f5] text-[#2f6d61]',
+	purple: 'bg-[#f2efff] text-[#7067c8]',
+	red: 'bg-[#fff1f7] text-[#bc6e95]',
+	amber: 'bg-[#fff9e7] text-[#b5943e]',
+	cyan: 'bg-[#eef7ff] text-[#648fb7]',
+	slate: 'bg-[#f4f6fb] text-[#6e7792]',
+	teal: 'bg-[#eefbf8] text-[#4f8e84]',
 };
 
 const metricToneClasses: Record<ValueTone, string> = {
 	default: 'text-[var(--text-main)]',
-	positive: 'text-[#2d6b4f]',
-	negative: 'text-[#b74231]',
-	warning: 'text-[#a66311]',
-	info: 'text-[#235d93]',
+	positive: 'text-[#4b8b67]',
+	negative: 'text-[#bc6e95]',
+	warning: 'text-[#b5943e]',
+	info: 'text-[#5b78ba]',
 };
 
 function buildTimestamp() {

@@ -317,7 +317,7 @@ function SubMenu({ items, level = 0, onNavigate }: { items: SubMenuItem[]; level
             <div
               className={`group flex items-center justify-between border transition-all duration-200 cursor-pointer ${menuClasses.item} ${
                 isCurrentRoute && !hasChildren
-                  ? 'border-[rgba(233,129,42,0.55)] bg-[var(--accent-soft)] text-[var(--accent-strong)] shadow-[0_10px_24px_rgba(233,129,42,0.10)]'
+                  ? 'border-[var(--border-strong)] bg-[var(--accent-soft)] text-[var(--accent-strong)] shadow-[var(--shadow-subtle)]'
                   : hasChildren && (isCurrentRoute || isDescendantActive)
                     ? 'border-[var(--border-subtle)] bg-[var(--surface-hover)] text-[var(--text-main)]'
                     : 'border-transparent bg-white/70 text-[var(--text-muted)] hover:border-[var(--border-subtle)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-main)]'
@@ -438,7 +438,7 @@ export default function Sidebar() {
                   <div
                     className={`group flex items-center justify-between rounded-3xl border px-3.5 py-3 transition-all duration-200 ${
                       isActive
-                        ? 'border-[rgba(233,129,42,0.55)] bg-[var(--accent-soft)] text-[var(--accent-strong)] shadow-[0_12px_26px_rgba(233,129,42,0.12)]'
+                        ? 'border-[var(--border-strong)] bg-[var(--accent-soft)] text-[var(--accent-strong)] shadow-[var(--shadow-soft)]'
                         : isInSection
                           ? 'border-[var(--border-subtle)] bg-[var(--surface-hover)] text-[var(--text-main)]'
                           : 'border-transparent bg-white/60 text-[var(--text-main)] hover:border-[var(--border-subtle)] hover:bg-white/85 hover:text-[var(--text-main)]'
