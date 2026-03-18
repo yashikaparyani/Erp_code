@@ -15,13 +15,14 @@ Read these in this order:
 4. `Erp_code/backend_org_mapping.md`
 5. `Erp_code/backend_architecture_note.md`
 6. `Erp_code/backend_project_spine_model.md`
-7. `Erp_code/backend_requirement_mapping.md`
-8. `Erp_code/backend_procurement_plan.md`
-9. `Erp_code/backend_stores_plan.md`
-10. `Erp_code/backend_dependency_plan.md`
-11. `Erp_code/backend_hr_plan.md`
-12. `Erp_code/backend_costing_plan.md`
-13. `Erp_code/ERP_Project_Analysis.md`
+7. `Erp_code/dept_iteration_project_workspace_model.md`
+8. `Erp_code/backend_requirement_mapping.md`
+9. `Erp_code/backend_procurement_plan.md`
+10. `Erp_code/backend_stores_plan.md`
+11. `Erp_code/backend_dependency_plan.md`
+12. `Erp_code/backend_hr_plan.md`
+13. `Erp_code/backend_costing_plan.md`
+14. `Erp_code/ERP_Project_Analysis.md`
 
 Docs removed as stale or redundant:
 

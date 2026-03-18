@@ -186,6 +186,7 @@ const navLinks: NavLink[] = [
     href: '/engineering',
     icon: Settings,
     children: [
+      { name: 'Project Workspace', href: '/engineering/projects', icon: Layers3 },
       { name: 'Survey', href: '/survey', icon: MapPin },
       { name: 'BOQ', href: '/engineering/boq', icon: FileText },
       { name: 'Drawings', href: '/engineering/drawings', icon: FileText },
@@ -198,6 +199,7 @@ const navLinks: NavLink[] = [
     href: '/procurement',
     icon: ShoppingCart,
     children: [
+      { name: 'Project Workspace', href: '/procurement/projects', icon: Layers3 },
       { name: 'Vendor Comparisons', href: '/procurement', icon: ClipboardList },
       { name: 'Indents', href: '/indents', icon: FileText },
       { name: 'Purchase Orders', href: '/purchase-orders', icon: ShoppingCart },
@@ -220,6 +222,7 @@ const navLinks: NavLink[] = [
     href: '/execution',
     icon: Wrench,
     children: [
+      { name: 'Project Workspace', href: '/execution/projects', icon: Layers3 },
       { name: 'Dependencies', href: '/execution/dependencies', icon: GitBranch },
       { name: 'Project Structure', href: '/execution/project-structure', icon: FolderTree },
       {
@@ -241,6 +244,7 @@ const navLinks: NavLink[] = [
     href: '/finance',
     icon: DollarSign,
     children: [
+      { name: 'Project Workspace', href: '/finance/projects', icon: Layers3 },
       { name: 'Costing', href: '/finance/costing', icon: PieChart },
       { name: 'Billing', href: '/finance/billing', icon: CreditCard },
       { name: 'Payment Receipts', href: '/finance/payment-receipts', icon: CreditCard },
@@ -253,6 +257,7 @@ const navLinks: NavLink[] = [
     href: '/hr',
     icon: Users2,
     children: [
+      { name: 'Project Workspace', href: '/hr/projects', icon: Layers3 },
       { name: 'Overview', href: '/hr', icon: Users2 },
       { name: 'Onboarding', href: '/hr/onboarding', icon: Briefcase },
       { name: 'Attendance', href: '/hr/attendance', icon: CalendarCheck2 },
@@ -262,7 +267,15 @@ const navLinks: NavLink[] = [
     ],
   },
   { name: 'RMA', href: '/rma', icon: RefreshCcw },
-  { name: 'O&M & Helpdesk', href: '/om-helpdesk', icon: HeadphonesIcon },
+  {
+    name: 'O&M & Helpdesk',
+    href: '/om-helpdesk',
+    icon: HeadphonesIcon,
+    children: [
+      { name: 'Project Workspace', href: '/om-helpdesk/projects', icon: Layers3 },
+      { name: 'Tickets', href: '/om-helpdesk', icon: HeadphonesIcon },
+    ],
+  },
   { name: 'SLA Profiles', href: '/sla', icon: Clock },
   { name: 'Reports', href: '/reports', icon: BarChart3 },
   { name: 'Document Management', href: '/documents', icon: FolderOpen },

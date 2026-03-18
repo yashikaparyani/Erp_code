@@ -7577,6 +7577,7 @@ DEPARTMENT_STAGE_MAP = {
         "procurement": ["COSTING", "PROCUREMENT", "STORES_DISPATCH", "BILLING_PAYMENT"],
         "stores": ["PROCUREMENT", "STORES_DISPATCH", "EXECUTION"],
         "accounts": ["COSTING", "PROCUREMENT", "BILLING_PAYMENT", "CLOSED"],
+        "i_and_c": ["STORES_DISPATCH", "EXECUTION", "BILLING_PAYMENT"],
         "hr": SPINE_STAGES,              # cross-cutting visibility
         "om_rma": ["OM_RMA", "CLOSED"],
 }
@@ -7760,6 +7761,7 @@ def _serialize_site_row(site, milestone_meta=None, dpr_meta=None):
                 "open_milestone_count": milestone_meta.get(site.name, {}).get("open_count", 0),
                 "latest_planned_end_date": milestone_meta.get(site.name, {}).get("latest_planned_end_date"),
                 "latest_dpr_date": dpr_meta.get(site.name),
+                "modified": str(site.modified) if getattr(site, "modified", None) else None,
         }
 
 
@@ -7794,6 +7796,7 @@ def _get_project_site_rollup(project):
                         "name", "site_code", "site_name", "status", "linked_project",
                         "installation_stage", "current_site_stage", "site_blocked", "blocker_reason",
                         "current_owner_role", "current_owner_user", "site_progress_pct", "location_progress_pct",
+                        "modified",
                 ],
                 order_by="site_code asc, site_name asc",
         )
@@ -7872,6 +7875,7 @@ def _serialize_site_row(site, milestone_meta=None, dpr_meta=None):
                 "open_milestone_count": milestone_meta.get(site.name, {}).get("open_count", 0),
                 "latest_planned_end_date": milestone_meta.get(site.name, {}).get("latest_planned_end_date"),
                 "latest_dpr_date": dpr_meta.get(site.name),
+                "modified": str(site.modified) if getattr(site, "modified", None) else None,
         }
 
 
@@ -7906,6 +7910,7 @@ def _get_project_site_rollup(project):
                         "name", "site_code", "site_name", "status", "linked_project",
                         "installation_stage", "current_site_stage", "site_blocked", "blocker_reason",
                         "current_owner_role", "current_owner_user", "site_progress_pct", "location_progress_pct",
+                        "modified",
                 ],
                 order_by="site_code asc, site_name asc",
         )
@@ -8562,6 +8567,111 @@ def get_department_spine_view(department=None, project=None):
                         ],
                 },
         }
+
+
+@frappe.whitelist()
+def get_project_activity(project=None, limit=50):
+        """
+        Aggregate activity feed for a project from Version (audit trail),
+        Comment, and linked site changes.
+        """
+        _require_spine_read_access()
+        project = _require_param(project, "project")
+        limit = min(int(limit or 50), 200)
+
+        activities = []
+
+        # 1. Version log entries for the Project document itself
+        versions = frappe.get_all(
+                "Version",
+                filters={"ref_doctype": "Project", "docname": project},
+                fields=["name", "creation", "owner", "data"],
+                order_by="creation desc",
+                limit_page_length=limit,
+        )
+        import json as _json
+        for v in versions:
+                try:
+                        vdata = _json.loads(v.data) if isinstance(v.data, str) else (v.data or {})
+                except Exception:
+                        vdata = {}
+                changed_fields = [c.get("field", "?") for c in (vdata.get("changed", []) or [])]
+                activities.append({
+                        "type": "version",
+                        "ref_doctype": "Project",
+                        "ref_name": project,
+                        "actor": v.owner,
+                        "timestamp": str(v.creation),
+                        "summary": f"Updated {', '.join(changed_fields[:5]) or 'record'}" + (" ..." if len(changed_fields) > 5 else ""),
+                        "detail": changed_fields,
+                })
+
+        # 2. Comments on the Project itself
+        comments = frappe.get_all(
+                "Comment",
+                filters={"reference_doctype": "Project", "reference_name": project,
+                          "comment_type": ["in", ["Comment", "Info", "Edit"]]},
+                fields=["name", "creation", "comment_by", "comment_type", "content"],
+                order_by="creation desc",
+                limit_page_length=limit,
+        )
+        for c in comments:
+                activities.append({
+                        "type": "comment",
+                        "ref_doctype": "Project",
+                        "ref_name": project,
+                        "actor": c.comment_by,
+                        "timestamp": str(c.creation),
+                        "summary": (c.content or "")[:200],
+                        "comment_type": c.comment_type,
+                })
+
+        # 3. Site-level comments (stage changes, etc.)
+        sites = frappe.get_all("GE Site", filters={"linked_project": project}, pluck="name")
+        if sites:
+                site_comments = frappe.get_all(
+                        "Comment",
+                        filters={"reference_doctype": "GE Site", "reference_name": ["in", sites],
+                                  "comment_type": ["in", ["Comment", "Info", "Edit"]]},
+                        fields=["name", "creation", "comment_by", "comment_type", "content",
+                                "reference_name"],
+                        order_by="creation desc",
+                        limit_page_length=limit,
+                )
+                for c in site_comments:
+                        activities.append({
+                                "type": "site_comment",
+                                "ref_doctype": "GE Site",
+                                "ref_name": c.reference_name,
+                                "actor": c.comment_by,
+                                "timestamp": str(c.creation),
+                                "summary": (c.content or "")[:200],
+                                "comment_type": c.comment_type,
+                        })
+
+        # 4. Workflow history from project doc
+        try:
+                proj_doc = frappe.get_doc("Project", project)
+                wf_history = _json.loads(proj_doc.get("workflow_history") or "[]") if hasattr(proj_doc, "workflow_history") else []
+                for entry in (wf_history or []):
+                        activities.append({
+                                "type": "workflow",
+                                "ref_doctype": "Project",
+                                "ref_name": project,
+                                "actor": entry.get("actor", "System"),
+                                "timestamp": entry.get("timestamp", ""),
+                                "summary": f"{entry.get('action', '?')} stage {entry.get('stage', '?')}" + (f" → {entry.get('next_stage', '')}" if entry.get("next_stage") else ""),
+                                "stage": entry.get("stage"),
+                                "action": entry.get("action"),
+                        })
+        except Exception:
+                pass
+
+        # Sort all activities by timestamp descending, then limit
+        activities.sort(key=lambda a: a.get("timestamp", ""), reverse=True)
+        activities = activities[:limit]
+
+        return {"success": True, "data": activities}
 
 
 @frappe.whitelist()
