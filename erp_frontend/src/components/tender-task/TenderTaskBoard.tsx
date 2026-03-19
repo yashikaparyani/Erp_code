@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Building2, Calendar, FileText, Filter, IndianRupee, Search } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 type Tender = {
   name: string;
@@ -14,6 +15,7 @@ type Tender = {
   status?: string;
   estimated_value?: number;
   emd_amount?: number;
+  tender_owner?: string;
   creation?: string;
   modified?: string;
 };
@@ -25,6 +27,7 @@ type Props = {
   emptyHint: string;
   statusFilter?: string[];
   disclaimer?: string;
+  currentUserOnly?: boolean;
 };
 
 const STATUS_STYLES: Record<string, string> = {
@@ -64,10 +67,10 @@ function getDaysToSubmission(dateString?: string) {
 }
 
 async function updateTenderStatus(name: string, status: string) {
-  const response = await fetch('/api/tenders', {
-    method: 'PATCH',
+  const response = await fetch(`/api/tenders/${encodeURIComponent(name)}/status`, {
+    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, status }),
+    body: JSON.stringify({ target_status: status }),
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok || payload.success === false) {
@@ -82,13 +85,16 @@ export default function TenderTaskBoard({
   emptyHint,
   statusFilter,
   disclaimer,
+  currentUserOnly,
 }: Props) {
+  const { currentUser } = useAuth();
   const [tenders, setTenders] = useState<Tender[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [clientFilter, setClientFilter] = useState('');
   const [statusSelection, setStatusSelection] = useState('');
   const [actionBusy, setActionBusy] = useState('');
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     let mounted = true;
@@ -112,12 +118,19 @@ export default function TenderTaskBoard({
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [refreshKey]);
 
   const filteredBase = useMemo(() => {
-    if (!statusFilter || statusFilter.length === 0) return tenders;
-    return tenders.filter((tender) => statusFilter.includes(tender.status || ''));
-  }, [tenders, statusFilter]);
+    const statusFiltered = !statusFilter || statusFilter.length === 0
+      ? tenders
+      : tenders.filter((tender) => statusFilter.includes(tender.status || ''));
+
+    if (!currentUserOnly || !currentUser?.username) {
+      return statusFiltered;
+    }
+
+    return statusFiltered.filter((tender) => tender.tender_owner === currentUser.username);
+  }, [tenders, statusFilter, currentUserOnly, currentUser?.username]);
 
   const clientOptions = useMemo(() => {
     return Array.from(new Set(filteredBase.map((tender) => tender.client).filter(Boolean))) as string[];
@@ -325,7 +338,7 @@ export default function TenderTaskBoard({
                               try {
                                 setActionBusy(tender.name);
                                 await updateTenderStatus(tender.name, 'SUBMITTED');
-                                window.location.reload();
+                                setRefreshKey((current) => current + 1);
                               } finally {
                                 setActionBusy('');
                               }
@@ -342,7 +355,7 @@ export default function TenderTaskBoard({
                               try {
                                 setActionBusy(tender.name);
                                 await updateTenderStatus(tender.name, 'DROPPED');
-                                window.location.reload();
+                                setRefreshKey((current) => current + 1);
                               } finally {
                                 setActionBusy('');
                               }

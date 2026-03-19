@@ -9,8 +9,8 @@ export default function AssignedToTeamPage() {
       subtitle="Active tenders that are already in the team workflow."
       emptyTitle="No team-stage tenders"
       emptyHint="No tenders are currently sitting in the active team workflow."
-      statusFilter={['IN_PROGRESS', 'SUBMITTED', 'UNDER_EVALUATION']}
-      disclaimer="Dedicated team assignment and assignee fields are not yet stored on tenders, so this view uses live workflow status as the closest current signal."
+      statusFilter={['DRAFT', 'SUBMITTED', 'UNDER_EVALUATION']}
+      disclaimer="Dedicated team assignment fields are not stored on tenders yet, so this view uses live active statuses as the current shared-workflow signal."
     />
   );
 }

@@ -9,7 +9,8 @@ export default function InProcessTenderPage() {
       subtitle="Live tenders currently moving through the working pipeline."
       emptyTitle="No in-process tenders"
       emptyHint="No tenders are currently in the in-process bucket."
-      statusFilter={['DRAFT', 'IN_PROGRESS', 'UNDER_EVALUATION']}
+      statusFilter={['DRAFT']}
+      disclaimer="This bucket now shows active preparation-stage tenders using the real live tender status. Earlier placeholder statuses like IN_PROGRESS are no longer used."
     />
   );
 }

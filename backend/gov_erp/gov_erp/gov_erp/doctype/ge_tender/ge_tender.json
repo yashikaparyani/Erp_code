@@ -12,6 +12,21 @@
   "column_break_dates",
   "submission_date",
   "status",
+  "section_break_workflow",
+  "tender_owner",
+  "go_no_go_status",
+  "column_break_workflow_meta",
+  "approval_status",
+  "submission_status",
+  "section_break_go_no_go",
+  "go_no_go_by",
+  "go_no_go_on",
+  "go_no_go_remarks",
+  "section_break_readiness",
+  "technical_readiness",
+  "commercial_readiness",
+  "column_break_readiness",
+  "finance_readiness",
   "section_break_value",
   "estimated_value",
   "emd_required",
@@ -78,8 +93,95 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Status",
-   "options": "DRAFT\nSUBMITTED\nUNDER_EVALUATION\nWON\nLOST\nCANCELLED\nDROPPED",
+   "options": "DRAFT\nGO_NO_GO_PENDING\nNO_GO\nQUALIFIED\nSURVEY_IN_PROGRESS\nTECHNICAL_IN_PROGRESS\nCOSTING_IN_PROGRESS\nFINANCE_PENDING\nAPPROVAL_PENDING\nBID_READY\nSUBMITTED\nUNDER_EVALUATION\nWON\nLOST\nCANCELLED\nDROPPED\nCONVERTED_TO_PROJECT",
    "reqd": 1
+  },
+  {
+   "fieldname": "section_break_workflow",
+   "fieldtype": "Section Break",
+   "label": "Workflow Snapshot"
+  },
+  {
+   "fieldname": "tender_owner",
+   "fieldtype": "Link",
+   "label": "Tender Owner",
+   "options": "User"
+  },
+  {
+   "default": "PENDING",
+   "fieldname": "go_no_go_status",
+   "fieldtype": "Select",
+   "label": "Go / No-Go Status",
+   "options": "PENDING\nGO\nNO_GO"
+  },
+  {
+   "fieldname": "column_break_workflow_meta",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "NOT_REQUIRED",
+   "fieldname": "approval_status",
+   "fieldtype": "Select",
+   "label": "Approval Status",
+   "options": "NOT_REQUIRED\nPENDING\nAPPROVED\nREJECTED\nPARTIAL"
+  },
+  {
+   "default": "NOT_READY",
+   "fieldname": "submission_status",
+   "fieldtype": "Select",
+   "label": "Submission Status",
+   "options": "NOT_READY\nPENDING_APPROVAL\nAPPROVED\nREJECTED\nSUBMITTED"
+  },
+  {
+   "fieldname": "section_break_go_no_go",
+   "fieldtype": "Section Break",
+   "label": "Go / No-Go Decision"
+  },
+  {
+   "fieldname": "go_no_go_by",
+   "fieldtype": "Link",
+   "label": "Go / No-Go By",
+   "options": "User"
+  },
+  {
+   "fieldname": "go_no_go_on",
+   "fieldtype": "Datetime",
+   "label": "Go / No-Go On"
+  },
+  {
+   "fieldname": "go_no_go_remarks",
+   "fieldtype": "Small Text",
+   "label": "Go / No-Go Remarks"
+  },
+  {
+   "fieldname": "section_break_readiness",
+   "fieldtype": "Section Break",
+   "label": "Readiness"
+  },
+  {
+   "default": "NOT_STARTED",
+   "fieldname": "technical_readiness",
+   "fieldtype": "Select",
+   "label": "Technical Readiness",
+   "options": "NOT_STARTED\nPENDING_APPROVAL\nAPPROVED\nREJECTED"
+  },
+  {
+   "default": "NOT_STARTED",
+   "fieldname": "commercial_readiness",
+   "fieldtype": "Select",
+   "label": "Commercial Readiness",
+   "options": "NOT_STARTED\nPENDING_APPROVAL\nAPPROVED\nREJECTED"
+  },
+  {
+   "fieldname": "column_break_readiness",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "NOT_STARTED",
+   "fieldname": "finance_readiness",
+   "fieldtype": "Select",
+   "label": "Finance Readiness",
+   "options": "NOT_STARTED\nPENDING_APPROVAL\nAPPROVED\nREJECTED"
   },
   {
    "fieldname": "section_break_value",
@@ -173,7 +275,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-03-13 12:00:00.000000",
+ "modified": "2026-03-19 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Gov ERP",
  "name": "GE Tender",
@@ -208,18 +310,18 @@
    "write": 1
   },
   {
-    "create": 1,
+   "create": 1,
    "read": 1,
    "report": 1,
-    "role": "Department Head",
-    "write": 1
+   "role": "Department Head",
+   "write": 1
   },
   {
-    "create": 1,
+   "create": 1,
    "read": 1,
    "report": 1,
-    "role": "Director",
-    "write": 1
+   "role": "Director",
+   "write": 1
   }
  ],
  "sort_field": "creation",

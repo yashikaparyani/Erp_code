@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Search, ChevronDown, ChevronUp, Eye, ChevronsLeft, ChevronsRight, Loader2 } from 'lucide-react';
 import ModalFrame from '@/components/ui/ModalFrame';
@@ -29,6 +30,12 @@ export default function ApprovalsPage() {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [dialog, setDialog] = useState<ApprovalDialogState>(null);
   const [processingId, setProcessingId] = useState('');
+  const [filters, setFilters] = useState({
+    tenderId: '',
+    approvalType: '',
+    status: '',
+    requester: '',
+  });
 
   const fetchData = useCallback(async () => {
     try {
@@ -54,16 +61,40 @@ export default function ApprovalsPage() {
   }, [fetchData]);
 
   const getApprovalKind = (row: ApprovalData) => {
-    if (row.approval_for.toLowerCase().includes('vendor comparison')) return 'vendor_comparison';
+    const approvalFor = row.approval_for.toLowerCase();
+    const approvalType = row.type.toLowerCase();
+
+    if (approvalType === 'finance' || approvalFor.includes('finance request')) return 'finance_request';
+    if (approvalFor.includes('boq')) return 'boq';
+    if (approvalFor.includes('cost sheet')) return 'cost_sheet';
+    if (approvalType === 'tender approval' || approvalFor.includes('tender approval')) return 'tender_approval';
+    if (approvalFor.includes('vendor comparison')) return 'vendor_comparison';
     return '';
   };
 
+  const filteredRows = useMemo(() => {
+    return data.filter((row) => {
+      const matchesTender = !filters.tenderId || row.tender_id.toLowerCase().includes(filters.tenderId.toLowerCase());
+      const matchesType =
+        !filters.approvalType ||
+        row.approval_for.toLowerCase().includes(filters.approvalType.toLowerCase()) ||
+        row.type.toLowerCase().includes(filters.approvalType.toLowerCase());
+      const matchesStatus = !filters.status || row.status.toLowerCase() === filters.status.toLowerCase();
+      const matchesRequester = !filters.requester || row.requester.toLowerCase().includes(filters.requester.toLowerCase());
+      return matchesTender && matchesType && matchesStatus && matchesRequester;
+    });
+  }, [data, filters]);
+
   const paginatedRows = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
-    return data.slice(start, start + itemsPerPage);
-  }, [currentPage, data, itemsPerPage]);
+    return filteredRows.slice(start, start + itemsPerPage);
+  }, [currentPage, filteredRows, itemsPerPage]);
 
-  const totalPages = Math.max(1, Math.ceil(data.length / itemsPerPage));
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / itemsPerPage));
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters]);
 
   useEffect(() => {
     setCurrentPage((prev) => Math.min(prev, totalPages));
@@ -118,6 +149,15 @@ export default function ApprovalsPage() {
     }
   };
 
+  const clearFilters = () => {
+    setFilters({
+      tenderId: '',
+      approvalType: '',
+      status: '',
+      requester: '',
+    });
+  };
+
   return (
     <div className="p-3 sm:p-4 md:p-6 bg-gray-50 min-h-screen">
       <div className="mb-4 sm:mb-6">
@@ -144,10 +184,47 @@ export default function ApprovalsPage() {
         {showFilters ? (
           <div className="px-4 pb-4 border-t border-gray-100">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mt-4">
-              <input type="text" placeholder="Tender ID" className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              <input type="text" placeholder="Approval Type" className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              <input type="text" placeholder="Status" className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              <input type="text" placeholder="Requester" className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <input
+                type="text"
+                placeholder="Tender ID"
+                value={filters.tenderId}
+                onChange={(e) => setFilters((prev) => ({ ...prev, tenderId: e.target.value }))}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <input
+                type="text"
+                placeholder="Approval Type"
+                value={filters.approvalType}
+                onChange={(e) => setFilters((prev) => ({ ...prev, approvalType: e.target.value }))}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <select
+                value={filters.status}
+                onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">All Statuses</option>
+                <option value="Pending">Pending</option>
+                <option value="Approved">Approved</option>
+                <option value="Rejected">Rejected</option>
+              </select>
+              <input
+                type="text"
+                placeholder="Requester"
+                value={filters.requester}
+                onChange={(e) => setFilters((prev) => ({ ...prev, requester: e.target.value }))}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="mt-4 flex items-center justify-between gap-3">
+              <div className="text-sm text-gray-500">{filteredRows.length} approval item(s) match current filters.</div>
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Clear Filters
+              </button>
             </div>
           </div>
         ) : null}
@@ -176,7 +253,7 @@ export default function ApprovalsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {data.length === 0 ? (
+                {filteredRows.length === 0 ? (
                   <tr>
                     <td colSpan={10} className="px-3 py-8 text-center text-gray-500">
                       No approvals found.
@@ -190,7 +267,15 @@ export default function ApprovalsPage() {
                     return (
                       <tr key={row.id} className="hover:bg-gray-50">
                         <td className="px-3 py-3 text-sm text-gray-900 text-center">{rowNumber}</td>
-                        <td className="px-3 py-3 text-sm text-blue-600 text-center font-medium">{row.tender_id}</td>
+                        <td className="px-3 py-3 text-sm text-center font-medium">
+                          {row.tender_id && row.tender_id !== '-' ? (
+                            <Link href={`/pre-sales/${encodeURIComponent(row.tender_id)}`} className="text-blue-600 hover:text-blue-800">
+                              {row.tender_id}
+                            </Link>
+                          ) : (
+                            <span className="text-gray-500">-</span>
+                          )}
+                        </td>
                         <td className="px-3 py-3 text-sm text-gray-900 text-center">{row.type}</td>
                         <td className="px-3 py-3 text-sm text-gray-900 text-center">{row.approval_for}</td>
                         <td className="px-3 py-3 text-sm text-gray-900 text-center">{row.approval_from}</td>

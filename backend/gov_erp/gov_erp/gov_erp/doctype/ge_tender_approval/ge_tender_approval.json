@@ -1,0 +1,140 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-03-19 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "linked_tender",
+  "approval_type",
+  "status",
+  "column_break_meta",
+  "requested_by",
+  "approver_role",
+  "approver_user",
+  "request_remarks",
+  "action_remarks",
+  "acted_on"
+ ],
+ "fields": [
+  {
+   "default": "TAPP-.YYYY.-.#####",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Series",
+   "options": "TAPP-.YYYY.-.#####",
+   "reqd": 1
+  },
+  {
+   "fieldname": "linked_tender",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Linked Tender",
+   "options": "GE Tender",
+   "reqd": 1
+  },
+  {
+   "fieldname": "approval_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Approval Type",
+   "options": "GO_NO_GO\nTECHNICAL\nCOMMERCIAL\nFINANCE\nSUBMISSION",
+   "reqd": 1
+  },
+  {
+   "default": "Pending",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Pending\nApproved\nRejected",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_meta",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "requested_by",
+   "fieldtype": "Link",
+   "label": "Requested By",
+   "options": "User"
+  },
+  {
+   "default": "Presales Tendering Head",
+   "fieldname": "approver_role",
+   "fieldtype": "Data",
+   "label": "Approver Role"
+  },
+  {
+   "fieldname": "approver_user",
+   "fieldtype": "Link",
+   "label": "Approver User",
+   "options": "User"
+  },
+  {
+   "fieldname": "request_remarks",
+   "fieldtype": "Small Text",
+   "label": "Request Remarks"
+  },
+  {
+   "fieldname": "action_remarks",
+   "fieldtype": "Small Text",
+   "label": "Action Remarks"
+  },
+  {
+   "fieldname": "acted_on",
+   "fieldtype": "Datetime",
+   "label": "Acted On"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-03-19 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE Tender Approval",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Presales Executive",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Presales Tendering Head",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Director"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

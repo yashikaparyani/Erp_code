@@ -27,6 +27,14 @@ type Filters = {
 
 const initialFilters: Filters = { tenderId: '', instrumentType: '', status: '', date: '' };
 
+const statusBadgeClasses: Record<string, string> = {
+  Pending: 'bg-yellow-100 text-yellow-700',
+  Submitted: 'bg-blue-100 text-blue-700',
+  Released: 'bg-green-100 text-green-700',
+  Forfeited: 'bg-red-100 text-red-700',
+  Expired: 'bg-gray-100 text-gray-700',
+};
+
 export default function NewRequestPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -156,7 +164,7 @@ export default function NewRequestPage() {
                 <option value="">All Types</option><option value="EMD">EMD</option><option value="PBG">PBG</option>
               </select>
               <select value={draftFilters.status} onChange={(e) => setDraftFilters((prev) => ({ ...prev, status: e.target.value }))} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">All Status</option><option value="Pending">Pending</option><option value="Active">Active</option><option value="Released">Released</option><option value="Refunded">Refunded</option><option value="Rejected">Rejected</option>
+                <option value="">All Status</option><option value="Pending">Pending</option><option value="Submitted">Submitted</option><option value="Released">Released</option><option value="Forfeited">Forfeited</option><option value="Expired">Expired</option>
               </select>
               <input type="date" value={draftFilters.date} onChange={(e) => setDraftFilters((prev) => ({ ...prev, date: e.target.value }))} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
@@ -200,7 +208,7 @@ export default function NewRequestPage() {
                     <td className="px-4 py-3 text-sm text-gray-600">{formatDate(row.creation)}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{formatDate(row.expiry_date)}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{row.issue_date && row.expiry_date ? `${Math.ceil((new Date(row.expiry_date).getTime() - new Date(row.issue_date).getTime()) / 86400000)} days` : '-'}</td>
-                    <td className="px-4 py-3"><span className={`px-2 py-1 text-xs font-medium rounded-full ${row.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' : row.status === 'Active' ? 'bg-green-100 text-green-700' : row.status === 'Rejected' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}`}>{row.status.toUpperCase()}</span></td>
+                    <td className="px-4 py-3"><span className={`px-2 py-1 text-xs font-medium rounded-full ${statusBadgeClasses[row.status] || 'bg-gray-100 text-gray-700'}`}>{row.status.toUpperCase()}</span></td>
                     <td className="px-4 py-3"><button className="text-blue-600 hover:text-blue-700 text-sm">View</button></td>
                   </tr>
                 ))

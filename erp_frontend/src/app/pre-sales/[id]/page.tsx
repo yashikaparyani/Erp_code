@@ -1,1094 +1,771 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+
 import Link from 'next/link';
-import { 
-  ArrowLeft, FileText, Calendar, Building2, DollarSign, Clock, 
-  Edit, Trash2, RefreshCw, AlertCircle, CheckCircle, XCircle,
-  Shield, CreditCard, User, MapPin, FileCheck, Loader2, X, Save, Check, Upload
+import { useParams } from 'next/navigation';
+import type { ReactNode } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  AlertCircle,
+  ArrowLeft,
+  Briefcase,
+  Calendar,
+  CheckCircle2,
+  ChevronRight,
+  Clock3,
+  CreditCard,
+  FileCheck,
+  FileSpreadsheet,
+  FileText,
+  Loader2,
+  MapPinned,
+  Trophy,
 } from 'lucide-react';
 
-interface Tender {
+type Tender = {
   name: string;
   tender_number: string;
   title: string;
-  client: string;
-  organization: string;
-  submission_date: string;
+  client?: string;
+  organization?: string;
+  submission_date?: string;
   status: string;
-  estimated_value: number;
-  emd_required: number;
-  emd_amount: number;
-  pbg_required: number;
-  pbg_amount: number;
-  rfp_document: string;
-  tender_document: string;
-  linked_project: string;
-  created_by_user: string;
-  creation: string;
-  modified: string;
-}
+  estimated_value?: number;
+  emd_required?: number;
+  emd_amount?: number;
+  pbg_required?: number;
+  pbg_amount?: number;
+  linked_project?: string;
+  tender_owner?: string;
+  go_no_go_status?: string;
+  go_no_go_by?: string;
+  go_no_go_on?: string;
+  go_no_go_remarks?: string;
+  technical_readiness?: string;
+  commercial_readiness?: string;
+  finance_readiness?: string;
+  approval_status?: string;
+  submission_status?: string;
+};
 
-interface Party {
+type SimpleRow = {
   name: string;
-  party_name: string;
-}
+  status?: string;
+  creation?: string;
+  modified?: string;
+};
 
-interface Organization {
+type Reminder = SimpleRow & {
+  reminder_date?: string;
+  reminder_time?: string;
+  remind_user?: string;
+};
+
+type Survey = SimpleRow & {
+  site_name?: string;
+  survey_date?: string;
+  surveyed_by?: string;
+  summary?: string;
+};
+
+type Boq = SimpleRow & {
+  version?: number;
+  total_amount?: number;
+  total_items?: number;
+  approved_by?: string;
+};
+
+type CostSheet = SimpleRow & {
+  version?: number;
+  base_cost?: number;
+  sell_value?: number;
+  margin_percent?: number;
+  approved_by?: string;
+};
+
+type FinanceRequest = SimpleRow & {
+  instrument_type?: string;
+  amount?: number;
+  instrument_number?: string;
+  bank_name?: string;
+};
+
+type TenderResult = SimpleRow & {
+  result_stage?: string;
+  winner_company?: string;
+  winning_amount?: number;
+  publication_date?: string;
+};
+
+type ChecklistTemplate = {
   name: string;
-  organization_name: string;
-}
+  checklist_name?: string;
+  checklist_type?: string;
+  status?: string;
+};
 
-interface Instrument {
+type TenderApproval = {
   name: string;
-  instrument_type: string;
-  amount: number;
-  instrument_number: string;
-  bank_name: string;
-  issue_date: string;
-  expiry_date: string;
-  status: string;
-}
+  linked_tender?: string;
+  approval_type?: string;
+  status?: string;
+  requested_by?: string;
+  approver_role?: string;
+  approver_user?: string;
+  request_remarks?: string;
+  action_remarks?: string;
+  acted_on?: string;
+  creation?: string;
+};
 
-export default function TenderDetailPage() {
-  const params = useParams();
-  const router = useRouter();
-  const [tender, setTender] = useState<Tender | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  
-  // Edit state
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editFormData, setEditFormData] = useState<Partial<Tender>>({});
-  const [isSaving, setIsSaving] = useState(false);
-  const [clients, setClients] = useState<Party[]>([]);
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
-  
-  // EMD/PBG Instruments state
-  const [instruments, setInstruments] = useState<Instrument[]>([]);
-  const [showAddInstrument, setShowAddInstrument] = useState(false);
-  const [instrumentType, setInstrumentType] = useState<'EMD' | 'PBG'>('EMD');
-  const [instrumentForm, setInstrumentForm] = useState({
-    instrument_number: '',
-    bank_name: '',
-    amount: 0,
-    issue_date: '',
-    expiry_date: '',
-    status: 'Submitted',
-    remarks: ''
+type WorkspaceResponse = {
+  tender: Tender | null;
+  results: TenderResult[];
+  reminders: Reminder[];
+  surveys: Survey[];
+  boqs: Boq[];
+  costSheets: CostSheet[];
+  financeRequests: FinanceRequest[];
+  checklistTemplates: ChecklistTemplate[];
+  approvals: TenderApproval[];
+};
+
+const statusTone: Record<string, string> = {
+  DRAFT: 'bg-slate-100 text-slate-700',
+  SUBMITTED: 'bg-blue-100 text-blue-700',
+  UNDER_EVALUATION: 'bg-amber-100 text-amber-700',
+  WON: 'bg-emerald-100 text-emerald-700',
+  LOST: 'bg-rose-100 text-rose-700',
+  DROPPED: 'bg-slate-100 text-slate-600',
+  CANCELLED: 'bg-slate-100 text-slate-600',
+  PENDING_APPROVAL: 'bg-amber-100 text-amber-700',
+  APPROVED: 'bg-emerald-100 text-emerald-700',
+  REJECTED: 'bg-rose-100 text-rose-700',
+  Pending: 'bg-amber-100 text-amber-700',
+  Approved: 'bg-emerald-100 text-emerald-700',
+  Denied: 'bg-rose-100 text-rose-700',
+  Completed: 'bg-emerald-100 text-emerald-700',
+};
+
+function formatDate(value?: string) {
+  if (!value) return '-';
+  return new Date(value).toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
   });
-  const [isAddingInstrument, setIsAddingInstrument] = useState(false);
-  const [isUploadingRfp, setIsUploadingRfp] = useState(false);
+}
 
-  const tenderId = params.id as string;
+function formatCurrency(value?: number) {
+  if (!value) return 'Rs 0';
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function formatStatusLabel(status?: string) {
+  if (!status) return '-';
+  return status.replace(/_/g, ' ');
+}
+
+function SectionCard({
+  title,
+  icon: Icon,
+  subtitle,
+  action,
+  children,
+}: {
+  title: string;
+  icon: any;
+  subtitle: string;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className="rounded-3xl border border-gray-200 bg-white shadow-sm">
+      <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-5 py-4">
+        <div className="flex items-start gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#eef6f8] text-[#1e6b87]">
+            <Icon className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">{title}</h2>
+            <p className="mt-1 text-sm text-gray-500">{subtitle}</p>
+          </div>
+        </div>
+        {action}
+      </div>
+      <div className="p-5">{children}</div>
+    </section>
+  );
+}
+
+function EmptyBlock({ message }: { message: string }) {
+  return <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-sm text-gray-500">{message}</div>;
+}
+
+export default function TenderWorkspacePage() {
+  const params = useParams();
+  const tenderId = decodeURIComponent(params.id as string);
+
+  const [workspace, setWorkspace] = useState<WorkspaceResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [actionLoading, setActionLoading] = useState('');
+  const [approvalBusy, setApprovalBusy] = useState('');
+
+  const loadWorkspace = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const response = await fetch(`/api/tender-workspace/${encodeURIComponent(tenderId)}`);
+      const json = await response.json();
+      if (!json.success) {
+        throw new Error(json.message || 'Failed to load tender workspace');
+      }
+      setWorkspace(json.data);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : 'Failed to load tender workspace');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (tenderId) {
-      fetchTender();
-      fetchMasterData();
-      fetchInstruments();
-    }
+    void loadWorkspace();
   }, [tenderId]);
 
-  const fetchInstruments = async () => {
-    try {
-      const response = await fetch(`/api/emd-pbg?tender=${encodeURIComponent(tenderId)}`);
-      const result = await response.json();
-      if (result.success) {
-        setInstruments(result.data);
-      }
-    } catch (err) {
-      console.error('Error fetching instruments:', err);
-    }
-  };
+  const tender = workspace?.tender ?? null;
+  const latestResult = useMemo(() => workspace?.results?.[0] ?? null, [workspace?.results]);
+  const latestBoq = useMemo(() => workspace?.boqs?.[0] ?? null, [workspace?.boqs]);
+  const latestCostSheet = useMemo(() => workspace?.costSheets?.[0] ?? null, [workspace?.costSheets]);
 
-  const handleAddInstrument = async () => {
-    if (!instrumentForm.instrument_number || !instrumentForm.bank_name) {
-      alert('Instrument number and bank name are required');
-      return;
-    }
-    
-    setIsAddingInstrument(true);
+  if (loading) {
+    return (
+      <div className="flex min-h-[420px] items-center justify-center gap-3">
+        <Loader2 className="h-7 w-7 animate-spin text-[#1e6b87]" />
+        <span className="text-sm text-gray-500">Loading tender workspace...</span>
+      </div>
+    );
+  }
+
+  if (error || !tender) {
+    return (
+      <div className="rounded-3xl border border-red-200 bg-red-50 p-6">
+        <div className="flex items-start gap-3">
+          <AlertCircle className="mt-0.5 h-5 w-5 text-red-600" />
+          <div>
+            <h1 className="text-base font-semibold text-red-800">Tender workspace unavailable</h1>
+            <p className="mt-1 text-sm text-red-700">{error || 'Tender not found.'}</p>
+            <Link href="/pre-sales/tender" className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-red-700">
+              <ArrowLeft className="h-4 w-4" />
+              Back to tender list
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const daysLeft = tender.submission_date
+    ? Math.ceil((new Date(tender.submission_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    : null;
+
+  const updateTenderStatus = async (status: string) => {
     try {
-      const response = await fetch('/api/emd-pbg', {
+      setActionLoading(status);
+      setError('');
+      const response = await fetch(`/api/tenders/${encodeURIComponent(tenderId)}/status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          instrument_type: instrumentType,
-          linked_tender: tenderId,
-          ...instrumentForm
-        })
+        body: JSON.stringify({ target_status: status }),
       });
-      
-      const result = await response.json();
-      if (result.success) {
-        setShowAddInstrument(false);
-        setInstrumentForm({
-          instrument_number: '',
-          bank_name: '',
-          amount: 0,
-          issue_date: '',
-          expiry_date: '',
-          status: 'Submitted',
-          remarks: ''
-        });
-        fetchInstruments();
-      } else {
-        alert(result.message || 'Failed to add instrument');
+      const json = await response.json();
+      if (!json.success) {
+        throw new Error(json.message || 'Failed to update tender status');
       }
-    } catch (err) {
-      console.error('Error adding instrument:', err);
-      alert('Failed to add instrument');
+      await loadWorkspace();
+    } catch (actionError) {
+      setError(actionError instanceof Error ? actionError.message : 'Failed to update tender status');
     } finally {
-      setIsAddingInstrument(false);
+      setActionLoading('');
     }
   };
 
-  const fetchMasterData = async () => {
+  const convertToProject = async () => {
     try {
-      const [clientsRes, organizationsRes] = await Promise.all([
-        fetch('/api/parties?type=CLIENT'),
-        fetch('/api/organizations?active=1'),
-      ]);
-      const clientsData = await clientsRes.json();
-      const organizationsData = await organizationsRes.json();
-      if (clientsData.success) setClients(clientsData.data);
-      if (organizationsData.success) setOrganizations(organizationsData.data);
-    } catch (err) {
-      console.error('Error fetching master data:', err);
-    }
-  };
-
-  const getClientLabel = (name: string) => {
-    return clients.find((client) => client.name === name)?.party_name || name || '-';
-  };
-
-  const getOrganizationLabel = (name: string) => {
-    return organizations.find((organization) => organization.name === name)?.organization_name || name || '-';
-  };
-
-  const fetchTender = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(`/api/tenders/${encodeURIComponent(tenderId)}`);
-      const result = await response.json();
-      
-      if (result.success) {
-        setTender(result.data);
-      } else {
-        setError(result.message || 'Tender not found');
-      }
-    } catch (err) {
-      console.error('Error fetching tender:', err);
-      setError('Failed to load tender details');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleRfpFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsUploadingRfp(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const response = await fetch(`/api/tenders/${encodeURIComponent(tenderId)}/rfp-document`, {
+      setActionLoading('CONVERT');
+      setError('');
+      const response = await fetch('/api/tender-convert', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tender_name: tenderId }),
       });
-      const result = await response.json();
-
-      if (!result.success) {
-        alert(result.message || 'Failed to upload RFP document');
-        return;
+      const json = await response.json();
+      if (!json.success) {
+        throw new Error(json.message || 'Failed to convert tender');
       }
-
-      setTender((prev) => (prev ? { ...prev, rfp_document: result.fileUrl } : prev));
-      alert('RFP document uploaded successfully');
-    } catch (err) {
-      console.error('Error uploading RFP document:', err);
-      alert('Failed to upload RFP document');
+      await loadWorkspace();
+    } catch (actionError) {
+      setError(actionError instanceof Error ? actionError.message : 'Failed to convert tender');
     } finally {
-      setIsUploadingRfp(false);
-      e.target.value = '';
+      setActionLoading('');
     }
   };
 
-  const handleDelete = async () => {
-    setIsDeleting(true);
+  const submitApproval = async (approvalType: string) => {
     try {
-      const response = await fetch(`/api/tenders/${encodeURIComponent(tenderId)}`, {
-        method: 'DELETE',
+      setApprovalBusy(approvalType);
+      setError('');
+      const response = await fetch('/api/tender-approvals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: tenderId, approval_type: approvalType }),
       });
-      const result = await response.json();
-      
-      if (result.success) {
-        router.push('/pre-sales');
-      } else {
-        alert(result.message || 'Failed to delete tender');
+      const json = await response.json();
+      if (!json.success) {
+        throw new Error(json.message || 'Failed to submit tender approval');
       }
-    } catch (err) {
-      console.error('Error deleting tender:', err);
-      alert('Failed to delete tender');
+      await loadWorkspace();
+    } catch (actionError) {
+      setError(actionError instanceof Error ? actionError.message : 'Failed to submit tender approval');
     } finally {
-      setIsDeleting(false);
-      setShowDeleteConfirm(false);
+      setApprovalBusy('');
     }
   };
-
-  const formatCurrency = (value: number) => {
-    if (!value) return '₹0';
-    if (value >= 10000000) {
-      return `₹${(value / 10000000).toFixed(2)} Cr`;
-    } else if (value >= 100000) {
-      return `₹${(value / 100000).toFixed(2)} Lacs`;
-    }
-    return `₹${value.toLocaleString('en-IN')}`;
-  };
-
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleDateString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    });
-  };
-
-  const getStatusBadge = (status: string) => {
-    const statusConfig: { [key: string]: { bg: string; text: string; icon: typeof CheckCircle } } = {
-      'DRAFT': { bg: 'bg-gray-100', text: 'text-gray-700', icon: Clock },
-      'SUBMITTED': { bg: 'bg-blue-100', text: 'text-blue-700', icon: FileCheck },
-      'UNDER_EVALUATION': { bg: 'bg-yellow-100', text: 'text-yellow-700', icon: AlertCircle },
-      'WON': { bg: 'bg-green-100', text: 'text-green-700', icon: CheckCircle },
-      'LOST': { bg: 'bg-red-100', text: 'text-red-700', icon: XCircle },
-      'CANCELLED': { bg: 'bg-gray-100', text: 'text-gray-500', icon: XCircle },
-      'DROPPED': { bg: 'bg-gray-100', text: 'text-gray-500', icon: XCircle },
-    };
-    const config = statusConfig[status] || statusConfig['DRAFT'];
-    const Icon = config.icon;
-    const label = status.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
-    
-    return (
-      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium ${config.bg} ${config.text}`}>
-        <Icon className="w-4 h-4" />
-        {label}
-      </span>
-    );
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <RefreshCw className="w-8 h-8 animate-spin text-blue-600" />
-        <span className="ml-3 text-gray-500">Loading tender details...</span>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[400px]">
-        <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
-        <h2 className="text-xl font-semibold text-gray-900 mb-2">Error</h2>
-        <p className="text-gray-500 mb-4">{error}</p>
-        <Link href="/pre-sales" className="btn btn-primary">
-          <ArrowLeft className="w-4 h-4" />
-          Back to Tenders
-        </Link>
-      </div>
-    );
-  }
-
-  if (!tender) return null;
 
   return (
-    <div>
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div className="flex items-center gap-4">
-          <Link 
-            href="/pre-sales"
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5 text-gray-600" />
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 rounded-[2rem] bg-gradient-to-br from-[#0f5164] via-[#1e6b87] to-[#5ca0b8] px-6 py-6 text-white shadow-lg">
+        <div className="flex items-center justify-between gap-4">
+          <Link href="/pre-sales/tender" className="inline-flex items-center gap-2 text-sm font-medium text-white/90 hover:text-white">
+            <ArrowLeft className="h-4 w-4" />
+            Back to tender list
           </Link>
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{tender.title}</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Tender No: <span className="font-mono font-medium">{tender.tender_number}</span>
-            </p>
+          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusTone[tender.status] || 'bg-white/15 text-white'}`}>
+            {formatStatusLabel(tender.status)}
+          </span>
+        </div>
+
+        <div className="space-y-2">
+          <div className="text-xs uppercase tracking-[0.22em] text-white/70">Tender Workspace</div>
+          <h1 className="text-2xl font-semibold">{tender.title}</h1>
+          <p className="text-sm text-white/80">
+            {tender.tender_number} • {tender.client || 'Client not mapped'} • {tender.organization || 'Organization pending'}
+          </p>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-2xl border border-white/15 bg-white/10 p-4">
+            <div className="text-xs uppercase tracking-wide text-white/65">Submission Date</div>
+            <div className="mt-2 text-lg font-semibold">{formatDate(tender.submission_date)}</div>
+            <div className="mt-1 text-sm text-white/75">{daysLeft === null ? 'Deadline not set' : `${daysLeft} day(s) left`}</div>
+          </div>
+          <div className="rounded-2xl border border-white/15 bg-white/10 p-4">
+            <div className="text-xs uppercase tracking-wide text-white/65">Estimated Value</div>
+            <div className="mt-2 text-lg font-semibold">{formatCurrency(tender.estimated_value)}</div>
+            <div className="mt-1 text-sm text-white/75">Internal reference value</div>
+          </div>
+          <div className="rounded-2xl border border-white/15 bg-white/10 p-4">
+            <div className="text-xs uppercase tracking-wide text-white/65">EMD / PBG</div>
+            <div className="mt-2 text-lg font-semibold">
+              {tender.emd_required ? formatCurrency(tender.emd_amount) : 'No EMD'}
+            </div>
+            <div className="mt-1 text-sm text-white/75">
+              {tender.pbg_required ? `PBG ${formatCurrency(tender.pbg_amount)}` : 'No PBG'}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-white/15 bg-white/10 p-4">
+            <div className="text-xs uppercase tracking-wide text-white/65">Project Link</div>
+            <div className="mt-2 text-lg font-semibold">{tender.linked_project || 'Not converted'}</div>
+            <div className="mt-1 text-sm text-white/75">{tender.linked_project ? 'Ready for project handoff' : 'Still in pre-sales flow'}</div>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={fetchTender}
-            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
-          >
-            <RefreshCw className="w-5 h-5" />
-          </button>
-          <button 
-            onClick={() => {
-              setEditFormData({
-                title: tender?.title,
-                tender_number: tender?.tender_number,
-                client: tender?.client,
-                organization: tender?.organization,
-                submission_date: tender?.submission_date,
-                status: tender?.status,
-                estimated_value: tender?.estimated_value,
-                emd_required: tender?.emd_required,
-                emd_amount: tender?.emd_amount,
-                pbg_required: tender?.pbg_required,
-                pbg_amount: tender?.pbg_amount,
-              });
-              setShowEditModal(true);
-            }}
-            className="btn btn-secondary"
-          >
-            <Edit className="w-4 h-4" />
-            Edit
-          </button>
-          <button 
-            onClick={() => setShowDeleteConfirm(true)}
-            className="btn bg-red-50 text-red-600 hover:bg-red-100"
-          >
-            <Trash2 className="w-4 h-4" />
-            Delete
-          </button>
+
+        <div className="flex flex-wrap gap-2">
+          {[
+            ['SUBMITTED', 'Mark Submitted'],
+            ['UNDER_EVALUATION', 'Mark Under Evaluation'],
+            ['WON', 'Mark Won'],
+            ['LOST', 'Mark Lost'],
+            ['DROPPED', 'Mark Dropped'],
+          ].map(([status, label]) => (
+            <button
+              key={status}
+              type="button"
+              onClick={() => void updateTenderStatus(status)}
+              disabled={actionLoading.length > 0 || tender.status === status}
+              className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {actionLoading === status ? 'Updating...' : label}
+            </button>
+          ))}
+          {tender.status === 'WON' && !tender.linked_project ? (
+            <button
+              type="button"
+              onClick={() => void convertToProject()}
+              disabled={actionLoading.length > 0}
+              className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#0f5164] hover:bg-[#eef6f8] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {actionLoading === 'CONVERT' ? 'Converting...' : 'Convert To Project'}
+            </button>
+          ) : null}
         </div>
       </div>
 
-      {/* Status Badge */}
-      <div className="mb-6">
-        {getStatusBadge(tender.status)}
-      </div>
-
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Main Details */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Basic Info Card */}
-          <div className="card">
-            <div className="card-header">
-              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                <FileText className="w-5 h-5 text-blue-600" />
-                Tender Information
-              </h3>
-            </div>
-            <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div>
-                <label className="text-sm text-gray-500">Client</label>
-                <p className="font-medium text-gray-900 mt-1 flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-gray-400" />
-                  {getClientLabel(tender.client)}
-                </p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-500">Organization</label>
-                <p className="font-medium text-gray-900 mt-1 flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-gray-400" />
-                  {getOrganizationLabel(tender.organization)}
-                </p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-500">Submission Date</label>
-                <p className="font-medium text-gray-900 mt-1 flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-gray-400" />
-                  {formatDate(tender.submission_date)}
-                </p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-500">Estimated Value</label>
-                <p className="font-medium text-gray-900 mt-1 flex items-center gap-2">
-                  <DollarSign className="w-4 h-4 text-gray-400" />
-                  {formatCurrency(tender.estimated_value)}
-                </p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-500">Created By</label>
-                <p className="font-medium text-gray-900 mt-1 flex items-center gap-2">
-                  <User className="w-4 h-4 text-gray-400" />
-                  {tender.created_by_user || 'System'}
-                </p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-500">Created On</label>
-                <p className="font-medium text-gray-900 mt-1 flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-gray-400" />
-                  {formatDate(tender.creation)}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* EMD/PBG Card */}
-          <div className="card">
-            <div className="card-header flex items-center justify-between">
-              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                <Shield className="w-5 h-5 text-green-600" />
-                Financial Instruments
-              </h3>
-              <button
-                onClick={() => setShowAddInstrument(true)}
-                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-              >
-                + Add Instrument
-              </button>
-            </div>
-            <div className="p-6">
-              {/* Requirements Summary */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                {/* EMD Requirement */}
-                <div className={`p-4 rounded-lg border ${tender.emd_required ? 'bg-amber-50 border-amber-200' : 'bg-gray-50 border-gray-200'}`}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700">EMD Required</span>
-                    <span className={`px-2 py-0.5 text-xs rounded-full ${
-                      tender.emd_required ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'
-                    }`}>
-                      {tender.emd_required ? 'Yes' : 'No'}
-                    </span>
-                  </div>
-                  {tender.emd_required && (
-                    <div className="text-lg font-bold text-amber-700">
-                      {formatCurrency(tender.emd_amount)}
-                    </div>
-                  )}
-                </div>
-
-                {/* PBG Requirement */}
-                <div className={`p-4 rounded-lg border ${tender.pbg_required ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700">PBG Required</span>
-                    <span className={`px-2 py-0.5 text-xs rounded-full ${
-                      tender.pbg_required ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
-                    }`}>
-                      {tender.pbg_required ? 'Yes' : 'No'}
-                    </span>
-                  </div>
-                  {tender.pbg_required && (
-                    <div className="text-lg font-bold text-blue-700">
-                      {formatCurrency(tender.pbg_amount)}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Recorded Instruments */}
-              {instruments.length > 0 ? (
-                <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-3">Recorded Instruments ({instruments.length})</h4>
-                  <div className="space-y-3">
-                    {instruments.map((inst) => (
-                      <div key={inst.name} className={`p-4 rounded-lg border ${
-                        inst.instrument_type === 'EMD' ? 'border-amber-200 bg-amber-50/50' : 'border-blue-200 bg-blue-50/50'
-                      }`}>
-                        <div className="flex items-center justify-between mb-2">
-                          <span className={`px-2 py-0.5 text-xs font-medium rounded ${
-                            inst.instrument_type === 'EMD' ? 'bg-amber-200 text-amber-800' : 'bg-blue-200 text-blue-800'
-                          }`}>
-                            {inst.instrument_type}
-                          </span>
-                          <span className={`px-2 py-0.5 text-xs rounded-full ${
-                            inst.status === 'Submitted' ? 'bg-green-100 text-green-700' :
-                            inst.status === 'Released' ? 'bg-gray-100 text-gray-600' :
-                            'bg-yellow-100 text-yellow-700'
-                          }`}>
-                            {inst.status}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                          <div>
-                            <span className="text-gray-500">Number:</span>{' '}
-                            <span className="font-medium">{inst.instrument_number}</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Bank:</span>{' '}
-                            <span className="font-medium">{inst.bank_name}</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Amount:</span>{' '}
-                            <span className="font-medium">{formatCurrency(inst.amount)}</span>
-                          </div>
-                          {inst.expiry_date && (
-                            <div>
-                              <span className="text-gray-500">Expiry:</span>{' '}
-                              <span className="font-medium">{formatDate(inst.expiry_date)}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (tender.emd_required || tender.pbg_required) ? (
-                <div className="text-center py-6 border-t border-gray-100">
-                  <CreditCard className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-                  <p className="text-gray-500 text-sm">No instruments recorded yet</p>
-                  <button
-                    onClick={() => setShowAddInstrument(true)}
-                    className="mt-2 text-blue-600 hover:text-blue-700 text-sm font-medium"
-                  >
-                    + Record EMD/PBG submission
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          </div>
-
-          {/* Add Instrument Modal */}
-          {showAddInstrument && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center">
-              <div 
-                className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-                onClick={() => setShowAddInstrument(false)}
-              />
-              <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
-                  <h2 className="text-lg font-semibold text-gray-900">Add Instrument</h2>
-                  <button
-                    onClick={() => setShowAddInstrument(false)}
-                    className="p-2 hover:bg-gray-200 rounded-lg"
-                  >
-                    <X className="w-5 h-5 text-gray-500" />
-                  </button>
-                </div>
-                <div className="p-6 space-y-4">
-                  {/* Instrument Type */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
-                    <div className="flex gap-3">
-                      <button
-                        onClick={() => setInstrumentType('EMD')}
-                        className={`flex-1 py-2 px-4 rounded-lg border text-sm font-medium transition-colors ${
-                          instrumentType === 'EMD' 
-                            ? 'bg-amber-100 border-amber-300 text-amber-700'
-                            : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-                        }`}
-                      >
-                        EMD
-                      </button>
-                      <button
-                        onClick={() => setInstrumentType('PBG')}
-                        className={`flex-1 py-2 px-4 rounded-lg border text-sm font-medium transition-colors ${
-                          instrumentType === 'PBG' 
-                            ? 'bg-blue-100 border-blue-300 text-blue-700'
-                            : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-                        }`}
-                      >
-                        PBG
-                      </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">BG/DD Number *</label>
-                    <input
-                      type="text"
-                      value={instrumentForm.instrument_number}
-                      onChange={(e) => setInstrumentForm(prev => ({ ...prev, instrument_number: e.target.value }))}
-                      placeholder="e.g., BG-2026-001234"
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Bank Name *</label>
-                    <input
-                      type="text"
-                      value={instrumentForm.bank_name}
-                      onChange={(e) => setInstrumentForm(prev => ({ ...prev, bank_name: e.target.value }))}
-                      placeholder="e.g., State Bank of India"
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Amount</label>
-                    <input
-                      type="number"
-                      value={instrumentForm.amount || ''}
-                      onChange={(e) => setInstrumentForm(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
-                      placeholder="Amount"
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Issue Date</label>
-                      <input
-                        type="date"
-                        value={instrumentForm.issue_date}
-                        onChange={(e) => setInstrumentForm(prev => ({ ...prev, issue_date: e.target.value }))}
-                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Expiry Date</label>
-                      <input
-                        type="date"
-                        value={instrumentForm.expiry_date}
-                        onChange={(e) => setInstrumentForm(prev => ({ ...prev, expiry_date: e.target.value }))}
-                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                    <select
-                      value={instrumentForm.status}
-                      onChange={(e) => setInstrumentForm(prev => ({ ...prev, status: e.target.value }))}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="Submitted">Submitted</option>
-                      <option value="Pending">Pending</option>
-                      <option value="Released">Released</option>
-                      <option value="Encashed">Encashed</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
-                  <button
-                    onClick={() => setShowAddInstrument(false)}
-                    className="px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-lg text-sm font-medium"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleAddInstrument}
-                    disabled={isAddingInstrument}
-                    className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
-                  >
-                    {isAddingInstrument ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Adding...
-                      </>
-                    ) : (
-                      <>
-                        <Check className="w-4 h-4" />
-                        Add Instrument
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Documents Card */}
-          <div className="card">
-            <div className="card-header">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                  <FileCheck className="w-5 h-5 text-purple-600" />
-                  Documents
-                </h3>
-                <label className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 cursor-pointer disabled:opacity-50">
-                  {isUploadingRfp ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Uploading...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="w-4 h-4" />
-                      {tender.rfp_document ? 'Replace RFP' : 'Add RFP'}
-                    </>
-                  )}
-                  <input
-                    type="file"
-                    accept=".pdf,.doc,.docx,.xls,.xlsx"
-                    onChange={handleRfpFileSelected}
-                    disabled={isUploadingRfp}
-                    className="hidden"
-                  />
-                </label>
-              </div>
-            </div>
-            <div className="p-6">
-              {tender.rfp_document || tender.tender_document ? (
-                <div className="space-y-3">
-                  {tender.rfp_document && (
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <FileText className="w-5 h-5 text-blue-600" />
-                        <span className="font-medium">RFP Document</span>
-                      </div>
-                      <a 
-                        href={`http://localhost:8000${tender.rfp_document}`}
-                        target="_blank"
-                        className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                      >
-                        View →
-                      </a>
-                    </div>
-                  )}
-                  {tender.tender_document && (
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <FileText className="w-5 h-5 text-green-600" />
-                        <span className="font-medium">Tender Document</span>
-                      </div>
-                      <a 
-                        href={`http://localhost:8000${tender.tender_document}`}
-                        target="_blank"
-                        className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                      >
-                        View →
-                      </a>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-500">No documents uploaded yet</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column - Timeline & Quick Actions */}
+      <div className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
         <div className="space-y-6">
-          {/* Quick Stats Card */}
-          <div className="card">
-            <div className="card-header">
-              <h3 className="font-semibold text-gray-900">Quick Info</h3>
+          <SectionCard
+            title="Bid Flow"
+            icon={CheckCircle2}
+            subtitle="Simple single-page view of what is ready and what still needs attention."
+          >
+            <div className="grid gap-3 md:grid-cols-2">
+              {[
+                {
+                  label: '1. Tender identified',
+                  state: tender.tender_number ? 'Done' : 'Pending',
+                  note: 'Basic tender master is created.',
+                },
+                {
+                  label: '2. Checklist ready',
+                  state: workspace.checklistTemplates.length ? 'Ready' : 'Pending',
+                  note: `${workspace.checklistTemplates.length} checklist template(s) available for pre-sales use.`,
+                },
+                {
+                  label: '3. Survey / assumptions',
+                  state: workspace.surveys.length ? 'In progress' : 'Pending',
+                  note: workspace.surveys.length ? `${workspace.surveys.length} survey record(s) linked.` : 'No survey linked yet.',
+                },
+                {
+                  label: '4. BOQ preparation',
+                  state: latestBoq?.status ? formatStatusLabel(latestBoq.status) : 'Pending',
+                  note: latestBoq ? `Latest BOQ ${latestBoq.name} • version ${latestBoq.version || 1}` : 'No BOQ linked yet.',
+                },
+                {
+                  label: '5. Costing and margin',
+                  state: latestCostSheet?.status ? formatStatusLabel(latestCostSheet.status) : 'Pending',
+                  note: latestCostSheet ? `Latest cost sheet ${latestCostSheet.name}` : 'No cost sheet linked yet.',
+                },
+                {
+                  label: '6. Finance readiness',
+                  state: workspace.financeRequests.length ? 'Tracked' : 'Pending',
+                  note: workspace.financeRequests.length ? `${workspace.financeRequests.length} finance request(s) raised.` : 'No finance request raised yet.',
+                },
+                {
+                  label: '7. Submission tracking',
+                  state: tender.status === 'SUBMITTED' || tender.status === 'UNDER_EVALUATION' || tender.status === 'WON' || tender.status === 'LOST' ? 'Tracked' : 'Pending',
+                  note: `Current tender status is ${formatStatusLabel(tender.status)}.`,
+                },
+                {
+                  label: '8. Result and closure',
+                  state: latestResult ? 'Tracked' : 'Pending',
+                  note: latestResult ? `Latest result stage: ${latestResult.result_stage || '-'}` : 'No tender result linked yet.',
+                },
+              ].map((item) => (
+                <div key={item.label} className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="text-sm font-semibold text-gray-900">{item.label}</div>
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
+                      {item.state}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-sm text-gray-500">{item.note}</p>
+                </div>
+              ))}
             </div>
-            <div className="p-4 space-y-4">
-              <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                <span className="text-sm text-gray-500">Status</span>
-                <span className="text-sm font-medium">{tender.status}</span>
-              </div>
-              <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                <span className="text-sm text-gray-500">Days to Submit</span>
-                <span className="text-sm font-medium">
-                  {tender.submission_date 
-                    ? Math.ceil((new Date(tender.submission_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-                    : '-'} days
-                </span>
-              </div>
-              <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                <span className="text-sm text-gray-500">Total Security</span>
-                <span className="text-sm font-medium">
-                  {formatCurrency((tender.emd_amount || 0) + (tender.pbg_amount || 0))}
-                </span>
-              </div>
-              <div className="flex items-center justify-between py-2">
-                <span className="text-sm text-gray-500">Last Modified</span>
-                <span className="text-sm font-medium">{formatDate(tender.modified)}</span>
-              </div>
-            </div>
-          </div>
+          </SectionCard>
 
-          {/* Linked Project Card */}
-          {tender.linked_project && (
-            <div className="card">
-              <div className="card-header">
-                <h3 className="font-semibold text-gray-900">Linked Project</h3>
+          <SectionCard
+            title="Survey, BOQ, and Costing"
+            icon={FileSpreadsheet}
+            subtitle="Technical preparation and commercial readiness in one place."
+          >
+            <div className="grid gap-4 lg:grid-cols-3">
+              <div className="rounded-2xl border border-gray-200 p-4">
+                <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                  <MapPinned className="h-4 w-4 text-[#1e6b87]" />
+                  Survey
+                </div>
+                <div className="mt-3 text-2xl font-semibold text-gray-900">{workspace.surveys.length}</div>
+                <p className="mt-1 text-sm text-gray-500">
+                  {workspace.surveys[0]?.site_name ? `Latest site: ${workspace.surveys[0].site_name}` : 'No survey linked yet.'}
+                </p>
               </div>
-              <div className="p-4">
-                <p className="font-medium text-blue-600">{tender.linked_project}</p>
-                <p className="text-sm text-gray-500 mt-1">This tender is converted to a project</p>
+              <div className="rounded-2xl border border-gray-200 p-4">
+                <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                  <FileCheck className="h-4 w-4 text-[#1e6b87]" />
+                  BOQ
+                </div>
+                <div className="mt-3 text-2xl font-semibold text-gray-900">{workspace.boqs.length}</div>
+                <p className="mt-1 text-sm text-gray-500">
+                  {latestBoq ? `${formatStatusLabel(latestBoq.status)} • ${formatCurrency(latestBoq.total_amount)}` : 'No BOQ prepared yet.'}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-gray-200 p-4">
+                <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                  <Briefcase className="h-4 w-4 text-[#1e6b87]" />
+                  Cost Sheet
+                </div>
+                <div className="mt-3 text-2xl font-semibold text-gray-900">{workspace.costSheets.length}</div>
+                <p className="mt-1 text-sm text-gray-500">
+                  {latestCostSheet ? `${formatStatusLabel(latestCostSheet.status)} • sell ${formatCurrency(latestCostSheet.sell_value)}` : 'No cost sheet prepared yet.'}
+                </p>
               </div>
             </div>
-          )}
 
-          {/* Actions Card */}
-          <div className="card">
-            <div className="card-header">
-              <h3 className="font-semibold text-gray-900">Actions</h3>
+            <div className="mt-5 space-y-3">
+              {workspace.surveys.slice(0, 2).map((survey) => (
+                <div key={survey.name} className="flex items-start justify-between gap-4 rounded-2xl border border-gray-100 px-4 py-3">
+                  <div>
+                    <div className="text-sm font-medium text-gray-900">{survey.site_name || survey.name}</div>
+                    <div className="mt-1 text-xs text-gray-500">
+                      Survey date {formatDate(survey.survey_date)} • {survey.surveyed_by || 'Owner not mapped'}
+                    </div>
+                    {survey.summary ? <div className="mt-2 text-sm text-gray-600">{survey.summary}</div> : null}
+                  </div>
+                  <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusTone[survey.status || ''] || 'bg-slate-100 text-slate-700'}`}>
+                    {formatStatusLabel(survey.status)}
+                  </span>
+                </div>
+              ))}
+              {!workspace.surveys.length ? <EmptyBlock message="Survey section abhi blank hai. Tender linked survey create hote hi yahan snapshot dikh jayega." /> : null}
             </div>
-            <div className="p-4 space-y-2">
-              <button className="w-full btn btn-secondary justify-start">
-                <FileText className="w-4 h-4" />
-                Upload Document
-              </button>
-              <button className="w-full btn btn-secondary justify-start">
-                <CreditCard className="w-4 h-4" />
-                Record EMD Payment
-              </button>
-              <button className="w-full btn btn-secondary justify-start">
-                <CheckCircle className="w-4 h-4" />
-                Update Status
-              </button>
+          </SectionCard>
+
+          <SectionCard
+            title="Ownership and Approval State"
+            icon={CheckCircle2}
+            subtitle="Tender owner, go/no-go, readiness signals, and approval trail in one place."
+          >
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="rounded-2xl border border-gray-200 p-4">
+                <div className="text-xs uppercase tracking-wide text-gray-400">Tender Owner</div>
+                <div className="mt-2 text-base font-semibold text-gray-900">{tender.tender_owner || '-'}</div>
+                <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <div className="text-gray-400">Go / No-Go</div>
+                    <div className="mt-1 font-medium text-gray-800">{formatStatusLabel(tender.go_no_go_status)}</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-400">Approval Status</div>
+                    <div className="mt-1 font-medium text-gray-800">{formatStatusLabel(tender.approval_status)}</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-400">Technical</div>
+                    <div className="mt-1 font-medium text-gray-800">{formatStatusLabel(tender.technical_readiness)}</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-400">Commercial</div>
+                    <div className="mt-1 font-medium text-gray-800">{formatStatusLabel(tender.commercial_readiness)}</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-400">Finance</div>
+                    <div className="mt-1 font-medium text-gray-800">{formatStatusLabel(tender.finance_readiness)}</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-400">Submission</div>
+                    <div className="mt-1 font-medium text-gray-800">{formatStatusLabel(tender.submission_status)}</div>
+                  </div>
+                </div>
+                {(tender.go_no_go_by || tender.go_no_go_on || tender.go_no_go_remarks) ? (
+                  <div className="mt-4 rounded-2xl bg-gray-50 p-3 text-sm text-gray-600">
+                    <div>Decision by: {tender.go_no_go_by || '-'}</div>
+                    <div>Decision on: {formatDate(tender.go_no_go_on)}</div>
+                    {tender.go_no_go_remarks ? <div className="mt-1">Remarks: {tender.go_no_go_remarks}</div> : null}
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="rounded-2xl border border-gray-200 p-4">
+                <div className="text-sm font-semibold text-gray-900">Raise approval request</div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {[
+                    ['GO_NO_GO', 'Go / No-Go'],
+                    ['TECHNICAL', 'Technical'],
+                    ['COMMERCIAL', 'Commercial'],
+                    ['FINANCE', 'Finance'],
+                    ['SUBMISSION', 'Submission'],
+                  ].map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => void submitApproval(value)}
+                      disabled={approvalBusy.length > 0}
+                      className="rounded-full border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:border-[#1e6b87] hover:text-[#1e6b87] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {approvalBusy === value ? 'Submitting...' : label}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-3 text-sm text-gray-500">
+                  Yeh requests `Approvals` inbox me jayengi jahan `Presales Tendering Head` ya `Director` action le sakte hain.
+                </p>
+              </div>
             </div>
-          </div>
+
+            <div className="mt-5 space-y-3">
+              {workspace.approvals.slice(0, 5).map((approval) => (
+                <div key={approval.name} className="rounded-2xl border border-gray-200 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900">{approval.approval_type || approval.name}</div>
+                      <div className="mt-1 text-xs text-gray-500">
+                        Requested by {approval.requested_by || '-'} • {formatDate(approval.creation)}
+                      </div>
+                      {approval.request_remarks ? <div className="mt-2 text-sm text-gray-600">Request: {approval.request_remarks}</div> : null}
+                      {approval.action_remarks ? <div className="mt-1 text-sm text-gray-600">Action: {approval.action_remarks}</div> : null}
+                    </div>
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusTone[approval.status || ''] || 'bg-slate-100 text-slate-700'}`}>
+                      {formatStatusLabel(approval.status)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+              {!workspace.approvals.length ? <EmptyBlock message="Tender-specific approval trail abhi blank hai. Approval request submit hote hi history yahan dikh jayegi." /> : null}
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            title="Result Tracking"
+            icon={Trophy}
+            subtitle="Submission ke baad result aur competitive outcome yahin se monitor hoga."
+            action={<Link href="/pre-sales/tender-result" className="text-sm font-medium text-[#1e6b87]">Open result page</Link>}
+          >
+            {latestResult ? (
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-2xl border border-gray-200 p-4">
+                  <div className="text-xs uppercase tracking-wide text-gray-400">Stage</div>
+                  <div className="mt-2 text-base font-semibold text-gray-900">{latestResult.result_stage || '-'}</div>
+                </div>
+                <div className="rounded-2xl border border-gray-200 p-4">
+                  <div className="text-xs uppercase tracking-wide text-gray-400">Winner</div>
+                  <div className="mt-2 text-base font-semibold text-gray-900">{latestResult.winner_company || '-'}</div>
+                </div>
+                <div className="rounded-2xl border border-gray-200 p-4">
+                  <div className="text-xs uppercase tracking-wide text-gray-400">Winning Amount</div>
+                  <div className="mt-2 text-base font-semibold text-gray-900">{formatCurrency(latestResult.winning_amount)}</div>
+                </div>
+                <div className="rounded-2xl border border-gray-200 p-4">
+                  <div className="text-xs uppercase tracking-wide text-gray-400">Published</div>
+                  <div className="mt-2 text-base font-semibold text-gray-900">{formatDate(latestResult.publication_date)}</div>
+                </div>
+              </div>
+            ) : (
+              <EmptyBlock message="Tender result abhi linked nahi hai. Result publish hone ke baad yahan latest outcome dikhega." />
+            )}
+          </SectionCard>
+        </div>
+
+        <div className="space-y-6">
+          <SectionCard
+            title="Checklist and Reminders"
+            icon={Calendar}
+            subtitle="Execution se pehle internal readiness aur deadline control."
+            action={<Link href="/pre-sales/approvals" className="text-sm font-medium text-[#1e6b87]">Open approvals</Link>}
+          >
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-gray-200 p-4">
+                <div className="text-sm font-semibold text-gray-900">Checklist templates</div>
+                <div className="mt-2 text-2xl font-semibold text-gray-900">{workspace.checklistTemplates.length}</div>
+                <p className="mt-1 text-sm text-gray-500">Existing reusable checklists are being reused instead of creating a new tender-only document layer.</p>
+              </div>
+              <div className="rounded-2xl border border-gray-200 p-4">
+                <div className="text-sm font-semibold text-gray-900">Upcoming reminders</div>
+                <div className="mt-3 space-y-3">
+                  {workspace.reminders.slice(0, 3).map((reminder) => (
+                    <div key={reminder.name} className="rounded-2xl bg-gray-50 px-3 py-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-sm font-medium text-gray-900">{reminder.remind_user || reminder.name}</div>
+                        <span className={`rounded-full px-2 py-1 text-[11px] font-medium ${statusTone[reminder.status || ''] || 'bg-slate-100 text-slate-700'}`}>
+                          {formatStatusLabel(reminder.status)}
+                        </span>
+                      </div>
+                      <div className="mt-1 text-xs text-gray-500">
+                        {formatDate(reminder.reminder_date)} {reminder.reminder_time || ''}
+                      </div>
+                    </div>
+                  ))}
+                  {!workspace.reminders.length ? <EmptyBlock message="No reminders linked to this tender yet." /> : null}
+                </div>
+              </div>
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            title="Finance Snapshot"
+            icon={CreditCard}
+            subtitle="EMD/PBG and finance request visibility for pre-sales head."
+            action={<Link href="/pre-sales/finance/new-request" className="text-sm font-medium text-[#1e6b87]">Open finance</Link>}
+          >
+            <div className="space-y-3">
+              {workspace.financeRequests.slice(0, 4).map((request) => (
+                <div key={request.name} className="rounded-2xl border border-gray-200 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900">
+                        {request.instrument_type || 'Finance Request'} • {request.instrument_number || request.name}
+                      </div>
+                      <div className="mt-1 text-xs text-gray-500">{request.bank_name || 'Bank not mapped'}</div>
+                    </div>
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusTone[request.status || ''] || 'bg-slate-100 text-slate-700'}`}>
+                      {formatStatusLabel(request.status)}
+                    </span>
+                  </div>
+                  <div className="mt-3 text-sm text-gray-600">{formatCurrency(request.amount)}</div>
+                </div>
+              ))}
+              {!workspace.financeRequests.length ? <EmptyBlock message="No finance request linked yet. EMD or PBG requirement raise hote hi yahan dikhega." /> : null}
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            title="Quick Links"
+            icon={Clock3}
+            subtitle="Current pre-sales tabs ko same structure me reuse karne ke liye direct jumps."
+          >
+            <div className="space-y-2">
+              {[
+                ['Tender list', '/pre-sales/tender'],
+                ['Tender result', '/pre-sales/tender-result'],
+                ['Tender tasks', '/pre-sales/tender-task/my-tender'],
+                ['Finance management', '/pre-sales/finance/new-request'],
+                ['Approvals', '/pre-sales/approvals'],
+              ].map(([label, href]) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className="flex items-center justify-between rounded-2xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 hover:border-[#1e6b87] hover:text-[#1e6b87]"
+                >
+                  <span>{label}</span>
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
+              ))}
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            title="Submission Signal"
+            icon={FileText}
+            subtitle="Simple language me current bid position."
+          >
+            <div className="rounded-2xl bg-[#f5fbfd] p-4 text-sm leading-6 text-gray-700">
+              {tender.status === 'DRAFT' && 'Tender identify ho chuka hai, lekin abhi bid preparation stage me hai. Survey, BOQ, costing aur finance readiness complete karke approval lena hoga.'}
+              {tender.status === 'SUBMITTED' && 'Bid submit ho chuki hai. Ab team ko reminders, clarification aur result tracking par focus rakhna hai.'}
+              {tender.status === 'UNDER_EVALUATION' && 'Bid under evaluation hai. Is stage par clarification, pricing response aur result watch sabse important hai.'}
+              {tender.status === 'WON' && 'Tender win ho chuka hai. Ab isse project me convert karke execution handoff karna next step hai.'}
+              {tender.status === 'LOST' && 'Tender close ho gaya hai aur result lost hai. Competitor outcome aur pricing lesson capture karna chahiye.'}
+              {tender.status !== 'DRAFT' &&
+                tender.status !== 'SUBMITTED' &&
+                tender.status !== 'UNDER_EVALUATION' &&
+                tender.status !== 'WON' &&
+                tender.status !== 'LOST' &&
+                `Current status ${formatStatusLabel(tender.status)} hai. Iske hisaab se next operational step decide hoga.`}
+            </div>
+          </SectionCard>
         </div>
       </div>
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div 
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => setShowDeleteConfirm(false)}
-          />
-          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
-                <AlertCircle className="w-6 h-6 text-red-600" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">Delete Tender</h3>
-                <p className="text-sm text-gray-500">This action cannot be undone</p>
-              </div>
-            </div>
-            <p className="text-gray-600 mb-6">
-              Are you sure you want to delete tender <strong>{tender.tender_number}</strong>? 
-              All associated data will be permanently removed.
-            </p>
-            <div className="flex items-center justify-end gap-3">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={isDeleting}
-                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
-              >
-                {isDeleting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Deleting...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="w-4 h-4" />
-                    Delete
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Modal */}
-      {showEditModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div 
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => setShowEditModal(false)}
-          />
-          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
-              <h2 className="text-xl font-semibold text-gray-900">Edit Tender</h2>
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-
-            {/* Form */}
-            <div className="px-6 py-6 overflow-y-auto max-h-[65vh] space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tender Number</label>
-                  <input
-                    type="text"
-                    value={editFormData.tender_number || ''}
-                    onChange={(e) => setEditFormData(prev => ({ ...prev, tender_number: e.target.value }))}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                  <select
-                    value={editFormData.status || ''}
-                    onChange={(e) => setEditFormData(prev => ({ ...prev, status: e.target.value }))}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="DRAFT">Draft</option>
-                    <option value="SUBMITTED">Submitted</option>
-                    <option value="UNDER_EVALUATION">Under Evaluation</option>
-                    <option value="WON">Won</option>
-                    <option value="LOST">Lost</option>
-                    <option value="CANCELLED">Cancelled</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tender Title</label>
-                <input
-                  type="text"
-                  value={editFormData.title || ''}
-                  onChange={(e) => setEditFormData(prev => ({ ...prev, title: e.target.value }))}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Client</label>
-                <select
-                  value={editFormData.client || ''}
-                  onChange={(e) => setEditFormData(prev => ({ ...prev, client: e.target.value }))}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Select Client</option>
-                  {clients.map(c => (
-                    <option key={c.name} value={c.name}>{c.party_name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Organization</label>
-                <select
-                  value={editFormData.organization || ''}
-                  onChange={(e) => setEditFormData(prev => ({ ...prev, organization: e.target.value }))}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Select Organization</option>
-                  {organizations.map((organization) => (
-                    <option key={organization.name} value={organization.name}>
-                      {organization.organization_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Submission Date</label>
-                  <input
-                    type="date"
-                    value={editFormData.submission_date || ''}
-                    onChange={(e) => setEditFormData(prev => ({ ...prev, submission_date: e.target.value }))}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Value</label>
-                  <input
-                    type="number"
-                    value={editFormData.estimated_value || ''}
-                    onChange={(e) => setEditFormData(prev => ({ ...prev, estimated_value: parseFloat(e.target.value) || 0 }))}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-
-              {/* EMD Section */}
-              <div className="border-t border-gray-200 pt-4">
-                <div className="flex items-center gap-4 mb-3">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={!!editFormData.emd_required}
-                      onChange={(e) => setEditFormData(prev => ({ ...prev, emd_required: e.target.checked ? 1 : 0 }))}
-                      className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-sm font-medium text-gray-700">EMD Required</span>
-                  </label>
-                </div>
-                {editFormData.emd_required ? (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">EMD Amount</label>
-                    <input
-                      type="number"
-                      value={editFormData.emd_amount || ''}
-                      onChange={(e) => setEditFormData(prev => ({ ...prev, emd_amount: parseFloat(e.target.value) || 0 }))}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                ) : null}
-              </div>
-
-              {/* PBG Section */}
-              <div className="border-t border-gray-200 pt-4">
-                <div className="flex items-center gap-4 mb-3">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={!!editFormData.pbg_required}
-                      onChange={(e) => setEditFormData(prev => ({ ...prev, pbg_required: e.target.checked ? 1 : 0 }))}
-                      className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-sm font-medium text-gray-700">PBG Required</span>
-                  </label>
-                </div>
-                {editFormData.pbg_required ? (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">PBG Amount</label>
-                    <input
-                      type="number"
-                      value={editFormData.pbg_amount || ''}
-                      onChange={(e) => setEditFormData(prev => ({ ...prev, pbg_amount: parseFloat(e.target.value) || 0 }))}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                ) : null}
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-lg text-sm font-medium transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={async () => {
-                  setIsSaving(true);
-                  try {
-                    const response = await fetch(`/api/tenders/${encodeURIComponent(tenderId)}`, {
-                      method: 'PUT',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify(editFormData)
-                    });
-                    const result = await response.json();
-                    if (result.success) {
-                      setShowEditModal(false);
-                      fetchTender();
-                    } else {
-                      alert(result.message || 'Failed to update tender');
-                    }
-                  } catch (err) {
-                    console.error('Error updating tender:', err);
-                    alert('Failed to update tender');
-                  } finally {
-                    setIsSaving(false);
-                  }
-                }}
-                disabled={isSaving}
-                className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
-              >
-                {isSaving ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4" />
-                    Save Changes
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -7,6 +7,7 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const result = await callFrappeMethod('get_boqs', {
+      tender: searchParams.get('tender') || '',
       status: searchParams.get('status') || '',
     }, request);
     return NextResponse.json({ success: true, data: result.data || [], total: result.total || 0 });

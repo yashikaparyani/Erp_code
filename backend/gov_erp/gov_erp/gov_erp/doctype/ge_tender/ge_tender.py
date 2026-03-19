@@ -7,14 +7,12 @@ from gov_erp.project_workflow import get_workflow_stage
 
 class GETender(Document):
 	def validate(self):
+		if not getattr(self, "tender_owner", None):
+			self.tender_owner = frappe.session.user
 		if self.emd_required and not self.emd_amount:
 			frappe.throw("EMD Amount is required when EMD is marked as required")
 		if self.pbg_required and not self.pbg_amount:
 			frappe.throw("PBG Amount is required when PBG is marked as required")
-
-	def on_update(self):
-		if self.has_value_changed("status") and self.status == "WON" and not self.linked_project:
-			self._convert_to_project()
 
 	def _convert_to_project(self):
 		"""Create an ERPNext Project from this WON tender and link it back."""

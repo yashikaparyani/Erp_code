@@ -787,7 +787,7 @@ def get_tenders(filters=None, limit_page_length=50, limit_start=0):
 		filters=parsed_filters,
 		fields=[
 			"name", "tender_number", "title", "client", "organization",
-			"submission_date", "status", "emd_amount",
+			"submission_date", "status", "emd_amount", "tender_owner",
 			"pbg_amount", "estimated_value", "creation", "modified",
 		],
 		order_by="creation desc",
@@ -828,6 +828,320 @@ def update_tender(name, data):
 	doc.save()
 	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": "Tender updated"}
+
+
+def _get_tender_transition_readiness(doc, target_status):
+	"""Return readiness checks before moving a tender into a controlled lifecycle status."""
+	checks = []
+
+	def add_check(ok, label):
+		checks.append({"ok": bool(ok), "label": label})
+
+	if target_status == "SUBMITTED":
+		boq_count = frappe.db.count("GE BOQ", {"linked_tender": doc.name})
+		cost_sheet_count = frappe.db.count("GE Cost Sheet", {"linked_tender": doc.name})
+		finance_count = frappe.db.count("GE EMD PBG Instrument", {"linked_tender": doc.name})
+		add_check(getattr(doc, "go_no_go_status", None) == "GO", "Go / No-Go should be approved before submission.")
+		add_check(getattr(doc, "technical_readiness", None) == "APPROVED", "Technical readiness should be approved before submission.")
+		add_check(getattr(doc, "commercial_readiness", None) == "APPROVED", "Commercial readiness should be approved before submission.")
+		add_check(getattr(doc, "submission_status", None) == "APPROVED", "Submission approval should be completed before submission.")
+		add_check(boq_count > 0, "At least one BOQ should exist before submission.")
+		add_check(cost_sheet_count > 0, "At least one cost sheet should exist before submission.")
+		if doc.emd_required or doc.pbg_required:
+			add_check(finance_count > 0, "Finance readiness is required when EMD or PBG is applicable.")
+			add_check(getattr(doc, "finance_readiness", None) == "APPROVED", "Finance readiness should be approved before submission.")
+
+	if target_status == "UNDER_EVALUATION":
+		add_check(doc.status == "SUBMITTED", "Only submitted tenders can move to under evaluation.")
+
+	if target_status == "WON":
+		add_check(doc.status in ("SUBMITTED", "UNDER_EVALUATION"), "Only submitted or under-evaluation tenders can be marked won.")
+
+	if target_status == "LOST":
+		add_check(doc.status in ("SUBMITTED", "UNDER_EVALUATION"), "Only submitted or under-evaluation tenders can be marked lost.")
+
+	if target_status == "DROPPED":
+		add_check(doc.status not in ("WON", "LOST", "CANCELLED"), "Closed tenders cannot be dropped.")
+
+	return checks
+
+
+def _get_tender_result_stage_for_status(status):
+	stage_map = {
+		"UNDER_EVALUATION": "Financial Evaluation",
+		"WON": "AOC",
+		"LOST": "Financial Evaluation",
+	}
+	return stage_map.get((status or "").upper())
+
+
+def _sync_tender_result_tracker(doc):
+	"""Ensure tender result tracker has at least one row for tracked post-submission statuses."""
+	result_stage = _get_tender_result_stage_for_status(getattr(doc, "status", None))
+	if not result_stage:
+		return
+
+	existing_rows = frappe.get_all(
+		"GE Tender Result",
+		filters={"tender": doc.name},
+		fields=["name", "publication_date", "winning_amount", "winner_company"],
+		order_by="modified desc",
+		limit=1,
+	)
+
+	default_publication_date = (
+		cstr(getattr(doc, "submission_date", ""))[:10] if getattr(doc, "submission_date", None) else frappe.utils.today()
+	)
+	default_organization = cstr(getattr(doc, "organization", None) or getattr(doc, "client", None) or "")
+	default_winning_amount = getattr(doc, "estimated_value", None) or 0
+
+	if existing_rows:
+		result_doc = frappe.get_doc("GE Tender Result", existing_rows[0].name)
+		result_doc.reference_no = result_doc.reference_no or doc.tender_number
+		result_doc.tender_brief = result_doc.tender_brief or doc.title
+		result_doc.organization_name = result_doc.organization_name or default_organization
+		result_doc.result_stage = result_stage
+		result_doc.publication_date = result_doc.publication_date or default_publication_date
+		if doc.status == "WON" and not result_doc.winning_amount:
+			result_doc.winning_amount = default_winning_amount
+		result_doc.save()
+		return
+
+	payload = {
+		"doctype": "GE Tender Result",
+		"tender": doc.name,
+		"result_id": doc.tender_number,
+		"reference_no": doc.tender_number,
+		"tender_brief": doc.title,
+		"organization_name": default_organization,
+		"result_stage": result_stage,
+		"publication_date": default_publication_date,
+		"is_fresh": 1,
+	}
+	if doc.status == "WON":
+		payload["winning_amount"] = default_winning_amount
+
+	frappe.get_doc(payload).insert()
+
+
+def _normalize_sortable_datetime(value):
+	"""Normalize date/datetime values to comparable strings for mixed source payloads."""
+	if not value:
+		return ""
+	return cstr(value)
+
+
+TENDER_APPROVAL_TYPE_CONFIG = {
+	"GO_NO_GO": {
+		"fieldname": "go_no_go_status",
+		"pending_value": "PENDING",
+		"approved_value": "GO",
+		"rejected_value": "NO_GO",
+		"status_on_submit": "GO_NO_GO_PENDING",
+		"status_on_approve": "QUALIFIED",
+		"status_on_reject": "NO_GO",
+	},
+	"TECHNICAL": {
+		"fieldname": "technical_readiness",
+		"pending_value": "PENDING_APPROVAL",
+		"approved_value": "APPROVED",
+		"rejected_value": "REJECTED",
+		"status_on_submit": "TECHNICAL_IN_PROGRESS",
+		"status_on_approve": None,
+		"status_on_reject": "TECHNICAL_IN_PROGRESS",
+	},
+	"COMMERCIAL": {
+		"fieldname": "commercial_readiness",
+		"pending_value": "PENDING_APPROVAL",
+		"approved_value": "APPROVED",
+		"rejected_value": "REJECTED",
+		"status_on_submit": "COSTING_IN_PROGRESS",
+		"status_on_approve": None,
+		"status_on_reject": "COSTING_IN_PROGRESS",
+	},
+	"FINANCE": {
+		"fieldname": "finance_readiness",
+		"pending_value": "PENDING_APPROVAL",
+		"approved_value": "APPROVED",
+		"rejected_value": "REJECTED",
+		"status_on_submit": "FINANCE_PENDING",
+		"status_on_approve": None,
+		"status_on_reject": "FINANCE_PENDING",
+	},
+	"SUBMISSION": {
+		"fieldname": "submission_status",
+		"pending_value": "PENDING_APPROVAL",
+		"approved_value": "APPROVED",
+		"rejected_value": "REJECTED",
+		"status_on_submit": "APPROVAL_PENDING",
+		"status_on_approve": "BID_READY",
+		"status_on_reject": "APPROVAL_PENDING",
+	},
+}
+
+
+def _sync_tender_approval_overall_status(tender_doc):
+	pending = frappe.db.count("GE Tender Approval", {"linked_tender": tender_doc.name, "status": "Pending"})
+	rejected = frappe.db.count("GE Tender Approval", {"linked_tender": tender_doc.name, "status": "Rejected"})
+	approved = frappe.db.count("GE Tender Approval", {"linked_tender": tender_doc.name, "status": "Approved"})
+	if pending:
+		tender_doc.approval_status = "PENDING"
+	elif rejected:
+		tender_doc.approval_status = "REJECTED"
+	elif approved:
+		tender_doc.approval_status = "APPROVED"
+	else:
+		tender_doc.approval_status = "NOT_REQUIRED"
+
+
+def _apply_tender_approval_state(tender_doc, approval_type, approved, remarks=None):
+	config = TENDER_APPROVAL_TYPE_CONFIG[approval_type]
+	fieldname = config["fieldname"]
+	tender_doc.set(fieldname, config["approved_value"] if approved else config["rejected_value"])
+	if approval_type == "GO_NO_GO":
+		tender_doc.go_no_go_by = frappe.session.user
+		tender_doc.go_no_go_on = frappe.utils.now()
+		if remarks:
+			tender_doc.go_no_go_remarks = remarks
+	next_status = config["status_on_approve"] if approved else config["status_on_reject"]
+	if next_status:
+		tender_doc.status = next_status
+	if approval_type == "SUBMISSION" and approved:
+		tender_doc.approval_status = "APPROVED"
+	_sync_tender_approval_overall_status(tender_doc)
+
+
+@frappe.whitelist()
+def get_tender_approvals(tender=None, status=None):
+	"""Return tender-specific approval trail rows."""
+	_require_tender_read_access()
+	filters = {}
+	if tender:
+		filters["linked_tender"] = tender
+	if status:
+		filters["status"] = status
+	data = frappe.get_all(
+		"GE Tender Approval",
+		filters=filters,
+		fields=[
+			"name", "linked_tender", "approval_type", "status", "requested_by",
+			"approver_role", "approver_user", "request_remarks", "action_remarks",
+			"acted_on", "creation", "modified",
+		],
+		order_by="creation desc",
+	)
+	return {"success": True, "data": data}
+
+
+@frappe.whitelist()
+def submit_tender_approval(name, approval_type, remarks=None):
+	"""Raise a tender-specific approval request for presales workflow."""
+	_require_tender_write_access()
+	name = _require_param(name, "name")
+	approval_type = _require_param(approval_type, "approval_type")
+	approval_type = str(approval_type).strip().upper()
+	if approval_type not in TENDER_APPROVAL_TYPE_CONFIG:
+		return {"success": False, "message": f"Unsupported approval type: {approval_type}"}
+	if frappe.db.exists("GE Tender Approval", {"linked_tender": name, "approval_type": approval_type, "status": "Pending"}):
+		return {"success": False, "message": f"{approval_type} approval is already pending for this tender"}
+
+	tender_doc = frappe.get_doc("GE Tender", name)
+	config = TENDER_APPROVAL_TYPE_CONFIG[approval_type]
+	tender_doc.set(config["fieldname"], config["pending_value"])
+	if config["status_on_submit"]:
+		tender_doc.status = config["status_on_submit"]
+	tender_doc.approval_status = "PENDING"
+	tender_doc.save()
+
+	approval_doc = frappe.get_doc(
+		{
+			"doctype": "GE Tender Approval",
+			"linked_tender": name,
+			"approval_type": approval_type,
+			"status": "Pending",
+			"requested_by": frappe.session.user,
+			"approver_role": ROLE_PRESALES_HEAD,
+			"request_remarks": remarks or "",
+		}
+	)
+	approval_doc.insert()
+	frappe.db.commit()
+	return {"success": True, "data": approval_doc.as_dict(), "message": "Tender approval submitted"}
+
+
+@frappe.whitelist()
+def approve_tender_approval(name, remarks=None):
+	"""Approve a tender-specific approval request."""
+	_require_roles(ROLE_PRESALES_HEAD, ROLE_DIRECTOR)
+	name = _require_param(name, "name")
+	doc = frappe.get_doc("GE Tender Approval", name)
+	if doc.status != "Pending":
+		return {"success": False, "message": f"Approval is in {doc.status} status, must be Pending to approve"}
+	doc.status = "Approved"
+	doc.approver_user = frappe.session.user
+	doc.action_remarks = remarks or ""
+	doc.acted_on = frappe.utils.now()
+	doc.save()
+
+	tender_doc = frappe.get_doc("GE Tender", doc.linked_tender)
+	_apply_tender_approval_state(tender_doc, doc.approval_type, True, remarks=remarks)
+	tender_doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Tender approval approved"}
+
+
+@frappe.whitelist()
+def reject_tender_approval(name, remarks=None):
+	"""Reject a tender-specific approval request."""
+	_require_roles(ROLE_PRESALES_HEAD, ROLE_DIRECTOR)
+	name = _require_param(name, "name")
+	doc = frappe.get_doc("GE Tender Approval", name)
+	if doc.status != "Pending":
+		return {"success": False, "message": f"Approval is in {doc.status} status, must be Pending to reject"}
+	doc.status = "Rejected"
+	doc.approver_user = frappe.session.user
+	doc.action_remarks = remarks or ""
+	doc.acted_on = frappe.utils.now()
+	doc.save()
+
+	tender_doc = frappe.get_doc("GE Tender", doc.linked_tender)
+	_apply_tender_approval_state(tender_doc, doc.approval_type, False, remarks=remarks)
+	tender_doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Tender approval rejected"}
+
+
+@frappe.whitelist()
+def transition_tender_status(name, target_status):
+	"""Controlled tender lifecycle transition using existing linked records for readiness checks."""
+	_require_tender_write_access()
+	name = _require_param(name, "name")
+	target_status = _require_param(target_status, "target_status")
+	target_status = str(target_status).strip().upper()
+
+	allowed_statuses = {"SUBMITTED", "UNDER_EVALUATION", "WON", "LOST", "DROPPED"}
+	if target_status not in allowed_statuses:
+		return {"success": False, "message": f"Unsupported target status: {target_status}"}
+
+	doc = frappe.get_doc("GE Tender", name)
+	checks = _get_tender_transition_readiness(doc, target_status)
+	blockers = [check["label"] for check in checks if not check["ok"]]
+	if blockers:
+		return {
+			"success": False,
+			"message": blockers[0],
+			"data": {"checks": checks, "current_status": doc.status, "target_status": target_status},
+		}
+
+	doc.status = target_status
+	doc.save()
+	_sync_tender_result_tracker(doc)
+	frappe.db.commit()
+	return {
+		"success": True,
+		"data": {"tender": doc.as_dict(), "checks": checks},
+		"message": f"Tender moved to {target_status}",
+	}
 
 
 @frappe.whitelist()
@@ -895,6 +1209,8 @@ def convert_tender_to_project(tender_name):
 		metadata={"tender": doc.name},
 	)
 	project_doc.save()
+	frappe.db.set_value("GE Tender", doc.name, "status", "CONVERTED_TO_PROJECT", update_modified=False)
+	doc.status = "CONVERTED_TO_PROJECT"
 	frappe.db.commit()
 	return {
 		"success": True,
@@ -1103,6 +1419,60 @@ def get_tender_results(tender=None, result_stage=None, is_fresh=None):
 			"is_fresh", "site_location", "creation", "modified",
 		],
 		order_by="publication_date desc, creation desc",
+	)
+
+	tracked_statuses = ["UNDER_EVALUATION", "WON", "LOST"]
+	tracked_filters = {"status": ["in", tracked_statuses]}
+	if tender:
+		tracked_filters["name"] = tender
+
+	stage_status_map = {
+		"Technical Evaluation": {"UNDER_EVALUATION"},
+		"Financial Evaluation": {"UNDER_EVALUATION", "LOST"},
+		"AOC": {"WON"},
+		"LoI Issued": {"WON"},
+		"Work Order": {"WON"},
+	}
+	if result_stage and result_stage in stage_status_map:
+		tracked_filters["status"] = ["in", list(stage_status_map[result_stage])]
+
+	tracked_tenders = frappe.get_all(
+		"GE Tender",
+		filters=tracked_filters,
+		fields=["name", "tender_number", "title", "client", "organization", "status", "submission_date", "estimated_value", "modified"],
+		order_by="modified desc",
+	)
+	existing_tenders = {row.get("tender") for row in data if row.get("tender")}
+	for tracked in tracked_tenders:
+		if tracked.name in existing_tenders:
+			continue
+		synthetic_stage = _get_tender_result_stage_for_status(tracked.status)
+		if result_stage and synthetic_stage != result_stage:
+			continue
+		data.append(
+			{
+				"name": f"tracked::{tracked.name}",
+				"result_id": tracked.tender_number,
+				"tender": tracked.name,
+				"reference_no": tracked.tender_number,
+				"organization_name": tracked.organization or tracked.client,
+				"result_stage": synthetic_stage,
+				"publication_date": tracked.submission_date or cstr(tracked.modified)[:10],
+				"winning_amount": tracked.estimated_value if tracked.status == "WON" else 0,
+				"winner_company": "",
+				"is_fresh": 1,
+				"site_location": "",
+				"creation": tracked.modified,
+				"modified": tracked.modified,
+			}
+		)
+
+	data.sort(
+		key=lambda row: (
+			_normalize_sortable_datetime(row.get("publication_date")),
+			_normalize_sortable_datetime(row.get("creation")),
+		),
+		reverse=True,
 	)
 	return {"success": True, "data": data}
 
@@ -5684,10 +6054,10 @@ def get_finance_requests(status=None, instrument_type=None, tender=None):
 
 @frappe.whitelist()
 def approve_finance_request(name):
-	"""Approve a finance request by activating the instrument."""
+	"""Approve a finance request by submitting the instrument for use."""
 	_require_roles(ROLE_ACCOUNTS, ROLE_DEPARTMENT_HEAD, ROLE_DIRECTOR)
 	doc = frappe.get_doc("GE EMD PBG Instrument", name)
-	doc.status = "Active"
+	doc.status = "Submitted"
 	doc.save()
 	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": "Finance request approved"}
@@ -5695,10 +6065,10 @@ def approve_finance_request(name):
 
 @frappe.whitelist()
 def deny_finance_request(name, reason=None):
-	"""Reject a finance request."""
+	"""Mark a finance request as forfeited when it is not approved."""
 	_require_roles(ROLE_ACCOUNTS, ROLE_DEPARTMENT_HEAD, ROLE_DIRECTOR)
 	doc = frappe.get_doc("GE EMD PBG Instrument", name)
-	doc.status = "Rejected"
+	doc.status = "Forfeited"
 	if reason:
 		doc.remarks = reason
 	doc.save()
@@ -5718,10 +6088,10 @@ def get_finance_request_stats():
 	)
 	total = frappe.db.count("GE EMD PBG Instrument")
 	pending = frappe.db.count("GE EMD PBG Instrument", {"status": "Pending"})
-	active = frappe.db.count("GE EMD PBG Instrument", {"status": "Active"})
+	submitted = frappe.db.count("GE EMD PBG Instrument", {"status": "Submitted"})
 	released = frappe.db.count("GE EMD PBG Instrument", {"status": "Released"})
-	refunded = frappe.db.count("GE EMD PBG Instrument", {"status": "Refunded"})
-	rejected = frappe.db.count("GE EMD PBG Instrument", {"status": "Rejected"})
+	forfeited = frappe.db.count("GE EMD PBG Instrument", {"status": "Forfeited"})
+	expired = frappe.db.count("GE EMD PBG Instrument", {"status": "Expired"})
 	emd_count = frappe.db.count("GE EMD PBG Instrument", {"instrument_type": "EMD"})
 	pbg_count = frappe.db.count("GE EMD PBG Instrument", {"instrument_type": "PBG"})
 	total_amount = (
@@ -5738,10 +6108,13 @@ def get_finance_request_stats():
 		"data": {
 			"total": total,
 			"pending": pending,
-			"active": active,
+			"submitted": submitted,
 			"released": released,
-			"refunded": refunded,
-			"rejected": rejected,
+			"forfeited": forfeited,
+			"expired": expired,
+			"active": submitted,
+			"refunded": expired,
+			"rejected": forfeited,
 			"total_amount": float(total_amount),
 			"pending_amount": float(pending_amount),
 			"emd_count": emd_count,
@@ -5845,6 +6218,25 @@ def get_pending_approvals():
 		ROLE_DIRECTOR,
 	)
 	records = []
+
+	for row in frappe.get_all(
+		"GE Tender Approval",
+		filters={"status": "Pending"},
+		fields=["name", "linked_tender", "approval_type", "requested_by", "creation"],
+		order_by="creation desc",
+	):
+		records.append(
+			{
+				"id": row.name,
+				"tender_id": row.linked_tender or "-",
+				"approval_for": f"{row.approval_type} Tender Approval",
+				"approval_from": ROLE_PRESALES_HEAD,
+				"requester": row.requested_by,
+				"request_date": row.creation,
+				"status": "Pending",
+				"type": "Tender Approval",
+			}
+		)
 
 	for row in frappe.get_all(
 		"GE EMD PBG Instrument",

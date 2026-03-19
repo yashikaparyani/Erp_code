@@ -45,7 +45,7 @@ export default function CompletedRequestPage() {
       const res = await fetch('/api/finance-requests');
       const json = await res.json();
       if (json.success) {
-        setData(json.data.filter((r: FinanceInstrument) => ['Active', 'Released', 'Refunded'].includes(r.status)));
+        setData(json.data.filter((r: FinanceInstrument) => ['Submitted', 'Released', 'Expired'].includes(r.status)));
       }
     } catch (e) { console.error('Failed to fetch:', e); }
     finally { setLoading(false); }
@@ -60,9 +60,9 @@ export default function CompletedRequestPage() {
 
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
-      Active: 'bg-green-100 text-green-700',
-      Refunded: 'bg-blue-100 text-blue-700',
-      Released: 'bg-gray-100 text-gray-700',
+      Submitted: 'bg-blue-100 text-blue-700',
+      Released: 'bg-green-100 text-green-700',
+      Expired: 'bg-gray-100 text-gray-700',
     };
     return (
       <span className={`px-2 py-1 text-xs font-medium rounded-full ${styles[status] || 'bg-gray-100 text-gray-700'}`}>
@@ -72,8 +72,8 @@ export default function CompletedRequestPage() {
   };
 
   const totalAmount = data.reduce((sum, r) => sum + (r.amount || 0), 0);
-  const activeCount = data.filter(r => r.status === 'Active').length;
-  const refundedCount = data.filter(r => r.status === 'Refunded').length;
+  const submittedCount = data.filter(r => r.status === 'Submitted').length;
+  const expiredCount = data.filter(r => r.status === 'Expired').length;
 
   return (
     <div className="p-3 sm:p-4 md:p-6 bg-gray-50 min-h-screen">
@@ -113,8 +113,8 @@ export default function CompletedRequestPage() {
               <FileCheck className="w-5 h-5 text-emerald-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-800">{activeCount}</p>
-              <p className="text-sm text-gray-500">Active Deposits</p>
+              <p className="text-2xl font-bold text-gray-800">{submittedCount}</p>
+              <p className="text-sm text-gray-500">Submitted Instruments</p>
             </div>
           </div>
         </div>
@@ -124,8 +124,8 @@ export default function CompletedRequestPage() {
               <ArrowUpRight className="w-5 h-5 text-purple-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-800">{refundedCount}</p>
-              <p className="text-sm text-gray-500">Refunded</p>
+              <p className="text-2xl font-bold text-gray-800">{expiredCount}</p>
+              <p className="text-sm text-gray-500">Expired</p>
             </div>
           </div>
         </div>
@@ -168,8 +168,8 @@ export default function CompletedRequestPage() {
                 <label className="block text-xs text-gray-500 mb-1">Status</label>
                 <select className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="">All</option>
-                  <option value="active">Active</option>
-                  <option value="refunded">Refunded</option>
+                  <option value="submitted">Submitted</option>
+                  <option value="expired">Expired</option>
                   <option value="released">Released</option>
                 </select>
               </div>

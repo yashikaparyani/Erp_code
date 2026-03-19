@@ -32,10 +32,10 @@ type PresalesDashboardData = {
 	finance_requests: {
 		total: number;
 		pending: number;
-		active: number;
+		submitted: number;
 		released: number;
-		refunded: number;
-		rejected: number;
+		forfeited: number;
+		expired: number;
 		total_amount: number;
 		pending_amount: number;
 		emd_count: number;
@@ -48,7 +48,7 @@ const initialData: PresalesDashboardData = {
 	tenders: { total: 0, won: 0, submitted: 0, draft: 0, under_evaluation: 0, lost: 0, cancelled: 0, dropped: 0, total_pipeline: 0 },
 	boqs: { total: 0, draft: 0, pending_approval: 0, approved: 0, rejected: 0, total_value: 0 },
 	surveys: { total: 0, completed: 0, in_progress: 0, pending: 0 },
-	finance_requests: { total: 0, pending: 0, active: 0, released: 0, refunded: 0, rejected: 0, total_amount: 0, pending_amount: 0, emd_count: 0, pbg_count: 0 },
+	finance_requests: { total: 0, pending: 0, submitted: 0, released: 0, forfeited: 0, expired: 0, total_amount: 0, pending_amount: 0, emd_count: 0, pbg_count: 0 },
 	checklist_completion_pct: 0,
 };
 
@@ -108,7 +108,7 @@ export default function PresalesDashboard() {
 							{ label: 'Surveys Pending', value: data.surveys.pending, tone: 'warning' },
 							{ label: 'Pending EMD/PBG', value: data.finance_requests.pending, tone: 'warning' },
 							{ label: 'Pending Amount', value: formatCurrency(data.finance_requests.pending_amount), tone: 'negative' },
-							{ label: 'Active Instruments', value: data.finance_requests.active, tone: 'positive' },
+							{ label: 'Submitted Instruments', value: data.finance_requests.submitted, tone: 'positive' },
 						]}
 					/>
 				</SectionCard>
@@ -121,8 +121,8 @@ export default function PresalesDashboard() {
 							{ label: 'EMD Count', value: data.finance_requests.emd_count, tone: 'info' },
 							{ label: 'PBG Count', value: data.finance_requests.pbg_count, tone: 'info' },
 							{ label: 'Released', value: data.finance_requests.released, tone: 'positive' },
-							{ label: 'Refunded', value: data.finance_requests.refunded, tone: 'positive' },
-							{ label: 'Rejected', value: data.finance_requests.rejected, tone: 'negative' },
+							{ label: 'Expired', value: data.finance_requests.expired, tone: 'warning' },
+							{ label: 'Forfeited', value: data.finance_requests.forfeited, tone: 'negative' },
 							{ label: 'Total Amount', value: formatCurrency(data.finance_requests.total_amount) },
 						]}
 					/>

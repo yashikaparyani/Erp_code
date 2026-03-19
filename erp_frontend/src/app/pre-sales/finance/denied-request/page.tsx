@@ -44,7 +44,7 @@ export default function DeniedRequestPage() {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/finance-requests?status=Rejected');
+      const res = await fetch('/api/finance-requests?status=Forfeited');
       const json = await res.json();
       if (json.success) setData(json.data);
     } catch (e) { console.error('Failed to fetch:', e); }
@@ -64,8 +64,8 @@ export default function DeniedRequestPage() {
     <div className="p-3 sm:p-4 md:p-6 bg-gray-50 min-h-screen">
       {/* Header */}
       <div className="mb-4 sm:mb-6">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Denied Request</h1>
-        <p className="text-gray-500 text-xs sm:text-sm mt-1">Finance requests that were denied</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Forfeited Request</h1>
+        <p className="text-gray-500 text-xs sm:text-sm mt-1">Finance requests that were not approved and moved to forfeited state</p>
       </div>
 
       {/* Summary Cards */}
@@ -77,7 +77,7 @@ export default function DeniedRequestPage() {
             </div>
             <div>
               <p className="text-2xl font-bold text-gray-800">{data.length}</p>
-              <p className="text-sm text-gray-500">Total Denied</p>
+              <p className="text-sm text-gray-500">Total Forfeited</p>
             </div>
           </div>
         </div>
@@ -197,7 +197,7 @@ export default function DeniedRequestPage() {
               ) : data.length === 0 ? (
                 <tr>
                   <td colSpan={columns.length} className="px-4 py-12 text-center text-gray-500">
-                    No denied requests found
+                    No forfeited requests found
                   </td>
                 </tr>
               ) : (
@@ -215,7 +215,7 @@ export default function DeniedRequestPage() {
                     <td className="px-4 py-3 text-sm text-gray-600">{row.issue_date && row.expiry_date ? `${Math.ceil((new Date(row.expiry_date).getTime() - new Date(row.issue_date).getTime()) / 86400000)} days` : '-'}</td>
                     <td className="px-4 py-3">
                       <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700">
-                        DENIED
+                        FORFEITED
                       </span>
                     </td>
                     <td className="px-4 py-3">

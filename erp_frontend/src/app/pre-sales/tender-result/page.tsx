@@ -1,399 +1,279 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { 
-  Search, ChevronDown, ChevronUp, Download, Clock, MapPin, FileText, Plus, Edit2, Trash2, X
-} from 'lucide-react';
 
-interface TenderResultRow {
+import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
+import { AlertCircle, CheckCircle2, ExternalLink, Loader2, RefreshCw, Trophy } from 'lucide-react';
+
+type TenderResult = {
   name: string;
-  result_id: string;
-  winning_amount: number;
-  result_stage: string;
-  reference_no: string;
-  winner_company: string;
-  tender: string;
-  organization_name: string;
-  site_location: string;
-  publication_date: string;
+  result_id?: string;
+  tender?: string;
+  reference_no?: string;
+  organization_name?: string;
+  result_stage?: string;
+  publication_date?: string;
+  winning_amount?: number;
+  winner_company?: string;
+  is_fresh?: number;
+};
+
+const AWARD_STAGES = new Set(['AOC', 'LoI Issued', 'Work Order']);
+const EVALUATION_STAGES = new Set(['Technical Evaluation', 'Financial Evaluation']);
+
+function formatCurrency(value?: number) {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(value || 0);
 }
 
-type TabType = 'fresh' | 'result';
+function formatDate(value?: string) {
+  if (!value) return '-';
+  return new Date(value).toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+function stageTone(stage?: string) {
+  if (!stage) return 'bg-slate-100 text-slate-700';
+  if (AWARD_STAGES.has(stage)) return 'bg-emerald-100 text-emerald-700';
+  if (EVALUATION_STAGES.has(stage)) return 'bg-amber-100 text-amber-700';
+  return 'bg-slate-100 text-slate-700';
+}
 
 export default function TenderResultPage() {
-  const [activeTab, setActiveTab] = useState<TabType>('result');
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [results, setResults] = useState<TenderResultRow[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-  const [editingName, setEditingName] = useState('');
-  const emptyForm = { result_id: '', winning_amount: '', result_stage: 'AOC', reference_no: '', winner_company: '', tender: '', organization_name: '', site_location: '', publication_date: '' };
-  const [form, setForm] = useState(emptyForm);
+  const [items, setItems] = useState<TenderResult[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [stageFilter, setStageFilter] = useState('');
+  const [actionBusy, setActionBusy] = useState('');
 
   const loadResults = async () => {
-    setIsLoading(true);
     try {
+      setLoading(true);
+      setError('');
       const response = await fetch('/api/tender-results');
-      const payload = await response.json();
-      if (payload.success) setResults(payload.data || []);
-    } catch (error) {
-      console.error('Failed to fetch tender results:', error);
+      const json = await response.json();
+      if (!json.success) {
+        throw new Error(json.message || 'Failed to load tender results');
+      }
+      setItems(json.data || []);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : 'Failed to load tender results');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  useEffect(() => { loadResults(); }, []);
+  useEffect(() => {
+    void loadResults();
+  }, []);
 
-  function openCreate() {
-    setEditingName('');
-    setForm(emptyForm);
-    setShowModal(true);
-  }
+  const filteredItems = useMemo(() => {
+    if (!stageFilter) return items;
+    return items.filter((item) => item.result_stage === stageFilter);
+  }, [items, stageFilter]);
 
-  function openEdit(row: TenderResultRow) {
-    setEditingName(row.name);
-    setForm({
-      result_id: row.result_id || '',
-      winning_amount: String(row.winning_amount || ''),
-      result_stage: row.result_stage || 'AOC',
-      reference_no: row.reference_no || '',
-      winner_company: row.winner_company || '',
-      tender: row.tender || '',
-      organization_name: row.organization_name || '',
-      site_location: row.site_location || '',
-      publication_date: row.publication_date || '',
-    });
-    setShowModal(true);
-  }
+  const availableStages = useMemo(() => {
+    return Array.from(new Set(items.map((item) => item.result_stage).filter(Boolean))) as string[];
+  }, [items]);
 
-  async function handleSave() {
-    setBusy(true);
+  const summary = useMemo(() => {
+    return {
+      total: items.length,
+      awards: items.filter((item) => AWARD_STAGES.has(item.result_stage || '')).length,
+      evaluation: items.filter((item) => EVALUATION_STAGES.has(item.result_stage || '')).length,
+      totalValue: items.reduce((sum, item) => sum + (item.winning_amount || 0), 0),
+    };
+  }, [items]);
+
+  const syncTenderStatus = async (tenderName: string, status: string) => {
     try {
-      const method = editingName ? 'update_tender_result' : 'create_tender_result';
-      const args = editingName
-        ? { name: editingName, data: { ...form, winning_amount: Number(form.winning_amount) || 0 } }
-        : { data: { ...form, winning_amount: Number(form.winning_amount) || 0 } };
-      const res = await fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method, args }) });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok || !payload.success) throw new Error(payload.message || 'Save failed');
-      setShowModal(false);
-      loadResults();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Save failed');
+      setActionBusy(`${tenderName}:${status}`);
+      setError('');
+      const response = await fetch(`/api/tenders/${encodeURIComponent(tenderName)}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target_status: status }),
+      });
+      const json = await response.json();
+      if (!json.success) {
+        throw new Error(json.message || 'Failed to sync tender status');
+      }
+      await loadResults();
+    } catch (actionError) {
+      setError(actionError instanceof Error ? actionError.message : 'Failed to sync tender status');
     } finally {
-      setBusy(false);
+      setActionBusy('');
     }
-  }
-
-  async function handleDelete(name: string) {
-    if (!confirm('Delete this tender result?')) return;
-    setBusy(true);
-    try {
-      const res = await fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method: 'delete_tender_result', args: { name } }) });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok || !payload.success) throw new Error(payload.message || 'Delete failed');
-      loadResults();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Delete failed');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const tabs: { key: TabType; label: string; count?: number }[] = [
-    { key: 'fresh', label: 'Fresh Result' },
-    { key: 'result', label: 'Tender Result', count: 52815 },
-  ];
-
-  const getStageColor = (stage: string) => {
-    switch (stage) {
-      case 'AOC':
-        return 'text-blue-600';
-      case 'LoI Issued':
-        return 'text-green-600';
-      case 'Work Order':
-        return 'text-purple-600';
-      case 'Technical Evaluation':
-      case 'Financial Evaluation':
-        return 'text-amber-600';
-      default:
-        return 'text-gray-600';
-    }
-  };
-
-  const formatCurrency = (amount: number) => {
-    if (!amount) return '₹ 0';
-    if (amount >= 10000000) return `₹ ${(amount / 10000000).toFixed(2)} Cr`;
-    if (amount >= 100000) return `₹ ${(amount / 100000).toFixed(2)} Lacs`;
-    return `₹ ${amount.toLocaleString('en-IN')}`;
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Page Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-semibold text-gray-800">Tender Result</h1>
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <span>Purnima Nigam</span>
-          <ChevronDown className="w-4 h-4" />
+    <div className="p-3 sm:p-4 md:p-6 bg-gray-50 min-h-screen">
+      <div className="mb-4 sm:mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Tender Result</h1>
+          <p className="mt-1 text-sm text-gray-500">Post-submission tracker linked back to the main tender workspace.</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => void loadResults()}
+          className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:border-[#1e6b87] hover:text-[#1e6b87]"
+        >
+          <RefreshCw className="h-4 w-4" />
+          Refresh
+        </button>
+      </div>
+
+      {error ? (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      ) : null}
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 mb-4 sm:mb-6">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-2xl font-bold text-gray-900">{summary.total}</div>
+          <div className="mt-1 text-sm text-gray-500">Result rows</div>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-2xl font-bold text-emerald-600">{summary.awards}</div>
+          <div className="mt-1 text-sm text-gray-500">Award-stage rows</div>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-2xl font-bold text-amber-600">{summary.evaluation}</div>
+          <div className="mt-1 text-sm text-gray-500">Evaluation-stage rows</div>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-2xl font-bold text-gray-900">{formatCurrency(summary.totalValue)}</div>
+          <div className="mt-1 text-sm text-gray-500">Tracked winning amount</div>
         </div>
       </div>
 
-      {/* Filter Section */}
-      <div className="bg-white border border-gray-200 rounded-lg mb-4 shadow-sm">
-        <button 
-          onClick={() => setIsFilterOpen(!isFilterOpen)}
-          className="w-full px-4 py-3 flex items-center justify-between text-gray-600 hover:bg-gray-50"
-        >
-          <div className="flex items-center gap-2">
-            <Search className="w-4 h-4" />
-            <span className="text-sm">Tender Filter</span>
+      <div className="mb-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="grid gap-4 md:grid-cols-2">
+          <label>
+            <div className="mb-1 text-xs text-gray-500">Filter by stage</div>
+            <select
+              value={stageFilter}
+              onChange={(event) => setStageFilter(event.target.value)}
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All stages</option>
+              {availableStages.map((stage) => (
+                <option key={stage} value={stage}>
+                  {stage}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            Result page ab standalone tracker hai. Yahan se workspace open kar sakte ho aur award / evaluation stages ko tender status ke saath manually sync bhi kar sakte ho.
           </div>
-          {isFilterOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-        </button>
-        
-        {isFilterOpen && (
-          <div className="px-4 pb-4 border-t border-gray-100">
-            <div className="grid grid-cols-4 gap-4 mt-4">
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Result ID / Tender ID</label>
-                <input 
-                  type="text" 
-                  placeholder="Search by ID..."
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Organization</label>
-                <select className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option>All Organizations</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Stage</label>
-                <select className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option>All Stages</option>
-                  <option>AOC</option>
-                  <option>LoI Issued</option>
-                  <option>Work Order</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Value Range</label>
-                <select className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option>Any Value</option>
-                </select>
-              </div>
-            </div>
-            <div className="flex justify-end mt-4 gap-2">
-              <button className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-md">
-                Clear
-              </button>
-              <button className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700">
-                Apply Filter
-              </button>
-            </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+        {loading ? (
+          <div className="flex items-center justify-center gap-3 py-14 text-gray-500">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            Loading tender result tracker...
           </div>
+        ) : filteredItems.length === 0 ? (
+          <div className="py-14 text-center">
+            <Trophy className="mx-auto mb-3 h-12 w-12 text-gray-300" />
+            <div className="text-sm font-medium text-gray-700">No result rows found</div>
+            <div className="mt-1 text-sm text-gray-400">Result records appear here once tender outcomes are tracked.</div>
+          </div>
+        ) : (
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Result</th>
+                <th>Tender</th>
+                <th>Organization</th>
+                <th>Stage</th>
+                <th>Winner / Amount</th>
+                <th>Publication</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredItems.map((item) => (
+                <tr key={item.name}>
+                  <td>
+                    <div className="font-medium text-gray-900">{item.result_id || item.name}</div>
+                    <div className="text-sm text-gray-500">{item.reference_no || '-'}</div>
+                  </td>
+                  <td>
+                    {item.tender ? (
+                      <Link href={`/pre-sales/${encodeURIComponent(item.tender)}`} className="font-medium text-blue-600 hover:text-blue-800">
+                        {item.tender}
+                      </Link>
+                    ) : (
+                      <span className="text-sm text-gray-500">No linked tender</span>
+                    )}
+                  </td>
+                  <td>
+                    <div className="text-sm text-gray-900">{item.organization_name || '-'}</div>
+                  </td>
+                  <td>
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${stageTone(item.result_stage)}`}>
+                      {item.result_stage || '-'}
+                    </span>
+                  </td>
+                  <td>
+                    <div className="text-sm font-medium text-gray-900">{item.winner_company || '-'}</div>
+                    <div className="text-sm text-gray-500">{formatCurrency(item.winning_amount)}</div>
+                  </td>
+                  <td>
+                    <div className="text-sm text-gray-700">{formatDate(item.publication_date)}</div>
+                    <div className="text-xs text-gray-400">{item.is_fresh ? 'Fresh result' : 'Historical'}</div>
+                  </td>
+                  <td>
+                    <div className="flex flex-wrap gap-2">
+                      {item.tender ? (
+                        <Link href={`/pre-sales/${encodeURIComponent(item.tender)}`} className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800">
+                          <ExternalLink className="h-4 w-4" />
+                          Workspace
+                        </Link>
+                      ) : null}
+                      {item.tender && EVALUATION_STAGES.has(item.result_stage || '') ? (
+                        <button
+                          type="button"
+                          className="text-sm font-medium text-amber-700 hover:text-amber-800"
+                          disabled={actionBusy === `${item.tender}:UNDER_EVALUATION`}
+                          onClick={() => void syncTenderStatus(item.tender!, 'UNDER_EVALUATION')}
+                        >
+                          {actionBusy === `${item.tender}:UNDER_EVALUATION` ? 'Syncing...' : 'Sync Evaluation'}
+                        </button>
+                      ) : null}
+                      {item.tender && AWARD_STAGES.has(item.result_stage || '') ? (
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 text-sm font-medium text-emerald-700 hover:text-emerald-800"
+                          disabled={actionBusy === `${item.tender}:WON`}
+                          onClick={() => void syncTenderStatus(item.tender!, 'WON')}
+                        >
+                          <CheckCircle2 className="h-4 w-4" />
+                          {actionBusy === `${item.tender}:WON` ? 'Syncing...' : 'Sync Won'}
+                        </button>
+                      ) : null}
+                      {!item.tender ? (
+                        <span className="inline-flex items-center gap-1 text-sm text-gray-400">
+                          <AlertCircle className="h-4 w-4" />
+                          Link tender first
+                        </span>
+                      ) : null}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
-
-      {/* Actions Bar */}
-      <div className="flex justify-end gap-2 mb-4">
-        <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm" onClick={openCreate}>
-          <Plus className="w-4 h-4" />
-          New Result
-        </button>
-        <button className="flex items-center gap-2 px-4 py-2 border border-blue-500 text-blue-600 rounded-md hover:bg-blue-50 text-sm">
-          <Download className="w-4 h-4" />
-          Export To Excel
-        </button>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-6 border-b border-gray-200 mb-4">
-        {tabs.map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`pb-3 text-sm font-medium transition-colors relative ${
-              activeTab === tab.key 
-                ? 'text-blue-600' 
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {tab.label}
-            {tab.count && (
-              <span className={`ml-1 ${activeTab === tab.key ? 'text-blue-600' : 'text-gray-400'}`}>
-                ({tab.count.toLocaleString()})
-              </span>
-            )}
-            {activeTab === tab.key && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
-            )}
-          </button>
-        ))}
-      </div>
-
-      {/* Results List */}
-      <div className="space-y-3">
-        {isLoading ? (
-          <div className="bg-white border border-gray-200 rounded-lg p-6 text-sm text-gray-500">
-            Loading tender results...
-          </div>
-        ) : results.length === 0 ? (
-          <div className="bg-white border border-gray-200 rounded-lg p-6 text-sm text-gray-500">
-            No tender results found.
-          </div>
-        ) : results.map((result, index) => (
-          <div 
-            key={result.name}
-            className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-          >
-            <div className="flex justify-between items-start">
-              {/* Left Content */}
-              <div className="flex-1">
-                {/* Header Row */}
-                <div className="flex items-center gap-3 flex-wrap mb-2">
-                  <span className="text-blue-600 font-semibold">
-                    {index + 1} | {formatCurrency(result.winning_amount)}
-                  </span>
-                  <span className="text-gray-500 text-sm flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5" />
-                    {result.publication_date || 'Refer Document'}
-                  </span>
-                  <span className="text-gray-300">|</span>
-                  <span className="text-sm">
-                    <span className="text-gray-500">Stage:</span>{' '}
-                    <span className={`font-medium ${getStageColor(result.result_stage)}`}>
-                      {result.result_stage}
-                    </span>
-                  </span>
-                  {result.reference_no ? (
-                    <span className="text-blue-600 text-sm">
-                      Ref: {result.reference_no}
-                    </span>
-                  ) : null}
-                </div>
-
-                {/* Description */}
-                <p className="text-gray-600 text-sm mb-2 line-clamp-2">
-                  {result.winner_company
-                    ? `Winner: ${result.winner_company}`
-                    : result.tender
-                      ? `Tender: ${result.tender}`
-                      : 'No tender result summary available.'}
-                </p>
-
-                {/* Location */}
-                <div className="flex items-center gap-1 text-sm text-gray-500">
-                  <MapPin className="w-3.5 h-3.5 text-blue-500" />
-                  <span>{result.organization_name || 'Unknown Organization'} - {result.site_location || 'Location not set'}</span>
-                </div>
-              </div>
-
-              {/* Right Content */}
-              <div className="text-right ml-4">
-                <p className="text-gray-700 font-medium mb-4">Result ID- {result.result_id || result.name}</p>
-                <div className="flex items-center gap-3 text-gray-400">
-                  <button 
-                    className="hover:text-blue-500 transition-colors"
-                    title="Edit"
-                    onClick={() => openEdit(result)}
-                  >
-                    <Edit2 className="w-5 h-5" />
-                  </button>
-                  <button 
-                    className="hover:text-red-500 transition-colors"
-                    title="Delete"
-                    onClick={() => handleDelete(result.name)}
-                  >
-                    <Trash2 className="w-5 h-5" />
-                  </button>
-                  <span className="text-gray-200">|</span>
-                  <button 
-                    className="hover:text-blue-500 transition-colors"
-                    title="View Document"
-                  >
-                    <FileText className="w-5 h-5" />
-                  </button>
-                  <span className="text-gray-200">|</span>
-                  <button 
-                    className="hover:text-blue-500 transition-colors"
-                    title="Download"
-                  >
-                    <Download className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Pagination */}
-      <div className="flex justify-center mt-6">
-        <div className="flex items-center gap-2">
-          <button className="px-3 py-1 border border-gray-200 rounded text-sm text-gray-500 hover:bg-gray-50">
-            Previous
-          </button>
-          <button className="px-3 py-1 bg-blue-600 text-white rounded text-sm">1</button>
-          <button className="px-3 py-1 border border-gray-200 rounded text-sm text-gray-500 hover:bg-gray-50">2</button>
-          <button className="px-3 py-1 border border-gray-200 rounded text-sm text-gray-500 hover:bg-gray-50">3</button>
-          <span className="text-gray-400">...</span>
-          <button className="px-3 py-1 border border-gray-200 rounded text-sm text-gray-500 hover:bg-gray-50">5282</button>
-          <button className="px-3 py-1 border border-gray-200 rounded text-sm text-gray-500 hover:bg-gray-50">
-            Next
-          </button>
-        </div>
-      </div>
-
-      {/* Create / Edit Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg">
-            <div className="flex items-center justify-between px-5 py-4 border-b">
-              <h3 className="font-semibold text-gray-900">{editingName ? 'Edit Tender Result' : 'New Tender Result'}</h3>
-              <button onClick={() => setShowModal(false)}><X className="w-5 h-5 text-gray-400" /></button>
-            </div>
-            <div className="p-5 space-y-3 max-h-[70vh] overflow-y-auto">
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">Result ID</label>
-                  <input className="input w-full" value={form.result_id} onChange={e => setForm({ ...form, result_id: e.target.value })} /></div>
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">Stage</label>
-                  <select className="input w-full" value={form.result_stage} onChange={e => setForm({ ...form, result_stage: e.target.value })}>
-                    <option value="AOC">AOC</option><option value="LoI Issued">LoI Issued</option><option value="Work Order">Work Order</option>
-                    <option value="Technical Evaluation">Technical Evaluation</option><option value="Financial Evaluation">Financial Evaluation</option>
-                  </select></div>
-              </div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Tender</label>
-                <input className="input w-full" value={form.tender} onChange={e => setForm({ ...form, tender: e.target.value })} /></div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">Organization</label>
-                  <input className="input w-full" value={form.organization_name} onChange={e => setForm({ ...form, organization_name: e.target.value })} /></div>
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">Site Location</label>
-                  <input className="input w-full" value={form.site_location} onChange={e => setForm({ ...form, site_location: e.target.value })} /></div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">Winner Company</label>
-                  <input className="input w-full" value={form.winner_company} onChange={e => setForm({ ...form, winner_company: e.target.value })} /></div>
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">Winning Amount</label>
-                  <input type="number" className="input w-full" value={form.winning_amount} onChange={e => setForm({ ...form, winning_amount: e.target.value })} /></div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">Reference No</label>
-                  <input className="input w-full" value={form.reference_no} onChange={e => setForm({ ...form, reference_no: e.target.value })} /></div>
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">Publication Date</label>
-                  <input type="date" className="input w-full" value={form.publication_date} onChange={e => setForm({ ...form, publication_date: e.target.value })} /></div>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 px-5 py-4 border-t">
-              <button className="btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
-              <button className="btn-primary" disabled={busy} onClick={handleSave}>{busy ? 'Saving…' : editingName ? 'Update' : 'Create'}</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

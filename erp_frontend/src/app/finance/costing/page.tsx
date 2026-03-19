@@ -47,9 +47,10 @@ export default function FinanceCostingPage() {
   const [createForm, setCreateForm] = useState({
     linked_tender: '',
     linked_boq: '',
+    description: '',
+    cost_type: 'Material',
     quantity: 1,
     rate: 0,
-    additional_charges: 0,
     remarks: '',
   });
 
@@ -83,6 +84,10 @@ export default function FinanceCostingPage() {
       setError('Linked Tender is required.');
       return;
     }
+    if (!createForm.description.trim()) {
+      setError('Description is required.');
+      return;
+    }
 
     setCreating(true);
     setError('');
@@ -90,12 +95,14 @@ export default function FinanceCostingPage() {
       const payload = {
         linked_tender: createForm.linked_tender,
         linked_boq: createForm.linked_boq || undefined,
-        additional_charges: Number(createForm.additional_charges) || 0,
-        remarks: createForm.remarks || undefined,
+        notes: createForm.remarks || undefined,
         items: [
           {
-            quantity: Number(createForm.quantity) || 1,
-            rate: Number(createForm.rate) || 0,
+            description: createForm.description.trim(),
+            cost_type: createForm.cost_type,
+            qty: Number(createForm.quantity) || 1,
+            base_rate: Number(createForm.rate) || 0,
+            remarks: createForm.remarks || undefined,
           },
         ],
       };
@@ -114,9 +121,10 @@ export default function FinanceCostingPage() {
       setCreateForm({
         linked_tender: '',
         linked_boq: '',
+        description: '',
+        cost_type: 'Material',
         quantity: 1,
         rate: 0,
-        additional_charges: 0,
         remarks: '',
       });
       await loadData();
@@ -186,6 +194,29 @@ export default function FinanceCostingPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Linked BOQ</label>
                 <input className="input" value={createForm.linked_boq} onChange={(e) => setCreateForm((p) => ({ ...p, linked_boq: e.target.value }))} />
               </div>
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
+                <textarea
+                  className="input min-h-24"
+                  value={createForm.description}
+                  onChange={(e) => setCreateForm((p) => ({ ...p, description: e.target.value }))}
+                  placeholder="Cost item description"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Cost Type *</label>
+                <select
+                  className="input"
+                  value={createForm.cost_type}
+                  onChange={(e) => setCreateForm((p) => ({ ...p, cost_type: e.target.value }))}
+                >
+                  <option value="Material">Material</option>
+                  <option value="Service">Service</option>
+                  <option value="Labour">Labour</option>
+                  <option value="Overhead">Overhead</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Quantity *</label>
                 <input className="input" type="number" min={1} step={1} value={createForm.quantity} onChange={(e) => setCreateForm((p) => ({ ...p, quantity: Number(e.target.value) || 1 }))} />
@@ -193,10 +224,6 @@ export default function FinanceCostingPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Rate *</label>
                 <input className="input" type="number" min={0} step={0.01} value={createForm.rate} onChange={(e) => setCreateForm((p) => ({ ...p, rate: Number(e.target.value) || 0 }))} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Additional Charges</label>
-                <input className="input" type="number" min={0} step={0.01} value={createForm.additional_charges} onChange={(e) => setCreateForm((p) => ({ ...p, additional_charges: Number(e.target.value) || 0 }))} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Remarks</label>

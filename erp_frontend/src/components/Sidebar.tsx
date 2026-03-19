@@ -129,8 +129,6 @@ const navLinks: NavLink[] = [
         children: [
           { name: 'Company Profile', href: '/pre-sales/analytics/company-profile' },
           { name: 'Competitors', href: '/pre-sales/analytics/competitors' },
-          { name: 'Tender Results', href: '/pre-sales/analytics/tender-results' },
-          { name: 'MIS Reports', href: '/pre-sales/analytics/mis-reports' },
           { name: 'Compare Bidders', href: '/pre-sales/analytics/compare-bidders' },
           { name: 'Missed Opportunity', href: '/pre-sales/analytics/missed-opportunity' },
         ],
@@ -166,15 +164,6 @@ const navLinks: NavLink[] = [
           { name: 'Finance MIS', href: '/pre-sales/mis/finance' },
           { name: 'Sales MIS', href: '/pre-sales/mis/sales' },
           { name: 'Login MIS', href: '/pre-sales/mis/login' },
-        ],
-      },
-      {
-        name: 'Document Management',
-        href: '/pre-sales/documents',
-        icon: Files,
-        children: [
-          { name: 'Document Brief Case', href: '/pre-sales/documents/briefcase' },
-          { name: 'Folders', href: '/pre-sales/documents/folders' },
         ],
       },
       { name: "Approval's", href: '/pre-sales/approvals', icon: CheckSquare },
