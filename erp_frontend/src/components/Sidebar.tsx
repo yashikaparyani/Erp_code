@@ -43,8 +43,10 @@ import {
   Lock,
   Shield,
   Eye,
+  ScrollText,
 } from 'lucide-react';
 import { useRole, type Role, PROJECT_SIDE_ROLES } from '../context/RoleContext';
+import { usePermissions } from '../context/PermissionContext';
 
 interface SubMenuItem {
   name: string;
@@ -100,14 +102,14 @@ const filterAccessibleNavLinks = (links: NavLink[], hasAccess: (path: string) =>
   }, []);
 };
 
-const shouldShowNavLinkForRole = (link: NavLink, role: Role) => {
-  // Projects tab: only project-side roles (Director, Project Head, Project Manager)
+const shouldShowNavLinkForRole = (link: NavLink, role: Role, isPermissionLoaded: boolean) => {
+  // When backend permissions are loaded, all filtering is handled by hasAccess
+  // (which delegates to canAccessRoute). Skip the hardcoded PROJECT_SIDE_ROLES gate.
+  if (isPermissionLoaded) return true;
+
+  // Fallback: Projects tab only for project-side roles
   if (link.name === 'Projects') {
     return PROJECT_SIDE_ROLES.includes(role);
-  }
-
-  if (link.name === 'Execution (I&C)') {
-    return role === 'Director' || role === 'Project Head';
   }
 
   return true;
@@ -280,6 +282,7 @@ const navLinks: NavLink[] = [
       { name: 'Permissions', href: '/settings/permissions', icon: Lock },
       { name: 'Stage Visibility', href: '/settings/stage-visibility', icon: Eye },
       { name: 'User Management', href: '/settings/user-management', icon: Users2 },
+      { name: 'Audit Log', href: '/settings/audit-log', icon: ScrollText },
       { name: 'Checklist', href: '/settings/checklist', icon: CheckSquare },
     ],
   },
@@ -355,11 +358,11 @@ function SubMenu({ items, level = 0, onNavigate }: { items: SubMenuItem[]; level
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { hasAccess, currentRole } = useRole();
+  const { hasAccess, currentRole, isPermissionLoaded } = useRole();
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean | undefined>>({});
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const accessibleLinks = filterAccessibleNavLinks(
-    navLinks.filter((link) => shouldShowNavLinkForRole(link, currentRole)),
+    navLinks.filter((link) => shouldShowNavLinkForRole(link, currentRole, isPermissionLoaded)),
     hasAccess,
   );
 

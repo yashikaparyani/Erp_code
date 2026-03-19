@@ -1,27 +1,34 @@
 'use client';
 import { usePathname } from 'next/navigation';
 import { useRole, PROJECT_SIDE_ROLES } from '../context/RoleContext';
+import { usePermissions } from '../context/PermissionContext';
 import { ShieldAlert } from 'lucide-react';
 
 const PUBLIC_PATHS = ['/', '/login', '/profile'];
 
 export default function RouteGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { currentRole, hasAccess } = useRole();
+  const { currentRole, hasAccess, isPermissionLoaded } = useRole();
+  const { permissions } = usePermissions();
 
   // Always allow public paths
   if (PUBLIC_PATHS.includes(pathname)) {
     return <>{children}</>;
   }
 
-  // /projects is further restricted to PROJECT_SIDE_ROLES
-  if (pathname === '/projects' || pathname.startsWith('/projects/')) {
-    if (!PROJECT_SIDE_ROLES.includes(currentRole)) {
-      return <AccessDenied role={currentRole} path={pathname} />;
+  // /projects is further restricted to PROJECT_SIDE_ROLES (hardcoded gate)
+  // When backend permissions are loaded, hasAccess already handles this via
+  // the "project" module capability. The fallback gate covers the case where
+  // backend permissions haven't loaded yet.
+  if (!isPermissionLoaded || !permissions) {
+    if (pathname === '/projects' || pathname.startsWith('/projects/')) {
+      if (!PROJECT_SIDE_ROLES.includes(currentRole)) {
+        return <AccessDenied role={currentRole} path={pathname} />;
+      }
     }
   }
 
-  // Check role-based route access
+  // Check role-based route access (delegates to backend RBAC when loaded)
   if (!hasAccess(pathname)) {
     return <AccessDenied role={currentRole} path={pathname} />;
   }

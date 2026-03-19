@@ -22,11 +22,13 @@ type ProjectListItem = {
 };
 
 export type DeptProjectListConfig = {
+  departmentKey: string;
   departmentLabel: string;
   workspaceBasePath: string;   // e.g. '/engineering/projects'
   parentHref: string;          // e.g. '/engineering'
   parentLabel: string;         // e.g. 'Engineering'
   accentColor: string;         // tailwind bg class for the dept badge
+  allowedStages?: string[];
 };
 
 /* ─── API helper ─────────────────────────────────────────── */
@@ -56,7 +58,9 @@ export default function DepartmentProjectList({ config }: { config: DeptProjectL
     let active = true;
     (async () => {
       try {
-        const data = await callOps<ProjectListItem[]>('get_project_spine_list');
+        const data = await callOps<ProjectListItem[]>('get_project_spine_list', {
+          ...(config.departmentKey !== 'all' ? { department: config.departmentKey } : {}),
+        });
         if (active) setProjects(data);
       } catch (err) {
         if (active) setError(err instanceof Error ? err.message : 'Failed to load projects');
@@ -77,6 +81,8 @@ export default function DepartmentProjectList({ config }: { config: DeptProjectL
         );
       })
     : projects;
+
+  const departmentFiltered = filtered;
 
   if (loading) {
     return (
@@ -118,7 +124,7 @@ export default function DepartmentProjectList({ config }: { config: DeptProjectL
 
       {/* Search + count */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-[var(--text-muted)]">{filtered.length} projects</p>
+        <p className="text-sm text-[var(--text-muted)]">{departmentFiltered.length} relevant projects</p>
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
           <input
@@ -132,11 +138,11 @@ export default function DepartmentProjectList({ config }: { config: DeptProjectL
       </div>
 
       {/* Project cards */}
-      {!filtered.length ? (
-        <p className="py-12 text-center text-sm text-[var(--text-muted)]">No projects found.</p>
+      {!departmentFiltered.length ? (
+        <p className="py-12 text-center text-sm text-[var(--text-muted)]">No department-relevant projects found.</p>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {filtered.map((p) => (
+          {departmentFiltered.map((p) => (
             <Link
               key={p.name}
               href={`${config.workspaceBasePath}/${encodeURIComponent(p.name)}`}

@@ -1,5 +1,7 @@
 import './globals.css';
 import { AuthProvider } from '../context/AuthContext';
+import { PermissionProvider } from '../context/PermissionContext';
+import { WorkspacePermissionProvider } from '../context/WorkspacePermissionContext';
 import { RoleProvider } from '../context/RoleContext';
 import AppShell from '../components/AppShell';
 
@@ -13,11 +15,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className="bg-gray-50 windows-erp-theme">
         <AuthProvider>
-          <RoleProvider>
-            <AppShell>
-              {children}
-            </AppShell>
-          </RoleProvider>
+          <PermissionProvider>
+            <WorkspacePermissionProvider>
+              <RoleProvider>
+                <AppShell>
+                  {children}
+                </AppShell>
+              </RoleProvider>
+            </WorkspacePermissionProvider>
+          </PermissionProvider>
         </AuthProvider>
       </body>
     </html>

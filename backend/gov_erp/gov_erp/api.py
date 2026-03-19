@@ -7,6 +7,7 @@ from gov_erp.gov_erp.doctype.ge_dependency_rule.ge_dependency_rule import (
 	evaluate_dependency_state,
 	resolve_reference_status,
 )
+from gov_erp.permission_engine import PermissionEngine
 from gov_erp.project_workflow import (
 	WORKFLOW_STAGE_KEYS,
 	WORKFLOW_SUPER_ROLES,
@@ -102,6 +103,52 @@ def _user_has_any_role(*roles):
 	if ROLE_DIRECTOR in user_roles:
 		return True
 	return not user_roles.isdisjoint(set(roles) | {ROLE_SYSTEM_MANAGER})
+
+
+# ── Pack-aware permission helpers ────────────────────────────────────────────
+# These wrap the PermissionEngine for use as API-endpoint guards.
+# They co-exist with _require_roles so existing guards keep working.
+
+def _get_permission_engine(user=None):
+	"""Get or create a request-scoped PermissionEngine instance."""
+	user = user or frappe.session.user
+	cache_key = f"_permission_engine_{user}"
+	engine = getattr(frappe.local, cache_key, None)
+	if engine is None:
+		engine = PermissionEngine(user=user)
+		setattr(frappe.local, cache_key, engine)
+	return engine
+
+
+def _require_capability(capability_key, project=None, site=None, required_mode=None):
+	"""Guard: throw PermissionError if user lacks the capability."""
+	_require_authenticated_user()
+	_get_permission_engine().check_capability(
+		capability_key, project=project, site=site, required_mode=required_mode,
+	)
+
+
+def _require_any_capability(*capability_keys, project=None, site=None):
+	"""Guard: throw PermissionError if user lacks ALL of the listed capabilities."""
+	_require_authenticated_user()
+	_get_permission_engine().check_any_capability(
+		*capability_keys, project=project, site=site,
+	)
+
+
+def _require_module_access(module_key):
+	"""Guard: throw PermissionError if user cannot access the module."""
+	_require_authenticated_user()
+	_get_permission_engine().check_module_access(module_key)
+
+
+def _user_has_capability(capability_key, project=None, site=None):
+	"""Check (no throw) if user has a capability. Returns bool."""
+	if frappe.session.user == "Guest":
+		return False
+	return _get_permission_engine().has_capability(
+		capability_key, project=project, site=site,
+	)
 
 
 def _build_workflow_event(action, stage, remarks=None, next_stage=None, metadata=None):
@@ -413,192 +460,119 @@ def _require_cost_sheet_approval_access():
 
 
 def _require_procurement_read_access():
-	_require_roles(
-		ROLE_PROCUREMENT_HEAD,
-		ROLE_PURCHASE,
-		ROLE_PROJECT_MANAGER,
-		ROLE_PROJECT_HEAD,
-		ROLE_ENGINEERING_HEAD,
-		ROLE_DIRECTOR,
-	)
+	_require_module_access("procurement")
 
 
 def _require_procurement_write_access():
-	_require_roles(ROLE_PROCUREMENT_HEAD, ROLE_PURCHASE)
+	_require_any_capability(
+		"procurement.indent.create", "procurement.indent.update",
+		"procurement.comparison.create", "procurement.readiness.update",
+	)
 
 
 def _require_procurement_approval_access():
-	_require_roles(ROLE_PROJECT_HEAD, ROLE_ENGINEERING_HEAD, ROLE_DIRECTOR)
+	_require_capability("approval.action.approve")
 
 
 def _require_store_read_access():
-	_require_roles(
-		ROLE_STORE_MANAGER,
-		ROLE_STORES_LOGISTICS_HEAD,
-		ROLE_PROCUREMENT_HEAD,
-		ROLE_PURCHASE,
-		ROLE_PROJECT_MANAGER,
-		ROLE_PROJECT_HEAD,
-		ROLE_DIRECTOR,
-	)
+	_require_module_access("inventory")
 
 
 def _require_store_write_access():
-	_require_roles(ROLE_STORE_MANAGER, ROLE_STORES_LOGISTICS_HEAD, ROLE_PROCUREMENT_HEAD, ROLE_PURCHASE)
+	_require_any_capability(
+		"inventory.grn.create", "inventory.movement.create",
+		"inventory.project_link.manage", "inventory.traceability.manage",
+	)
 
 
 def _require_store_approval_access():
-	_require_roles(ROLE_PROJECT_HEAD, ROLE_PROCUREMENT_HEAD, ROLE_DIRECTOR)
+	_require_capability("approval.action.approve")
 
 
 def _require_milestone_read_access():
-	_require_roles(
-		ROLE_PROJECT_MANAGER,
-		ROLE_PROJECT_HEAD,
-		ROLE_ENGINEERING_HEAD,
-		ROLE_DIRECTOR,
-	)
+	_require_capability("project.milestone.view")
 
 
 def _require_milestone_write_access():
-	_require_roles(
-		ROLE_PROJECT_MANAGER,
-		ROLE_PROJECT_HEAD,
-		ROLE_ENGINEERING_HEAD,
-	)
+	# No dedicated milestone-write capability yet; use project stage submit as proxy
+	_require_capability("project.stage.submit")
 
 
 def _require_document_read_access():
-	_require_roles(
-		ROLE_PROJECT_HEAD,
-		ROLE_PROJECT_MANAGER,
-		ROLE_DEPARTMENT_HEAD,
-		ROLE_DIRECTOR,
-		ROLE_ACCOUNTS,
-	)
+	_require_capability("dms.file.view")
 
 
 def _require_document_write_access():
-	_require_roles(
-		ROLE_PROJECT_HEAD,
-		ROLE_PROJECT_MANAGER,
-		ROLE_DEPARTMENT_HEAD,
-	)
+	_require_capability("dms.file.upload")
 
 
 def _require_execution_read_access():
-	_require_roles(
-		ROLE_PRESALES_HEAD,
-		ROLE_PROJECT_MANAGER,
-		ROLE_PROJECT_HEAD,
-		ROLE_ENGINEERING_HEAD,
-		ROLE_ENGINEER,
-		ROLE_FIELD_TECHNICIAN,
-		ROLE_DEPARTMENT_HEAD,
-		ROLE_DIRECTOR,
-	)
+	_require_module_access("execution")
 
 
 def _require_execution_write_access():
-	_require_roles(ROLE_PRESALES_HEAD, ROLE_PROJECT_MANAGER, ROLE_PROJECT_HEAD, ROLE_ENGINEERING_HEAD, ROLE_ENGINEER)
+	_require_any_capability(
+		"execution.installation.update", "execution.commissioning.update",
+		"execution.evidence.upload", "execution.device.manage",
+	)
 
 
 def _require_comm_log_read_access():
-	_require_roles(
-		ROLE_PROJECT_HEAD,
-		ROLE_PROJECT_MANAGER,
-		ROLE_ENGINEERING_HEAD,
-		ROLE_DIRECTOR,
-	)
+	_require_capability("project.activity.view")
 
 
 def _require_comm_log_write_access():
-	_require_roles(
-		ROLE_PROJECT_HEAD,
-		ROLE_PROJECT_MANAGER,
-		ROLE_ENGINEERING_HEAD,
-	)
+	# Activity view with action mode serves as write guard
+	_require_capability("project.activity.view", required_mode="action")
 
 
 def _require_project_asset_access():
-	_require_roles(ROLE_PRESALES_HEAD, ROLE_PROJECT_HEAD, ROLE_PROJECT_MANAGER)
+	_require_capability("project.workspace.access")
 
 
 def _require_hr_read_access():
-	_require_roles(
-		ROLE_HR_MANAGER,
-		ROLE_DEPARTMENT_HEAD,
-		ROLE_DIRECTOR,
-	)
+	_require_module_access("hr")
 
 
 def _require_hr_write_access():
-	_require_roles(ROLE_HR_MANAGER)
+	_require_any_capability("hr.onboarding.manage", "hr.manpower.assign")
 
 
 def _require_hr_approval_access():
-	_require_roles(ROLE_HR_MANAGER, ROLE_DEPARTMENT_HEAD)
+	_require_capability("approval.action.approve")
 
 
 def _require_manpower_read_access():
-	_require_roles(
-		ROLE_PROJECT_HEAD,
-		ROLE_PROJECT_MANAGER,
-		ROLE_HR_HEAD,
-		ROLE_DIRECTOR,
-	)
+	_require_any_capability("hr.staffing.view", "hr.manpower.assign")
 
 
 def _require_manpower_write_access():
-	_require_roles(ROLE_PROJECT_HEAD, ROLE_PROJECT_MANAGER, ROLE_HR_HEAD)
+	_require_capability("hr.manpower.assign")
 
 
 def _require_rma_read_access():
-	_require_roles(
-		ROLE_OM_OPERATOR,
-		ROLE_PROJECT_HEAD,
-		ROLE_PROJECT_MANAGER,
-		ROLE_RMA_HEAD,
-		ROLE_PROCUREMENT_HEAD,
-		ROLE_DIRECTOR,
-	)
+	_require_any_capability("om.rma.access", "om.rma.manage")
 
 
 def _require_rma_write_access():
-	_require_roles(
-		ROLE_OM_OPERATOR,
-		ROLE_PROJECT_HEAD,
-		ROLE_PROJECT_MANAGER,
-		ROLE_RMA_HEAD,
-		ROLE_PROCUREMENT_HEAD,
-	)
+	_require_capability("om.rma.manage")
 
 
 def _require_rma_approval_access():
-	_require_roles(ROLE_PROJECT_HEAD, ROLE_RMA_HEAD, ROLE_DIRECTOR)
+	_require_capability("approval.action.approve")
 
 
 def _require_device_uptime_read_access():
-	_require_roles(
-		ROLE_PROJECT_HEAD,
-		ROLE_PROJECT_MANAGER,
-		ROLE_RMA_HEAD,
-		ROLE_ENGINEERING_HEAD,
-		ROLE_DIRECTOR,
-	)
+	_require_capability("om.uptime.view")
 
 
 def _require_device_uptime_write_access():
-	_require_roles(
-		ROLE_PROJECT_HEAD,
-		ROLE_PROJECT_MANAGER,
-		ROLE_RMA_HEAD,
-		ROLE_ENGINEERING_HEAD,
-	)
+	# Uptime write uses the same capability with action mode
+	_require_capability("om.uptime.view", required_mode="action")
 
 
 def _require_dependency_override_approval_access():
-	_require_roles(ROLE_DEPARTMENT_HEAD, ROLE_PROJECT_HEAD)
+	_require_capability("project.dependency.override", required_mode="override")
 
 
 def _get_primary_frontend_role(user_roles):
@@ -648,40 +622,27 @@ def logout_current_session():
 
 
 def _require_billing_read_access():
-	_require_roles(
-		ROLE_ACCOUNTS_HEAD,
-		ROLE_PROJECT_HEAD,
-		ROLE_PROJECT_MANAGER,
-		ROLE_DIRECTOR,
-	)
+	_require_capability("finance.billing.view")
 
 
 def _require_billing_write_access():
-	_require_roles(ROLE_ACCOUNTS_HEAD)
+	_require_capability("finance.invoice.create")
 
 
 def _require_billing_approval_access():
-	_require_roles(ROLE_ACCOUNTS_HEAD, ROLE_PROJECT_HEAD, ROLE_DIRECTOR)
+	_require_capability("finance.action.approve")
 
 
 def _require_om_read_access():
-	_require_roles(
-		ROLE_OM_OPERATOR,
-		ROLE_PROJECT_MANAGER,
-		ROLE_ENGINEERING_HEAD,
-		ROLE_ENGINEER,
-		ROLE_DEPARTMENT_HEAD,
-		ROLE_DIRECTOR,
-		ROLE_RMA_MANAGER,
-	)
+	_require_module_access("om")
 
 
 def _require_om_write_access():
-	_require_roles(ROLE_OM_OPERATOR, ROLE_PROJECT_MANAGER, ROLE_ENGINEERING_HEAD, ROLE_ENGINEER, ROLE_RMA_MANAGER)
+	_require_any_capability("om.ticket.manage", "om.sla.manage", "om.issue.close")
 
 
 def _require_om_approval_access():
-	_require_roles(ROLE_DEPARTMENT_HEAD, ROLE_DIRECTOR, ROLE_RMA_MANAGER)
+	_require_capability("approval.action.approve")
 
 
 def get_health_payload():
@@ -8535,8 +8496,8 @@ def delete_project(name):
 
 
 @frappe.whitelist()
-def get_project_spine_list():
-        """List all projects with spine summary data."""
+def get_project_spine_list(department=None):
+        """List projects with optional department-aware filtering."""
         _require_project_workspace_access()
         projects = frappe.get_all(
                 "Project",
@@ -8549,6 +8510,30 @@ def get_project_spine_list():
                 ],
                 order_by="creation desc",
         )
+
+        if department:
+                dept_key = cstr(department).strip().lower().replace(" ", "_")
+                allowed_stages = set(DEPARTMENT_STAGE_MAP.get(dept_key, []))
+                if allowed_stages:
+                        relevant_projects = []
+                        for project in projects:
+                                project_stage = project.get("current_project_stage") or "SURVEY"
+                                if project_stage in allowed_stages:
+                                        relevant_projects.append(project)
+                                        continue
+
+                                matching_sites = frappe.db.count(
+                                        "GE Site",
+                                        filters={
+                                                "linked_project": project.get("name"),
+                                                "current_site_stage": ["in", list(allowed_stages)],
+                                        },
+                                )
+                                if matching_sites:
+                                        relevant_projects.append(project)
+
+                        projects = relevant_projects
+
         return {"success": True, "data": projects}
 
 
@@ -8619,71 +8604,6 @@ def get_project_spine_summary(project=None):
                         "site_count": len(sites),
                         "stage_coverage": stage_coverage,
                         "action_queue": action_queue,
-                },
-        }
-
-
-@frappe.whitelist()
-def get_project_spine_detail(project=None, department=None):
-        """
-        Detailed project view centered on site-level execution.
-
-        A project is treated as an aggregation of its sites so each department can
-        break the project down only through site/stage reality.
-        """
-        _require_spine_read_access()
-        project = _require_param(project, "project")
-        proj = frappe.get_doc("Project", project)
-        rollup = _get_project_site_rollup(project)
-        team_members = frappe.get_all(
-                "GE Project Team Member",
-                filters={"linked_project": project},
-                fields=["name", "user", "role_in_project", "linked_site", "is_active"],
-                order_by="creation asc",
-        )
-        project_assets = frappe.get_all(
-                "GE Project Asset",
-                filters={"linked_project": project},
-                fields=["name", "asset_name", "asset_type", "status", "linked_site", "assigned_to"],
-                order_by="creation desc",
-                limit_page_length=50,
-        )
-
-        selected_lane = None
-        if department:
-                department_key = cstr(department).strip().lower().replace(" ", "_")
-                selected_lane = rollup["department_lanes"].get(department_key)
-
-        return {
-                "success": True,
-                "data": {
-                        "project_summary": {
-                                "name": proj.name,
-                                "project_name": proj.project_name,
-                                "status": proj.status,
-                                "customer": proj.customer,
-                                "company": proj.company,
-                                "linked_tender": getattr(proj, "linked_tender", None),
-                                "project_head": getattr(proj, "project_head", None),
-                                "project_manager_user": getattr(proj, "project_manager_user", None),
-                                "current_project_stage": getattr(proj, "current_project_stage", None),
-                                "current_stage_status": getattr(proj, "current_stage_status", None),
-                                "current_stage_owner_department": getattr(proj, "current_stage_owner_department", None),
-                                "spine_progress_pct": getattr(proj, "spine_progress_pct", 0),
-                                "spine_blocked": cint(getattr(proj, "spine_blocked", 0)),
-                                "blocker_summary": getattr(proj, "blocker_summary", None),
-                                "total_sites": len(rollup["sites"]),
-                                "expected_start_date": str(proj.expected_start_date) if proj.expected_start_date else None,
-                                "expected_end_date": str(proj.expected_end_date) if proj.expected_end_date else None,
-                        },
-                        "site_count": len(rollup["sites"]),
-                        "sites": rollup["sites"],
-                        "stage_coverage": rollup["stage_coverage"],
-                        "department_lanes": rollup["department_lanes"],
-                        "selected_department_lane": selected_lane,
-                        "action_queue": rollup["action_queue"],
-                        "team_members": team_members,
-                        "project_assets": project_assets,
                 },
         }
 

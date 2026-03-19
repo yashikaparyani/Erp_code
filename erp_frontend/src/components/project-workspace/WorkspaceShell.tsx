@@ -16,6 +16,8 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { formatPercent } from '../dashboards/shared';
+import { usePermissions } from '../../context/PermissionContext';
+import { useWorkspacePermissions, WorkspacePermissions } from '../../context/WorkspacePermissionContext';
 
 /* ═══════════════════════════════════════════════════════════
    Types
@@ -77,6 +79,7 @@ export type ProjectDetail = {
   sites: SiteRow[];
   stage_coverage: Record<string, number>;
   department_lanes: Record<string, DepartmentLane>;
+  selected_department_lane?: DepartmentLane | null;
   action_queue: {
     blocked_count: number;
     pending_count: number;
@@ -213,10 +216,17 @@ function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }
    Overview Tab
    ═══════════════════════════════════════════════════════════ */
 
-function OverviewTab({ detail, config, deptSites, projectId, onTabChange }: { detail: ProjectDetail; config: DepartmentConfig; deptSites: SiteRow[]; projectId: string; onTabChange: (tab: TabKey) => void }) {
+function OverviewTab({ detail, config, deptSites, projectId, onTabChange, wp }: { detail: ProjectDetail; config: DepartmentConfig; deptSites: SiteRow[]; projectId: string; onTabChange: (tab: TabKey) => void; wp: WorkspacePermissions | null }) {
   const ps = detail.project_summary;
   const aq = detail.action_queue;
-  const lanes = Object.values(detail.department_lanes || {});
+  const allLanes = Object.values(detail.department_lanes || {});
+  // Filter department lanes by workspace permissions when available
+  const lanes = wp?.department_access
+    ? allLanes.filter((lane) => {
+        const access = wp.department_access[lane.department];
+        return !access || access.can_view; // allow if no access entry (not gated)
+      })
+    : allLanes;
   const isDept = config.departmentKey !== 'all';
 
   const blockedCount = isDept
@@ -565,7 +575,9 @@ function SitesTab({ sites, config }: { sites: SiteRow[]; config: DepartmentConfi
    Files Tab
    ═══════════════════════════════════════════════════════════ */
 
-function FilesTab({ projectId }: { projectId: string }) {
+function FilesTab({ projectId, wp }: { projectId: string; wp: WorkspacePermissions | null }) {
+  const canUpload = wp?.can_upload_files ?? true;
+  const canDelete = wp?.can_delete_files ?? false;
   const [docs, setDocs] = useState<ProjectDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -956,6 +968,13 @@ function MilestonesTab({ sites, projectId, config }: { sites: SiteRow[]; project
    ═══════════════════════════════════════════════════════════ */
 
 export default function WorkspaceShell({ projectId, config }: { projectId: string; config: DepartmentConfig }) {
+  const { permissions, isLoaded: isPermissionLoaded } = usePermissions();
+  const { wp, isLoaded: isWpLoaded, loadForProject, canViewDepartment } = useWorkspacePermissions();
+
+  // Load workspace permissions for this project
+  useEffect(() => {
+    if (projectId) { void loadForProject(projectId); }
+  }, [projectId, loadForProject]);
   const [detail, setDetail] = useState<ProjectDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -969,7 +988,10 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
       setLoading(true);
       setError('');
       try {
-        const data = await callOps<ProjectDetail>('get_project_spine_detail', { project: projectId });
+        const data = await callOps<ProjectDetail>('get_project_spine_detail', {
+          project: projectId,
+          ...(config.departmentKey !== 'all' ? { department: config.departmentKey } : {}),
+        });
         if (!active) return;
         setDetail(data);
       } catch (err) {
@@ -986,10 +1008,13 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
   // Filter sites by department's allowed stages
   const deptSites = useMemo(() => {
     if (!detail?.sites) return [];
+    if (config.departmentKey !== 'all' && detail.selected_department_lane?.sites?.length) {
+      return detail.selected_department_lane.sites;
+    }
     if (!config.allowedStages) return detail.sites;
     const allowed = new Set(config.allowedStages);
     return detail.sites.filter((s) => allowed.has(s.current_site_stage || 'SURVEY'));
-  }, [detail?.sites, config.allowedStages]);
+  }, [detail?.sites, detail?.selected_department_lane, config.allowedStages, config.departmentKey]);
 
   /* –– Loading / Error states –– */
   if (loading) {
@@ -1014,7 +1039,30 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
   }
 
   const ps = detail.project_summary;
-  const visibleTabs = config.tabs;
+  const visibleTabs = useMemo(() => {
+    const configured = config.tabs;
+    // Prefer project-scoped workspace permissions when loaded
+    const tabSource = isWpLoaded && wp?.visible_tabs?.length
+      ? wp.visible_tabs
+      : (isPermissionLoaded && permissions?.visible_tabs?.length
+        ? permissions.visible_tabs
+        : null);
+
+    if (!tabSource) return configured;
+
+    const backendVisible = new Set(
+      tabSource.filter((tab): tab is TabKey => configured.includes(tab as TabKey)),
+    );
+
+    const intersected = configured.filter((tab) => backendVisible.has(tab));
+    return intersected.length ? intersected : configured;
+  }, [config.tabs, isPermissionLoaded, permissions?.visible_tabs, isWpLoaded, wp?.visible_tabs]);
+
+  useEffect(() => {
+    if (!visibleTabs.includes(activeTab)) {
+      setActiveTab(visibleTabs[0] || 'overview');
+    }
+  }, [activeTab, visibleTabs]);
 
   return (
     <div className="space-y-0">
@@ -1072,11 +1120,11 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
       </div>
 
       {/* ── Tab Content ── */}
-      {activeTab === 'overview' && <OverviewTab detail={detail} config={config} deptSites={deptSites} projectId={projectId} onTabChange={setActiveTab} />}
+      {activeTab === 'overview' && <OverviewTab detail={detail} config={config} deptSites={deptSites} projectId={projectId} onTabChange={setActiveTab} wp={wp} />}
       {activeTab === 'sites' && <SitesTab sites={deptSites} config={config} />}
       {activeTab === 'board' && <SiteBoardTab sites={deptSites} config={config} />}
       {activeTab === 'milestones' && <MilestonesTab sites={deptSites} projectId={projectId} config={config} />}
-      {activeTab === 'files' && <FilesTab projectId={projectId} />}
+      {activeTab === 'files' && <FilesTab projectId={projectId} wp={wp} />}
       {activeTab === 'activity' && <ActivityTab projectId={projectId} />}
     </div>
   );

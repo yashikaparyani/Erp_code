@@ -6,6 +6,7 @@ export default function HRProjectsPage() {
   return (
     <DepartmentProjectList
       config={{
+        departmentKey: 'hr',
         departmentLabel: 'HR & Manpower',
         workspaceBasePath: '/hr/projects',
         parentHref: '/hr',

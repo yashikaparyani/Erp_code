@@ -1,0 +1,150 @@
+{
+ "actions": [],
+ "autoname": "field:user",
+ "creation": "2026-03-19 10:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "user",
+  "column_break_identity",
+  "department",
+  "designation",
+  "section_break_roles",
+  "primary_role",
+  "column_break_roles2",
+  "secondary_roles",
+  "section_break_assignment",
+  "assigned_projects",
+  "column_break_sites",
+  "assigned_sites",
+  "section_break_geo",
+  "region",
+  "column_break_status",
+  "is_active"
+ ],
+ "fields": [
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "User",
+   "options": "User",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "column_break_identity",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "department",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Department"
+  },
+  {
+   "fieldname": "designation",
+   "fieldtype": "Data",
+   "in_standard_filter": 1,
+   "label": "Designation"
+  },
+  {
+   "fieldname": "section_break_roles",
+   "fieldtype": "Section Break",
+   "label": "Roles"
+  },
+  {
+   "fieldname": "primary_role",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Primary Role",
+   "options": "Role"
+  },
+  {
+   "fieldname": "column_break_roles2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "secondary_roles",
+   "fieldtype": "Small Text",
+   "label": "Secondary Roles",
+   "description": "Comma-separated role names"
+  },
+  {
+   "fieldname": "section_break_assignment",
+   "fieldtype": "Section Break",
+   "label": "Project & Site Assignment"
+  },
+  {
+   "fieldname": "assigned_projects",
+   "fieldtype": "Small Text",
+   "label": "Assigned Projects",
+   "description": "Comma-separated project names"
+  },
+  {
+   "fieldname": "column_break_sites",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "assigned_sites",
+   "fieldtype": "Small Text",
+   "label": "Assigned Sites",
+   "description": "Comma-separated site names"
+  },
+  {
+   "fieldname": "section_break_geo",
+   "fieldtype": "Section Break",
+   "label": "Region & Status"
+  },
+  {
+   "fieldname": "region",
+   "fieldtype": "Data",
+   "label": "Region"
+  },
+  {
+   "fieldname": "column_break_status",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Active"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-03-19 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE User Context",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Director"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "ASC",
+ "states": [],
+ "title_field": "user",
+ "track_changes": 1
+}

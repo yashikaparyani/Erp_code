@@ -6,11 +6,13 @@ export default function OMHelpdeskProjectsPage() {
   return (
     <DepartmentProjectList
       config={{
+        departmentKey: 'om_rma',
         departmentLabel: 'O&M & Helpdesk',
         workspaceBasePath: '/om-helpdesk/projects',
         parentHref: '/om-helpdesk',
         parentLabel: 'O&M & Helpdesk',
         accentColor: 'bg-orange-50',
+        allowedStages: ['OM_RMA', 'CLOSED'],
       }}
     />
   );

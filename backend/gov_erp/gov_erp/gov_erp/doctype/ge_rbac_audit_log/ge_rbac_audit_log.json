@@ -1,0 +1,205 @@
+{
+ "actions": [],
+ "autoname": "hash",
+ "creation": "2026-03-19 10:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "event_type",
+  "column_break_who",
+  "actor",
+  "actor_name",
+  "section_break_target",
+  "target_user",
+  "target_role",
+  "column_break_target2",
+  "target_pack",
+  "target_pack_label",
+  "section_break_change",
+  "action",
+  "column_break_change2",
+  "scope",
+  "mode",
+  "section_break_details",
+  "old_value",
+  "column_break_details2",
+  "new_value",
+  "section_break_validity",
+  "valid_from",
+  "column_break_validity2",
+  "valid_to",
+  "section_break_meta",
+  "remarks",
+  "snapshot"
+ ],
+ "fields": [
+  {
+   "fieldname": "event_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Event Type",
+   "options": "role_pack_assign\nrole_pack_remove\nuser_override_grant\nuser_override_revoke\nuser_override_remove\nuser_context_update\nuser_status_change\npermission_snapshot",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_who",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "actor",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Actor",
+   "options": "User",
+   "reqd": 1
+  },
+  {
+   "fieldname": "actor_name",
+   "fieldtype": "Data",
+   "label": "Actor Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_target",
+   "fieldtype": "Section Break",
+   "label": "Target"
+  },
+  {
+   "fieldname": "target_user",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Target User",
+   "options": "User"
+  },
+  {
+   "fieldname": "target_role",
+   "fieldtype": "Data",
+   "in_standard_filter": 1,
+   "label": "Target Role"
+  },
+  {
+   "fieldname": "column_break_target2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "target_pack",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Target Pack"
+  },
+  {
+   "fieldname": "target_pack_label",
+   "fieldtype": "Data",
+   "label": "Pack Label",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_change",
+   "fieldtype": "Section Break",
+   "label": "Change"
+  },
+  {
+   "fieldname": "action",
+   "fieldtype": "Data",
+   "label": "Action"
+  },
+  {
+   "fieldname": "column_break_change2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "scope",
+   "fieldtype": "Data",
+   "label": "Scope"
+  },
+  {
+   "fieldname": "mode",
+   "fieldtype": "Data",
+   "label": "Mode"
+  },
+  {
+   "fieldname": "section_break_details",
+   "fieldtype": "Section Break",
+   "label": "Before / After"
+  },
+  {
+   "fieldname": "old_value",
+   "fieldtype": "Small Text",
+   "label": "Old Value"
+  },
+  {
+   "fieldname": "column_break_details2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "new_value",
+   "fieldtype": "Small Text",
+   "label": "New Value"
+  },
+  {
+   "fieldname": "section_break_validity",
+   "fieldtype": "Section Break",
+   "label": "Validity"
+  },
+  {
+   "fieldname": "valid_from",
+   "fieldtype": "Date",
+   "label": "Valid From"
+  },
+  {
+   "fieldname": "column_break_validity2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "valid_to",
+   "fieldtype": "Date",
+   "label": "Valid To"
+  },
+  {
+   "fieldname": "section_break_meta",
+   "fieldtype": "Section Break",
+   "label": "Metadata"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "snapshot",
+   "fieldtype": "Long Text",
+   "label": "Permission Snapshot (JSON)"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-03-19 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE RBAC Audit Log",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Director"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}

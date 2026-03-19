@@ -1,0 +1,137 @@
+{
+ "actions": [],
+ "autoname": "hash",
+ "creation": "2026-03-19 10:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "user",
+  "permission_pack",
+  "column_break_scope",
+  "scope",
+  "mode",
+  "grant_or_revoke",
+  "section_break_validity",
+  "valid_from",
+  "valid_to",
+  "column_break_audit",
+  "granted_by",
+  "section_break_remarks",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "User",
+   "options": "User",
+   "reqd": 1
+  },
+  {
+   "fieldname": "permission_pack",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Permission Pack",
+   "options": "GE Permission Pack",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_scope",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "assigned_project",
+   "fieldname": "scope",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Scope",
+   "options": "own\nassigned_project\nassigned_site\ndepartment\nproject_family\nall\ncross_stage_read\ncross_stage_write"
+  },
+  {
+   "default": "read",
+   "fieldname": "mode",
+   "fieldtype": "Select",
+   "label": "Mode",
+   "options": "read\naction\napprove\noverride"
+  },
+  {
+   "default": "Grant",
+   "fieldname": "grant_or_revoke",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Grant or Revoke",
+   "options": "Grant\nRevoke",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_validity",
+   "fieldtype": "Section Break",
+   "label": "Validity"
+  },
+  {
+   "fieldname": "valid_from",
+   "fieldtype": "Date",
+   "label": "Valid From"
+  },
+  {
+   "fieldname": "valid_to",
+   "fieldtype": "Date",
+   "label": "Valid To"
+  },
+  {
+   "fieldname": "column_break_audit",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "granted_by",
+   "fieldtype": "Link",
+   "label": "Granted By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_remarks",
+   "fieldtype": "Section Break",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-03-19 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE User Pack Override",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Director"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

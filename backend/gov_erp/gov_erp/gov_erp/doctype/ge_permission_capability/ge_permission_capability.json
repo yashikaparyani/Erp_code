@@ -1,0 +1,152 @@
+{
+ "actions": [],
+ "autoname": "field:capability_key",
+ "creation": "2026-03-19 10:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "capability_key",
+  "capability_label",
+  "column_break_meta",
+  "module_key",
+  "department_key",
+  "section_break_classification",
+  "entity_type",
+  "action_type",
+  "column_break_scope",
+  "supports_scope",
+  "supports_mode",
+  "section_break_flags",
+  "is_sensitive",
+  "is_active",
+  "section_break_desc",
+  "description"
+ ],
+ "fields": [
+  {
+   "fieldname": "capability_key",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Capability Key",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "capability_label",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Capability Label",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_meta",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "module_key",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Module Key"
+  },
+  {
+   "fieldname": "department_key",
+   "fieldtype": "Data",
+   "in_standard_filter": 1,
+   "label": "Department Key"
+  },
+  {
+   "fieldname": "section_break_classification",
+   "fieldtype": "Section Break",
+   "label": "Classification"
+  },
+  {
+   "fieldname": "entity_type",
+   "fieldtype": "Data",
+   "label": "Entity Type"
+  },
+  {
+   "fieldname": "action_type",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Action Type",
+   "options": "\naccess\nview\ncreate\nupdate\ndelete\nupload\nsubmit\napprove\nreject\noverride\nmanage"
+  },
+  {
+   "fieldname": "column_break_scope",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "supports_scope",
+   "fieldtype": "Check",
+   "label": "Supports Scope"
+  },
+  {
+   "default": "1",
+   "fieldname": "supports_mode",
+   "fieldtype": "Check",
+   "label": "Supports Mode"
+  },
+  {
+   "fieldname": "section_break_flags",
+   "fieldtype": "Section Break",
+   "label": "Flags"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_sensitive",
+   "fieldtype": "Check",
+   "label": "Is Sensitive"
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Is Active"
+  },
+  {
+   "fieldname": "section_break_desc",
+   "fieldtype": "Section Break",
+   "label": "Description"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-03-19 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE Permission Capability",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Director"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "ASC",
+ "states": [],
+ "title_field": "capability_label",
+ "track_changes": 1
+}

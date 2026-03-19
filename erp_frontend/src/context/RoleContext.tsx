@@ -1,6 +1,7 @@
 'use client';
 import { createContext, useContext, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
+import { usePermissions } from './PermissionContext';
 
 export type Role = 
   | 'Director'
@@ -44,7 +45,6 @@ export const roles: Role[] = [
 // Project-side roles: only these see the top-level Projects tab
 export const PROJECT_SIDE_ROLES: Role[] = [
   'Director',
-  'Presales Tendering Head',
   'Project Head',
   'Project Manager',
 ];
@@ -172,7 +172,6 @@ export const roleAccess: Record<Role, string[]> = {
   ],
   'Presales Tendering Head': [
     '/',
-    '/projects',
     '/pre-sales',
     '/survey',
     '/finance',
@@ -380,15 +379,27 @@ export const getRoleInitials = (role: Role): string => {
 interface RoleContextType {
   currentRole: Role;
   hasAccess: (path: string) => boolean;
+  /** True when backend RBAC permissions have been loaded. */
+  isPermissionLoaded: boolean;
 }
 
 const RoleContext = createContext<RoleContextType | undefined>(undefined);
 
 export function RoleProvider({ children }: { children: ReactNode }) {
   const { currentUser } = useAuth();
+  const { canAccessRoute, isLoaded: isPermissionLoaded, permissions } = usePermissions();
   const currentRole = (currentUser?.role as Role | undefined) ?? 'Project Manager';
 
   const hasAccess = (path: string): boolean => {
+    // ── Backend RBAC truth (Phase 5) ──
+    // When the permission context is loaded and has valid data, delegate to it.
+    if (isPermissionLoaded && permissions) {
+      return canAccessRoute(path);
+    }
+
+    // ── Fallback: hardcoded role-based map ──
+    // Used when backend permissions haven't loaded yet or failed to load.
+
     // ERP-level settings: restricted to SETTINGS_ROLES
     if (path === '/settings' || path.startsWith('/settings/')) {
       return SETTINGS_ROLES.includes(currentRole);
@@ -407,7 +418,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <RoleContext.Provider value={{ currentRole, hasAccess }}>
+    <RoleContext.Provider value={{ currentRole, hasAccess, isPermissionLoaded }}>
       {children}
     </RoleContext.Provider>
   );

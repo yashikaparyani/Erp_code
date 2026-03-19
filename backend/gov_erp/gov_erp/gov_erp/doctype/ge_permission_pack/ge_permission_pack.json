@@ -1,0 +1,138 @@
+{
+ "actions": [],
+ "autoname": "field:pack_key",
+ "creation": "2026-03-19 10:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "pack_key",
+  "pack_label",
+  "column_break_meta",
+  "module_family",
+  "is_system_pack",
+  "is_active",
+  "section_break_ui",
+  "sort_order",
+  "ui_color",
+  "ui_icon",
+  "section_break_desc",
+  "description",
+  "section_break_items",
+  "items"
+ ],
+ "fields": [
+  {
+   "fieldname": "pack_key",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Pack Key",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "pack_label",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Pack Label",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_meta",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "module_family",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Module Family"
+  },
+  {
+   "default": "1",
+   "fieldname": "is_system_pack",
+   "fieldtype": "Check",
+   "label": "Is System Pack"
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Is Active"
+  },
+  {
+   "fieldname": "section_break_ui",
+   "fieldtype": "Section Break",
+   "label": "Display"
+  },
+  {
+   "default": "0",
+   "fieldname": "sort_order",
+   "fieldtype": "Int",
+   "label": "Sort Order"
+  },
+  {
+   "fieldname": "ui_color",
+   "fieldtype": "Data",
+   "label": "UI Color"
+  },
+  {
+   "fieldname": "ui_icon",
+   "fieldtype": "Data",
+   "label": "UI Icon"
+  },
+  {
+   "fieldname": "section_break_desc",
+   "fieldtype": "Section Break",
+   "label": "Description"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  },
+  {
+   "fieldname": "section_break_items",
+   "fieldtype": "Section Break",
+   "label": "Capabilities"
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Capabilities",
+   "options": "GE Permission Pack Item"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-03-19 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE Permission Pack",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Director"
+  }
+ ],
+ "sort_field": "sort_order",
+ "sort_order": "ASC",
+ "states": [],
+ "title_field": "pack_label",
+ "track_changes": 1
+}

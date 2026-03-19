@@ -250,6 +250,44 @@ export async function callFrappeMethod<T = any>(
   return message;
 }
 
+export async function callRbacMethod<T = any>(
+  method: string,
+  args?: Record<string, any>,
+  request?: NextRequest,
+): Promise<T> {
+  const authHeaders = await getAuthHeaders(request, true);
+  const body = new URLSearchParams();
+
+  Object.entries(args || {}).forEach(([key, value]) => {
+    if (value === undefined || value === null) return;
+    body.set(key, typeof value === 'string' ? value : JSON.stringify(value));
+  });
+
+  const response = await fetch(`${FRAPPE_URL}/api/method/gov_erp.rbac_api.${method}`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded',
+      ...authHeaders,
+    },
+    body: body.toString(),
+    cache: 'no-store',
+  });
+
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(extractServerMessage(payload));
+  }
+
+  const message = payload?.message ?? payload;
+  if (message?.success === false) {
+    throw new Error(message.message || 'Backend operation failed');
+  }
+
+  return message;
+}
+
 export async function callRawFrappeMethod<T = any>(
   method: string,
   request?: NextRequest,

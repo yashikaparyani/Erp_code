@@ -158,3 +158,93 @@ def test_project_spine_setup_includes_workflow_fields():
 		"workflow_history_json",
 	]:
 		assert fieldname in spine_text
+
+
+def test_rbac_phase1_artifacts_exist_and_seed_flow_is_hooked():
+	required_doctypes = [
+		DOCTYPE_ROOT / "ge_permission_capability" / "ge_permission_capability.json",
+		DOCTYPE_ROOT / "ge_permission_pack" / "ge_permission_pack.json",
+		DOCTYPE_ROOT / "ge_permission_pack_item" / "ge_permission_pack_item.json",
+		DOCTYPE_ROOT / "ge_role_pack_mapping" / "ge_role_pack_mapping.json",
+		DOCTYPE_ROOT / "ge_user_pack_override" / "ge_user_pack_override.json",
+		DOCTYPE_ROOT / "ge_user_context" / "ge_user_context.json",
+	]
+
+	for path in required_doctypes:
+		assert path.exists(), f"Missing RBAC Phase 1 DocType: {path.name}"
+
+	rbac_seed_text = (APP_ROOT / "rbac_seed.py").read_text()
+	install_text = (APP_ROOT / "install.py").read_text()
+
+	assert "def seed_capabilities" in rbac_seed_text
+	assert "def seed_packs" in rbac_seed_text
+	assert "def seed_role_pack_mappings" in rbac_seed_text
+	assert "def seed_user_contexts" in rbac_seed_text
+	assert "seed_user_contexts()" in rbac_seed_text
+	assert "from gov_erp.rbac_seed import seed_rbac" in install_text
+	assert 'frappe.log_error(frappe.get_traceback(), "gov_erp: rbac seed failed on install")' in install_text
+	assert 'frappe.log_error(frappe.get_traceback(), "gov_erp: rbac seed failed on migrate")' in install_text
+
+
+def test_rbac_phase2_permission_engine_surface_exists():
+	engine_text = (APP_ROOT / "permission_engine.py").read_text()
+	api_text = API_PATH.read_text()
+
+	for snippet in [
+		"class PermissionEngine",
+		"def _resolve_effective_capabilities",
+		"def can_access_module",
+		"def can_access_route",
+		"def can_view_project",
+		"def can_update_site",
+		"def can_submit_stage",
+		"def can_approve_stage",
+		"def can_override_dependency",
+		"def get_visible_tabs",
+		"def get_effective_summary",
+	]:
+		assert snippet in engine_text
+
+	for snippet in [
+		"def _get_permission_engine",
+		"def _require_capability",
+		"def _require_any_capability",
+		"def _require_module_access",
+		"from gov_erp.permission_engine import PermissionEngine",
+	]:
+		assert snippet in api_text
+
+
+def test_rbac_phase2_user_context_seed_covers_department_and_assignment_fields():
+	rbac_seed_text = (APP_ROOT / "rbac_seed.py").read_text()
+
+	for snippet in [
+		"ROLE_DEPARTMENT_DEFAULTS",
+		"GE Project Team Member",
+		"assigned_projects =",
+		"assigned_sites =",
+		'ROLE_DEPARTMENT_DEFAULTS.get(primary_role)',
+	]:
+		assert snippet in rbac_seed_text
+
+
+def test_rbac_phase3_api_contract_exists_and_is_admin_guarded():
+	rbac_api_text = (APP_ROOT / "rbac_api.py").read_text()
+
+	for snippet in [
+		"def get_permission_packs",
+		"def get_role_pack_matrix",
+		"def get_user_effective_permissions",
+		"def assign_role_packs",
+		"def assign_user_override",
+		"def get_user_context",
+		"def update_user_context",
+		"def get_rbac_users",
+	]:
+		assert snippet in rbac_api_text
+
+	assert '_require_settings_capability("settings.pack.manage")' in rbac_api_text
+	assert '_require_settings_capability("settings.role.manage")' in rbac_api_text
+	assert '_require_settings_capability("settings.user_role.manage")' in rbac_api_text
+	assert '_validate_link_targets("Project", project_values, "assigned projects")' in rbac_api_text
+	assert '_validate_link_targets("GE Site", site_values, "assigned sites")' in rbac_api_text
