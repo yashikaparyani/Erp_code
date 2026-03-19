@@ -170,7 +170,7 @@ export default function CompetitorsPage() {
 
   const handleSubmit = async () => {
     if (!form.company_name.trim()) {
-      setSubmitError('Company name required hai.');
+      setSubmitError('Company name is required.');
       return;
     }
 

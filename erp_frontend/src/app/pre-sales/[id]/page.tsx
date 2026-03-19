@@ -29,7 +29,7 @@ type Tender = {
   client?: string;
   organization?: string;
   submission_date?: string;
-  funnel_status?: string;
+  computed_funnel_status?: string;
   status: string;
   estimated_value?: number;
   emd_required?: number;
@@ -242,7 +242,7 @@ export default function TenderWorkspacePage() {
   const latestResult = useMemo(() => workspace?.results?.[0] ?? null, [workspace?.results]);
   const latestBoq = useMemo(() => workspace?.boqs?.[0] ?? null, [workspace?.boqs]);
   const latestCostSheet = useMemo(() => workspace?.costSheets?.[0] ?? null, [workspace?.costSheets]);
-  const derivedFunnel = tender ? deriveTenderFunnelStatus(tender) : null;
+  const derivedFunnel = tender ? (tender.computed_funnel_status || deriveTenderFunnelStatus(tender)) : null;
   const derivedFunnelMeta = getTenderFunnelMeta(derivedFunnel || undefined);
 
   if (loading) {
@@ -540,7 +540,7 @@ export default function TenderWorkspacePage() {
                   </span>
                 </div>
               ))}
-              {!workspace.surveys.length ? <EmptyBlock message="Survey section abhi blank hai. Tender linked survey create hote hi yahan snapshot dikh jayega." /> : null}
+              {!workspace.surveys.length ? <EmptyBlock message="No survey records are linked yet. A survey snapshot will appear here as soon as one is created for this tender." /> : null}
             </div>
           </SectionCard>
 
@@ -610,7 +610,7 @@ export default function TenderWorkspacePage() {
                   ))}
                 </div>
                 <p className="mt-3 text-sm text-gray-500">
-                  Yeh requests `Approvals` inbox me jayengi jahan `Presales Tendering Head` ya `Director` action le sakte hain.
+                  These requests will appear in the `Approvals` inbox, where the `Presales Tendering Head` or `Director` can review and take action.
                 </p>
               </div>
             </div>
@@ -633,14 +633,14 @@ export default function TenderWorkspacePage() {
                   </div>
                 </div>
               ))}
-              {!workspace.approvals.length ? <EmptyBlock message="Tender-specific approval trail abhi blank hai. Approval request submit hote hi history yahan dikh jayegi." /> : null}
+              {!workspace.approvals.length ? <EmptyBlock message="No tender-specific approval history is available yet. The approval trail will appear here once a request is submitted." /> : null}
             </div>
           </SectionCard>
 
           <SectionCard
             title="Result Tracking"
             icon={Trophy}
-            subtitle="Submission ke baad result aur competitive outcome yahin se monitor hoga."
+            subtitle="Track tender results and competitive outcomes from this section after submission."
             action={<Link href="/pre-sales/tender-result" className="text-sm font-medium text-[#1e6b87]">Open result page</Link>}
           >
             {latestResult ? (
@@ -663,7 +663,7 @@ export default function TenderWorkspacePage() {
                 </div>
               </div>
             ) : (
-              <EmptyBlock message="Tender result abhi linked nahi hai. Result publish hone ke baad yahan latest outcome dikhega." />
+              <EmptyBlock message="No tender result is linked yet. The latest outcome will appear here once a result is published." />
             )}
           </SectionCard>
         </div>
@@ -726,14 +726,14 @@ export default function TenderWorkspacePage() {
                   <div className="mt-3 text-sm text-gray-600">{formatCurrency(request.amount)}</div>
                 </div>
               ))}
-              {!workspace.financeRequests.length ? <EmptyBlock message="No finance request linked yet. EMD or PBG requirement raise hote hi yahan dikhega." /> : null}
+              {!workspace.financeRequests.length ? <EmptyBlock message="No finance request is linked yet. Any EMD or PBG requirement will appear here once it is raised." /> : null}
             </div>
           </SectionCard>
 
           <SectionCard
             title="Quick Links"
             icon={Clock3}
-            subtitle="Current pre-sales tabs ko same structure me reuse karne ke liye direct jumps."
+            subtitle="Direct links to the main pre-sales work areas using the same workspace structure."
           >
             <div className="space-y-2">
               {[
@@ -758,20 +758,20 @@ export default function TenderWorkspacePage() {
           <SectionCard
             title="Submission Signal"
             icon={FileText}
-            subtitle="Simple language me current bid position."
+            subtitle="A simple summary of the current bid position."
           >
             <div className="rounded-2xl bg-[#f5fbfd] p-4 text-sm leading-6 text-gray-700">
-              {tender.status === 'DRAFT' && 'Tender identify ho chuka hai, lekin abhi bid preparation stage me hai. Survey, BOQ, costing aur finance readiness complete karke approval lena hoga.'}
-              {tender.status === 'SUBMITTED' && 'Bid submit ho chuki hai. Ab team ko reminders, clarification aur result tracking par focus rakhna hai.'}
-              {tender.status === 'UNDER_EVALUATION' && 'Bid under evaluation hai. Is stage par clarification, pricing response aur result watch sabse important hai.'}
-              {tender.status === 'WON' && 'Tender win ho chuka hai. Ab isse project me convert karke execution handoff karna next step hai.'}
-              {tender.status === 'LOST' && 'Tender close ho gaya hai aur result lost hai. Competitor outcome aur pricing lesson capture karna chahiye.'}
+              {tender.status === 'DRAFT' && 'The tender has been identified and is currently in the bid preparation stage. Complete the survey, BOQ, costing, and finance readiness steps before seeking approval.'}
+              {tender.status === 'SUBMITTED' && 'The bid has been submitted. The team should now focus on reminders, clarifications, and result tracking.'}
+              {tender.status === 'UNDER_EVALUATION' && 'The bid is under evaluation. Clarifications, pricing responses, and result monitoring are the top priorities at this stage.'}
+              {tender.status === 'WON' && 'The tender has been won. The next step is to convert it into a project and hand it over for execution.'}
+              {tender.status === 'LOST' && 'The tender is closed with a lost result. Capture competitor outcomes and pricing lessons for future bids.'}
               {tender.status !== 'DRAFT' &&
                 tender.status !== 'SUBMITTED' &&
                 tender.status !== 'UNDER_EVALUATION' &&
                 tender.status !== 'WON' &&
                 tender.status !== 'LOST' &&
-                `Current status ${formatStatusLabel(tender.status)} hai. Iske hisaab se next operational step decide hoga.`}
+                `The current status is ${formatStatusLabel(tender.status)}. The next operational step should be planned accordingly.`}
             </div>
           </SectionCard>
         </div>

@@ -98,6 +98,45 @@ def _parse_json_list(raw_value):
 	return parsed if isinstance(parsed, list) else []
 
 
+def _derive_tender_funnel_status(values):
+	"""Compute tender funnel status from workflow/readiness signals."""
+	status = cstr(values.get("status") or "")
+	go_no_go_status = cstr(values.get("go_no_go_status") or "PENDING")
+	technical_readiness = cstr(values.get("technical_readiness") or "NOT_STARTED")
+	commercial_readiness = cstr(values.get("commercial_readiness") or "NOT_STARTED")
+	finance_readiness = cstr(values.get("finance_readiness") or "NOT_STARTED")
+	submission_status = cstr(values.get("submission_status") or "NOT_READY")
+	finance_applicable = cint(values.get("emd_required")) or cint(values.get("pbg_required"))
+
+	if status in ("LOST", "NO_GO") or go_no_go_status == "NO_GO":
+		return "Not Qualified Tender"
+
+	if status in ("CANCELLED", "DROPPED"):
+		return "Tender not bided but under observation"
+
+	if status in ("WON", "CONVERTED_TO_PROJECT", "SUBMITTED", "UNDER_EVALUATION"):
+		return "Locked Tender"
+
+	if go_no_go_status != "GO":
+		return "Tender under evaluation for GO-NOGO"
+
+	technical_approved = technical_readiness == "APPROVED"
+	commercial_approved = commercial_readiness == "APPROVED"
+	finance_approved = (not finance_applicable) or finance_readiness == "APPROVED"
+
+	if technical_approved and commercial_approved and finance_approved and submission_status != "REJECTED":
+		return "EMD done and technical confirmed"
+
+	return "Working but not confirmed by technical"
+
+
+def _attach_computed_tender_funnel_status(tender_dict):
+	if not tender_dict:
+		return tender_dict
+	tender_dict["computed_funnel_status"] = _derive_tender_funnel_status(tender_dict)
+	return tender_dict
+
+
 def _user_has_any_role(*roles):
 	user_roles = set(frappe.get_roles(frappe.session.user))
 	if ROLE_DIRECTOR in user_roles:
@@ -748,14 +787,17 @@ def get_tenders(filters=None, limit_page_length=50, limit_start=0):
 		filters=parsed_filters,
 		fields=[
 			"name", "tender_number", "title", "client", "organization",
-			"submission_date", "funnel_status", "status", "emd_amount", "tender_owner",
+			"submission_date", "status", "emd_amount", "tender_owner",
 			"pbg_amount", "estimated_value", "creation", "modified",
+			"go_no_go_status", "technical_readiness", "commercial_readiness",
+			"finance_readiness", "submission_status", "emd_required", "pbg_required",
 		],
 		order_by="submission_date asc, creation desc",
 		start=int(limit_start),
 		page_length=int(limit_page_length),
 	)
 	total = frappe.db.count("GE Tender", filters=parsed_filters)
+	data = [_attach_computed_tender_funnel_status(row) for row in data]
 	return {"success": True, "data": data, "total": total}
 
 
@@ -765,7 +807,7 @@ def get_tender(name=None):
 	_require_tender_read_access()
 	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Tender", name)
-	return {"success": True, "data": doc.as_dict()}
+	return {"success": True, "data": _attach_computed_tender_funnel_status(doc.as_dict())}
 
 
 @frappe.whitelist()
@@ -776,7 +818,7 @@ def create_tender(data):
 	doc = frappe.get_doc({"doctype": "GE Tender", **values})
 	doc.insert()
 	frappe.db.commit()
-	return {"success": True, "data": doc.as_dict(), "message": "Tender created"}
+	return {"success": True, "data": _attach_computed_tender_funnel_status(doc.as_dict()), "message": "Tender created"}
 
 
 @frappe.whitelist()
@@ -788,7 +830,7 @@ def update_tender(name, data):
 	doc.update(values)
 	doc.save()
 	frappe.db.commit()
-	return {"success": True, "data": doc.as_dict(), "message": "Tender updated"}
+	return {"success": True, "data": _attach_computed_tender_funnel_status(doc.as_dict()), "message": "Tender updated"}
 
 
 def _get_tender_transition_readiness(doc, target_status):

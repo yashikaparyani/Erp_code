@@ -29,40 +29,40 @@ type FunnelMeta = {
 
 export const TENDER_FUNNEL_META: Record<TenderFunnelStatus, FunnelMeta> = {
   'Not Qualified Tender': {
-    toneClass: 'bg-rose-50 text-rose-700 border border-rose-200 shadow-sm',
-    dotClass: 'bg-rose-500',
+    toneClass: 'bg-red-100 text-red-700 border border-red-200',
+    dotClass: 'bg-red-500',
     shortLabel: 'Red',
     colorName: 'Red',
   },
   'Working but not confirmed by technical': {
-    toneClass: 'bg-slate-50 text-slate-700 border border-slate-200 shadow-sm',
-    dotClass: 'bg-amber-500',
-    shortLabel: 'Neutral',
-    colorName: 'Slate',
+    toneClass: 'bg-yellow-100 text-yellow-800 border border-yellow-200',
+    dotClass: 'bg-yellow-500',
+    shortLabel: 'Yellow',
+    colorName: 'Yellow',
   },
   'EMD done and technical confirmed': {
-    toneClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm',
-    dotClass: 'bg-emerald-500',
+    toneClass: 'bg-green-100 text-green-700 border border-green-200',
+    dotClass: 'bg-green-500',
     shortLabel: 'Green',
     colorName: 'Green',
   },
   'Tender under evaluation for GO-NOGO': {
-    toneClass: 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm',
-    dotClass: 'bg-indigo-500',
+    toneClass: 'bg-blue-100 text-blue-700 border border-blue-200',
+    dotClass: 'bg-blue-500',
     shortLabel: 'Blue',
     colorName: 'Blue',
   },
   'Tender not bided but under observation': {
-    toneClass: 'bg-violet-50 text-violet-700 border border-violet-200 shadow-sm',
-    dotClass: 'bg-violet-500',
-    shortLabel: 'Violet',
-    colorName: 'Violet',
+    toneClass: 'bg-pink-100 text-pink-700 border border-pink-200',
+    dotClass: 'bg-pink-500',
+    shortLabel: 'Pink',
+    colorName: 'Pink',
   },
   'Locked Tender': {
-    toneClass: 'bg-stone-100 text-stone-700 border border-stone-200 shadow-sm',
-    dotClass: 'bg-stone-500',
-    shortLabel: 'Locked',
-    colorName: 'Stone',
+    toneClass: 'bg-orange-100 text-orange-700 border border-orange-200',
+    dotClass: 'bg-orange-500',
+    shortLabel: 'Orange',
+    colorName: 'Orange',
   },
 };
 

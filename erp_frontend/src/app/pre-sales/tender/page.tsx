@@ -16,7 +16,7 @@ interface Tender {
   client?: string;
   organization?: string;
   submission_date?: string;
-  funnel_status?: string;
+  computed_funnel_status?: string;
   status?: string;
   estimated_value?: number;
   emd_amount?: number;
@@ -323,7 +323,7 @@ export default function TenderPage() {
                   <div className="flex items-center gap-4 text-sm text-gray-500 mb-2">
                     <span><span className="font-medium">Status:</span> <span className="text-blue-600">{tender.status || 'N/A'}</span></span>
                     {(() => {
-                      const derivedFunnel = deriveTenderFunnelStatus(tender);
+                      const derivedFunnel = tender.computed_funnel_status || deriveTenderFunnelStatus(tender);
                       const funnelMeta = getTenderFunnelMeta(derivedFunnel);
                       return (
                         <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${funnelMeta.toneClass}`}>
@@ -410,7 +410,7 @@ export default function TenderPage() {
               ['Client', dialog.tender.client || '-'],
               ['Organization', dialog.tender.organization || '-'],
               ['Submission Date', dialog.tender.submission_date || '-'],
-              ['Funnel Status', deriveTenderFunnelStatus(dialog.tender)],
+              ['Funnel Status', dialog.tender.computed_funnel_status || deriveTenderFunnelStatus(dialog.tender)],
               ['Status', dialog.tender.status || '-'],
               ['Estimated Value', formatCurrency(dialog.tender.estimated_value || 0)],
               ['EMD Amount', formatCurrency(dialog.tender.emd_amount || 0)],

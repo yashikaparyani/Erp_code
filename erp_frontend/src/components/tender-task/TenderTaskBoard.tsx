@@ -13,7 +13,7 @@ type Tender = {
   client?: string;
   organization?: string;
   submission_date?: string;
-  funnel_status?: string;
+  computed_funnel_status?: string;
   status?: string;
   estimated_value?: number;
   emd_amount?: number;
@@ -336,7 +336,7 @@ export default function TenderTaskBoard({
                           {tender.status || 'Unknown'}
                         </span>
                         {(() => {
-                          const derivedFunnel = deriveTenderFunnelStatus(tender);
+                          const derivedFunnel = tender.computed_funnel_status || deriveTenderFunnelStatus(tender);
                           const funnelMeta = getTenderFunnelMeta(derivedFunnel);
                           return (
                             <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${funnelMeta.toneClass}`}>

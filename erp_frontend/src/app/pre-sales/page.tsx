@@ -12,7 +12,7 @@ interface Tender {
   client: string;
   organization: string;
   submission_date: string;
-  funnel_status?: string;
+  computed_funnel_status?: string;
   status: string;
   estimated_value: number;
   emd_amount: number;
@@ -247,7 +247,7 @@ export default function PreSalesPage() {
                         <div className="font-medium text-gray-900 max-w-xs truncate">{tender.title}</div>
                         <div className="mt-1">
                           {(() => {
-                            const derivedFunnel = deriveTenderFunnelStatus(tender);
+                            const derivedFunnel = tender.computed_funnel_status || deriveTenderFunnelStatus(tender);
                             const funnelMeta = getTenderFunnelMeta(derivedFunnel);
                             return (
                               <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${funnelMeta.toneClass}`}>

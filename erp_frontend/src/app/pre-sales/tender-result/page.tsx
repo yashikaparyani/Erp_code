@@ -169,7 +169,7 @@ export default function TenderResultPage() {
             </select>
           </label>
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Result page ab standalone tracker hai. Yahan se workspace open kar sakte ho aur award / evaluation stages ko tender status ke saath manually sync bhi kar sakte ho.
+            The result page is now a standalone tracker. From here, you can open the workspace and manually sync award or evaluation stages with the tender status.
           </div>
         </div>
       </div>
