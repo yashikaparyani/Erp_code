@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Building2, Calendar, FileText, Filter, IndianRupee, Search } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { deriveTenderFunnelStatus, getTenderFunnelMeta } from '@/components/tenderFunnel';
 
 type Tender = {
   name: string;
@@ -12,6 +13,7 @@ type Tender = {
   client?: string;
   organization?: string;
   submission_date?: string;
+  funnel_status?: string;
   status?: string;
   estimated_value?: number;
   emd_amount?: number;
@@ -66,6 +68,14 @@ function getDaysToSubmission(dateString?: string) {
   return Math.ceil((target - Date.now()) / (1000 * 60 * 60 * 24));
 }
 
+function sortByNearestSubmission(rows: Tender[]) {
+  return [...rows].sort((a, b) => {
+    const aTs = a.submission_date ? new Date(a.submission_date).getTime() : Number.MAX_SAFE_INTEGER;
+    const bTs = b.submission_date ? new Date(b.submission_date).getTime() : Number.MAX_SAFE_INTEGER;
+    return aTs - bTs;
+  });
+}
+
 async function updateTenderStatus(name: string, status: string) {
   const response = await fetch(`/api/tenders/${encodeURIComponent(name)}/status`, {
     method: 'POST',
@@ -104,7 +114,7 @@ export default function TenderTaskBoard({
       .then((result) => {
         if (!mounted) return;
         const rows: Tender[] = result.data || [];
-        setTenders(rows);
+        setTenders(sortByNearestSubmission(rows));
       })
       .catch(() => {
         if (!mounted) return;
@@ -321,9 +331,21 @@ export default function TenderTaskBoard({
                       <div className="text-xs text-gray-400">EMD {formatCurrency(tender.emd_amount)}</div>
                     </td>
                     <td>
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_STYLES[tender.status || ''] || 'bg-gray-100 text-gray-700'}`}>
-                        {tender.status || 'Unknown'}
-                      </span>
+                      <div className="flex flex-wrap gap-2">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_STYLES[tender.status || ''] || 'bg-gray-100 text-gray-700'}`}>
+                          {tender.status || 'Unknown'}
+                        </span>
+                        {(() => {
+                          const derivedFunnel = deriveTenderFunnelStatus(tender);
+                          const funnelMeta = getTenderFunnelMeta(derivedFunnel);
+                          return (
+                            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${funnelMeta.toneClass}`}>
+                              <span className={`h-2 w-2 rounded-full ${funnelMeta.dotClass}`} />
+                              {derivedFunnel}
+                            </span>
+                          );
+                        })()}
+                      </div>
                     </td>
                     <td>
                       <div className="flex flex-wrap gap-2">

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Plus, FileText, CheckCircle2, Clock, Edit3, Eye, RefreshCw } from 'lucide-react';
 import CreateTenderModal from '@/components/CreateTenderModal';
+import { deriveTenderFunnelStatus, getTenderFunnelMeta } from '@/components/tenderFunnel';
 
 interface Tender {
   name: string;
@@ -11,6 +12,7 @@ interface Tender {
   client: string;
   organization: string;
   submission_date: string;
+  funnel_status?: string;
   status: string;
   estimated_value: number;
   emd_amount: number;
@@ -25,6 +27,14 @@ interface Stats {
   draft_count: number;
 }
 
+function sortByNearestSubmission<T extends { submission_date?: string }>(rows: T[]) {
+  return [...rows].sort((a, b) => {
+    const aTs = a.submission_date ? new Date(a.submission_date).getTime() : Number.MAX_SAFE_INTEGER;
+    const bTs = b.submission_date ? new Date(b.submission_date).getTime() : Number.MAX_SAFE_INTEGER;
+    return aTs - bTs;
+  });
+}
+
 export default function PreSalesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [tenders, setTenders] = useState<Tender[]>([]);
@@ -36,7 +46,7 @@ export default function PreSalesPage() {
       const response = await fetch('/api/tenders');
       const result = await response.json();
       if (result.success) {
-        setTenders(result.data);
+        setTenders(sortByNearestSubmission(result.data || []));
       }
     } catch (error) {
       console.error('Error fetching tenders:', error);
@@ -161,28 +171,28 @@ export default function PreSalesPage() {
         
         <div className="stat-card">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-              <Clock className="w-5 h-5 text-yellow-600" />
+            <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+              <Clock className="w-5 h-5 text-indigo-600" />
             </div>
             <div>
-              <div className="stat-value text-blue-600">{stats?.submitted_count || 0}</div>
+              <div className="stat-value text-indigo-600">{stats?.submitted_count || 0}</div>
               <div className="stat-label">Under Review</div>
             </div>
           </div>
-          <div className="text-xs text-gray-500 mt-2">Awaiting results</div>
+          <div className="text-xs text-indigo-600 mt-2">Awaiting results</div>
         </div>
         
         <div className="stat-card">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-              <Edit3 className="w-5 h-5 text-orange-600" />
+            <div className="w-10 h-10 bg-amber-50 rounded-lg flex items-center justify-center">
+              <Edit3 className="w-5 h-5 text-amber-700" />
             </div>
             <div>
-              <div className="stat-value text-orange-600">{stats?.draft_count || 0}</div>
+              <div className="stat-value text-amber-700">{stats?.draft_count || 0}</div>
               <div className="stat-label">In Progress</div>
             </div>
           </div>
-          <div className="text-xs text-gray-500 mt-2">Draft stage</div>
+          <div className="text-xs text-amber-700 mt-2">Draft stage</div>
         </div>
       </div>
 
@@ -235,6 +245,19 @@ export default function PreSalesPage() {
                       </td>
                       <td>
                         <div className="font-medium text-gray-900 max-w-xs truncate">{tender.title}</div>
+                        <div className="mt-1">
+                          {(() => {
+                            const derivedFunnel = deriveTenderFunnelStatus(tender);
+                            const funnelMeta = getTenderFunnelMeta(derivedFunnel);
+                            return (
+                              <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${funnelMeta.toneClass}`}>
+                                <span className={`h-2 w-2 rounded-full ${funnelMeta.dotClass}`} />
+                                {derivedFunnel}
+                              </span>
+                            );
+                          })()}
+                          
+                        </div>
                       </td>
                       <td>
                         <div className="text-gray-600 max-w-xs truncate">{tender.client || '-'}</div>
@@ -247,9 +270,11 @@ export default function PreSalesPage() {
                       </td>
                       <td>
                         <div className="flex items-center gap-2">
-                          <div className="w-20 bg-gray-200 rounded-full h-2">
-                            <div 
-                              className="bg-green-500 h-2 rounded-full transition-all" 
+                        <div className="w-20 bg-gray-200 rounded-full h-2">
+                          <div 
+                              className={`h-2 rounded-full transition-all ${
+                                completion >= 75 ? 'bg-emerald-500' : completion >= 25 ? 'bg-indigo-500' : 'bg-slate-400'
+                              }`} 
                               style={{ width: `${completion}%` }}
                             />
                           </div>

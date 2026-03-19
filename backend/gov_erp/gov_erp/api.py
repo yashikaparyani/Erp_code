@@ -748,10 +748,10 @@ def get_tenders(filters=None, limit_page_length=50, limit_start=0):
 		filters=parsed_filters,
 		fields=[
 			"name", "tender_number", "title", "client", "organization",
-			"submission_date", "status", "emd_amount", "tender_owner",
+			"submission_date", "funnel_status", "status", "emd_amount", "tender_owner",
 			"pbg_amount", "estimated_value", "creation", "modified",
 		],
-		order_by="creation desc",
+		order_by="submission_date asc, creation desc",
 		start=int(limit_start),
 		page_length=int(limit_page_length),
 	)

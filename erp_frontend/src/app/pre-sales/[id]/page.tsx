@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
+import { deriveTenderFunnelStatus, getTenderFunnelMeta } from '@/components/tenderFunnel';
 import {
   AlertCircle,
   ArrowLeft,
@@ -28,6 +29,7 @@ type Tender = {
   client?: string;
   organization?: string;
   submission_date?: string;
+  funnel_status?: string;
   status: string;
   estimated_value?: number;
   emd_required?: number;
@@ -240,6 +242,8 @@ export default function TenderWorkspacePage() {
   const latestResult = useMemo(() => workspace?.results?.[0] ?? null, [workspace?.results]);
   const latestBoq = useMemo(() => workspace?.boqs?.[0] ?? null, [workspace?.boqs]);
   const latestCostSheet = useMemo(() => workspace?.costSheets?.[0] ?? null, [workspace?.costSheets]);
+  const derivedFunnel = tender ? deriveTenderFunnelStatus(tender) : null;
+  const derivedFunnelMeta = getTenderFunnelMeta(derivedFunnel || undefined);
 
   if (loading) {
     return (
@@ -351,6 +355,12 @@ export default function TenderWorkspacePage() {
         <div className="space-y-2">
           <div className="text-xs uppercase tracking-[0.22em] text-white/70">Tender Workspace</div>
           <h1 className="text-2xl font-semibold">{tender.title}</h1>
+          <div>
+            <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${derivedFunnelMeta.toneClass}`}>
+              <span className={`h-2.5 w-2.5 rounded-full ${derivedFunnelMeta.dotClass}`} />
+              Funnel: {derivedFunnel}
+            </span>
+          </div>
           <p className="text-sm text-white/80">
             {tender.tender_number} • {tender.client || 'Client not mapped'} • {tender.organization || 'Organization pending'}
           </p>

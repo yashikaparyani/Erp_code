@@ -3,6 +3,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import CreateTenderModal from '@/components/CreateTenderModal';
 import ModalFrame from '@/components/ui/ModalFrame';
+import { deriveTenderFunnelStatus, getTenderFunnelMeta } from '@/components/tenderFunnel';
 import {
   Search, ChevronDown, ChevronUp, Download, Eye, Heart, Clock,
   User, MapPin, SortDesc,
@@ -15,6 +16,7 @@ interface Tender {
   client?: string;
   organization?: string;
   submission_date?: string;
+  funnel_status?: string;
   status?: string;
   estimated_value?: number;
   emd_amount?: number;
@@ -47,7 +49,7 @@ export default function TenderPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('live');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [sortBy, setSortBy] = useState('value');
+  const [sortBy, setSortBy] = useState('date');
   const [favorites, setFavorites] = useState<string[]>([]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -122,7 +124,11 @@ export default function TenderPage() {
   });
 
   const sortRows = (rows: Tender[]) => [...rows].sort((a, b) => {
-    if (sortBy === 'date') return new Date(b.submission_date || 0).getTime() - new Date(a.submission_date || 0).getTime();
+    if (sortBy === 'date') {
+      const aTs = a.submission_date ? new Date(a.submission_date).getTime() : Number.MAX_SAFE_INTEGER;
+      const bTs = b.submission_date ? new Date(b.submission_date).getTime() : Number.MAX_SAFE_INTEGER;
+      return aTs - bTs;
+    }
     if (sortBy === 'emd') return (b.emd_amount || 0) - (a.emd_amount || 0);
     if (sortBy === 'title') return String(a.title || '').localeCompare(String(b.title || ''));
     return (b.estimated_value || 0) - (a.estimated_value || 0);
@@ -316,6 +322,16 @@ export default function TenderPage() {
 
                   <div className="flex items-center gap-4 text-sm text-gray-500 mb-2">
                     <span><span className="font-medium">Status:</span> <span className="text-blue-600">{tender.status || 'N/A'}</span></span>
+                    {(() => {
+                      const derivedFunnel = deriveTenderFunnelStatus(tender);
+                      const funnelMeta = getTenderFunnelMeta(derivedFunnel);
+                      return (
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${funnelMeta.toneClass}`}>
+                          <span className={`h-2 w-2 rounded-full ${funnelMeta.dotClass}`} />
+                          {derivedFunnel}
+                        </span>
+                      );
+                    })()}
                   </div>
 
                   <div className="flex items-center gap-1 text-sm text-gray-500">
@@ -394,6 +410,7 @@ export default function TenderPage() {
               ['Client', dialog.tender.client || '-'],
               ['Organization', dialog.tender.organization || '-'],
               ['Submission Date', dialog.tender.submission_date || '-'],
+              ['Funnel Status', deriveTenderFunnelStatus(dialog.tender)],
               ['Status', dialog.tender.status || '-'],
               ['Estimated Value', formatCurrency(dialog.tender.estimated_value || 0)],
               ['EMD Amount', formatCurrency(dialog.tender.emd_amount || 0)],
