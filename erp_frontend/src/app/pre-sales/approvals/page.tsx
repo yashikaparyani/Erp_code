@@ -10,6 +10,9 @@ interface ApprovalData {
   tender_id: string;
   approval_for: string;
   approval_from: string;
+  action_owner?: string;
+  action_hint?: string;
+  age_days?: number;
   requester: string;
   request_date: string;
   status: string;
@@ -67,6 +70,8 @@ export default function ApprovalsPage() {
     if (approvalType === 'finance' || approvalFor.includes('finance request')) return 'finance_request';
     if (approvalFor.includes('boq')) return 'boq';
     if (approvalFor.includes('cost sheet')) return 'cost_sheet';
+    if (approvalFor.includes('estimate')) return 'estimate';
+    if (approvalFor.includes('proforma')) return 'proforma';
     if (approvalType === 'tender approval' || approvalFor.includes('tender approval')) return 'tender_approval';
     if (approvalFor.includes('vendor comparison')) return 'vendor_comparison';
     return '';
@@ -244,7 +249,7 @@ export default function ApprovalsPage() {
                   <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Tender ID</th>
                   <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Type</th>
                   <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Approval For</th>
-                  <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Approval From</th>
+                  <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Action Owner</th>
                   <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Requester</th>
                   <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Request Date</th>
                   <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Status</th>
@@ -278,16 +283,24 @@ export default function ApprovalsPage() {
                         </td>
                         <td className="px-3 py-3 text-sm text-gray-900 text-center">{row.type}</td>
                         <td className="px-3 py-3 text-sm text-gray-900 text-center">{row.approval_for}</td>
-                        <td className="px-3 py-3 text-sm text-gray-900 text-center">{row.approval_from}</td>
+                        <td className="px-3 py-3 text-sm text-gray-900 text-center">
+                          <div className="font-medium">{row.action_owner || row.approval_from}</div>
+                          <div className="text-xs text-gray-400">{row.age_days ?? 0}d open</div>
+                        </td>
                         <td className="px-3 py-3 text-sm text-gray-900 text-center">{row.requester}</td>
                         <td className="px-3 py-3 text-sm text-gray-600 text-center">{formatDate(row.request_date)}</td>
                         <td className={`px-3 py-3 text-sm text-center font-medium ${getStatusStyle(row.status)}`}>{row.status}</td>
                         <td className="px-3 py-3 text-center">
-                          {supported ? (
-                            <span className="inline-flex rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700">Ready</span>
-                          ) : (
-                            <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-500">Read only</span>
-                          )}
+                          <div className="space-y-1">
+                            <div>
+                              {supported ? (
+                                <span className="inline-flex rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700">Ready</span>
+                              ) : (
+                                <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-500">Read only</span>
+                              )}
+                            </div>
+                            <div className="text-xs text-gray-500">{row.action_hint || 'Review and take the next approval action.'}</div>
+                          </div>
                         </td>
                         <td className="px-3 py-3 text-center">
                           <div className="flex items-center justify-center gap-2">
@@ -373,9 +386,10 @@ export default function ApprovalsPage() {
               ['Tender ID', dialog.row.tender_id || '-'],
               ['Type', dialog.row.type || '-'],
               ['Approval For', dialog.row.approval_for || '-'],
-              ['Approval From', dialog.row.approval_from || '-'],
+              ['Action Owner', dialog.row.action_owner || dialog.row.approval_from || '-'],
               ['Requester', dialog.row.requester || '-'],
               ['Request Date', formatDate(dialog.row.request_date)],
+              ['Action Hint', dialog.row.action_hint || '-'],
               ['Status', dialog.row.status || '-'],
             ].map(([label, value]) => (
               <div key={label} className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3">

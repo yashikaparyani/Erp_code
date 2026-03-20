@@ -6,6 +6,7 @@
  "engine": "InnoDB",
  "field_order": [
   "naming_series",
+  "customer",
   "linked_project",
   "linked_invoice",
   "cb_ret_pct",
@@ -27,6 +28,12 @@
    "label": "Naming Series",
    "reqd": 0,
    "options": "RET-.#####"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "GE Party"
   },
   {
    "fieldname": "linked_project",

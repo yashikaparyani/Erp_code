@@ -6,6 +6,7 @@
  "engine": "InnoDB",
  "field_order": [
   "naming_series",
+  "customer",
   "linked_project",
   "linked_site",
   "cb_inv_meta",
@@ -51,6 +52,12 @@
    "label": "Naming Series",
    "reqd": 0,
    "options": "GINV-.#####"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "GE Party"
   },
   {
    "fieldname": "linked_project",

@@ -90,6 +90,7 @@ export default function FinancePage() {
           <p className="text-xs sm:text-sm text-gray-500 mt-1">Invoicing, payments, and financial tracking</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Link href="/finance/commercial" className="btn btn-secondary">Commercial</Link>
           <Link href="/finance/costing" className="btn btn-secondary">Costing</Link>
           <Link href="/finance/billing" className="btn btn-secondary">Billing</Link>
           <Link href="/finance/payment-receipts" className="btn btn-secondary">Payments</Link>

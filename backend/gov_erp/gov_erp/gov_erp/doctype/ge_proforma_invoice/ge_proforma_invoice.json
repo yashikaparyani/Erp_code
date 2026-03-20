@@ -1,0 +1,209 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-03-20 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "customer",
+  "linked_estimate",
+  "linked_project",
+  "cb_proforma_meta",
+  "proforma_date",
+  "status",
+  "due_date",
+  "sb_proforma_amounts",
+  "subtotal",
+  "gst_percent",
+  "gst_amount",
+  "cb_proforma_tds",
+  "tds_percent",
+  "tds_amount",
+  "retention_percent",
+  "retention_amount",
+  "net_amount",
+  "sb_proforma_items",
+  "items",
+  "sb_proforma_links",
+  "linked_invoice",
+  "converted_on",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "options": "GPRO-.#####"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "GE Party",
+   "reqd": 1
+  },
+  {
+   "fieldname": "linked_estimate",
+   "fieldtype": "Link",
+   "label": "Linked Estimate",
+   "options": "GE Estimate"
+  },
+  {
+   "fieldname": "linked_project",
+   "fieldtype": "Link",
+   "label": "Linked Project",
+   "options": "Project"
+  },
+  {
+   "fieldname": "cb_proforma_meta",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "proforma_date",
+   "fieldtype": "Date",
+   "label": "Proforma Date",
+   "reqd": 1
+  },
+  {
+   "default": "DRAFT",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "DRAFT\nSENT\nAPPROVED\nCONVERTED\nCANCELLED",
+   "reqd": 1
+  },
+  {
+   "fieldname": "due_date",
+   "fieldtype": "Date",
+   "label": "Due Date"
+  },
+  {
+   "fieldname": "sb_proforma_amounts",
+   "fieldtype": "Section Break",
+   "label": "Amounts"
+  },
+  {
+   "default": "0",
+   "fieldname": "subtotal",
+   "fieldtype": "Currency",
+   "label": "Subtotal"
+  },
+  {
+   "fieldname": "gst_percent",
+   "fieldtype": "Percent",
+   "label": "GST %"
+  },
+  {
+   "default": "0",
+   "fieldname": "gst_amount",
+   "fieldtype": "Currency",
+   "label": "GST Amount"
+  },
+  {
+   "fieldname": "cb_proforma_tds",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "tds_percent",
+   "fieldtype": "Percent",
+   "label": "TDS %"
+  },
+  {
+   "default": "0",
+   "fieldname": "tds_amount",
+   "fieldtype": "Currency",
+   "label": "TDS Amount"
+  },
+  {
+   "fieldname": "retention_percent",
+   "fieldtype": "Percent",
+   "label": "Retention %"
+  },
+  {
+   "default": "0",
+   "fieldname": "retention_amount",
+   "fieldtype": "Currency",
+   "label": "Retention Amount"
+  },
+  {
+   "default": "0",
+   "fieldname": "net_amount",
+   "fieldtype": "Currency",
+   "label": "Net Amount"
+  },
+  {
+   "fieldname": "sb_proforma_items",
+   "fieldtype": "Section Break",
+   "label": "Proforma Lines"
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Proforma Lines",
+   "options": "GE Invoice Line",
+   "reqd": 1
+  },
+  {
+   "fieldname": "sb_proforma_links",
+   "fieldtype": "Section Break",
+   "label": "Conversion"
+  },
+  {
+   "fieldname": "linked_invoice",
+   "fieldtype": "Link",
+   "label": "Linked Invoice",
+   "options": "GE Invoice"
+  },
+  {
+   "fieldname": "converted_on",
+   "fieldtype": "Datetime",
+   "label": "Converted On"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-03-20 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE Proforma Invoice",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Director"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "desc",
+ "track_changes": 1
+}
+

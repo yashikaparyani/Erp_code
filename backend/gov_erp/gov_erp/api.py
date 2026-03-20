@@ -1214,10 +1214,38 @@ def convert_tender_to_project(tender_name):
 	project_doc.save()
 	frappe.db.set_value("GE Tender", doc.name, "status", "CONVERTED_TO_PROJECT", update_modified=False)
 	doc.status = "CONVERTED_TO_PROJECT"
+	latest_cost_sheet = frappe.get_all(
+		"GE Cost Sheet",
+		filters={"linked_tender": doc.name},
+		fields=["name", "status", "sell_value", "margin_percent", "approved_by"],
+		order_by="creation desc",
+		limit=1,
+	)
+	latest_approval = frappe.get_all(
+		"GE Tender Approval",
+		filters={"linked_tender": doc.name},
+		fields=["name", "approval_type", "status", "requested_by", "approver_role", "acted_on"],
+		order_by="creation desc",
+		limit=1,
+	)
 	frappe.db.commit()
 	return {
 		"success": True,
-		"data": {"project": doc.linked_project},
+		"data": {
+			"project": doc.linked_project,
+			"conversion_payload": {
+				"tender": doc.name,
+				"tender_number": doc.tender_number,
+				"title": doc.title,
+				"client": doc.client,
+				"organization": doc.organization,
+				"estimated_value": doc.estimated_value,
+				"linked_project": doc.linked_project,
+				"status": doc.status,
+				"costing_snapshot": latest_cost_sheet[0] if latest_cost_sheet else None,
+				"latest_approval": latest_approval[0] if latest_approval else None,
+			},
+		},
 		"message": f"Project {doc.linked_project} created from tender {doc.tender_number}",
 	}
 
@@ -1618,6 +1646,40 @@ def get_tender_reminders(tender=None, status=None, remind_user=None):
 		],
 		order_by="reminder_date asc, reminder_time asc, creation asc",
 	)
+	today = frappe.utils.getdate(frappe.utils.nowdate())
+	tender_meta = {}
+	tender_names = [row.tender for row in data if row.tender]
+	if tender_names:
+		for row in frappe.get_all(
+			"GE Tender",
+			filters={"name": ["in", list(set(tender_names))]},
+			fields=["name", "status", "submission_date", "estimated_value", "organization", "client"],
+		):
+			tender_meta[row.name] = row
+	for row in data:
+		meta = tender_meta.get(row.tender)
+		reminder_date = frappe.utils.getdate(row.reminder_date) if row.reminder_date else None
+		due_in_days = (reminder_date - today).days if reminder_date else None
+		submission_date = frappe.utils.getdate(meta.submission_date) if meta and meta.submission_date else None
+		if submission_date and reminder_date and reminder_date <= submission_date:
+			row["reminder_kind"] = "Bid Deadline"
+		elif meta and meta.status in ("SUBMITTED", "UNDER_EVALUATION"):
+			row["reminder_kind"] = "Commercial Follow-up"
+		else:
+			row["reminder_kind"] = "Internal Checkpoint"
+		row["due_in_days"] = due_in_days
+		row["priority"] = "High" if due_in_days is not None and due_in_days <= 1 else "Medium" if due_in_days is not None and due_in_days <= 3 else "Normal"
+		row["action_hint"] = (
+			"Close submission readiness and final bid pack"
+			if row["reminder_kind"] == "Bid Deadline"
+			else "Follow up on clarification, commercial response, or finance dependency"
+			if row["reminder_kind"] == "Commercial Follow-up"
+			else "Keep ownership aligned and prepare next action"
+		)
+		if meta:
+			row["tender_status"] = meta.status
+		else:
+			row["tender_status"] = None
 	return {"success": True, "data": data}
 
 
@@ -4268,7 +4330,7 @@ def get_invoices(project=None, status=None, invoice_type=None):
 		"GE Invoice",
 		filters=filters,
 		fields=[
-			"name", "linked_project", "linked_site", "invoice_date",
+			"name", "customer", "linked_project", "linked_site", "invoice_date",
 			"invoice_type", "status", "amount", "gst_amount", "tds_amount",
 			"net_receivable", "milestone_complete", "submitted_by",
 			"approved_by", "approved_at", "creation", "modified",
@@ -4436,8 +4498,8 @@ def get_payment_receipts(invoice=None, project=None):
 		"GE Payment Receipt",
 		filters=filters,
 		fields=[
-			"name", "linked_invoice", "linked_project", "received_date",
-			"amount_received", "tds_amount", "payment_mode",
+			"name", "receipt_type", "customer", "linked_invoice", "linked_project", "advance_reference",
+			"received_date", "amount_received", "adjusted_amount", "tds_amount", "payment_mode",
 			"payment_reference", "creation", "modified",
 		],
 		order_by="received_date desc, creation desc",
@@ -4459,6 +4521,13 @@ def create_payment_receipt(data):
 	"""Create a payment receipt."""
 	_require_billing_write_access()
 	values = json.loads(data) if isinstance(data, str) else data
+	if not values.get("customer") and values.get("linked_invoice"):
+		values["customer"] = frappe.db.get_value("GE Invoice", values.get("linked_invoice"), "customer")
+	values.setdefault("receipt_type", "AGAINST_INVOICE")
+	if values.get("receipt_type") == "AGAINST_INVOICE" and not values.get("linked_invoice"):
+		return {"success": False, "message": "Linked invoice is required for invoice receipts"}
+	if values.get("receipt_type") in ("ADVANCE", "ADJUSTMENT") and not values.get("customer"):
+		return {"success": False, "message": "Customer is required for advance or adjustment receipts"}
 	doc = frappe.get_doc({"doctype": "GE Payment Receipt", **values})
 	doc.insert()
 	frappe.db.commit()
@@ -4493,12 +4562,14 @@ def get_payment_receipt_stats(project=None):
 	filters = {}
 	if project:
 		filters["linked_project"] = project
-	rows = frappe.get_all("GE Payment Receipt", filters=filters, fields=["amount_received", "tds_amount"])
+	rows = frappe.get_all("GE Payment Receipt", filters=filters, fields=["receipt_type", "amount_received", "adjusted_amount", "tds_amount"])
 	return {
 		"success": True,
 		"data": {
 			"total_receipts": len(rows),
 			"total_received": sum(r.amount_received or 0 for r in rows),
+			"advance_received": sum((r.amount_received or 0) for r in rows if r.receipt_type == "ADVANCE"),
+			"adjusted_amount": sum(r.adjusted_amount or 0 for r in rows),
 			"total_tds": sum(r.tds_amount or 0 for r in rows),
 		},
 	}
@@ -4542,6 +4613,8 @@ def create_retention_ledger(data):
 	"""Create a retention entry."""
 	_require_billing_write_access()
 	values = json.loads(data) if isinstance(data, str) else data
+	if not values.get("customer") and values.get("linked_invoice"):
+		values["customer"] = frappe.db.get_value("GE Invoice", values.get("linked_invoice"), "customer")
 	doc = frappe.get_doc({"doctype": "GE Retention Ledger", **values})
 	doc.insert()
 	frappe.db.commit()
@@ -6225,17 +6298,21 @@ def get_pending_approvals():
 	for row in frappe.get_all(
 		"GE Tender Approval",
 		filters={"status": "Pending"},
-		fields=["name", "linked_tender", "approval_type", "requested_by", "creation"],
+		fields=["name", "linked_tender", "approval_type", "requested_by", "approver_role", "creation"],
 		order_by="creation desc",
 	):
+		created_on = frappe.utils.get_datetime(row.creation)
 		records.append(
 			{
 				"id": row.name,
 				"tender_id": row.linked_tender or "-",
 				"approval_for": f"{row.approval_type} Tender Approval",
-				"approval_from": ROLE_PRESALES_HEAD,
+				"approval_from": row.approver_role or ROLE_PRESALES_HEAD,
+				"action_owner": row.approver_role or ROLE_PRESALES_HEAD,
+				"action_hint": f"Review {row.approval_type.lower()} readiness and take approval action",
 				"requester": row.requested_by,
 				"request_date": row.creation,
+				"age_days": max((frappe.utils.now_datetime() - created_on).days, 0),
 				"status": "Pending",
 				"type": "Tender Approval",
 			}
@@ -6247,14 +6324,18 @@ def get_pending_approvals():
 		fields=["name", "linked_tender", "instrument_type", "owner", "creation"],
 		order_by="creation desc",
 	):
+		created_on = frappe.utils.get_datetime(row.creation)
 		records.append(
 			{
 				"id": row.name,
 				"tender_id": row.linked_tender or "-",
 				"approval_for": f"{row.instrument_type} Finance Request",
 				"approval_from": "Accounts / Department Head",
+				"action_owner": "Accounts / Department Head",
+				"action_hint": "Check instrument amount, bank readiness, and release timeline",
 				"requester": row.owner,
 				"request_date": row.creation,
+				"age_days": max((frappe.utils.now_datetime() - created_on).days, 0),
 				"status": "Pending",
 				"type": "Finance",
 			}
@@ -6266,14 +6347,18 @@ def get_pending_approvals():
 		fields=["name", "linked_tender", "owner", "creation"],
 		order_by="creation desc",
 	):
+		created_on = frappe.utils.get_datetime(row.creation)
 		records.append(
 			{
 				"id": row.name,
 				"tender_id": row.linked_tender or "-",
 				"approval_for": "BOQ Approval",
 				"approval_from": "Department Head",
+				"action_owner": "Department Head",
+				"action_hint": "Verify BOQ scope, totals, and tender linkage",
 				"requester": row.owner,
 				"request_date": row.creation,
+				"age_days": max((frappe.utils.now_datetime() - created_on).days, 0),
 				"status": "Pending",
 				"type": "Engineering",
 			}
@@ -6285,16 +6370,66 @@ def get_pending_approvals():
 		fields=["name", "linked_tender", "owner", "creation"],
 		order_by="creation desc",
 	):
+		created_on = frappe.utils.get_datetime(row.creation)
 		records.append(
 			{
 				"id": row.name,
 				"tender_id": row.linked_tender or "-",
 				"approval_for": "Cost Sheet Approval",
 				"approval_from": "Department Head",
+				"action_owner": "Department Head",
+				"action_hint": "Check ownership, margin, and pricing readiness before submission",
 				"requester": row.owner,
 				"request_date": row.creation,
+				"age_days": max((frappe.utils.now_datetime() - created_on).days, 0),
 				"status": "Pending",
 				"type": "Costing",
+			}
+		)
+
+	for row in frappe.get_all(
+		"GE Estimate",
+		filters={"status": "SENT"},
+		fields=["name", "customer", "owner", "creation"],
+		order_by="creation desc",
+	):
+		created_on = frappe.utils.get_datetime(row.creation)
+		records.append(
+			{
+				"id": row.name,
+				"tender_id": row.customer or "-",
+				"approval_for": "Estimate Approval",
+				"approval_from": "Accounts",
+				"action_owner": "Accounts",
+				"action_hint": "Confirm commercial quote before customer-facing circulation",
+				"requester": row.owner,
+				"request_date": row.creation,
+				"age_days": max((frappe.utils.now_datetime() - created_on).days, 0),
+				"status": "Pending",
+				"type": "Estimate",
+			}
+		)
+
+	for row in frappe.get_all(
+		"GE Proforma Invoice",
+		filters={"status": "SENT"},
+		fields=["name", "customer", "owner", "creation"],
+		order_by="creation desc",
+	):
+		created_on = frappe.utils.get_datetime(row.creation)
+		records.append(
+			{
+				"id": row.name,
+				"tender_id": row.customer or "-",
+				"approval_for": "Proforma Approval",
+				"approval_from": "Accounts",
+				"action_owner": "Accounts",
+				"action_hint": "Validate billing intent, customer mapping, and amount exposure",
+				"requester": row.owner,
+				"request_date": row.creation,
+				"age_days": max((frappe.utils.now_datetime() - created_on).days, 0),
+				"status": "Pending",
+				"type": "Proforma",
 			}
 		)
 
@@ -6323,14 +6458,18 @@ def get_pending_approvals():
 		fields=["name", "linked_project", "owner", "creation"],
 		order_by="creation desc",
 	):
+		created_on = frappe.utils.get_datetime(row.creation)
 		records.append(
 			{
 				"id": row.name,
 				"tender_id": row.linked_project or "-",
 				"approval_for": "Invoice Approval",
 				"approval_from": "Accounts",
+				"action_owner": "Accounts",
+				"action_hint": "Approve billing release and receivable exposure",
 				"requester": row.owner,
 				"request_date": row.creation,
+				"age_days": max((frappe.utils.now_datetime() - created_on).days, 0),
 				"status": "Pending",
 				"type": "Billing",
 			}
@@ -9175,3 +9314,670 @@ def _refresh_project_spine(project_name):
                 "current_project_stage": proj_stage,
                 "spine_blocked": 1 if any_blocked else 0,
         }, update_modified=False)
+
+
+@frappe.whitelist()
+def get_estimates(customer=None, project=None, status=None):
+	"""Return estimate records."""
+	_require_billing_read_access()
+	filters = {}
+	if customer:
+		filters["customer"] = customer
+	if project:
+		filters["linked_project"] = project
+	if status:
+		filters["status"] = status
+	data = frappe.get_all(
+		"GE Estimate",
+		filters=filters,
+		fields=[
+			"name", "customer", "linked_tender", "linked_project", "estimate_date",
+			"valid_until", "status", "version", "subtotal", "gst_amount",
+			"tds_amount", "retention_amount", "net_amount", "linked_proforma",
+			"creation", "modified",
+		],
+		order_by="estimate_date desc, creation desc",
+	)
+	return {"success": True, "data": data}
+
+
+@frappe.whitelist()
+def get_estimate(name=None):
+	"""Return a single estimate with lines."""
+	_require_billing_read_access()
+	name = _require_param(name, "name")
+	doc = frappe.get_doc("GE Estimate", name)
+	return {"success": True, "data": doc.as_dict()}
+
+
+@frappe.whitelist()
+def create_estimate(data):
+	"""Create an estimate."""
+	_require_billing_write_access()
+	values = json.loads(data) if isinstance(data, str) else data
+	doc = frappe.get_doc({"doctype": "GE Estimate", **values})
+	doc.insert()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Estimate created"}
+
+
+@frappe.whitelist()
+def update_estimate(name, data):
+	"""Update an estimate."""
+	_require_billing_write_access()
+	values = json.loads(data) if isinstance(data, str) else data
+	doc = frappe.get_doc("GE Estimate", name)
+	if doc.status in ("CONVERTED", "CANCELLED"):
+		return {"success": False, "message": f"Cannot edit estimate in {doc.status} status"}
+	doc.update(values)
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Estimate updated"}
+
+
+@frappe.whitelist()
+def delete_estimate(name):
+	"""Delete an estimate."""
+	_require_billing_write_access()
+	doc = frappe.get_doc("GE Estimate", name)
+	if doc.status == "CONVERTED":
+		return {"success": False, "message": "Cannot delete a converted estimate"}
+	frappe.delete_doc("GE Estimate", name)
+	frappe.db.commit()
+	return {"success": True, "message": "Estimate deleted"}
+
+
+@frappe.whitelist()
+def submit_estimate(name):
+	"""Mark estimate as sent."""
+	_require_billing_write_access()
+	doc = frappe.get_doc("GE Estimate", name)
+	if doc.status != "DRAFT":
+		return {"success": False, "message": f"Estimate must be DRAFT to submit (current: {doc.status})"}
+	doc.status = "SENT"
+	doc.submitted_by = frappe.session.user
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Estimate sent"}
+
+
+@frappe.whitelist()
+def approve_estimate(name):
+	"""Approve an estimate."""
+	_require_billing_approval_access()
+	doc = frappe.get_doc("GE Estimate", name)
+	if doc.status not in ("SENT", "DRAFT"):
+		return {"success": False, "message": f"Estimate cannot be approved from {doc.status} state"}
+	doc.status = "APPROVED"
+	doc.approved_by = frappe.session.user
+	doc.approved_at = frappe.utils.now_datetime()
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Estimate approved"}
+
+
+@frappe.whitelist()
+def reject_estimate(name, reason=None):
+	"""Reject an estimate."""
+	_require_billing_approval_access()
+	doc = frappe.get_doc("GE Estimate", name)
+	doc.status = "REJECTED"
+	doc.remarks = reason or doc.remarks
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Estimate rejected"}
+
+
+@frappe.whitelist()
+def convert_estimate_to_proforma(name):
+	"""Create a proforma invoice from an estimate."""
+	_require_billing_write_access()
+	doc = frappe.get_doc("GE Estimate", name)
+	if doc.linked_proforma:
+		return {"success": False, "message": f"Estimate already linked to proforma {doc.linked_proforma}"}
+	if doc.status not in ("APPROVED", "SENT", "ACCEPTED"):
+		return {"success": False, "message": f"Estimate must be approved or sent before conversion (current: {doc.status})"}
+	proforma = frappe.get_doc(
+		{
+			"doctype": "GE Proforma Invoice",
+			"customer": doc.customer,
+			"linked_estimate": doc.name,
+			"linked_project": doc.linked_project,
+			"proforma_date": frappe.utils.nowdate(),
+			"status": "DRAFT",
+			"gst_percent": doc.gst_percent,
+			"tds_percent": doc.tds_percent,
+			"retention_percent": doc.retention_percent,
+			"remarks": doc.remarks,
+			"items": [
+				{
+					"description": item.description,
+					"qty": item.qty,
+					"rate": item.rate,
+					"gst_rate": item.gst_rate,
+					"remarks": item.remarks,
+					"linked_entity_type": item.linked_entity_type,
+					"linked_entity_name": item.linked_entity_name,
+				}
+				for item in doc.items
+			],
+		}
+	)
+	proforma.insert()
+	doc.linked_proforma = proforma.name
+	doc.status = "CONVERTED"
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": proforma.as_dict(), "message": "Proforma created from estimate"}
+
+
+@frappe.whitelist()
+def get_estimate_stats(customer=None):
+	"""Aggregate estimate stats."""
+	_require_billing_read_access()
+	filters = {"customer": customer} if customer else {}
+	rows = frappe.get_all("GE Estimate", filters=filters, fields=["status", "net_amount"])
+	return {"success": True, "data": {"total": len(rows), "draft": sum(1 for row in rows if row.status == "DRAFT"), "sent": sum(1 for row in rows if row.status == "SENT"), "approved": sum(1 for row in rows if row.status == "APPROVED"), "converted": sum(1 for row in rows if row.status == "CONVERTED"), "total_value": sum(row.net_amount or 0 for row in rows)}}
+
+
+@frappe.whitelist()
+def get_proforma_invoices(customer=None, project=None, status=None):
+	"""Return proforma invoices."""
+	_require_billing_read_access()
+	filters = {}
+	if customer:
+		filters["customer"] = customer
+	if project:
+		filters["linked_project"] = project
+	if status:
+		filters["status"] = status
+	data = frappe.get_all(
+		"GE Proforma Invoice",
+		filters=filters,
+		fields=[
+			"name", "customer", "linked_estimate", "linked_project", "linked_invoice",
+			"proforma_date", "due_date", "status", "subtotal", "gst_amount",
+			"tds_amount", "retention_amount", "net_amount", "converted_on",
+			"creation", "modified",
+		],
+		order_by="proforma_date desc, creation desc",
+	)
+	return {"success": True, "data": data}
+
+
+@frappe.whitelist()
+def get_proforma_invoice(name=None):
+	"""Return one proforma invoice."""
+	_require_billing_read_access()
+	name = _require_param(name, "name")
+	doc = frappe.get_doc("GE Proforma Invoice", name)
+	return {"success": True, "data": doc.as_dict()}
+
+
+@frappe.whitelist()
+def create_proforma_invoice(data):
+	"""Create a proforma invoice."""
+	_require_billing_write_access()
+	values = json.loads(data) if isinstance(data, str) else data
+	doc = frappe.get_doc({"doctype": "GE Proforma Invoice", **values})
+	doc.insert()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Proforma invoice created"}
+
+
+@frappe.whitelist()
+def update_proforma_invoice(name, data):
+	"""Update a proforma invoice."""
+	_require_billing_write_access()
+	values = json.loads(data) if isinstance(data, str) else data
+	doc = frappe.get_doc("GE Proforma Invoice", name)
+	if doc.status == "CONVERTED":
+		return {"success": False, "message": "Cannot edit a converted proforma invoice"}
+	doc.update(values)
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Proforma invoice updated"}
+
+
+@frappe.whitelist()
+def delete_proforma_invoice(name):
+	"""Delete a proforma invoice."""
+	_require_billing_write_access()
+	doc = frappe.get_doc("GE Proforma Invoice", name)
+	if doc.status == "CONVERTED":
+		return {"success": False, "message": "Cannot delete a converted proforma invoice"}
+	frappe.delete_doc("GE Proforma Invoice", name)
+	frappe.db.commit()
+	return {"success": True, "message": "Proforma invoice deleted"}
+
+
+@frappe.whitelist()
+def submit_proforma_invoice(name):
+	"""Mark proforma as sent."""
+	_require_billing_write_access()
+	doc = frappe.get_doc("GE Proforma Invoice", name)
+	if doc.status != "DRAFT":
+		return {"success": False, "message": f"Proforma must be DRAFT to submit (current: {doc.status})"}
+	doc.status = "SENT"
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Proforma invoice sent"}
+
+
+@frappe.whitelist()
+def approve_proforma_invoice(name):
+	"""Approve a proforma invoice."""
+	_require_billing_approval_access()
+	doc = frappe.get_doc("GE Proforma Invoice", name)
+	if doc.status not in ("DRAFT", "SENT"):
+		return {"success": False, "message": f"Proforma cannot be approved from {doc.status} state"}
+	doc.status = "APPROVED"
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Proforma invoice approved"}
+
+
+@frappe.whitelist()
+def cancel_proforma_invoice(name, reason=None):
+	"""Cancel a proforma invoice."""
+	_require_billing_approval_access()
+	doc = frappe.get_doc("GE Proforma Invoice", name)
+	if doc.status == "CONVERTED":
+		return {"success": False, "message": "Cannot cancel a converted proforma invoice"}
+	doc.status = "CANCELLED"
+	doc.remarks = reason or doc.remarks
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Proforma invoice cancelled"}
+
+
+@frappe.whitelist()
+def convert_proforma_to_invoice(name):
+	"""Create an invoice from a proforma invoice."""
+	_require_billing_write_access()
+	doc = frappe.get_doc("GE Proforma Invoice", name)
+	if doc.linked_invoice:
+		return {"success": False, "message": f"Proforma already linked to invoice {doc.linked_invoice}"}
+	if doc.status not in ("APPROVED", "SENT"):
+		return {"success": False, "message": f"Proforma must be approved or sent before conversion (current: {doc.status})"}
+	invoice = frappe.get_doc(
+		{
+			"doctype": "GE Invoice",
+			"customer": doc.customer,
+			"linked_project": doc.linked_project,
+			"invoice_date": frappe.utils.nowdate(),
+			"invoice_type": "RA",
+			"status": "DRAFT",
+			"gst_percent": doc.gst_percent,
+			"tds_percent": doc.tds_percent,
+			"items": [
+				{
+					"description": item.description,
+					"qty": item.qty,
+					"rate": item.rate,
+					"gst_rate": item.gst_rate,
+					"remarks": item.remarks,
+					"linked_entity_type": item.linked_entity_type,
+					"linked_entity_name": item.linked_entity_name,
+				}
+				for item in doc.items
+			],
+			"remarks": f"Created from proforma {doc.name}",
+		}
+	)
+	invoice.insert()
+	doc.linked_invoice = invoice.name
+	doc.converted_on = frappe.utils.now_datetime()
+	doc.status = "CONVERTED"
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": invoice.as_dict(), "message": "Invoice created from proforma"}
+
+
+@frappe.whitelist()
+def get_proforma_invoice_stats(customer=None):
+	"""Aggregate proforma stats."""
+	_require_billing_read_access()
+	filters = {"customer": customer} if customer else {}
+	rows = frappe.get_all("GE Proforma Invoice", filters=filters, fields=["status", "net_amount"])
+	return {"success": True, "data": {"total": len(rows), "draft": sum(1 for row in rows if row.status == "DRAFT"), "sent": sum(1 for row in rows if row.status == "SENT"), "approved": sum(1 for row in rows if row.status == "APPROVED"), "converted": sum(1 for row in rows if row.status == "CONVERTED"), "total_value": sum(row.net_amount or 0 for row in rows)}}
+
+
+@frappe.whitelist()
+def get_payment_follow_ups(customer=None, status=None):
+	"""Return payment follow-up records."""
+	_require_billing_read_access()
+	filters = {}
+	if customer:
+		filters["customer"] = customer
+	if status:
+		filters["status"] = status
+	data = frappe.get_all(
+		"GE Payment Follow Up",
+		filters=filters,
+		fields=[
+			"name", "customer", "linked_invoice", "linked_project", "follow_up_date",
+			"follow_up_mode", "status", "contact_person", "summary",
+			"promised_payment_date", "promised_payment_amount", "next_follow_up_on",
+			"assigned_to", "escalation_level", "creation", "modified",
+		],
+		order_by="follow_up_date desc, creation desc",
+	)
+	return {"success": True, "data": data}
+
+
+@frappe.whitelist()
+def create_payment_follow_up(data):
+	"""Create a payment follow-up."""
+	_require_billing_write_access()
+	values = json.loads(data) if isinstance(data, str) else data
+	if not values.get("customer") and values.get("linked_invoice"):
+		values["customer"] = frappe.db.get_value("GE Invoice", values.get("linked_invoice"), "customer")
+	doc = frappe.get_doc({"doctype": "GE Payment Follow Up", **values})
+	doc.insert()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Payment follow-up created"}
+
+
+@frappe.whitelist()
+def update_payment_follow_up(name, data):
+	"""Update a payment follow-up."""
+	_require_billing_write_access()
+	values = json.loads(data) if isinstance(data, str) else data
+	doc = frappe.get_doc("GE Payment Follow Up", name)
+	doc.update(values)
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Payment follow-up updated"}
+
+
+@frappe.whitelist()
+def delete_payment_follow_up(name):
+	"""Delete a payment follow-up."""
+	_require_billing_write_access()
+	frappe.delete_doc("GE Payment Follow Up", name)
+	frappe.db.commit()
+	return {"success": True, "message": "Payment follow-up deleted"}
+
+
+@frappe.whitelist()
+def close_payment_follow_up(name, remarks=None):
+	"""Close a payment follow-up item."""
+	_require_billing_write_access()
+	doc = frappe.get_doc("GE Payment Follow Up", name)
+	doc.status = "CLOSED"
+	doc.remarks = remarks or doc.remarks
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Payment follow-up closed"}
+
+
+@frappe.whitelist()
+def escalate_payment_follow_up(name, remarks=None):
+	"""Escalate a payment follow-up item."""
+	_require_billing_write_access()
+	doc = frappe.get_doc("GE Payment Follow Up", name)
+	doc.status = "ESCALATED"
+	doc.escalation_level = (doc.escalation_level or 0) + 1
+	doc.remarks = remarks or doc.remarks
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Payment follow-up escalated"}
+
+
+@frappe.whitelist()
+def get_payment_follow_up_stats(customer=None):
+	"""Aggregate follow-up stats."""
+	_require_billing_read_access()
+	filters = {"customer": customer} if customer else {}
+	rows = frappe.get_all("GE Payment Follow Up", filters=filters, fields=["status", "promised_payment_amount"])
+	return {"success": True, "data": {"total": len(rows), "open": sum(1 for row in rows if row.status == "OPEN"), "promised": sum(1 for row in rows if row.status == "PROMISED"), "escalated": sum(1 for row in rows if row.status == "ESCALATED"), "closed": sum(1 for row in rows if row.status == "CLOSED"), "promised_amount": sum(row.promised_payment_amount or 0 for row in rows)}}
+
+
+@frappe.whitelist()
+def get_customer_statement(customer=None):
+	"""Return a customer statement with running balance."""
+	_require_billing_read_access()
+	customer = _require_param(customer, "customer")
+	invoices = frappe.get_all("GE Invoice", filters={"customer": customer}, fields=["name", "invoice_date", "net_receivable"], order_by="invoice_date asc, creation asc")
+	receipts = frappe.get_all("GE Payment Receipt", filters={"customer": customer}, fields=["name", "received_date", "amount_received", "tds_amount"], order_by="received_date asc, creation asc")
+	entries = []
+	for row in invoices:
+		entries.append({"date": row.invoice_date, "type": "INVOICE", "reference": row.name, "debit": row.net_receivable or 0, "credit": 0})
+	for row in receipts:
+		entries.append({"date": row.received_date, "type": "RECEIPT", "reference": row.name, "debit": 0, "credit": (row.amount_received or 0) + (row.tds_amount or 0)})
+	entries.sort(key=lambda row: (row.get("date") or "", row.get("reference") or ""))
+	balance = 0
+	for row in entries:
+		balance += (row.get("debit") or 0) - (row.get("credit") or 0)
+		row["balance"] = balance
+	return {"success": True, "data": {"customer": customer, "entries": entries, "summary": {"invoice_value": sum(row.net_receivable or 0 for row in invoices), "receipts_total": sum((row.amount_received or 0) + (row.tds_amount or 0) for row in receipts), "closing_balance": balance}}}
+
+
+@frappe.whitelist()
+def get_commercial_comments(customer=None, reference_doctype=None, reference_name=None):
+	"""Return commercial record comments with optional customer or record filtering."""
+	_require_billing_read_access()
+	comment_filters = {"comment_type": ["in", ["Comment", "Info"]]}
+	reference_filters = {}
+	if reference_doctype:
+		comment_filters["reference_doctype"] = reference_doctype
+	if reference_name:
+		comment_filters["reference_name"] = reference_name
+	if customer:
+		for doctype, fieldname in (
+			("GE Estimate", "customer"),
+			("GE Proforma Invoice", "customer"),
+			("GE Invoice", "customer"),
+			("GE Payment Follow Up", "customer"),
+		):
+			names = frappe.get_all(doctype, filters={fieldname: customer}, pluck="name")
+			if names:
+				reference_filters[doctype] = set(names)
+	rows = frappe.get_all(
+		"Comment",
+		filters=comment_filters,
+		fields=["name", "reference_doctype", "reference_name", "comment_by", "content", "creation"],
+		order_by="creation desc",
+		limit=100,
+	)
+	if customer and reference_filters:
+		filtered = []
+		for row in rows:
+			allowed = reference_filters.get(row.reference_doctype)
+			if allowed and row.reference_name in allowed:
+				filtered.append(row)
+		rows = filtered
+	return {"success": True, "data": rows}
+
+
+@frappe.whitelist()
+def add_commercial_comment(reference_doctype, reference_name, content):
+	"""Add a transaction-level comment to a commercial record."""
+	_require_billing_write_access()
+	reference_doctype = _require_param(reference_doctype, "reference_doctype")
+	reference_name = _require_param(reference_name, "reference_name")
+	content = _require_param(content, "content")
+	comment = frappe.get_doc(
+		{
+			"doctype": "Comment",
+			"comment_type": "Comment",
+			"reference_doctype": reference_doctype,
+			"reference_name": reference_name,
+			"content": content,
+		}
+	)
+	comment.insert(ignore_permissions=True)
+	frappe.db.commit()
+	return {"success": True, "data": comment.as_dict(), "message": "Commercial comment added"}
+
+
+@frappe.whitelist()
+def get_commercial_documents(customer=None, reference_doctype=None, reference_name=None):
+	"""Return customer-context commercial document exchange records."""
+	_require_document_read_access()
+	filters = {}
+	if customer:
+		filters["customer"] = customer
+	if reference_doctype:
+		filters["reference_doctype"] = reference_doctype
+	if reference_name:
+		filters["reference_name"] = reference_name
+	rows = frappe.get_all(
+		"GE Commercial Document",
+		filters=filters,
+		fields=["name", "customer", "reference_doctype", "reference_name", "document_name", "category", "file_url", "shared_by", "shared_on", "remarks"],
+		order_by="creation desc",
+	)
+	return {"success": True, "data": rows}
+
+
+@frappe.whitelist()
+def create_commercial_document(data):
+	"""Create a customer-context commercial document exchange record."""
+	_require_document_write_access()
+	values = json.loads(data) if isinstance(data, str) else data
+	values["shared_by"] = frappe.session.user
+	values["shared_on"] = frappe.utils.now_datetime()
+	doc = frappe.get_doc({"doctype": "GE Commercial Document", **values})
+	doc.insert()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Commercial document shared"}
+
+
+@frappe.whitelist()
+def get_receivable_aging():
+	"""Return customer-wise receivable aging buckets."""
+	_require_billing_read_access()
+	today = frappe.utils.getdate(frappe.utils.nowdate())
+	rows = frappe.get_all("GE Invoice", filters={"status": ["in", ["SUBMITTED", "APPROVED"]]}, fields=["customer", "net_receivable", "invoice_date"])
+	grouped = {}
+	for row in rows:
+		customer = row.customer or "Unassigned"
+		grouped.setdefault(customer, {"customer": customer, "bucket_0_30": 0, "bucket_31_60": 0, "bucket_61_90": 0, "bucket_90_plus": 0, "total": 0})
+		age_days = (today - frappe.utils.getdate(row.invoice_date or frappe.utils.nowdate())).days
+		amount = row.net_receivable or 0
+		grouped[customer]["total"] += amount
+		if age_days <= 30:
+			grouped[customer]["bucket_0_30"] += amount
+		elif age_days <= 60:
+			grouped[customer]["bucket_31_60"] += amount
+		elif age_days <= 90:
+			grouped[customer]["bucket_61_90"] += amount
+		else:
+			grouped[customer]["bucket_90_plus"] += amount
+	return {"success": True, "data": list(grouped.values())}
+
+
+@frappe.whitelist()
+def seed_bookkeeping_demo():
+	"""Seed a small bookkeeping demo chain if one does not already exist."""
+	_require_billing_write_access()
+	customer_name = "DEMO CUSTOMER - COMMERCIAL"
+	project_name = None
+	projects = frappe.get_all("Project", fields=["name"], limit=1)
+	if projects:
+		project_name = projects[0].name
+
+	customer = frappe.db.exists("GE Party", customer_name)
+	if not customer:
+		customer_doc = frappe.get_doc(
+			{
+				"doctype": "GE Party",
+				"party_name": customer_name,
+				"party_type": "CLIENT",
+				"active": 1,
+				"city": "Demo City",
+				"state": "Demo State",
+			}
+		)
+		customer_doc.insert()
+		customer = customer_doc.name
+
+	estimate_name = frappe.db.exists("GE Estimate", {"customer": customer, "remarks": ["like", "%bookkeeping demo%"]})
+	if not estimate_name:
+		estimate = frappe.get_doc(
+			{
+				"doctype": "GE Estimate",
+				"customer": customer,
+				"linked_project": project_name,
+				"estimate_date": frappe.utils.nowdate(),
+				"valid_until": frappe.utils.add_days(frappe.utils.nowdate(), 15),
+				"status": "APPROVED",
+				"gst_percent": 18,
+				"remarks": "bookkeeping demo estimate",
+				"items": [{"description": "Demo surveillance supply", "qty": 1, "rate": 100000}],
+			}
+		)
+		estimate.insert()
+		estimate_name = estimate.name
+
+	proforma_name = frappe.db.exists("GE Proforma Invoice", {"linked_estimate": estimate_name})
+	if not proforma_name:
+		proforma = frappe.get_doc(
+			{
+				"doctype": "GE Proforma Invoice",
+				"customer": customer,
+				"linked_estimate": estimate_name,
+				"linked_project": project_name,
+				"proforma_date": frappe.utils.nowdate(),
+				"due_date": frappe.utils.add_days(frappe.utils.nowdate(), 10),
+				"status": "APPROVED",
+				"gst_percent": 18,
+				"remarks": "bookkeeping demo proforma",
+				"items": [{"description": "Demo surveillance supply", "qty": 1, "rate": 100000}],
+			}
+		)
+		proforma.insert()
+		proforma_name = proforma.name
+
+	invoice_name = frappe.db.exists("GE Invoice", {"customer": customer, "remarks": ["like", "%bookkeeping demo%"]})
+	if not invoice_name and project_name:
+		invoice = frappe.get_doc(
+			{
+				"doctype": "GE Invoice",
+				"customer": customer,
+				"linked_project": project_name,
+				"invoice_date": frappe.utils.nowdate(),
+				"invoice_type": "RA",
+				"status": "APPROVED",
+				"gst_percent": 18,
+				"remarks": "bookkeeping demo invoice",
+				"items": [{"description": "Demo surveillance supply", "qty": 1, "rate": 100000}],
+			}
+		)
+		invoice.insert()
+		invoice_name = invoice.name
+
+	if invoice_name and not frappe.db.exists("GE Payment Receipt", {"linked_invoice": invoice_name, "remarks": ["like", "%bookkeeping demo%"]}):
+		frappe.get_doc(
+			{
+				"doctype": "GE Payment Receipt",
+				"customer": customer,
+				"linked_invoice": invoice_name,
+				"linked_project": project_name,
+				"received_date": frappe.utils.nowdate(),
+				"amount_received": 50000,
+				"tds_amount": 5000,
+				"payment_mode": "BANK_TRANSFER",
+				"remarks": "bookkeeping demo receipt",
+			}
+		).insert()
+
+	if invoice_name and not frappe.db.exists("GE Payment Follow Up", {"linked_invoice": invoice_name, "summary": ["like", "%bookkeeping demo%"]}):
+		frappe.get_doc(
+			{
+				"doctype": "GE Payment Follow Up",
+				"customer": customer,
+				"linked_invoice": invoice_name,
+				"linked_project": project_name,
+				"follow_up_date": frappe.utils.nowdate(),
+				"follow_up_mode": "CALL",
+				"status": "OPEN",
+				"summary": "bookkeeping demo follow-up",
+				"next_follow_up_on": frappe.utils.add_days(frappe.utils.nowdate(), 3),
+			}
+		).insert()
+
+	frappe.db.commit()
+	return {"success": True, "message": "Bookkeeping demo data seeded", "data": {"customer": customer, "estimate": estimate_name, "proforma": proforma_name, "invoice": invoice_name, "project": project_name}}

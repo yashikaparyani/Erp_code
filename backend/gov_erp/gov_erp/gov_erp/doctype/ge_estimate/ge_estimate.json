@@ -1,0 +1,240 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-03-20 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "customer",
+  "linked_tender",
+  "linked_project",
+  "cb_estimate_meta",
+  "estimate_date",
+  "valid_until",
+  "status",
+  "version",
+  "sb_estimate_amounts",
+  "subtotal",
+  "gst_percent",
+  "gst_amount",
+  "cb_estimate_tds",
+  "tds_percent",
+  "tds_amount",
+  "retention_percent",
+  "retention_amount",
+  "net_amount",
+  "sb_estimate_items",
+  "items",
+  "sb_estimate_approval",
+  "submitted_by",
+  "approved_by",
+  "approved_at",
+  "cb_estimate_convert",
+  "linked_proforma",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "options": "GEST-.#####"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "GE Party",
+   "reqd": 1
+  },
+  {
+   "fieldname": "linked_tender",
+   "fieldtype": "Link",
+   "label": "Linked Tender",
+   "options": "GE Tender"
+  },
+  {
+   "fieldname": "linked_project",
+   "fieldtype": "Link",
+   "label": "Linked Project",
+   "options": "Project"
+  },
+  {
+   "fieldname": "cb_estimate_meta",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "estimate_date",
+   "fieldtype": "Date",
+   "label": "Estimate Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "valid_until",
+   "fieldtype": "Date",
+   "label": "Valid Until"
+  },
+  {
+   "default": "DRAFT",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "DRAFT\nSENT\nAPPROVED\nACCEPTED\nREJECTED\nCANCELLED\nCONVERTED",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "version",
+   "fieldtype": "Int",
+   "label": "Version"
+  },
+  {
+   "fieldname": "sb_estimate_amounts",
+   "fieldtype": "Section Break",
+   "label": "Amounts"
+  },
+  {
+   "default": "0",
+   "fieldname": "subtotal",
+   "fieldtype": "Currency",
+   "label": "Subtotal"
+  },
+  {
+   "fieldname": "gst_percent",
+   "fieldtype": "Percent",
+   "label": "GST %"
+  },
+  {
+   "default": "0",
+   "fieldname": "gst_amount",
+   "fieldtype": "Currency",
+   "label": "GST Amount"
+  },
+  {
+   "fieldname": "cb_estimate_tds",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "tds_percent",
+   "fieldtype": "Percent",
+   "label": "TDS %"
+  },
+  {
+   "default": "0",
+   "fieldname": "tds_amount",
+   "fieldtype": "Currency",
+   "label": "TDS Amount"
+  },
+  {
+   "fieldname": "retention_percent",
+   "fieldtype": "Percent",
+   "label": "Retention %"
+  },
+  {
+   "default": "0",
+   "fieldname": "retention_amount",
+   "fieldtype": "Currency",
+   "label": "Retention Amount"
+  },
+  {
+   "default": "0",
+   "fieldname": "net_amount",
+   "fieldtype": "Currency",
+   "label": "Net Amount"
+  },
+  {
+   "fieldname": "sb_estimate_items",
+   "fieldtype": "Section Break",
+   "label": "Estimate Lines"
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Estimate Lines",
+   "options": "GE Invoice Line",
+   "reqd": 1
+  },
+  {
+   "fieldname": "sb_estimate_approval",
+   "fieldtype": "Section Break",
+   "label": "Workflow"
+  },
+  {
+   "fieldname": "submitted_by",
+   "fieldtype": "Link",
+   "label": "Submitted By",
+   "options": "User"
+  },
+  {
+   "fieldname": "approved_by",
+   "fieldtype": "Link",
+   "label": "Approved By",
+   "options": "User"
+  },
+  {
+   "fieldname": "approved_at",
+   "fieldtype": "Datetime",
+   "label": "Approved At"
+  },
+  {
+   "fieldname": "cb_estimate_convert",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "linked_proforma",
+   "fieldtype": "Link",
+   "label": "Linked Proforma",
+   "options": "GE Proforma Invoice"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-03-20 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE Estimate",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Presales Tendering Head"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Director"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "desc",
+ "track_changes": 1
+}
+

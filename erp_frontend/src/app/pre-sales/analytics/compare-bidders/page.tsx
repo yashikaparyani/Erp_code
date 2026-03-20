@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { BarChart3, Building2, Scale, Trophy } from 'lucide-react';
+import { BarChart3, Building2, Download, Scale, Trophy } from 'lucide-react';
 import {
   type Competitor,
   type Tender,
@@ -30,6 +30,7 @@ export default function CompareBiddersPage() {
   const [tenders, setTenders] = useState<Tender[]>([]);
   const [results, setResults] = useState<TenderResult[]>([]);
   const [competitors, setCompetitors] = useState<Competitor[]>([]);
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'our-team' | 'competitor'>('all');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -86,6 +87,11 @@ export default function CompareBiddersPage() {
     });
   }, [competitors, ourScore]);
 
+  const filteredScoreRows = useMemo(
+    () => scoreRows.filter((row) => (sourceFilter === 'all' ? true : row.source === sourceFilter)),
+    [scoreRows, sourceFilter],
+  );
+
   const winnerLeaderboard = useMemo(() => {
     const grouped = results.reduce<Record<string, { wins: number; value: number; lastAward?: string }>>((acc, row) => {
       const key = row.winner_company || 'Unspecified winner';
@@ -118,6 +124,28 @@ export default function CompareBiddersPage() {
       .sort((a, b) => b.count - a.count);
   }, [results]);
 
+  const competitiveSignals = useMemo(() => {
+    const strongerCompetitors = scoreRows.filter((row) => row.source === 'competitor' && row.winRate > ourScore.winRate).slice(0, 3);
+    const highBidCompetitors = scoreRows.filter((row) => row.source === 'competitor' && row.avgBid > ourScore.avgBid).slice(0, 3);
+    const unlinkedWinners = winnerLeaderboard.filter((row) => !competitors.some((item) => (item.company_name || item.name) === row.name)).slice(0, 5);
+    return { strongerCompetitors, highBidCompetitors, unlinkedWinners };
+  }, [competitors, ourScore.avgBid, ourScore.winRate, scoreRows, winnerLeaderboard]);
+
+  const exportCsv = () => {
+    const lines = [
+      ['Bidder', 'Type', 'Wins', 'Losses', 'Win Rate', 'Avg Bid Size'],
+      ...filteredScoreRows.map((row) => [row.name, row.source, row.wins, row.losses, row.winRate, row.avgBid]),
+    ];
+    const csv = lines.map((line) => line.map((value) => `"${String(value ?? '').replaceAll('"', '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'compare-bidders.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center h-64"><div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full" /></div>;
   }
@@ -125,8 +153,23 @@ export default function CompareBiddersPage() {
   return (
     <div>
       <div className="mb-4 sm:mb-6">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Compare Bidders</h1>
-        <p className="text-xs sm:text-sm text-gray-500 mt-1">Compare our pre-sales performance against competitor master data and published winners.</p>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Compare Bidders</h1>
+            <p className="text-xs sm:text-sm text-gray-500 mt-1">Compare our pre-sales performance against competitor master data and published winners.</p>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <select className="input min-w-40" value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value as 'all' | 'our-team' | 'competitor')}>
+              <option value="all">All bidders</option>
+              <option value="our-team">Our team only</option>
+              <option value="competitor">Competitors only</option>
+            </select>
+            <button className="btn btn-secondary" onClick={exportCsv} disabled={!filteredScoreRows.length}>
+              <Download className="h-4 w-4" />
+              Export CSV
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
@@ -136,6 +179,33 @@ export default function CompareBiddersPage() {
         <div className="stat-card"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg flex items-center justify-center bg-indigo-100 text-indigo-600"><BarChart3 className="w-5 h-5" /></div><div><div className="stat-value">{formatCurrency(ourScore.avgBid)}</div><div className="stat-label">Our Avg Bid Size</div></div></div></div>
       </div>
 
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6 mb-4 sm:mb-6">
+        <div className="card">
+          <div className="card-header"><h3 className="font-semibold text-gray-900">Who is beating us</h3></div>
+          <div className="p-5 space-y-2">
+            {competitiveSignals.strongerCompetitors.length === 0 ? <div className="text-sm text-gray-500">No competitor is currently outperforming our tracked win rate.</div> : competitiveSignals.strongerCompetitors.map((row) => (
+              <div key={row.name} className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">{row.name} | {formatPercent(row.winRate)}</div>
+            ))}
+          </div>
+        </div>
+        <div className="card">
+          <div className="card-header"><h3 className="font-semibold text-gray-900">Pricing pressure</h3></div>
+          <div className="p-5 space-y-2">
+            {competitiveSignals.highBidCompetitors.length === 0 ? <div className="text-sm text-gray-500">No major pricing pressure signal found from tracked competitors.</div> : competitiveSignals.highBidCompetitors.map((row) => (
+              <div key={row.name} className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">{row.name} | avg {formatCurrency(row.avgBid)}</div>
+            ))}
+          </div>
+        </div>
+        <div className="card">
+          <div className="card-header"><h3 className="font-semibold text-gray-900">Live result coverage gaps</h3></div>
+          <div className="p-5 space-y-2">
+            {competitiveSignals.unlinkedWinners.length === 0 ? <div className="text-sm text-gray-500">Published winners are already represented in competitor master.</div> : competitiveSignals.unlinkedWinners.map((row) => (
+              <div key={row.name} className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">{row.name} | {row.wins} award(s)</div>
+            ))}
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 xl:grid-cols-[1.35fr_1fr] gap-4 sm:gap-6 mb-4 sm:mb-6">
         <div className="card">
           <div className="card-header"><h3 className="font-semibold text-gray-900">Bidder Scoreboard</h3></div>
@@ -143,7 +213,7 @@ export default function CompareBiddersPage() {
             <table className="data-table">
               <thead><tr><th>Bidder</th><th>Type</th><th>Wins</th><th>Losses</th><th>Win Rate</th><th>Avg Bid Size</th></tr></thead>
               <tbody>
-                {scoreRows.length === 0 ? <tr><td colSpan={6} className="text-center py-8 text-gray-500">No bidder data found</td></tr> : scoreRows.map((row) => (
+                {filteredScoreRows.length === 0 ? <tr><td colSpan={6} className="text-center py-8 text-gray-500">No bidder data found</td></tr> : filteredScoreRows.map((row) => (
                   <tr key={row.name}>
                     <td><div className="font-medium text-gray-900">{row.name}</div></td>
                     <td><span className={`badge ${row.source === 'our-team' ? 'badge-blue' : 'badge-gray'}`}>{row.source === 'our-team' ? 'Our team' : 'Competitor'}</span></td>

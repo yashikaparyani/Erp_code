@@ -56,12 +56,33 @@ export default function FinanceMISPage() {
     setFilters({ tenderId: '', status: '', instrument_type: '' });
   };
 
+  const exportCsv = () => {
+    const lines = [
+      ['Tender', 'Type', 'Bank', 'Amount', 'Status', 'Issue Date', 'Expiry Date', 'Owner'],
+      ...data.map((row) => [row.linked_tender, row.instrument_type, row.bank_name, row.amount, row.status, row.issue_date, row.expiry_date, row.owner]),
+    ];
+    const csv = lines.map((line) => line.map((value) => `"${String(value ?? '').replaceAll('"', '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'finance-mis.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="p-3 sm:p-4 md:p-6 bg-gray-50 min-h-screen">
       {/* Header */}
-      <div className="mb-4 sm:mb-6">
+      <div className="mb-4 sm:mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Finance MIS</h1>
-        <p className="text-gray-500 text-xs sm:text-sm mt-1">Financial management information system reports</p>
+        <div className="flex items-center gap-3">
+          <p className="text-gray-500 text-xs sm:text-sm mt-1">Financial management information system reports</p>
+          <button className="btn btn-secondary" onClick={exportCsv} disabled={!data.length}>
+            <Download className="w-4 h-4" />
+            Export CSV
+          </button>
+        </div>
       </div>
 
       {/* Search/Filter Section */}

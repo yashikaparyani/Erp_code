@@ -1,8 +1,8 @@
 'use client';
 
 import ModalFrame from '@/components/ui/ModalFrame';
-import { useEffect, useState } from 'react';
-import { BellRing, Pencil, Plus, Trash2, Trophy, TrendingUp, Users } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { BellRing, Download, Pencil, Plus, Search, Trash2, Trophy, TrendingUp, Users } from 'lucide-react';
 
 interface Competitor {
   name: string;
@@ -116,6 +116,7 @@ export default function CompetitorsPage() {
   const [submitLoading, setSubmitLoading] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [actionError, setActionError] = useState('');
+  const [search, setSearch] = useState('');
 
   const loadData = async () => {
     setLoading(true);
@@ -145,6 +146,39 @@ export default function CompetitorsPage() {
   useEffect(() => {
     void loadData();
   }, []);
+
+  const filteredItems = useMemo(
+    () =>
+      items.filter((item) => {
+        const haystack = [item.company_name, item.organization, item.specialization, item.remarks].join(' ').toLowerCase();
+        return haystack.includes(search.trim().toLowerCase());
+      }),
+    [items, search],
+  );
+
+  const exportCsv = () => {
+    const lines = [
+      ['Company', 'Organization', 'Wins', 'Losses', 'Win Rate', 'Bid Range Min', 'Bid Range Max', 'Remarks'],
+      ...filteredItems.map((item) => [
+        item.company_name || '',
+        item.organization || '',
+        item.win_count ?? 0,
+        item.loss_count ?? 0,
+        item.win_rate ?? 0,
+        item.typical_bid_range_min ?? 0,
+        item.typical_bid_range_max ?? 0,
+        item.remarks || '',
+      ]),
+    ];
+    const csv = lines.map((line) => line.map((value) => `"${String(value ?? '').replaceAll('"', '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'competitors.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   const openCreate = () => {
     setEditing(null);
@@ -223,10 +257,20 @@ export default function CompetitorsPage() {
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Competitor Analysis</h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-1">Win/loss rates, result tracker stats, and follow-up signals of known competitors.</p>
         </div>
-        <button className="btn btn-primary w-full sm:w-auto" onClick={openCreate}>
-          <Plus className="w-4 h-4" />
-          Add Competitor
-        </button>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input className="input w-full pl-9 sm:w-72" placeholder="Search competitors" value={search} onChange={(event) => setSearch(event.target.value)} />
+          </div>
+          <button className="btn btn-secondary" onClick={exportCsv} disabled={!filteredItems.length}>
+            <Download className="w-4 h-4" />
+            Export CSV
+          </button>
+          <button className="btn btn-primary w-full sm:w-auto" onClick={openCreate}>
+            <Plus className="w-4 h-4" />
+            Add Competitor
+          </button>
+        </div>
       </div>
 
       {actionError ? <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{actionError}</div> : null}
@@ -245,7 +289,7 @@ export default function CompetitorsPage() {
             <table className="data-table">
               <thead><tr><th>Company</th><th>Organization</th><th>Wins</th><th>Losses</th><th>Win Rate</th><th>Bid Range</th><th>Actions</th></tr></thead>
               <tbody>
-                {items.length === 0 ? <tr><td colSpan={7} className="text-center py-8 text-gray-500">No competitor data found</td></tr> : items.map(item => (
+                {filteredItems.length === 0 ? <tr><td colSpan={7} className="text-center py-8 text-gray-500">No competitor data found</td></tr> : filteredItems.map((item) => (
                   <tr key={item.name}>
                     <td>
                       <div className="font-medium text-gray-900">{item.company_name || '-'}</div>

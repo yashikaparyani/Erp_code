@@ -6,11 +6,15 @@
  "engine": "InnoDB",
  "field_order": [
   "naming_series",
+  "receipt_type",
+  "customer",
   "linked_invoice",
   "linked_project",
+  "advance_reference",
   "cb_pay_meta",
   "received_date",
   "amount_received",
+  "adjusted_amount",
   "sb_tds_pay",
   "tds_amount",
   "tds_remarks",
@@ -31,10 +35,24 @@
    "options": "GPAY-.#####"
   },
   {
+   "fieldname": "receipt_type",
+   "fieldtype": "Select",
+   "label": "Receipt Type",
+   "reqd": 1,
+   "options": "AGAINST_INVOICE\nADVANCE\nADJUSTMENT",
+   "default": "AGAINST_INVOICE"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "GE Party"
+  },
+  {
    "fieldname": "linked_invoice",
    "fieldtype": "Link",
    "label": "Linked Invoice",
-   "reqd": 1,
+   "reqd": 0,
    "options": "GE Invoice"
   },
   {
@@ -43,6 +61,12 @@
    "label": "Linked Project",
    "reqd": 0,
    "options": "Project"
+  },
+  {
+   "fieldname": "advance_reference",
+   "fieldtype": "Data",
+   "label": "Advance Reference",
+   "reqd": 0
   },
   {
    "fieldname": "cb_pay_meta",
@@ -59,6 +83,13 @@
    "fieldtype": "Currency",
    "label": "Amount Received",
    "reqd": 1
+  },
+  {
+   "fieldname": "adjusted_amount",
+   "fieldtype": "Currency",
+   "label": "Adjusted Amount",
+   "reqd": 0,
+   "default": "0"
   },
   {
    "fieldname": "sb_tds_pay",

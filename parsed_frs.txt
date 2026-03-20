@@ -1,0 +1,541 @@
+FRS (Phase 1)
+Integrated Tender-to-Delivery ERP (Govt Projects, Multi-site, O&M ready)
+1) Purpose (Phase 1)
+Build a role-based system to manage the core lifecycle:
+Tender → Survey → BOQ → Costing → Approval → Procurement → Delivery → Installation → Commissioning → Billing → Payment tracking → Ticketing basics
+Phase 1 explicitly excludes:
+External accounting ERP integration (Tally/Zoho/SAP posting)
+AI/predictive analytics
+Biometric integration
+2) Users & Roles (Phase 1)
+The system shall support these roles (minimum):
+Superadmin 
+Department Head
+Presales/Tendering
+Engineering Head + Engineers
+Purchase
+Stores/Logistics (HO & Project)
+Project Manager
+Accounts
+Field Technician
+O&M Operator
+Top Management
+Core rules:
+A user can have multiple roles (only via Superadmin permission management).
+Role access is scoped (project + site + region), but Phase 1 enforcement will be project-first (site/region optional scoping can still exist in data).
+3) Cross-cutting Requirements (Phase 1)
+3.1 Audit & Approval
+All critical business entities must have:
+created_by, created_at, updated_by, updated_at
+status + status_history (or audit events)
+Approval workflow shall be supported for: Tender, Costing, Indent, PO, GRN/Stock movements, Invoices, Documents, Commissioning.
+Approvals are not value-threshold based (same flow regardless of amount).
+Approved records editable only by Superadmin/Department Head, and must create an audit entry.
+3.2 Document Management
+DMS is mandatory in Phase 1.
+Documents must be linked to Tender/Project/Site/PO/GRN/Commissioning etc.
+Manual versioning (v1/v2/…)
+Expiry tracking + alerts (insurance, warranty certificates, BG expiry etc.)
+Old versions can be deleted by Dept Head (must be audited).
+3.3 Dashboards (Phase 1)Phase 1 must deliver role dashboards:
+Project Head: indents pending, milestone billing upcoming, payment pending, dependencies, SLA risk, manpower shortage, red flags
+Presales: active tenders, submission deadlines, BOQ readiness, survey status, compliance checklist, EMD/PBG tracker
+Procurement: indents, comparison sheets, 3-quotation compliance, PO approval queue, delivery tracking,payment dues, advance requirements, PDC requirements
+Stores: GRN queue, dispatch, stock position, aging,consumption(project wise and site wise)
+Execution: timeline vs actual, DPR, site photos, dependencies, manpower deployed
+Accounts: billing tracker, payment aging, retention, GST/TDS entry, penalty deductions at payment stage
+O&M: ticket queue + SLA timer basics (Phase 1 minimum), RMA tracker
+4) Module Functional Requirements (Phase 1)
+4.1 Tender & Presales
+Create/edit tenders: tender no, client, submission date, status
+Attach RFP documents
+Maintain compliance checklist items (line-level status + remarks)
+Maintain clarification tracker (question/answer dates)
+Track EMD/PBG instruments: bank, instrument no, amount, issue/expiry, status
+Convert tender to project only when won
+4.2 Survey
+Record survey per tender/project and per site
+Survey must be marked “completed” before BOQ can be approved
+Survey photos and site notes upload
+4.3 BOQ & Costing
+BOQ is site-wise, and aggregated to project level
+BOQ supports revisions (versioning), retain history for long period
+Costing is margin-on-cost
+BOQ approval and costing approval via workflow
+BOQ lines can be linked to Item Master, but allow ad-hoc description lines
+4.4 Procurement & Vendor
+Vendor master management
+Indent creation per project, optionally site-specific
+Mandatory 3-quotation compliance, with exception approval for single-supplier scenarios
+Quotation comparison sheet generation
+PO creation:
+One PO can cover multiple indents
+Indent lines can split across multiple POs/vendors
+PO amendments allowed, must be tracked as revisions
+4.5 Stores & Logistics
+GRN:
+Partial deliveries supported
+Accept/reject quantities
+Attach packing list / warranty certificate / MIR (Material Inspection Report)
+Dispatch:
+HO → Project store → Site OR Vendor → Site direct delivery (both supported)
+Inventory rules:
+Negative stock not allowed
+Ledger-based movements for audit
+Serialized tracking for critical devices (IP devices at minimum)
+4.6 Project Execution + Dependency Engine
+Create project with project type template (ITMS/Surveillance/Solar/O&M)
+Maintain sites per project (site status)
+Milestones and tasks:
+planned vs actual dates
+owner assignment
+Dependency engine:
+restrict progression if prerequisites incomplete (survey, drawings approved, material delivered, IP assigned, etc.)
+show blocking reason
+override allowed only by Dept Head+ with written justification and audit
+DPR:
+daily per site
+photos + summary
+4.7 Engineering & Design (Phase 1 scope)
+Track engineering outputs and approvals:
+Drawing preparation status + revision history + client approval status
+Technical deviation log + change request tracker
+Engineering deliverables list includes drawings/layouts, network plans, design reports, FAT/SAT/UAT artefacts etc. 
+4.8 Network & Commissioning
+Device register per site (serial-based)
+IP pool and allocation log per project/site
+Commissioning checklist completion
+Test report upload
+Camera FOV and Commissioning complete requires client signoff
+4.9 Billing & Accounts (Tracking only in Phase 1)
+Invoice types: Milestone / RA / O&M
+Invoice can be raised before milestone completion (flag + audit)
+Payment receipt tracking:
+payment date, amount received, TDS amount, remarks
+Retention ledger per project (retention % is project-wise)
+Penalties applied at payment stage (store as deduction records)
+4.10 O&M + Ticketing (Phase 1 minimum)
+Ticket creation linked to project/site/asset if available
+SLA timer:
+24X7 365 days
+pause/resume with role restrictions
+Penalty model stored as per-ticket and monthly aggregate rules (calculation engine can be “basic” in Phase 1, richer in Phase 2)
+RMA tracker
+4.11 Alerts (Phase 1 basic)
+In-app notifications for:
+milestone due reminders (default 15 days or configured)
+payment overdue (configurable)
+dependency blocks
+document expiry reminders
+Escalation chain: hierarchical upward (configurable)
+Phase 1 MongoDB Entities (Collections)
+A) Foundation / Security
+orgs
+_id, name, gstin, addresses, settings, createdAt
+branches
+_id, orgId, name, address, region, active
+departments
+_id, orgId, name, active
+users
+_id, orgId, employeeCode, name, phone, email
+departmentId, branchId
+active
+roleIds: [roleId]
+scopes: { projectIds:[], siteIds:[], regions:[] } (optional but keep)
+Indexes:
+(orgId, employeeCode) unique
+(orgId, phone) unique
+(orgId, email) unique
+roles
+_id, orgId, name, active
+permissions: [{ module, actions:[], scopeType }]
+approval_workflows
+_id, orgId, entityType (TENDER/BOQ/COSTSHEET/INDENT/PO/INVOICE/STOCK/DOCUMENT/COMMISSIONING)
+steps: [{ stepOrder, approverRoleId }]
+approval_instances
+_id, orgId
+entityType, entityId
+status: PENDING/APPROVED/REJECTED/SENDBACK
+currentStep
+createdBy, createdAt
+approval_actions
+_id, approvalInstanceId
+action, byUserId, remarks, atTime
+audit_events
+_id, orgId
+entityType, entityId, action
+byUserId, atTime
+before, after (json)
+reason (mandatory for sensitive edits)
+Indexes:
+(orgId, entityType, entityId, atTime desc)
+B) Parties (Client/Vendor)
+parties
+_id, orgId
+type: CLIENT/VENDOR/BOTH
+name, gstin, pan
+addresses[]
+contacts[] (or separate party_contacts)
+Index:
+(orgId, type, name)
+C) Tendering
+tenders
+_id, orgId
+tenderNumber, title, clientId
+submissionDate, status
+emdRequired, pbgRequired
+createdBy, createdAt
+linkedProjectId (set when WON)
+Index:
+(orgId, tenderNumber) unique
+(orgId, submissionDate)
+tender_compliance_items
+_id, tenderId
+text, status, remarks
+tender_clarifications
+_id, tenderId
+question, response, askedOn, answeredOn
+emd_pbg_instruments
+_id, tenderId
+type: EMD/PBG
+bank, instrumentNo, amount
+issueDate, expiryDate, status
+D) Survey
+surveys
+_id, orgId
+tenderId or projectId
+siteId
+surveyDate, byUserId
+summary, attachments:[{fileId, note}]
+Indexes:
+(orgId, projectId, siteId)
+(tenderId)
+E) BOQ & Costing
+items (Item Master)
+_id, orgId
+itemCode, name, category, unit
+isSerialized, gstRate, hsnSac
+Index:
+(orgId, itemCode) unique
+boqs
+_id, orgId
+tenderId or projectId
+version, status
+createdBy, approvedBy, approvedAt
+boq_lines
+_id, boqId
+siteId
+itemId nullable
+description, qty, unit, rate, amount , item, make , model
+Indexes:
+(boqId, siteId)
+(projectId, siteId) if projectId denormalized into lines
+cost_sheets
+_id, orgId
+tenderId or projectId
+version, status
+marginPercent, notes
+totals
+cost_lines
+_id, costSheetId
+type: ITEM/SERVICE
+basis: QTY_RATE/LUMPSUM
+costAmount
+linkedBoqLineId optional
+F) Projects / Sites / Teams
+project_types
+_id, orgId
+name: ITMS/Surveillance/Solar/O&M/AMC
+templatesEnabled
+milestoneTemplates[], taskTemplates[] (small templates can be embedded)
+projects
+_id, orgId
+projectCode, name, projectTypeId, clientId, branchId, region
+startDate, plannedEndDate, status
+contractSummary: { value, retentionPercent, ldRules }
+dashboardSummary: { billingPct, paymentPct, riskFlags[], progressPct } (denormalized)
+Index:
+(orgId, projectCode) unique
+(orgId, status, region)
+sites
+_id, orgId, projectId
+siteCode, name, address, lat, lng
+status
+siteSummary: { progressPct, openTickets, blockersCount }
+Indexes:
+(orgId, projectId)
+(orgId, projectId, siteCode) unique
+project_team
+_id, projectId
+userId, roleInProject
+Index:
+(projectId, userId) unique
+G) Procurement
+indents
+_id, orgId
+projectId, siteId optional
+requestedBy, requestedOn
+requiredByDate
+Approved by
+status
+indent_lines
+_id, indentId
+itemId, qty, notes
+rfqs (optional but helpful for 3-quote enforcement)
+_id, indentId, createdBy, status
+vendor_quotations
+_id, rfqId or indentId
+vendorId, quoteDate, validityDate
+totalAmount, status
+vendor_quotation_lines
+_id, quotationId
+itemId, qty, rate, amount
+comparison_sheets
+_id, indentId
+preparedBy, status
+exceptionApprovedBy optional
+exceptionReason optional
+purchase_orders
+_id, orgId
+poNumber, vendorId
+projectId
+indentIds: [indentId]
+poDate, status
+paymentTerms, deliveryTerms
+revisionNo
+Index:
+(orgId, poNumber) unique
+(orgId, vendorId, poDate)
+po_lines
+_id, poId
+itemId, qty, rate, tax, amount
+H) Stores / Logistics / Inventory Ledger
+stores
+_id, orgId
+name, branchId, projectId optional
+type: HO/PROJECT/SITE_TEMP
+Index:
+(orgId, type, branchId)
+grns
+_id, orgId
+poId
+receivedAtStoreId
+receivedOn
+status
+grn_lines
+_id, grnId
+itemId
+qtyReceived, qtyAccepted, qtyRejected
+serial_numbers (only for serialized items)
+_id, orgId
+itemId, serialNo
+currentStatus: IN_STOCK/ISSUED/INSTALLED/RMA/SCRAP
+currentLocation: { type: STORE/SITE, id: … }
+sourceGrnLineId
+Index:
+(orgId, itemId, serialNo) unique
+dispatch_challans
+_id, orgId
+fromStoreId
+toStoreId optional
+toSiteId optional
+dispatchedOn, status
+dispatch_lines
+_id, challanId
+itemId, qty
+serialIds: [] (if serialized)
+stock_ledger
+_id, orgId
+itemId, storeId
+movementType: GRN/ISSUE/TRANSFER/RETURN/RMA_OUT/RMA_IN/SCRAP/ADJUSTMENT
+qtyIn, qtyOut
+refType, refId
+atTime(ledger is the truth; balances can be derived or cached)
+Indexes:
+(orgId, storeId, itemId, atTime desc)
+(orgId, refType, refId)
+I) Execution / Tasks / Dependencies / DPR
+milestones
+_id, orgId
+projectId, siteId optional
+name, plannedDate, actualDate, status
+tasks
+_id, orgId
+projectId, siteId
+milestoneId
+name, ownerUserId
+plannedStart, plannedEnd, actualStart, actualEnd
+status
+Indexes:
+(orgId, projectId, siteId, status)
+(orgId, ownerUserId, status)
+dependency_rules
+_id, taskId
+prerequisiteType: TASK/MATERIAL/DOCUMENT/APPROVAL/IP/SURVEY
+prerequisiteRefId
+hardBlock: true/false
+dependency_overrides
+_id, taskId
+overrideBy, approvedBy
+reason, atTime
+dprs
+_id, orgId
+projectId, siteId
+reportDate
+summary, createdBy
+photos:[{fileId, caption}]
+Index:
+(orgId, siteId, reportDate) unique (if  “one DPR per site per day” is enforced)
+J) Network / Devices / Commissioning
+devices
+_id, orgId
+projectId, siteId
+itemId
+serialId (or serialNo)
+deviceType
+status
+ip_pools
+_id, orgId
+projectId, siteId
+networkName, subnet, gateway, vlan, remarks
+ip_allocations
+_id, ipPoolId
+deviceId
+ipAddress
+allocatedOn, allocatedBy
+commissionings
+_id, orgId
+projectId, siteId
+status
+commissionedOn, commissionedBy
+clientSignoff: true/false, signoffDate
+commissioning_checklist_templates
+_id, orgId, projectTypeId
+name, items:[{ text }]
+commissioning_checklist_items
+_id, commissioningId
+templateItemId
+status, remarks
+test_reports
+_id, commissioningId
+fileId, reportType, uploadedOn
+K) Billing / Payments / Retention / Penalty
+invoices
+_id, orgId
+projectId, siteId optional
+invoiceNo, invoiceDate
+invoiceType: MILESTONE/RA/O&M
+amount, gstBreakup
+status
+Index:
+(orgId, invoiceNo) unique
+(orgId, projectId, invoiceDate)
+invoice_lines
+_id, invoiceId
+linkedEntityType, linkedEntityId
+description, qty, rate, amount
+payment_receipts
+_id, invoiceId
+receivedDate
+amountReceived
+tdsAmount
+remarks
+retention_ledger
+_id, orgId
+projectId, invoiceId
+retentionAmount
+releaseDueDate
+releasedOn
+status
+penalty_deductions
+_id, orgId
+projectId
+invoiceId optional
+source: SLA/LD/OTHER
+amount, reason, appliedOn
+appliedAtStage: PAYMENT
+L) O&M / Tickets / SLA (Phase 1 minimum)
+tickets
+_id, orgId
+ticketNo
+projectId, siteId
+assetId optional (or deviceId)
+category, priority
+status
+raisedBy, raisedOn
+assignedTo optional
+resolvedOn, closedOn
+Index:
+(orgId, ticketNo) unique
+(orgId, siteId, status)
+(orgId, assignedTo, status)
+ticket_actions
+_id, ticketId
+actionType: COMMENT/ASSIGN/VISIT/START/PAUSE/RESOLVE/CLOSE
+byUserId, atTime
+notes
+sla_profiles
+_id, orgId
+contractId optional OR projectTypeId optional
+responseMinutes, resolutionMinutes
+workingHours: { 24X7 }
+sla_timers
+_id, ticketId
+startedOn
+pausedIntervals:[{ from, to, reason }]
+totalPauseMinutes
+closedOn
+sla_penalty_rules
+_id, slaProfileId
+breachType: RESPONSE/RESOLUTION
+slabs: [{ fromMin, toMin, penaltyType: AMOUNT/PERCENT, value }]
+sla_penalty_records
+_id, ticketId
+calculatedPenalty
+calculatedOn
+approvedBy optional
+appliedToInvoiceId optional
+M) DMS / Files
+files
+_id, orgId
+storagePath, checksum, size, mime
+uploadedBy, uploadedOn
+document_types
+_id, orgId
+name
+expiryRequired
+approvalRequired
+documents
+_id, orgId
+projectId, siteId optional
+entityType, entityId
+docTypeId
+version (manual integer)
+fileId
+status: DRAFT/SUBMITTED/APPROVED/REJECTED
+expiryDate optional
+Index:
+(orgId, projectId, docTypeId)
+(orgId, entityType, entityId)
+document_approvals
+_id, documentId
+status, approvedBy, approvedOn, remarks
+N) Alerts
+alert_rules
+_id, orgId
+ruleName
+triggerEvent
+config (daysBefore, thresholds)
+targetRoles:[roleId]
+escalationSteps:[{ afterMinutes, roleId }]
+alert_instances
+_id, orgId
+ruleId
+entityType, entityId
+createdOn
+status: NEW/SEEN/DONE
+notification_logs
+_id, alertInstanceId
+channel: IN_APP/EMAIL
+toUserId
+sentOn

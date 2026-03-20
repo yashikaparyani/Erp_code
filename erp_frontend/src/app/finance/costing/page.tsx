@@ -15,6 +15,8 @@ type CostSheet = {
   base_cost?: number;
   sell_value?: number;
   total_items?: number;
+  created_by_user?: string;
+  approved_by?: string;
 };
 
 type CostSheetStats = {
@@ -163,6 +165,14 @@ export default function FinanceCostingPage() {
 
   const variance = (stats.total_sell_value || 0) - (stats.total_base_cost || 0);
 
+  const getBlocker = (row: CostSheet) => {
+    if (row.status === 'DRAFT') return 'Submit for approval';
+    if (row.status === 'PENDING_APPROVAL' || row.status === 'SUBMITTED') return 'Waiting for department head review';
+    if (row.status === 'REJECTED') return 'Revise pricing or costing assumptions';
+    if (row.status === 'APPROVED') return 'Ready for quote / proforma / invoice';
+    return 'Review status';
+  };
+
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
@@ -304,11 +314,13 @@ export default function FinanceCostingPage() {
                 <tr>
                   <th>Cost Sheet</th>
                   <th>Tender / Project</th>
+                  <th>Owner</th>
                   <th>Linked BOQ</th>
                   <th>Base Cost</th>
                   <th>Sell Value</th>
                   <th>Margin %</th>
                   <th>Status</th>
+                  <th>Blocker / Next Step</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -322,6 +334,10 @@ export default function FinanceCostingPage() {
                     <td>
                       <div className="text-gray-700">{row.linked_project || '-'}</div>
                       <div className="text-xs text-gray-400">{row.linked_tender || '-'}</div>
+                    </td>
+                    <td>
+                      <div className="text-sm text-gray-900">{row.created_by_user || '-'}</div>
+                      <div className="text-xs text-gray-400">{row.approved_by ? `Approved by ${row.approved_by}` : 'Not approved yet'}</div>
                     </td>
                     <td>{row.linked_boq || '-'}</td>
                     <td>{formatCurrency(row.base_cost)}</td>
@@ -339,6 +355,9 @@ export default function FinanceCostingPage() {
                       }`}>
                         {row.status || 'Unknown'}
                       </span>
+                    </td>
+                    <td>
+                      <div className="text-sm text-gray-700">{getBlocker(row)}</div>
                     </td>
                     <td>
                       <div className="flex flex-wrap gap-2 items-center">

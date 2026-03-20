@@ -13,9 +13,12 @@ export default function RetentionPage() {
       createMethod="create_retention_ledger"
       createLabel="Create Retention Entry"
       createFields={[
-        { name: 'project', label: 'Project', placeholder: 'Project code/name' },
-        { name: 'invoice', label: 'Invoice', placeholder: 'Invoice ID' },
+        { name: 'customer', label: 'Customer', placeholder: 'Customer name/id' },
+        { name: 'linked_project', label: 'Project', placeholder: 'Project code/name' },
+        { name: 'linked_invoice', label: 'Invoice', placeholder: 'Invoice ID' },
+        { name: 'retention_percent', label: 'Retention %', type: 'number', defaultValue: 0 },
         { name: 'retention_amount', label: 'Retention Amount', type: 'number', defaultValue: 0 },
+        { name: 'release_due_date', label: 'Release Due Date', type: 'date' },
         { name: 'remarks', label: 'Remarks', type: 'textarea' },
       ]}
       actions={[
@@ -28,9 +31,11 @@ export default function RetentionPage() {
       ]}
       columns={[
         { key: 'name', label: 'Entry', render: (row) => row.name || '-' },
-        { key: 'project', label: 'Project', render: (row) => row.project || '-' },
-        { key: 'invoice', label: 'Invoice', render: (row) => row.invoice || '-' },
+        { key: 'customer', label: 'Customer', render: (row) => row.customer || '-' },
+        { key: 'linked_project', label: 'Project', render: (row) => row.linked_project || '-' },
+        { key: 'linked_invoice', label: 'Invoice', render: (row) => row.linked_invoice || '-' },
         { key: 'retention_amount', label: 'Retention', render: (row) => row.retention_amount || '-' },
+        { key: 'release_amount', label: 'Released', render: (row) => row.release_amount || '-' },
         { key: 'status', label: 'Status', render: (row) => row.status || '-' },
       ]}
       emptyMessage="No retention entries found"

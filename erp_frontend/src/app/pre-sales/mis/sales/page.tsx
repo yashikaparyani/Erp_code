@@ -40,6 +40,21 @@ export default function SalesMISPage() {
 
   const handleClear = () => { setFromDate(''); setToDate(''); };
 
+  const exportCsv = () => {
+    const lines = [
+      ['User', 'Assigned', 'In Process', 'Submitted', 'Cancelled', 'Awarded', 'Lost', 'Rejected', 'Dropped', 'Reopened', 'Total'],
+      ...data.map((row) => [row.user, row.assigned, row.in_process, row.submitted, row.cancelled, row.awarded, row.lost, row.rejected, row.dropped, row.reopened, row.total]),
+    ];
+    const csv = lines.map((line) => line.map((value) => `"${String(value ?? '').replaceAll('"', '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'sales-mis.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const renderClickableNumber = (value: number) => {
     if (value === 0) return <span className="text-gray-500">0</span>;
     return <span className="text-blue-600 font-medium">{value}</span>;
@@ -48,9 +63,15 @@ export default function SalesMISPage() {
   return (
     <div className="p-3 sm:p-4 md:p-6 bg-gray-50 min-h-screen">
       {/* Header */}
-      <div className="mb-4 sm:mb-6">
+      <div className="mb-4 sm:mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Sales MIS</h1>
-        <p className="text-gray-500 text-xs sm:text-sm mt-1">Sales team performance and tender tracking</p>
+        <div className="flex items-center gap-3">
+          <p className="text-gray-500 text-xs sm:text-sm mt-1">Sales team performance and tender tracking</p>
+          <button className="btn btn-secondary" onClick={exportCsv} disabled={!data.length}>
+            <Download className="w-4 h-4" />
+            Export CSV
+          </button>
+        </div>
       </div>
 
       {/* Search/Filter Section */}

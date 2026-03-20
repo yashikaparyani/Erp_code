@@ -60,6 +60,11 @@ type Reminder = SimpleRow & {
   reminder_date?: string;
   reminder_time?: string;
   remind_user?: string;
+  reminder_kind?: string;
+  priority?: string;
+  action_hint?: string;
+  due_in_days?: number;
+  tender_status?: string;
 };
 
 type Survey = SimpleRow & {
@@ -129,6 +134,35 @@ type WorkspaceResponse = {
   financeRequests: FinanceRequest[];
   checklistTemplates: ChecklistTemplate[];
   approvals: TenderApproval[];
+};
+
+type ConversionPayload = {
+  project?: string;
+  conversion_payload?: {
+    tender?: string;
+    tender_number?: string;
+    title?: string;
+    client?: string;
+    organization?: string;
+    estimated_value?: number;
+    linked_project?: string;
+    status?: string;
+    costing_snapshot?: {
+      name?: string;
+      status?: string;
+      sell_value?: number;
+      margin_percent?: number;
+      approved_by?: string;
+    } | null;
+    latest_approval?: {
+      name?: string;
+      approval_type?: string;
+      status?: string;
+      requested_by?: string;
+      approver_role?: string;
+      acted_on?: string;
+    } | null;
+  };
 };
 
 const statusTone: Record<string, string> = {
@@ -216,6 +250,7 @@ export default function TenderWorkspacePage() {
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState('');
   const [approvalBusy, setApprovalBusy] = useState('');
+  const [conversionSummary, setConversionSummary] = useState<ConversionPayload | null>(null);
 
   const loadWorkspace = async () => {
     try {
@@ -310,6 +345,7 @@ export default function TenderWorkspacePage() {
       if (!json.success) {
         throw new Error(json.message || 'Failed to convert tender');
       }
+      setConversionSummary(json.data || null);
       await loadWorkspace();
     } catch (actionError) {
       setError(actionError instanceof Error ? actionError.message : 'Failed to convert tender');
@@ -389,7 +425,7 @@ export default function TenderWorkspacePage() {
           <div className="rounded-2xl border border-white/15 bg-white/10 p-4">
             <div className="text-xs uppercase tracking-wide text-white/65">Project Link</div>
             <div className="mt-2 text-lg font-semibold">{tender.linked_project || 'Not converted'}</div>
-            <div className="mt-1 text-sm text-white/75">{tender.linked_project ? 'Ready for project handoff' : 'Still in pre-sales flow'}</div>
+            <div className="mt-1 text-sm text-white/75">{tender.linked_project ? 'Ready for project handoff with explicit payload snapshot' : 'Still in pre-sales flow'}</div>
           </div>
         </div>
 
@@ -423,6 +459,18 @@ export default function TenderWorkspacePage() {
           ) : null}
         </div>
       </div>
+
+      {conversionSummary?.conversion_payload ? (
+        <div className="rounded-3xl border border-white/15 bg-white/10 p-5 text-sm text-white/85">
+          <div className="text-xs uppercase tracking-[0.18em] text-white/60">Latest Conversion Payload</div>
+          <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-2xl bg-white/10 p-3">Project: {conversionSummary.conversion_payload.linked_project || '-'}</div>
+            <div className="rounded-2xl bg-white/10 p-3">Client: {conversionSummary.conversion_payload.client || '-'}</div>
+            <div className="rounded-2xl bg-white/10 p-3">Organization: {conversionSummary.conversion_payload.organization || '-'}</div>
+            <div className="rounded-2xl bg-white/10 p-3">Estimated Value: {formatCurrency(conversionSummary.conversion_payload.estimated_value)}</div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
         <div className="space-y-6">
@@ -610,7 +658,7 @@ export default function TenderWorkspacePage() {
                   ))}
                 </div>
                 <p className="mt-3 text-sm text-gray-500">
-                  These requests will appear in the `Approvals` inbox, where the `Presales Tendering Head` or `Director` can review and take action.
+                  These requests will appear in the `Approvals` inbox with a clear action owner, aging, and next-action hint so no tender gets stuck silently.
                 </p>
               </div>
             </div>
@@ -624,8 +672,12 @@ export default function TenderWorkspacePage() {
                       <div className="mt-1 text-xs text-gray-500">
                         Requested by {approval.requested_by || '-'} • {formatDate(approval.creation)}
                       </div>
+                      <div className="mt-1 text-xs text-gray-500">
+                        Action owner: {approval.approver_role || approval.approver_user || 'Pending assignment'}
+                      </div>
                       {approval.request_remarks ? <div className="mt-2 text-sm text-gray-600">Request: {approval.request_remarks}</div> : null}
                       {approval.action_remarks ? <div className="mt-1 text-sm text-gray-600">Action: {approval.action_remarks}</div> : null}
+                      {approval.acted_on ? <div className="mt-1 text-xs text-gray-500">Acted on {formatDate(approval.acted_on)}</div> : null}
                     </div>
                     <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusTone[approval.status || ''] || 'bg-slate-100 text-slate-700'}`}>
                       {formatStatusLabel(approval.status)}
@@ -695,6 +747,14 @@ export default function TenderWorkspacePage() {
                       <div className="mt-1 text-xs text-gray-500">
                         {formatDate(reminder.reminder_date)} {reminder.reminder_time || ''}
                       </div>
+                      <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+                        <span className="rounded-full bg-white px-2 py-1 text-gray-600">{reminder.reminder_kind || 'Reminder'}</span>
+                        <span className="rounded-full bg-white px-2 py-1 text-gray-600">{reminder.priority || 'Normal'} priority</span>
+                        <span className="rounded-full bg-white px-2 py-1 text-gray-600">
+                          {reminder.due_in_days !== undefined && reminder.due_in_days !== null ? `${reminder.due_in_days}d to go` : 'Date not mapped'}
+                        </span>
+                      </div>
+                      {reminder.action_hint ? <div className="mt-2 text-xs text-gray-600">{reminder.action_hint}</div> : null}
                     </div>
                   ))}
                   {!workspace.reminders.length ? <EmptyBlock message="No reminders linked to this tender yet." /> : null}

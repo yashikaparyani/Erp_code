@@ -1,6 +1,6 @@
-import frappe
 from frappe.model.document import Document
 
 
-class GEPettyCash(Document):
+class GECommercialDocument(Document):
 	pass
+

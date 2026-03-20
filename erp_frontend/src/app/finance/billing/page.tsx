@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { CreditCard, Eye, Plus, Receipt, TimerReset, WalletCards, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 type Invoice = {
   name: string;
+  customer?: string;
   linked_project?: string;
   linked_site?: string;
   invoice_date?: string;
@@ -19,6 +20,11 @@ type Invoice = {
   approved_by?: string;
 };
 
+type ReceiptStats = {
+  total_received?: number;
+  total_tds?: number;
+};
+
 type InvoiceStats = {
   total?: number;
   draft?: number;
@@ -26,7 +32,23 @@ type InvoiceStats = {
   approved?: number;
   payment_received?: number;
   total_amount?: number;
-  total_net_receivable?: number;
+  total_receivable?: number;
+};
+
+type PartyOption = {
+  name: string;
+  party_name?: string;
+};
+
+type ProjectOption = {
+  name: string;
+  project_name?: string;
+  customer?: string;
+};
+
+type SiteOption = {
+  name: string;
+  site_name?: string;
 };
 
 function formatCurrency(value?: number) {
@@ -46,26 +68,57 @@ function formatDate(value?: string) {
   });
 }
 
+async function fetchOps<T>(method: string, args: Record<string, unknown> = {}) {
+  const response = await fetch('/api/ops', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ method, args }),
+  });
+  const payload = await response.json();
+  if (!response.ok || payload.success === false) {
+    throw new Error(payload.message || `Failed to load ${method}`);
+  }
+  return (payload.data || []) as T;
+}
+
+const initialCreateForm = {
+  customer: '',
+  linked_project: '',
+  linked_site: '',
+  invoice_date: '',
+  invoice_type: 'MILESTONE',
+  description: '',
+  qty: 1,
+  rate: 0,
+  milestone_complete: true,
+  audit_note: '',
+};
+
 export default function FinanceBillingPage() {
   const { currentUser } = useAuth();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [stats, setStats] = useState<InvoiceStats>({});
+  const [receiptStats, setReceiptStats] = useState<ReceiptStats>({});
+  const [customers, setCustomers] = useState<PartyOption[]>([]);
+  const [projects, setProjects] = useState<ProjectOption[]>([]);
+  const [sites, setSites] = useState<SiteOption[]>([]);
   const [loading, setLoading] = useState(true);
+  const [lookupLoading, setLookupLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
   const [actionLoadingName, setActionLoadingName] = useState<string | null>(null);
-  const [createForm, setCreateForm] = useState({
-    linked_project: '',
-    linked_site: '',
-    invoice_date: '',
-    invoice_type: 'MILESTONE',
-    amount: 0,
-    description: '',
-    qty: 1,
-    rate: 0,
-    milestone_complete: true,
-  });
+  const [createForm, setCreateForm] = useState(initialCreateForm);
+
+  const computedAmount = useMemo(
+    () => Number(createForm.qty || 0) * Number(createForm.rate || 0),
+    [createForm.qty, createForm.rate],
+  );
+
+  const selectedProject = useMemo(
+    () => projects.find((project) => project.name === createForm.linked_project),
+    [createForm.linked_project, projects],
+  );
 
   const hasAnyRole = (...roles: string[]) => {
     const assigned = new Set(currentUser?.roles || []);
@@ -80,21 +133,92 @@ export default function FinanceBillingPage() {
     Promise.all([
       fetch('/api/invoices').then((response) => response.json()).catch(() => ({ data: [] })),
       fetch('/api/invoices/stats').then((response) => response.json()).catch(() => ({ data: {} })),
+      fetch('/api/ops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ method: 'get_payment_receipt_stats' }),
+      }).then((response) => response.json()).catch(() => ({ data: {} })),
     ])
-      .then(([invoiceRes, statsRes]) => {
+      .then(([invoiceRes, statsRes, receiptRes]) => {
         setInvoices(invoiceRes.data || []);
         setStats(statsRes.data || {});
+        setReceiptStats(receiptRes.data || {});
       })
       .finally(() => setLoading(false));
   };
 
+  const loadLookups = async () => {
+    setLookupLoading(true);
+    try {
+      const [partyRes, projectList] = await Promise.all([
+        fetch('/api/parties?type=CLIENT&active=1').then((response) => response.json()),
+        fetchOps<ProjectOption[]>('get_project_spine_list'),
+      ]);
+      setCustomers(partyRes.data || []);
+      setProjects(projectList || []);
+    } finally {
+      setLookupLoading(false);
+    }
+  };
+
+  const loadSites = async (projectName: string) => {
+    if (!projectName) {
+      setSites([]);
+      return;
+    }
+    const response = await fetch(`/api/sites?project=${encodeURIComponent(projectName)}`);
+    const payload = await response.json().catch(() => ({ data: [] }));
+    setSites(payload.data || []);
+  };
+
   useEffect(() => {
-    loadData();
+    void loadData();
+    void loadLookups();
   }, []);
 
+  useEffect(() => {
+    void loadSites(createForm.linked_project);
+  }, [createForm.linked_project]);
+
+  const resetCreateForm = () => {
+    setCreateForm(initialCreateForm);
+    setSites([]);
+    setError('');
+  };
+
+  const openCreateModal = () => {
+    resetCreateForm();
+    setShowCreateModal(true);
+  };
+
+  const closeCreateModal = () => {
+    setShowCreateModal(false);
+    resetCreateForm();
+  };
+
+  const handleProjectChange = (projectName: string) => {
+    const matched = projects.find((project) => project.name === projectName);
+    setCreateForm((prev) => ({
+      ...prev,
+      linked_project: projectName,
+      linked_site: '',
+      customer: matched?.customer || prev.customer,
+    }));
+  };
+
   const handleCreateInvoice = async () => {
-    if (!createForm.linked_project.trim() || !createForm.invoice_date || !createForm.description.trim()) {
-      setError('Linked Project, Invoice Date and line Description are required.');
+    if (!createForm.customer.trim() || !createForm.linked_project.trim() || !createForm.invoice_date || !createForm.description.trim()) {
+      setError('Customer, Linked Project, Invoice Date, and Line Description are required.');
+      return;
+    }
+
+    if (createForm.qty <= 0 || createForm.rate < 0) {
+      setError('Qty must be greater than 0 and Rate cannot be negative.');
+      return;
+    }
+
+    if (createForm.invoice_type === 'MILESTONE' && !createForm.milestone_complete && !createForm.audit_note.trim()) {
+      setError('Audit Note is required when a milestone invoice is raised before milestone completion.');
       return;
     }
 
@@ -102,17 +226,20 @@ export default function FinanceBillingPage() {
     setError('');
     try {
       const payload = {
+        customer: createForm.customer,
         linked_project: createForm.linked_project,
         linked_site: createForm.linked_site || undefined,
         invoice_date: createForm.invoice_date,
         invoice_type: createForm.invoice_type,
-        amount: Number(createForm.amount) || 0,
-        milestone_complete: createForm.milestone_complete ? 1 : 0,
+        amount: computedAmount,
+        milestone_complete: createForm.invoice_type === 'MILESTONE' ? (createForm.milestone_complete ? 1 : 0) : 0,
+        audit_note: createForm.invoice_type === 'MILESTONE' && !createForm.milestone_complete ? createForm.audit_note : undefined,
         items: [
           {
             description: createForm.description,
             qty: Number(createForm.qty) || 1,
             rate: Number(createForm.rate) || 0,
+            amount: computedAmount,
           },
         ],
       };
@@ -127,18 +254,7 @@ export default function FinanceBillingPage() {
         throw new Error(result.message || 'Failed to create invoice');
       }
 
-      setShowCreateModal(false);
-      setCreateForm({
-        linked_project: '',
-        linked_site: '',
-        invoice_date: '',
-        invoice_type: 'MILESTONE',
-        amount: 0,
-        description: '',
-        qty: 1,
-        rate: 0,
-        milestone_complete: true,
-      });
+      closeCreateModal();
       await loadData();
     } catch (createError) {
       setError(createError instanceof Error ? createError.message : 'Failed to create invoice');
@@ -180,7 +296,7 @@ export default function FinanceBillingPage() {
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Finance Billing</h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-1">Live invoice register, submission flow, and receivable tracking.</p>
         </div>
-        <button className="btn btn-primary w-full sm:w-auto" onClick={() => setShowCreateModal(true)}>
+        <button className="btn btn-primary w-full sm:w-auto" onClick={openCreateModal}>
           <Plus className="w-4 h-4" />
           New Invoice
         </button>
@@ -188,21 +304,47 @@ export default function FinanceBillingPage() {
 
       {showCreateModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <h2 className="text-lg font-semibold text-gray-900">Create Invoice</h2>
-              <button className="p-2 rounded-lg hover:bg-gray-100" onClick={() => setShowCreateModal(false)}>
+              <button className="p-2 rounded-lg hover:bg-gray-100" onClick={closeCreateModal}>
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Customer *</label>
+                <select className="input" value={createForm.customer} onChange={(e) => setCreateForm((p) => ({ ...p, customer: e.target.value }))} disabled={lookupLoading}>
+                  <option value="">{lookupLoading ? 'Loading customers...' : 'Select customer'}</option>
+                  {customers.map((customer) => (
+                    <option key={customer.name} value={customer.name}>
+                      {customer.party_name || customer.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Linked Project *</label>
-                <input className="input" value={createForm.linked_project} onChange={(e) => setCreateForm((p) => ({ ...p, linked_project: e.target.value }))} />
+                <select className="input" value={createForm.linked_project} onChange={(e) => handleProjectChange(e.target.value)} disabled={lookupLoading}>
+                  <option value="">{lookupLoading ? 'Loading projects...' : 'Select project'}</option>
+                  {projects.map((project) => (
+                    <option key={project.name} value={project.name}>
+                      {project.name}{project.project_name ? ` | ${project.project_name}` : ''}
+                    </option>
+                  ))}
+                </select>
+                {selectedProject?.customer ? <div className="mt-1 text-xs text-gray-500">Project customer: {selectedProject.customer}</div> : null}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Linked Site</label>
-                <input className="input" value={createForm.linked_site} onChange={(e) => setCreateForm((p) => ({ ...p, linked_site: e.target.value }))} />
+                <select className="input" value={createForm.linked_site} onChange={(e) => setCreateForm((p) => ({ ...p, linked_site: e.target.value }))} disabled={!createForm.linked_project}>
+                  <option value="">{createForm.linked_project ? 'Select site' : 'Select project first'}</option>
+                  {sites.map((site) => (
+                    <option key={site.name} value={site.name}>
+                      {site.site_name ? `${site.name} | ${site.site_name}` : site.name}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Date *</label>
@@ -211,22 +353,27 @@ export default function FinanceBillingPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Type *</label>
                 <select className="input" value={createForm.invoice_type} onChange={(e) => setCreateForm((p) => ({ ...p, invoice_type: e.target.value }))}>
-                  <option value="MILESTONE">MILESTONE</option>
+                  <option value="MILESTONE">Milestone</option>
                   <option value="RA">RA</option>
-                  <option value="O_AND_M">O_AND_M</option>
+                  <option value="O_AND_M">O&amp;M</option>
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Amount</label>
-                <input className="input" type="number" min={0} step={0.01} value={createForm.amount} onChange={(e) => setCreateForm((p) => ({ ...p, amount: Number(e.target.value) || 0 }))} />
+                <input className="input bg-gray-50" type="number" min={0} step={0.01} value={computedAmount} readOnly />
+                <div className="mt-1 text-xs text-gray-500">Auto-calculated from Qty x Rate.</div>
               </div>
-              <div className="flex items-center gap-2 pt-7">
-                <input id="milestone-complete" type="checkbox" checked={createForm.milestone_complete} onChange={(e) => setCreateForm((p) => ({ ...p, milestone_complete: e.target.checked }))} />
-                <label htmlFor="milestone-complete" className="text-sm text-gray-700">Milestone Complete</label>
-              </div>
+              {createForm.invoice_type === 'MILESTONE' ? (
+                <div className="flex items-center gap-2 pt-7">
+                  <input id="milestone-complete" type="checkbox" checked={createForm.milestone_complete} onChange={(e) => setCreateForm((p) => ({ ...p, milestone_complete: e.target.checked }))} />
+                  <label htmlFor="milestone-complete" className="text-sm text-gray-700">Milestone Complete</label>
+                </div>
+              ) : (
+                <div className="pt-7 text-sm text-gray-500">Milestone flag is only used for milestone invoices.</div>
+              )}
               <div className="sm:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Line Description *</label>
-                <input className="input" value={createForm.description} onChange={(e) => setCreateForm((p) => ({ ...p, description: e.target.value }))} />
+                <textarea className="input min-h-24" value={createForm.description} onChange={(e) => setCreateForm((p) => ({ ...p, description: e.target.value }))} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Qty *</label>
@@ -236,10 +383,17 @@ export default function FinanceBillingPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Rate *</label>
                 <input className="input" type="number" min={0} step={0.01} value={createForm.rate} onChange={(e) => setCreateForm((p) => ({ ...p, rate: Number(e.target.value) || 0 }))} />
               </div>
+              {createForm.invoice_type === 'MILESTONE' && !createForm.milestone_complete ? (
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Audit Note *</label>
+                  <textarea className="input min-h-24" value={createForm.audit_note} onChange={(e) => setCreateForm((p) => ({ ...p, audit_note: e.target.value }))} />
+                  <div className="mt-1 text-xs text-gray-500">Required when a milestone invoice is raised before milestone completion.</div>
+                </div>
+              ) : null}
             </div>
             {error ? <p className="px-6 pb-2 text-sm text-red-600">{error}</p> : null}
             <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
-              <button className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>Cancel</button>
+              <button className="btn btn-secondary" onClick={closeCreateModal}>Cancel</button>
               <button className="btn btn-primary" onClick={handleCreateInvoice} disabled={creating}>{creating ? 'Creating...' : 'Create Invoice'}</button>
             </div>
           </div>
@@ -265,7 +419,7 @@ export default function FinanceBillingPage() {
               <TimerReset className="w-5 h-5 text-amber-600" />
             </div>
             <div>
-              <div className="stat-value">{formatCurrency(stats.total_net_receivable)}</div>
+              <div className="stat-value">{formatCurrency(stats.total_receivable)}</div>
               <div className="stat-label">Net Receivable</div>
             </div>
           </div>
@@ -296,6 +450,21 @@ export default function FinanceBillingPage() {
         </div>
       </div>
 
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-sm text-gray-500">Collected Amount</div>
+          <div className="mt-2 text-2xl font-semibold text-emerald-700">{formatCurrency(receiptStats.total_received)}</div>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-sm text-gray-500">Collection Gap</div>
+          <div className="mt-2 text-2xl font-semibold text-amber-700">{formatCurrency((stats.total_receivable || 0) - (receiptStats.total_received || 0))}</div>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-sm text-gray-500">TDS Recorded</div>
+          <div className="mt-2 text-2xl font-semibold text-slate-900">{formatCurrency(receiptStats.total_tds)}</div>
+        </div>
+      </div>
+
       <div className="card">
         <div className="card-header">
           <h3 className="font-semibold text-gray-900">Billing Pipeline</h3>
@@ -310,12 +479,14 @@ export default function FinanceBillingPage() {
               <thead>
                 <tr>
                   <th>Invoice</th>
+                  <th>Customer</th>
                   <th>Project / Site</th>
                   <th>Invoice Date</th>
                   <th>Type</th>
                   <th>Gross</th>
                   <th>Net Receivable</th>
                   <th>Status</th>
+                  <th>Commercial Visibility</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -325,6 +496,9 @@ export default function FinanceBillingPage() {
                     <td>
                       <div className="font-medium text-gray-900">{invoice.name}</div>
                       <div className="text-xs text-gray-500">{invoice.approved_by || 'Not approved yet'}</div>
+                    </td>
+                    <td>
+                      <div className="text-sm font-medium text-gray-900">{invoice.customer || '-'}</div>
                     </td>
                     <td>
                       <div className="text-gray-700">{invoice.linked_project || '-'}</div>
@@ -346,6 +520,17 @@ export default function FinanceBillingPage() {
                       }`}>
                         {invoice.status || 'Unknown'}
                       </span>
+                    </td>
+                    <td>
+                      <div className="text-sm text-gray-700">
+                        {invoice.status === 'PAYMENT_RECEIVED'
+                          ? 'Collected'
+                          : invoice.status === 'APPROVED'
+                            ? 'Approved, waiting collection'
+                            : invoice.status === 'SUBMITTED'
+                              ? 'Waiting release'
+                              : 'Draft commercial record'}
+                      </div>
                     </td>
                     <td>
                       <div className="flex flex-wrap gap-2 items-center">

@@ -86,6 +86,7 @@ export default function TenderResultPage() {
       total: items.length,
       awards: items.filter((item) => AWARD_STAGES.has(item.result_stage || '')).length,
       evaluation: items.filter((item) => EVALUATION_STAGES.has(item.result_stage || '')).length,
+      linked: items.filter((item) => item.tender).length,
       totalValue: items.reduce((sum, item) => sum + (item.winning_amount || 0), 0),
     };
   }, [items]);
@@ -149,6 +150,10 @@ export default function TenderResultPage() {
           <div className="text-2xl font-bold text-gray-900">{formatCurrency(summary.totalValue)}</div>
           <div className="mt-1 text-sm text-gray-500">Tracked winning amount</div>
         </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="text-2xl font-bold text-blue-600">{summary.linked}</div>
+          <div className="mt-1 text-sm text-gray-500">Rows linked to tender workspace</div>
+        </div>
       </div>
 
       <div className="mb-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
@@ -169,7 +174,7 @@ export default function TenderResultPage() {
             </select>
           </label>
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            The result page is now a standalone tracker. From here, you can open the workspace and manually sync award or evaluation stages with the tender status.
+            This page is the live result bridge. Keep rows linked to a tender so evaluation and award stages can sync back into the actual workspace instead of becoming dead reporting rows.
           </div>
         </div>
       </div>
@@ -263,7 +268,7 @@ export default function TenderResultPage() {
                       {!item.tender ? (
                         <span className="inline-flex items-center gap-1 text-sm text-gray-400">
                           <AlertCircle className="h-4 w-4" />
-                          Link tender first
+                          Link tender first to keep result flow live
                         </span>
                       ) : null}
                     </div>

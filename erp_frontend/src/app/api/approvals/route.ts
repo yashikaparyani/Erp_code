@@ -43,6 +43,22 @@ export async function PATCH(request: NextRequest) {
       const result = await callFrappeMethod('reject_cost_sheet', { name, reason: reason || '' }, request);
       return NextResponse.json({ success: true, data: result.data, message: result.message || 'Rejected' });
     }
+    if (kind === 'estimate' && action === 'approve') {
+      const result = await callFrappeMethod('approve_estimate', { name }, request);
+      return NextResponse.json({ success: true, data: result.data, message: result.message || 'Approved' });
+    }
+    if (kind === 'estimate' && action === 'reject') {
+      const result = await callFrappeMethod('reject_estimate', { name, reason: reason || '' }, request);
+      return NextResponse.json({ success: true, data: result.data, message: result.message || 'Rejected' });
+    }
+    if (kind === 'proforma' && action === 'approve') {
+      const result = await callFrappeMethod('approve_proforma_invoice', { name }, request);
+      return NextResponse.json({ success: true, data: result.data, message: result.message || 'Approved' });
+    }
+    if (kind === 'proforma' && action === 'reject') {
+      const result = await callFrappeMethod('cancel_proforma_invoice', { name, reason: reason || '' }, request);
+      return NextResponse.json({ success: true, data: result.data, message: result.message || 'Rejected' });
+    }
     if (kind === 'tender_approval' && action === 'approve') {
       const result = await callFrappeMethod('approve_tender_approval', { name, remarks: reason || '' }, request);
       return NextResponse.json({ success: true, data: result.data, message: result.message || 'Approved' });

@@ -23,7 +23,6 @@ import {
   ListTodo,
   CreditCard,
   PieChart,
-  Files,
   CheckSquare,
   Cog,
   Users2,
@@ -44,6 +43,7 @@ import {
   Shield,
   Eye,
   ScrollText,
+  BookOpen,
 } from 'lucide-react';
 import { useRole, type Role, PROJECT_SIDE_ROLES } from '../context/RoleContext';
 import { usePermissions } from '../context/PermissionContext';
@@ -235,10 +235,15 @@ const navLinks: NavLink[] = [
     href: '/finance',
     icon: DollarSign,
     children: [
-      { name: 'Project Workspace', href: '/finance/projects', icon: Layers3 },
+      { name: 'Commercial Hub', href: '/finance/commercial', icon: Briefcase },
+      { name: 'Estimates', href: '/finance/estimates', icon: FileText },
+      { name: 'Proformas', href: '/finance/proformas', icon: ScrollText },
       { name: 'Costing', href: '/finance/costing', icon: PieChart },
       { name: 'Billing', href: '/finance/billing', icon: CreditCard },
       { name: 'Payment Receipts', href: '/finance/payment-receipts', icon: CreditCard },
+      { name: 'Follow Ups', href: '/finance/follow-ups', icon: RefreshCcw },
+      { name: 'Customer Statement', href: '/finance/customer-statement', icon: BookOpen },
+      { name: 'Receivable Aging', href: '/finance/receivable-aging', icon: Clock },
       { name: 'Retention Ledger', href: '/finance/retention', icon: ShieldCheck },
       { name: 'Penalty Deductions', href: '/finance/penalties', icon: AlertTriangle },
     ],
