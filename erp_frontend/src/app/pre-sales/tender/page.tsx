@@ -3,7 +3,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import CreateTenderModal from '@/components/CreateTenderModal';
 import ModalFrame from '@/components/ui/ModalFrame';
-import { deriveTenderFunnelStatus, getTenderFunnelMeta } from '@/components/tenderFunnel';
 import {
   Search, ChevronDown, ChevronUp, Download, Eye, Heart, Clock,
   User, MapPin, SortDesc,
@@ -322,16 +321,6 @@ export default function TenderPage() {
 
                   <div className="flex items-center gap-4 text-sm text-gray-500 mb-2">
                     <span><span className="font-medium">Status:</span> <span className="text-blue-600">{tender.status || 'N/A'}</span></span>
-                    {(() => {
-                      const derivedFunnel = tender.computed_funnel_status || deriveTenderFunnelStatus(tender);
-                      const funnelMeta = getTenderFunnelMeta(derivedFunnel);
-                      return (
-                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${funnelMeta.toneClass}`}>
-                          <span className={`h-2 w-2 rounded-full ${funnelMeta.dotClass}`} />
-                          {derivedFunnel}
-                        </span>
-                      );
-                    })()}
                   </div>
 
                   <div className="flex items-center gap-1 text-sm text-gray-500">
@@ -410,7 +399,6 @@ export default function TenderPage() {
               ['Client', dialog.tender.client || '-'],
               ['Organization', dialog.tender.organization || '-'],
               ['Submission Date', dialog.tender.submission_date || '-'],
-              ['Funnel Status', dialog.tender.computed_funnel_status || deriveTenderFunnelStatus(dialog.tender)],
               ['Status', dialog.tender.status || '-'],
               ['Estimated Value', formatCurrency(dialog.tender.estimated_value || 0)],
               ['EMD Amount', formatCurrency(dialog.tender.emd_amount || 0)],
