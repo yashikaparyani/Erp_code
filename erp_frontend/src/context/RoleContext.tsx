@@ -405,11 +405,6 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       return SETTINGS_ROLES.includes(currentRole);
     }
 
-    // Legacy pre-sales settings: same gate
-    if (path === '/pre-sales/settings' || path.startsWith('/pre-sales/settings/')) {
-      return SETTINGS_ROLES.includes(currentRole);
-    }
-
     const allowedPaths = roleAccess[currentRole] ?? roleAccess['Project Manager'];
 
     return allowedPaths.some(allowedPath => {

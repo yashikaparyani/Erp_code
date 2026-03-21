@@ -18,9 +18,6 @@ import {
   ChevronRight,
   ChevronDown,
   FileSearch,
-  Trophy,
-  TrendingUp,
-  ListTodo,
   CreditCard,
   PieChart,
   CheckSquare,
@@ -44,9 +41,10 @@ import {
   Eye,
   ScrollText,
   BookOpen,
+  ListChecks,
+  Banknote,
 } from 'lucide-react';
 import { useRole, type Role, PROJECT_SIDE_ROLES } from '../context/RoleContext';
-import { usePermissions } from '../context/PermissionContext';
 
 interface SubMenuItem {
   name: string;
@@ -72,11 +70,19 @@ const isItemActive = (pathname: string, item: SubMenuItem) => {
   return item.children?.some((child) => isItemActive(pathname, child)) ?? false;
 };
 
-const filterAccessibleItems = (items: SubMenuItem[], hasAccess: (path: string) => boolean): SubMenuItem[] => {
-  return items.reduce<SubMenuItem[]>((visibleItems, item) => {
-    const visibleChildren = item.children ? filterAccessibleItems(item.children, hasAccess) : undefined;
+const isRoleAllowedForItem = (item: Pick<SubMenuItem, 'href'>, role: Role) => {
+  if (item.href === '/pre-sales/approvals') {
+    return role === 'Director';
+  }
 
-    if (hasAccess(item.href) || (visibleChildren?.length ?? 0) > 0) {
+  return true;
+};
+
+const filterAccessibleItems = (items: SubMenuItem[], hasAccess: (path: string) => boolean, role: Role): SubMenuItem[] => {
+  return items.reduce<SubMenuItem[]>((visibleItems, item) => {
+    const visibleChildren = item.children ? filterAccessibleItems(item.children, hasAccess, role) : undefined;
+
+    if (isRoleAllowedForItem(item, role) && (hasAccess(item.href) || (visibleChildren?.length ?? 0) > 0)) {
       visibleItems.push({
         ...item,
         children: visibleChildren,
@@ -87,9 +93,9 @@ const filterAccessibleItems = (items: SubMenuItem[], hasAccess: (path: string) =
   }, []);
 };
 
-const filterAccessibleNavLinks = (links: NavLink[], hasAccess: (path: string) => boolean): NavLink[] => {
+const filterAccessibleNavLinks = (links: NavLink[], hasAccess: (path: string) => boolean, role: Role): NavLink[] => {
   return links.reduce<NavLink[]>((visibleLinks, link) => {
-    const visibleChildren = link.children ? filterAccessibleItems(link.children, hasAccess) : undefined;
+    const visibleChildren = link.children ? filterAccessibleItems(link.children, hasAccess, role) : undefined;
 
     if (hasAccess(link.href) || (visibleChildren?.length ?? 0) > 0) {
       visibleLinks.push({
@@ -103,11 +109,8 @@ const filterAccessibleNavLinks = (links: NavLink[], hasAccess: (path: string) =>
 };
 
 const shouldShowNavLinkForRole = (link: NavLink, role: Role, isPermissionLoaded: boolean) => {
-  // When backend permissions are loaded, all filtering is handled by hasAccess
-  // (which delegates to canAccessRoute). Skip the hardcoded PROJECT_SIDE_ROLES gate.
   if (isPermissionLoaded) return true;
 
-  // Fallback: Projects tab only for project-side roles
   if (link.name === 'Projects') {
     return PROJECT_SIDE_ROLES.includes(role);
   }
@@ -119,55 +122,13 @@ const navLinks: NavLink[] = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   {
     name: 'Pre-Sales & Budgeting',
-    href: '/pre-sales',
+    href: '/pre-sales/dashboard',
     icon: FileText,
     children: [
       { name: 'Tender', href: '/pre-sales/tender', icon: FileSearch },
-      { name: 'Tender Result', href: '/pre-sales/tender-result', icon: Trophy },
-      {
-        name: 'Analytics',
-        href: '/pre-sales/analytics',
-        icon: TrendingUp,
-        children: [
-          { name: 'Company Profile', href: '/pre-sales/analytics/company-profile' },
-          { name: 'Competitors', href: '/pre-sales/analytics/competitors' },
-          { name: 'Compare Bidders', href: '/pre-sales/analytics/compare-bidders' },
-          { name: 'Missed Opportunity', href: '/pre-sales/analytics/missed-opportunity' },
-        ],
-      },
-      {
-        name: 'Tender Task',
-        href: '/pre-sales/tender-task',
-        icon: ListTodo,
-        children: [
-          { name: 'My Tender', href: '/pre-sales/tender-task/my-tender' },
-          { name: 'In-Process Tender', href: '/pre-sales/tender-task/in-process' },
-          { name: 'Assigned To Team', href: '/pre-sales/tender-task/assigned-to-team' },
-          { name: 'Submitted Tender', href: '/pre-sales/tender-task/submitted' },
-          { name: 'Dropped Tender', href: '/pre-sales/tender-task/dropped' },
-        ],
-      },
-      {
-        name: 'Finance Management',
-        href: '/pre-sales/finance',
-        icon: CreditCard,
-        children: [
-          { name: 'New Request', href: '/pre-sales/finance/new-request' },
-          { name: 'Approve Request', href: '/pre-sales/finance/approve-request' },
-          { name: 'Denied Request', href: '/pre-sales/finance/denied-request' },
-          { name: 'Completed Request', href: '/pre-sales/finance/completed-request' },
-        ],
-      },
-      {
-        name: 'MIS',
-        href: '/pre-sales/mis',
-        icon: PieChart,
-        children: [
-          { name: 'Finance MIS', href: '/pre-sales/mis/finance' },
-          { name: 'Sales MIS', href: '/pre-sales/mis/sales' },
-          { name: 'Login MIS', href: '/pre-sales/mis/login' },
-        ],
-      },
+      { name: 'Bids', href: '/pre-sales/bids', icon: ListChecks },
+      { name: 'Won Bids & LOI', href: '/pre-sales/won-bids', icon: Banknote },
+      { name: 'EMD Tracking', href: '/pre-sales/emd-tracking', icon: CreditCard },
       { name: "Approval's", href: '/pre-sales/approvals', icon: CheckSquare },
     ],
   },
@@ -301,9 +262,9 @@ const getSubMenuClasses = (level: number) => ({
 
 function SubMenu({ items, level = 0, onNavigate }: { items: SubMenuItem[]; level?: number; onNavigate?: () => void }) {
   const pathname = usePathname();
-  const { hasAccess } = useRole();
+  const { hasAccess, currentRole } = useRole();
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean | undefined>>({});
-  const accessibleItems = filterAccessibleItems(items, hasAccess);
+  const accessibleItems = filterAccessibleItems(items, hasAccess, currentRole);
   const menuClasses = getSubMenuClasses(level);
 
   const toggleExpand = (href: string, isExpanded: boolean) => {
@@ -369,6 +330,7 @@ export default function Sidebar() {
   const accessibleLinks = filterAccessibleNavLinks(
     navLinks.filter((link) => shouldShowNavLinkForRole(link, currentRole, isPermissionLoaded)),
     hasAccess,
+    currentRole,
   );
 
   const toggleMenu = (name: string, isExpanded: boolean) => {
@@ -522,7 +484,6 @@ export default function Sidebar() {
               );
             })}
           </ul>
-
         </nav>
 
         <div className="shrink-0 p-4 border-t border-[var(--border-subtle)] bg-transparent">

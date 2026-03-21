@@ -1,15 +1,63 @@
-export const TENDER_FUNNEL_OPTIONS = [
-  'Not Qualified Tender',
-  'Working but not confirmed by technical',
-  'EMD done and technical confirmed',
-  'Tender under evaluation for GO-NOGO',
-  'Tender not bided but under observation',
-  'Locked Tender',
-] as const;
+/**
+ * tenderFunnel.ts  — 12-Color Funnel System
+ *
+ * 6 SYSTEM colors (lifecycle-driven, fixed meanings)
+ * 6 USER slots  (user-customizable labels + display colors)
+ *
+ * System colors are derived from tender fields (bid-aware).
+ * User color slots are stored in GE Presales Color Config (singleton)
+ * and override the system color for DISPLAY only — workflow logic
+ * always uses the system-derived color internally.
+ */
 
-export type TenderFunnelStatus = typeof TENDER_FUNNEL_OPTIONS[number];
+// ─────────────────────────────────────────────────────────────────────────────
+// TYPES
+// ─────────────────────────────────────────────────────────────────────────────
 
-export type TenderFunnelSignals = {
+export type SystemFunnelKey =
+  | 'Blue'    // GO/NO-GO evaluation
+  | 'Yellow'  // Technical cleared, EMD pending
+  | 'Red'     // Not qualified (tech rejected)
+  | 'Green'   // Bid ready (tech + EMD confirmed)
+  | 'Orange'  // Locked (bid submitted)
+  | 'Pink';   // Under observation
+
+export type UserSlotKey =
+  | 'USER_SLOT_1'
+  | 'USER_SLOT_2'
+  | 'USER_SLOT_3'
+  | 'USER_SLOT_4'
+  | 'USER_SLOT_5'
+  | 'USER_SLOT_6';
+
+export type FunnelColorKey = SystemFunnelKey | UserSlotKey;
+
+export interface FunnelDisplayMeta {
+  key: FunnelColorKey;
+  label: string;
+  description: string;
+  hex: string;
+  bgClass: string;          // Tailwind-compatible class string
+  borderClass: string;
+  textClass: string;
+  badgeBg: string;          // inline style hex for badge
+  isSystem: boolean;
+  // Backward-compat props used by existing pages
+  toneClass?: string;
+  dotClass?: string;
+}
+
+export interface PresalesColorConfig {
+  [slotKey: string]: {
+    color: string;
+    label: string;
+    description: string;
+    hex: string;
+    count?: number;
+  };
+}
+
+export interface TenderFunnelSignals {
   status?: string;
   go_no_go_status?: string;
   technical_readiness?: string;
@@ -18,101 +66,257 @@ export type TenderFunnelSignals = {
   submission_status?: string;
   emd_required?: number | boolean;
   pbg_required?: number | boolean;
-};
+  bid_denied_by_presales?: number | boolean;
+  user_color_slot?: string;
+  computed_funnel_status?: string;
+  latest_bid?: { status?: string } | null;
+}
 
-type FunnelMeta = {
-  toneClass: string;
-  dotClass: string;
-  shortLabel: string;
-  colorName: string;
-};
+// ─────────────────────────────────────────────────────────────────────────────
+// SYSTEM COLOR DEFINITIONS (fixed, not user-changeable)
+// ─────────────────────────────────────────────────────────────────────────────
 
-export const TENDER_FUNNEL_META: Record<TenderFunnelStatus, FunnelMeta> = {
-  'Not Qualified Tender': {
-    toneClass: 'bg-red-100 text-red-700 border border-red-200',
-    dotClass: 'bg-red-500',
-    shortLabel: 'Red',
-    colorName: 'Red',
-  },
-  'Working but not confirmed by technical': {
-    toneClass: 'bg-yellow-100 text-yellow-800 border border-yellow-200',
-    dotClass: 'bg-yellow-500',
-    shortLabel: 'Yellow',
-    colorName: 'Yellow',
-  },
-  'EMD done and technical confirmed': {
-    toneClass: 'bg-green-100 text-green-700 border border-green-200',
-    dotClass: 'bg-green-500',
-    shortLabel: 'Green',
-    colorName: 'Green',
-  },
-  'Tender under evaluation for GO-NOGO': {
-    toneClass: 'bg-blue-100 text-blue-700 border border-blue-200',
+export const SYSTEM_FUNNEL_META: Record<SystemFunnelKey, FunnelDisplayMeta> = {
+  Blue: {
+    key: 'Blue',
+    label: 'GO/NO-GO Evaluation',
+    description: 'Tender received, team evaluating whether to bid.',
+    hex: '#3b82f6',
+    bgClass: 'bg-blue-50',
+    borderClass: 'border-blue-400',
+    textClass: 'text-blue-700',
+    badgeBg: '#3b82f6',
+    isSystem: true,
+    toneClass: 'bg-blue-50 border-blue-200 text-blue-700',
     dotClass: 'bg-blue-500',
-    shortLabel: 'Blue',
-    colorName: 'Blue',
   },
-  'Tender not bided but under observation': {
-    toneClass: 'bg-pink-100 text-pink-700 border border-pink-200',
-    dotClass: 'bg-pink-500',
-    shortLabel: 'Pink',
-    colorName: 'Pink',
+  Yellow: {
+    key: 'Yellow',
+    label: 'Technical Qualified',
+    description: 'GO decision made, technical team cleared. EMD still pending.',
+    hex: '#eab308',
+    bgClass: 'bg-yellow-50',
+    borderClass: 'border-yellow-400',
+    textClass: 'text-yellow-700',
+    badgeBg: '#eab308',
+    isSystem: true,
+    toneClass: 'bg-yellow-50 border-yellow-200 text-yellow-700',
+    dotClass: 'bg-yellow-500',
   },
-  'Locked Tender': {
-    toneClass: 'bg-orange-100 text-orange-700 border border-orange-200',
+  Red: {
+    key: 'Red',
+    label: 'Not Qualified',
+    description: 'Technical evaluation rejected this tender.',
+    hex: '#ef4444',
+    bgClass: 'bg-red-50',
+    borderClass: 'border-red-400',
+    textClass: 'text-red-700',
+    badgeBg: '#ef4444',
+    isSystem: true,
+    toneClass: 'bg-red-50 border-red-200 text-red-700',
+    dotClass: 'bg-red-500',
+  },
+  Green: {
+    key: 'Green',
+    label: 'Bid Ready',
+    description: 'Technical cleared + EMD/finance confirmed. Ready to bid.',
+    hex: '#22c55e',
+    bgClass: 'bg-green-50',
+    borderClass: 'border-green-400',
+    textClass: 'text-green-700',
+    badgeBg: '#22c55e',
+    isSystem: true,
+    toneClass: 'bg-green-50 border-green-200 text-green-700',
+    dotClass: 'bg-green-500',
+  },
+  Orange: {
+    key: 'Orange',
+    label: 'Locked',
+    description: 'Bid submitted, awaiting result (Won/Lost/Retender).',
+    hex: '#f97316',
+    bgClass: 'bg-orange-50',
+    borderClass: 'border-orange-400',
+    textClass: 'text-orange-700',
+    badgeBg: '#f97316',
+    isSystem: true,
+    toneClass: 'bg-orange-50 border-orange-200 text-orange-700',
     dotClass: 'bg-orange-500',
-    shortLabel: 'Orange',
-    colorName: 'Orange',
+  },
+  Pink: {
+    key: 'Pink',
+    label: 'Under Observation',
+    description: 'NO-GO decision, bid denied, dropped, or lost.',
+    hex: '#ec4899',
+    bgClass: 'bg-pink-50',
+    borderClass: 'border-pink-400',
+    textClass: 'text-pink-700',
+    badgeBg: '#ec4899',
+    isSystem: true,
+    toneClass: 'bg-pink-50 border-pink-200 text-pink-700',
+    dotClass: 'bg-pink-500',
   },
 };
 
-export const DEFAULT_TENDER_FUNNEL_STATUS: TenderFunnelStatus = 'Working but not confirmed by technical';
+// ─────────────────────────────────────────────────────────────────────────────
+// USER SLOT DEFAULT COLORS (overridable via color config)
+// ─────────────────────────────────────────────────────────────────────────────
 
-export function deriveTenderFunnelStatus(signals: TenderFunnelSignals): TenderFunnelStatus {
-  const status = signals.status || '';
-  const goNoGo = signals.go_no_go_status || 'PENDING';
-  const technical = signals.technical_readiness || 'NOT_STARTED';
-  const commercial = signals.commercial_readiness || 'NOT_STARTED';
-  const finance = signals.finance_readiness || 'NOT_STARTED';
-  const submission = signals.submission_status || 'NOT_READY';
-  const financeApplicable = Boolean(signals.emd_required) || Boolean(signals.pbg_required);
+export const USER_SLOT_DEFAULTS: Record<UserSlotKey, { color: string; hex: string; label: string }> = {
+  USER_SLOT_1: { color: 'Purple',   hex: '#a855f7', label: 'Custom 1' },
+  USER_SLOT_2: { color: 'Teal',     hex: '#14b8a6', label: 'Custom 2' },
+  USER_SLOT_3: { color: 'Brown',    hex: '#92400e', label: 'Custom 3' },
+  USER_SLOT_4: { color: 'DarkGray', hex: '#374151', label: 'Custom 4' },
+  USER_SLOT_5: { color: 'Indigo',   hex: '#4f46e5', label: 'Custom 5' },
+  USER_SLOT_6: { color: 'Maroon',   hex: '#9f1239', label: 'Custom 6' },
+};
 
-  if (status === 'LOST' || status === 'NO_GO' || goNoGo === 'NO_GO') {
-    return 'Not Qualified Tender';
+/** 20-color palette for user slot picker */
+export const COLOR_PALETTE: { name: string; hex: string }[] = [
+  { name: 'Purple',   hex: '#a855f7' },
+  { name: 'Teal',     hex: '#14b8a6' },
+  { name: 'Brown',    hex: '#92400e' },
+  { name: 'DarkGray', hex: '#374151' },
+  { name: 'Indigo',   hex: '#4f46e5' },
+  { name: 'Maroon',   hex: '#9f1239' },
+  { name: 'Violet',   hex: '#8b5cf6' },
+  { name: 'Cyan',     hex: '#06b6d4' },
+  { name: 'Lime',     hex: '#84cc16' },
+  { name: 'SkyBlue',  hex: '#0ea5e9' },
+  { name: 'Rose',     hex: '#f43f5e' },
+  { name: 'Fuchsia',  hex: '#d946ef' },
+  { name: 'Amber',    hex: '#f59e0b' },
+  { name: 'Emerald',  hex: '#10b981' },
+  { name: 'Slate',    hex: '#64748b' },
+  { name: 'Zinc',     hex: '#71717a' },
+  { name: 'Coral',    hex: '#f97316' },
+  { name: 'Navy',     hex: '#1e3a5f' },
+  { name: 'Gold',     hex: '#d97706' },
+  { name: 'Olive',    hex: '#7c7a2e' },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SYSTEM FUNNEL DERIVATION (bid-aware, 6-color logic)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Derive the system funnel color from tender + active bid state */
+export function deriveSystemFunnelKey(tender: TenderFunnelSignals): SystemFunnelKey {
+  const status = tender.status || '';
+  const gng = tender.go_no_go_status || 'PENDING';
+  const tech = tender.technical_readiness || 'NOT_STARTED';
+  const emdRequired = Boolean(tender.emd_required || tender.pbg_required);
+  const financeReady = tender.finance_readiness === 'APPROVED';
+  const bidStatus = tender.latest_bid?.status;
+  const bidDenied = Boolean(tender.bid_denied_by_presales);
+
+  // --- Pink: under observation ---
+  if (gng === 'NO_GO') return 'Pink';
+  if (bidDenied) return 'Pink';
+  if (['DROPPED', 'CANCELLED'].includes(status)) return 'Pink';
+
+  // --- Bid lifecycle: active bid overrides ---
+  if (bidStatus) {
+    if (bidStatus === 'RETENDER') return 'Blue';   // reset to evaluation
+    if (['SUBMITTED', 'UNDER_EVALUATION', 'WON'].includes(bidStatus)) return 'Orange';
+    if (bidStatus === 'LOST') return 'Pink';
+    if (bidStatus === 'CANCEL') return 'Pink';
   }
 
-  if (status === 'CANCELLED' || status === 'DROPPED') {
-    return 'Tender not bided but under observation';
+  // --- No active bid: pre-bid funnel ---
+  if (!gng || gng === 'PENDING') return 'Blue';
+
+  if (tech === 'REJECTED') return 'Red';
+
+  if (tech === 'APPROVED') {
+    const emdOk = !emdRequired || financeReady;
+    if (emdOk) return 'Green';
+    return 'Yellow';
   }
 
-  if (status === 'WON' || status === 'CONVERTED_TO_PROJECT' || status === 'SUBMITTED' || status === 'UNDER_EVALUATION') {
-    return 'Locked Tender';
-  }
-
-  if (goNoGo !== 'GO') {
-    return 'Tender under evaluation for GO-NOGO';
-  }
-
-  const technicalApproved = technical === 'APPROVED';
-  const commercialApproved = commercial === 'APPROVED';
-  const financeApproved = !financeApplicable || finance === 'APPROVED';
-
-  if (technicalApproved && commercialApproved && financeApproved && submission !== 'REJECTED') {
-    return 'EMD done and technical confirmed';
-  }
-
-  return 'Working but not confirmed by technical';
+  // GO made but technical still in progress
+  return 'Yellow';
 }
 
-export function getTenderFunnelMeta(status?: string) {
-  if (!status || !(status in TENDER_FUNNEL_META)) {
-    return {
-      toneClass: 'bg-slate-100 text-slate-700 border border-slate-200 shadow-sm',
-      dotClass: 'bg-gray-400',
-      shortLabel: 'N/A',
-      colorName: 'Gray',
-    };
-  }
-
-  return TENDER_FUNNEL_META[status as TenderFunnelStatus];
+/** Map backend computed_funnel_status string to system key */
+export function mapComputedFunnelStatusToKey(label: string): SystemFunnelKey {
+  const map: Record<string, SystemFunnelKey> = {
+    'Tender under evaluation for GO-NOGO':    'Blue',
+    'Working but not confirmed by technical': 'Yellow',
+    'Not Qualified Tender':                   'Red',
+    'EMD done and technical confirmed':        'Green',
+    'Locked Tender':                          'Orange',
+    'Tender not bided but under observation': 'Pink',
+  };
+  return map[label] || 'Blue';
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RESOLVED DISPLAY (user slot takes priority over system)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Get the effective funnel color key, considering user override */
+export function getEffectiveFunnelKey(tender: TenderFunnelSignals): FunnelColorKey {
+  if (tender.user_color_slot) {
+    const slotKey = `USER_SLOT_${tender.user_color_slot}` as UserSlotKey;
+    if (slotKey in USER_SLOT_DEFAULTS) return slotKey;
+  }
+  // Prefer backend-computed if available, else derive client-side
+  if (tender.computed_funnel_status) {
+    return mapComputedFunnelStatusToKey(tender.computed_funnel_status);
+  }
+  return deriveSystemFunnelKey(tender);
+}
+
+/** Build display metadata for any funnel key, using user config if provided */
+export function getFunnelDisplayMeta(
+  key: FunnelColorKey,
+  colorConfig?: PresalesColorConfig
+): FunnelDisplayMeta {
+  if (!key.startsWith('USER_SLOT_')) {
+    return SYSTEM_FUNNEL_META[key as SystemFunnelKey];
+  }
+  const slotNum = key.replace('USER_SLOT_', '');
+  const cfgKey = `slot_${slotNum}`;
+  const cfg = colorConfig?.[cfgKey];
+  const defaults = USER_SLOT_DEFAULTS[key as UserSlotKey];
+  const hex = cfg?.hex || defaults.hex;
+  const label = cfg?.label || defaults.label;
+  const description = cfg?.description || '';
+  return {
+    key,
+    label,
+    description,
+    hex,
+    bgClass: '',   // user-defined: use inline style
+    borderClass: '',
+    textClass: '',
+    badgeBg: hex,
+    isSystem: false,
+  };
+}
+
+/** Get a consistent row tint style for color-tinted table rows */
+export function getFunnelRowStyle(
+  key: FunnelColorKey,
+  colorConfig?: PresalesColorConfig
+): React.CSSProperties {
+  const meta = getFunnelDisplayMeta(key, colorConfig);
+  return {
+    borderLeft: `4px solid ${meta.hex}`,
+    backgroundColor: `${meta.hex}0d`,   // 5% opacity
+  };
+}
+
+// Keep backward compat with existing code that uses TENDER_FUNNEL_META
+export const TENDER_FUNNEL_META = SYSTEM_FUNNEL_META;
+
+/** Legacy function name still used by some existing components */
+export function deriveTenderFunnelStatus(tender: TenderFunnelSignals): SystemFunnelKey {
+  return deriveSystemFunnelKey(tender);
+}
+
+/** Legacy function — maps a system funnel key to display meta (backward compat) */
+export function getTenderFunnelMeta(key?: SystemFunnelKey | string): FunnelDisplayMeta {
+  if (!key) return SYSTEM_FUNNEL_META['Blue'];
+  return SYSTEM_FUNNEL_META[key as SystemFunnelKey] ?? SYSTEM_FUNNEL_META['Blue'];
+}
+
