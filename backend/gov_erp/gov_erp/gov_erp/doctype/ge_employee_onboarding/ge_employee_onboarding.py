@@ -57,6 +57,44 @@ def check_mandatory_documents(documents):
 	return missing
 
 
+def get_onboarding_mapping_readiness(onboarding):
+	"""Return whether an onboarding record is safe to map into Employee."""
+	missing_documents = check_mandatory_documents(getattr(onboarding, "documents", []) or [])
+	missing_fields = []
+
+	if not (getattr(onboarding, "employee_name", "") or "").strip():
+		missing_fields.append("Employee Name")
+	if not (getattr(onboarding, "company", "") or "").strip():
+		missing_fields.append("Company")
+	if not getattr(onboarding, "date_of_joining", None):
+		missing_fields.append("Date Of Joining")
+
+	status = getattr(onboarding, "onboarding_status", None)
+	linked_employee = getattr(onboarding, "employee_reference", None)
+	blocking_reasons = []
+
+	if status != "APPROVED":
+		blocking_reasons.append(f"Record must be APPROVED before mapping (current: {status or 'UNKNOWN'})")
+	if linked_employee:
+		blocking_reasons.append(f"Already linked to Employee {linked_employee}")
+	if missing_fields:
+		blocking_reasons.append(f"Missing required fields: {', '.join(missing_fields)}")
+	if missing_documents:
+		blocking_reasons.append(f"Missing mandatory documents: {', '.join(missing_documents)}")
+
+	return {
+		"can_map": not blocking_reasons,
+		"status": status,
+		"linked_employee": linked_employee,
+		"missing_documents": missing_documents,
+		"missing_fields": missing_fields,
+		"blocking_reasons": blocking_reasons,
+		"education_rows": len(getattr(onboarding, "education", []) or []),
+		"experience_rows": len(getattr(onboarding, "experience", []) or []),
+		"document_rows": len(getattr(onboarding, "documents", []) or []),
+	}
+
+
 def map_onboarding_to_employee_dict(onboarding):
 	"""Build a dict suitable for creating/updating an ERPNext Employee from an onboarding record."""
 	return {

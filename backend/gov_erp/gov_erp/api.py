@@ -2,7 +2,7 @@ import json
 
 import frappe
 from frappe.sessions import delete_session
-from frappe.utils import cint, cstr
+from frappe.utils import cint, cstr, flt
 from gov_erp.gov_erp.doctype.ge_dependency_rule.ge_dependency_rule import (
 	evaluate_dependency_state,
 	resolve_reference_status,
@@ -2825,6 +2825,272 @@ def get_po_stats(project=None):
 	}
 
 
+# ── Purchase Order CRUD ──────────────────────────────────────
+
+
+@frappe.whitelist()
+def create_purchase_order(data):
+	"""Create a new ERPNext Purchase Order with items and optional payment terms."""
+	_require_procurement_write_access()
+	values = _parse_payload(data)
+
+	company = values.get("company") or _get_default_company()
+	default_warehouse = _get_default_warehouse(company)
+
+	items = values.get("items") or []
+	if not items:
+		frappe.throw("At least one item is required")
+
+	po_items = []
+	for item in items:
+		po_items.append({
+			"item_code": item.get("item_code"),
+			"qty": flt(item.get("qty", 1)),
+			"rate": flt(item.get("rate", 0)),
+			"description": item.get("description", ""),
+			"schedule_date": item.get("schedule_date")
+				or frappe.utils.add_days(frappe.utils.nowdate(), 14),
+			"uom": item.get("uom") or "Nos",
+			"project": values.get("project"),
+			"warehouse": item.get("warehouse") or default_warehouse,
+		})
+
+	po = frappe.get_doc({
+		"doctype": "Purchase Order",
+		"supplier": values.get("supplier"),
+		"company": company,
+		"project": values.get("project"),
+		"set_warehouse": values.get("warehouse") or default_warehouse,
+		"transaction_date": values.get("transaction_date") or frappe.utils.nowdate(),
+		"schedule_date": values.get("schedule_date")
+			or frappe.utils.add_days(frappe.utils.nowdate(), 14),
+		"items": po_items,
+	})
+	po.insert()
+
+	# Create GE PO Extension with payment terms if provided
+	payment_terms = values.get("payment_terms") or []
+	if payment_terms:
+		_save_po_payment_terms(po.name, payment_terms, values.get("payment_terms_note"))
+
+	frappe.db.commit()
+	return {
+		"success": True,
+		"data": {"name": po.name},
+		"message": f"Purchase Order {po.name} created",
+	}
+
+
+@frappe.whitelist()
+def update_purchase_order(data):
+	"""Update an existing draft Purchase Order."""
+	_require_procurement_write_access()
+	values = _parse_payload(data)
+	name = _require_param(values.get("name"), "name")
+
+	po = frappe.get_doc("Purchase Order", name)
+	if po.docstatus != 0:
+		frappe.throw("Only draft Purchase Orders can be edited")
+
+	updatable_fields = [
+		"supplier", "project", "set_warehouse",
+		"transaction_date", "schedule_date",
+	]
+	for field in updatable_fields:
+		if field in values:
+			setattr(po, field, values[field])
+
+	# Replace items if provided
+	if "items" in values:
+		po.items = []
+		default_warehouse = _get_default_warehouse(po.company)
+		for item in values["items"]:
+			po.append("items", {
+				"item_code": item.get("item_code"),
+				"qty": flt(item.get("qty", 1)),
+				"rate": flt(item.get("rate", 0)),
+				"description": item.get("description", ""),
+				"schedule_date": item.get("schedule_date")
+					or po.schedule_date
+					or frappe.utils.add_days(frappe.utils.nowdate(), 14),
+				"uom": item.get("uom") or "Nos",
+				"project": po.project,
+				"warehouse": item.get("warehouse") or default_warehouse,
+			})
+
+	po.save()
+
+	# Update payment terms if provided
+	if "payment_terms" in values:
+		_save_po_payment_terms(po.name, values["payment_terms"], values.get("payment_terms_note"))
+
+	frappe.db.commit()
+	return {"success": True, "data": {"name": po.name}, "message": "Purchase Order updated"}
+
+
+@frappe.whitelist()
+def delete_purchase_order(name=None):
+	"""Delete a draft Purchase Order."""
+	_require_procurement_write_access()
+	name = _require_param(name, "name")
+	po = frappe.get_doc("Purchase Order", name)
+	if po.docstatus != 0:
+		frappe.throw("Only draft Purchase Orders can be deleted")
+
+	# Delete linked extension if exists
+	if frappe.db.exists("GE PO Extension", name):
+		frappe.delete_doc("GE PO Extension", name)
+
+	frappe.delete_doc("Purchase Order", name)
+	frappe.db.commit()
+	return {"success": True, "message": f"Purchase Order {name} deleted"}
+
+
+@frappe.whitelist()
+def submit_purchase_order(name=None):
+	"""Submit a draft Purchase Order."""
+	_require_procurement_write_access()
+	name = _require_param(name, "name")
+	po = frappe.get_doc("Purchase Order", name)
+	if po.docstatus != 0:
+		frappe.throw("Purchase Order is not in draft state")
+	po.submit()
+	frappe.db.commit()
+	return {"success": True, "data": {"name": po.name, "status": po.status}, "message": "Purchase Order submitted"}
+
+
+@frappe.whitelist()
+def cancel_purchase_order(name=None):
+	"""Cancel a submitted Purchase Order."""
+	_require_procurement_write_access()
+	name = _require_param(name, "name")
+	po = frappe.get_doc("Purchase Order", name)
+	if po.docstatus != 1:
+		frappe.throw("Only submitted Purchase Orders can be cancelled")
+	po.cancel()
+	frappe.db.commit()
+	return {"success": True, "data": {"name": po.name, "status": po.status}, "message": "Purchase Order cancelled"}
+
+
+# ── PO Payment Terms ─────────────────────────────────────────
+
+
+def _save_po_payment_terms(po_name, terms_list, note=None):
+	"""Create or update the GE PO Extension with payment terms for a PO."""
+	from frappe.utils import flt as _flt
+
+	if frappe.db.exists("GE PO Extension", po_name):
+		ext = frappe.get_doc("GE PO Extension", po_name)
+		ext.payment_terms = []
+	else:
+		ext = frappe.get_doc({
+			"doctype": "GE PO Extension",
+			"purchase_order": po_name,
+		})
+
+	if note is not None:
+		ext.payment_terms_note = note
+
+	for t in terms_list:
+		ext.append("payment_terms", {
+			"term_type": t.get("term_type"),
+			"percentage": _flt(t.get("percentage", 0)),
+			"days": int(t.get("days") or 0),
+			"remarks": t.get("remarks"),
+			"approval_document": t.get("approval_document"),
+			"approval_document_name": t.get("approval_document_name"),
+		})
+
+	ext.save()
+	return ext.name
+
+
+@frappe.whitelist()
+def get_po_payment_terms(purchase_order=None):
+	"""Return payment terms for a purchase order from GE PO Extension."""
+	_require_procurement_read_access()
+	purchase_order = _require_param(purchase_order, "purchase_order")
+
+	if not frappe.db.exists("GE PO Extension", purchase_order):
+		return {"success": True, "data": {"payment_terms": [], "note": None, "approval_status": "Pending", "total_pct": 0}}
+
+	ext = frappe.get_doc("GE PO Extension", purchase_order)
+	terms = []
+	for t in ext.payment_terms or []:
+		terms.append({
+			"name": t.name,
+			"term_type": t.term_type,
+			"percentage": t.percentage,
+			"amount": t.amount,
+			"days": t.days,
+			"due_date": str(t.due_date) if t.due_date else None,
+			"status": t.status,
+			"approval_document": t.approval_document,
+			"approval_document_name": t.approval_document_name,
+			"remarks": t.remarks,
+		})
+
+	return {
+		"success": True,
+		"data": {
+			"payment_terms": terms,
+			"note": ext.payment_terms_note,
+			"approval_status": ext.accounts_approval_status,
+			"total_pct": ext.total_payment_terms_pct,
+		},
+	}
+
+
+@frappe.whitelist()
+def save_po_payment_terms(data):
+	"""Save/replace payment terms for a purchase order."""
+	_require_procurement_write_access()
+	values = _parse_payload(data)
+	po_name = _require_param(values.get("purchase_order"), "purchase_order")
+
+	if not frappe.db.exists("Purchase Order", po_name):
+		frappe.throw(f"Purchase Order {po_name} not found")
+
+	terms = values.get("payment_terms") or []
+	_save_po_payment_terms(po_name, terms, values.get("payment_terms_note"))
+	frappe.db.commit()
+	return {"success": True, "message": "Payment terms saved"}
+
+
+@frappe.whitelist()
+def approve_po_payment_terms(purchase_order=None):
+	"""Mark payment terms as approved by accounts department."""
+	_require_procurement_write_access()
+	purchase_order = _require_param(purchase_order, "purchase_order")
+
+	if not frappe.db.exists("GE PO Extension", purchase_order):
+		frappe.throw("No payment terms found for this PO")
+
+	ext = frappe.get_doc("GE PO Extension", purchase_order)
+	ext.accounts_approval_status = "Approved"
+	ext.save()
+	frappe.db.commit()
+	return {"success": True, "message": "Payment terms approved"}
+
+
+@frappe.whitelist()
+def reject_po_payment_terms(purchase_order=None, reason=None):
+	"""Reject payment terms by accounts department."""
+	_require_procurement_write_access()
+	purchase_order = _require_param(purchase_order, "purchase_order")
+
+	if not frappe.db.exists("GE PO Extension", purchase_order):
+		frappe.throw("No payment terms found for this PO")
+
+	ext = frappe.get_doc("GE PO Extension", purchase_order)
+	ext.accounts_approval_status = "Rejected"
+	if reason:
+		ext.payment_terms_note = (ext.payment_terms_note or "") + f"\n[REJECTED] {reason}"
+	ext.save()
+	frappe.db.commit()
+	return {"success": True, "message": "Payment terms rejected"}
+
+
 @frappe.whitelist()
 def get_grns(project=None, status=None, supplier=None, purchase_order=None, limit_page_length=50, limit_start=0):
 	"""Return ERPNext purchase receipts (GRNs) for stores dashboards."""
@@ -3207,7 +3473,44 @@ def delete_milestone(name):
 
 
 @frappe.whitelist()
-def get_dependency_rules(task=None, active=None):
+def sync_site_milestone_progress(site_name):
+	"""Recompute site progress from its linked milestones.
+
+	Returns the updated site_progress_pct and location_progress_pct.
+	"""
+	_require_execution_write_access()
+	site_name = _require_param(site_name, "site_name")
+
+	milestones = frappe.get_all(
+		"GE Milestone",
+		filters={"linked_site": site_name},
+		fields=["progress_pct", "status"],
+	)
+	if not milestones:
+		return {"success": True, "data": {"milestones": 0, "site_progress_pct": 0, "location_progress_pct": 0}, "message": "No milestones linked"}
+
+	total = len(milestones)
+	completed = sum(1 for m in milestones if m.status == "COMPLETED")
+	avg_progress = sum(m.progress_pct or 0 for m in milestones) / total
+	completion_pct = (completed / total) * 100
+
+	frappe.db.set_value(
+		"GE Site", site_name,
+		{"site_progress_pct": avg_progress, "location_progress_pct": completion_pct},
+		update_modified=False,
+	)
+	frappe.db.commit()
+
+	return {
+		"success": True,
+		"data": {
+			"milestones": total,
+			"completed": completed,
+			"site_progress_pct": avg_progress,
+			"location_progress_pct": completion_pct,
+		},
+		"message": "Site progress synced from milestones",
+	}
 	"""Return dependency rules for execution tasks."""
 	_require_execution_read_access()
 	filters = {}
@@ -3375,21 +3678,37 @@ def evaluate_task_dependencies(task_name):
 # ── HR / Onboarding APIs ─────────────────────────────────────
 
 @frappe.whitelist()
-def get_onboardings(status=None, company=None):
+def get_onboardings(status=None, company=None, search=None):
 	"""Return onboarding records, optionally filtered."""
 	_require_hr_read_access()
 	filters = {}
+	or_filters = []
 	if status:
 		filters["onboarding_status"] = status
 	if company:
 		filters["company"] = company
+	if search:
+		search_text = f"%{search.strip()}%"
+		or_filters = [
+			["name", "like", search_text],
+			["employee_name", "like", search_text],
+			["designation", "like", search_text],
+			["company", "like", search_text],
+			["project_location", "like", search_text],
+			["project_city", "like", search_text],
+			["contact_number", "like", search_text],
+			["personal_email", "like", search_text],
+		]
 	data = frappe.get_all(
 		"GE Employee Onboarding",
 		filters=filters,
+		or_filters=or_filters,
 		fields=[
 			"name", "employee_name", "company", "designation", "onboarding_status",
 			"date_of_joining", "employee_reference", "submitted_by",
-			"approved_by", "approved_at", "creation", "modified",
+			"reviewed_by", "approved_by", "approved_at", "rejected_by",
+			"rejection_reason", "form_source", "project_location", "project_city",
+			"creation", "modified",
 		],
 		order_by="creation desc",
 	)
@@ -3448,6 +3767,8 @@ def submit_onboarding(name):
 	if doc.onboarding_status != "DRAFT":
 		return {"success": False, "message": f"Onboarding is in {doc.onboarding_status} status, must be DRAFT to submit"}
 	doc.onboarding_status = "SUBMITTED"
+	if not doc.submitted_by:
+		doc.submitted_by = frappe.session.user
 	doc.save()
 	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": "Onboarding submitted"}
@@ -3468,6 +3789,19 @@ def review_onboarding(name):
 
 
 @frappe.whitelist()
+def return_onboarding_to_submitted(name):
+	"""Move onboarding from UNDER_REVIEW back to SUBMITTED."""
+	_require_hr_approval_access()
+	doc = frappe.get_doc("GE Employee Onboarding", name)
+	if doc.onboarding_status != "UNDER_REVIEW":
+		return {"success": False, "message": f"Onboarding is in {doc.onboarding_status} status, must be UNDER_REVIEW to send back"}
+	doc.onboarding_status = "SUBMITTED"
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Onboarding returned to submitted state"}
+
+
+@frappe.whitelist()
 def approve_onboarding(name):
 	"""Approve an onboarding that is under review."""
 	_require_hr_approval_access()
@@ -3482,6 +3816,8 @@ def approve_onboarding(name):
 		return {"success": False, "message": f"Missing mandatory documents: {', '.join(missing)}"}
 
 	doc.onboarding_status = "APPROVED"
+	doc.approved_by = frappe.session.user
+	doc.approved_at = frappe.utils.now()
 	doc.save()
 	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": "Onboarding approved"}
@@ -3504,50 +3840,101 @@ def reject_onboarding(name, reason=None):
 
 
 @frappe.whitelist()
+def reopen_onboarding_draft(name):
+	"""Move onboarding back to DRAFT from a rejected or submitted state."""
+	_require_hr_write_access()
+	doc = frappe.get_doc("GE Employee Onboarding", name)
+	if doc.onboarding_status not in {"REJECTED", "SUBMITTED"}:
+		return {"success": False, "message": f"Onboarding is in {doc.onboarding_status} status, cannot move it to DRAFT"}
+	doc.onboarding_status = "DRAFT"
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Onboarding moved back to draft"}
+
+
+@frappe.whitelist()
+def preview_onboarding_employee_mapping(name):
+	"""Return the employee payload that would be created from an approved onboarding record."""
+	_require_hr_read_access()
+	name = _require_param(name, "name")
+	doc = frappe.get_doc("GE Employee Onboarding", name)
+
+	from gov_erp.gov_erp.doctype.ge_employee_onboarding.ge_employee_onboarding import (
+		get_onboarding_mapping_readiness,
+		map_onboarding_to_employee_dict,
+	)
+
+	preview = map_onboarding_to_employee_dict(doc)
+	readiness = get_onboarding_mapping_readiness(doc)
+
+	return {
+		"success": True,
+		"data": {
+			"employee_preview": preview,
+			"readiness": readiness,
+		},
+	}
+
+
+@frappe.whitelist()
 def map_onboarding_to_employee(name):
 	"""Create an ERPNext Employee from an approved onboarding record."""
 	_require_hr_write_access()
 	doc = frappe.get_doc("GE Employee Onboarding", name)
-	if doc.onboarding_status != "APPROVED":
-		return {"success": False, "message": f"Onboarding must be APPROVED to map to Employee (current: {doc.onboarding_status})"}
-	if doc.employee_reference:
-		return {"success": False, "message": f"Already mapped to Employee {doc.employee_reference}"}
 
-	from gov_erp.gov_erp.doctype.ge_employee_onboarding.ge_employee_onboarding import map_onboarding_to_employee_dict
+	from gov_erp.gov_erp.doctype.ge_employee_onboarding.ge_employee_onboarding import (
+		get_onboarding_mapping_readiness,
+		map_onboarding_to_employee_dict,
+	)
+	readiness = get_onboarding_mapping_readiness(doc)
+	if not readiness["can_map"]:
+		return {
+			"success": False,
+			"message": "Onboarding is not ready to map: " + "; ".join(readiness["blocking_reasons"]),
+			"data": {"readiness": readiness},
+		}
+
 	emp_data = map_onboarding_to_employee_dict(doc)
 	emp_data["doctype"] = "Employee"
 	emp_data["status"] = "Active"
 
 	employee = frappe.get_doc(emp_data)
-	employee.insert()
+	try:
+		employee.insert()
 
-	# Sync education rows
-	for edu_row in doc.education:
-		employee.append("education", {
-			"school_univ": edu_row.school_univ,
-			"qualification": edu_row.qualification,
-			"level": edu_row.level,
-			"year_of_passing": edu_row.year_of_passing,
-			"class_per": edu_row.get("class_per"),
-		})
+		# Sync education rows
+		for edu_row in doc.education:
+			employee.append("education", {
+				"school_univ": edu_row.school_univ,
+				"qualification": edu_row.qualification,
+				"level": edu_row.level,
+				"year_of_passing": edu_row.year_of_passing,
+				"class_per": edu_row.get("class_per"),
+			})
 
-	# Sync experience rows
-	for exp_row in doc.experience:
-		employee.append("external_work_history", {
-			"company_name": exp_row.company_name,
-			"designation": exp_row.designation,
-			"salary": exp_row.get("salary"),
-			"total_experience": exp_row.get("total_experience"),
-		})
+		# Sync experience rows
+		for exp_row in doc.experience:
+			employee.append("external_work_history", {
+				"company_name": exp_row.company_name,
+				"designation": exp_row.designation,
+				"salary": exp_row.get("salary"),
+				"total_experience": exp_row.get("total_experience"),
+			})
 
-	if doc.education or doc.experience:
-		employee.save()
+		if doc.education or doc.experience:
+			employee.save()
 
-	# Link back
-	doc.employee_reference = employee.name
-	doc.onboarding_status = "MAPPED_TO_EMPLOYEE"
-	doc.save()
-	frappe.db.commit()
+		# Link back only after employee sync completes
+		doc.employee_reference = employee.name
+		doc.onboarding_status = "MAPPED_TO_EMPLOYEE"
+		doc.save()
+		frappe.db.commit()
+	except Exception:
+		frappe.db.rollback()
+		if getattr(employee, "name", None) and frappe.db.exists("Employee", employee.name):
+			frappe.delete_doc("Employee", employee.name, ignore_permissions=True, force=True)
+			frappe.db.commit()
+		raise
 
 	return {
 		"success": True,
@@ -4089,6 +4476,272 @@ def get_technician_visit_stats():
 	}
 
 
+# ── Employee Directory ───────────────────────────────────────
+
+
+def _require_employee_read_access():
+	_require_module_access("hr")
+
+
+def _require_employee_write_access():
+	_require_any_capability("hr.employee.manage", "hr.onboarding.manage")
+
+
+_EMPLOYEE_LIST_FIELDS = [
+	"name",
+	"employee_name",
+	"first_name",
+	"last_name",
+	"designation",
+	"department",
+	"branch",
+	"status",
+	"gender",
+	"date_of_joining",
+	"cell_phone",
+	"company_email",
+	"personal_email",
+	"image",
+	"reports_to",
+	"company",
+	"user_id",
+]
+
+_EMPLOYEE_DETAIL_FIELDS = _EMPLOYEE_LIST_FIELDS + [
+	"middle_name",
+	"employee_number",
+	"date_of_birth",
+	"salutation",
+	"marital_status",
+	"blood_group",
+	"current_address",
+	"current_accommodation_type",
+	"permanent_address",
+	"permanent_accommodation_type",
+	"person_to_be_contacted",
+	"emergency_phone_number",
+	"relation",
+	"bank_name",
+	"bank_ac_no",
+	"iban",
+	"salary_mode",
+	"ctc",
+	"salary_currency",
+	"passport_number",
+	"valid_upto",
+	"date_of_issue",
+	"place_of_issue",
+	"holiday_list",
+	"attendance_device_id",
+	"date_of_retirement",
+	"contract_end_date",
+	"notice_number_of_days",
+	"scheduled_confirmation_date",
+	"final_confirmation_date",
+	"resignation_letter_date",
+	"relieving_date",
+	"reason_for_leaving",
+	"bio",
+	"creation",
+	"modified",
+]
+
+
+@frappe.whitelist()
+def get_employees(status=None, department=None, designation=None, branch=None, search=None):
+	"""Return the employee directory list."""
+	_require_employee_read_access()
+	filters = {}
+	if status:
+		filters["status"] = status
+	if department:
+		filters["department"] = department
+	if designation:
+		filters["designation"] = designation
+	if branch:
+		filters["branch"] = branch
+
+	or_filters = None
+	if search:
+		search_term = f"%{search}%"
+		or_filters = [
+			["employee_name", "like", search_term],
+			["name", "like", search_term],
+			["cell_phone", "like", search_term],
+			["designation", "like", search_term],
+			["department", "like", search_term],
+			["company_email", "like", search_term],
+		]
+
+	data = frappe.get_all(
+		"Employee",
+		filters=filters,
+		or_filters=or_filters,
+		fields=_EMPLOYEE_LIST_FIELDS,
+		order_by="employee_name asc",
+		limit_page_length=0,
+	)
+	return {"success": True, "data": data}
+
+
+@frappe.whitelist()
+def get_employee(name=None):
+	"""Return a single employee with profile details, education, and experience."""
+	_require_employee_read_access()
+	name = _require_param(name, "name")
+	emp = frappe.get_doc("Employee", name)
+	result = {f: emp.get(f) for f in _EMPLOYEE_DETAIL_FIELDS if emp.get(f) is not None}
+	result["name"] = emp.name
+
+	# Education child table
+	result["education"] = [
+		{
+			"school_univ": row.school_univ,
+			"qualification": row.qualification,
+			"level": row.level,
+			"year_of_passing": row.year_of_passing,
+			"class_per": row.get("class_per"),
+		}
+		for row in (emp.education or [])
+	]
+
+	# Experience child table
+	result["experience"] = [
+		{
+			"company_name": row.company_name,
+			"designation": row.designation,
+			"salary": row.get("salary"),
+			"total_experience": row.get("total_experience"),
+		}
+		for row in (emp.external_work_history or [])
+	]
+
+	return {"success": True, "data": result}
+
+
+@frappe.whitelist()
+def get_employee_stats():
+	"""Return employee directory summary counts."""
+	_require_employee_read_access()
+	rows = frappe.get_all("Employee", fields=["status", "department", "gender"])
+	departments = set()
+	active = inactive = male = female = 0
+	for r in rows:
+		if r.status == "Active":
+			active += 1
+		else:
+			inactive += 1
+		if r.gender == "Male":
+			male += 1
+		elif r.gender == "Female":
+			female += 1
+		if r.department:
+			departments.add(r.department)
+	return {
+		"success": True,
+		"data": {
+			"total": len(rows),
+			"active": active,
+			"inactive": inactive,
+			"male": male,
+			"female": female,
+			"departments": len(departments),
+		},
+	}
+
+
+@frappe.whitelist()
+def update_employee(name, data):
+	"""Update writable fields on an Employee record."""
+	_require_employee_write_access()
+	name = _require_param(name, "name")
+	values = _parse_payload(data)
+
+	# Fields that may be updated via the profile UI
+	WRITABLE_FIELDS = {
+		"first_name", "middle_name", "last_name", "salutation", "gender",
+		"date_of_birth", "date_of_joining", "designation", "department", "branch",
+		"reports_to", "status", "cell_phone", "personal_email", "company_email",
+		"current_address", "current_accommodation_type",
+		"permanent_address", "permanent_accommodation_type",
+		"person_to_be_contacted", "emergency_phone_number", "relation",
+		"bank_name", "bank_ac_no", "iban", "salary_mode",
+		"marital_status", "blood_group",
+		"passport_number", "valid_upto", "date_of_issue", "place_of_issue",
+		"holiday_list", "attendance_device_id",
+		"scheduled_confirmation_date", "final_confirmation_date",
+		"contract_end_date", "notice_number_of_days", "date_of_retirement",
+		"bio",
+	}
+
+	doc = frappe.get_doc("Employee", name)
+	for key, val in values.items():
+		if key in WRITABLE_FIELDS:
+			doc.set(key, val)
+
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Employee updated"}
+
+
+@frappe.whitelist()
+def get_employee_family(name=None):
+	"""Return family/dependent info stored as Employee custom fields or child table."""
+	_require_employee_read_access()
+	name = _require_param(name, "name")
+	emp = frappe.get_doc("Employee", name)
+	return {
+		"success": True,
+		"data": {
+			"name": emp.name,
+			"marital_status": emp.marital_status,
+			"blood_group": emp.blood_group,
+			"family_background": emp.family_background,
+			"health_details": emp.health_details,
+			"person_to_be_contacted": emp.person_to_be_contacted,
+			"emergency_phone_number": emp.emergency_phone_number,
+			"relation": emp.relation,
+		},
+	}
+
+
+@frappe.whitelist()
+def get_employee_education(name=None):
+	"""Return education rows for an employee."""
+	_require_employee_read_access()
+	name = _require_param(name, "name")
+	emp = frappe.get_doc("Employee", name)
+	rows = [
+		{
+			"school_univ": row.school_univ,
+			"qualification": row.qualification,
+			"level": row.level,
+			"year_of_passing": row.year_of_passing,
+			"class_per": row.get("class_per"),
+		}
+		for row in (emp.education or [])
+	]
+	return {"success": True, "data": rows}
+
+
+@frappe.whitelist()
+def get_employee_experience(name=None):
+	"""Return work experience rows for an employee."""
+	_require_employee_read_access()
+	name = _require_param(name, "name")
+	emp = frappe.get_doc("Employee", name)
+	rows = [
+		{
+			"company_name": row.company_name,
+			"designation": row.designation,
+			"salary": row.get("salary"),
+			"total_experience": row.get("total_experience"),
+		}
+		for row in (emp.external_work_history or [])
+	]
+	return {"success": True, "data": rows}
+
+
 # ── PO Hook from Vendor Comparison ───────────────────────────
 
 @frappe.whitelist()
@@ -4575,6 +5228,85 @@ def get_payment_receipt_stats(project=None):
 	}
 
 
+@frappe.whitelist()
+def reconcile_invoice_payments(project=None, invoice_name=None):
+	"""Reconcile invoices against payment receipts.
+
+	Returns per-invoice summary: total billed, paid, outstanding, and flags.
+	"""
+	_require_billing_read_access()
+	filters = {}
+	if project:
+		filters["linked_project"] = project
+	if invoice_name:
+		filters["name"] = invoice_name
+
+	invoices = frappe.get_all(
+		"GE Invoice",
+		filters=filters,
+		fields=[
+			"name", "linked_project", "invoice_type", "status",
+			"invoice_date", "net_receivable", "total_paid", "outstanding_amount",
+			"payment_milestone_description", "scheduled_milestone_date",
+			"payment_received", "milestone_complete",
+		],
+		order_by="invoice_date asc",
+	)
+
+	summary = []
+	total_billed = 0
+	total_paid = 0
+	total_outstanding = 0
+
+	for inv in invoices:
+		receipts = frappe.get_all(
+			"GE Payment Receipt",
+			filters={"linked_invoice": inv.name},
+			fields=["name", "received_date", "amount_received", "receipt_type", "payment_mode"],
+			order_by="received_date asc",
+		)
+		paid = sum(r.amount_received or 0 for r in receipts)
+		outstanding = max((inv.net_receivable or 0) - paid, 0)
+		is_fully_paid = outstanding == 0 and (inv.net_receivable or 0) > 0
+
+		total_billed += inv.net_receivable or 0
+		total_paid += paid
+		total_outstanding += outstanding
+
+		summary.append({
+			"invoice": inv.name,
+			"project": inv.linked_project,
+			"type": inv.invoice_type,
+			"status": inv.status,
+			"date": str(inv.invoice_date) if inv.invoice_date else None,
+			"net_receivable": inv.net_receivable or 0,
+			"total_paid": paid,
+			"outstanding": outstanding,
+			"is_fully_paid": is_fully_paid,
+			"milestone_description": inv.payment_milestone_description,
+			"scheduled_date": str(inv.scheduled_milestone_date) if inv.scheduled_milestone_date else None,
+			"milestone_complete": inv.milestone_complete,
+			"payment_received_flag": inv.payment_received,
+			"receipts": [r.as_dict() for r in receipts] if invoice_name else len(receipts),
+		})
+
+	return {
+		"success": True,
+		"data": {
+			"invoices": summary,
+			"totals": {
+				"total_billed": total_billed,
+				"total_paid": total_paid,
+				"total_outstanding": total_outstanding,
+				"invoice_count": len(invoices),
+				"fully_paid_count": sum(1 for s in summary if s["is_fully_paid"]),
+				"uninvoiced_milestones": sum(1 for s in summary if not s["milestone_complete"] and s["status"] == "DRAFT"),
+				"invoiced_unpaid": sum(1 for s in summary if s["status"] in ("SUBMITTED", "APPROVED") and not s["is_fully_paid"]),
+			},
+		},
+	}
+
+
 # ── Retention Ledger APIs ────────────────────────────────────
 
 @frappe.whitelist()
@@ -4847,7 +5579,8 @@ def get_tickets(project=None, site=None, status=None, priority=None, category=No
 		filters=filters,
 		fields=[
 			"name", "title", "linked_project", "linked_site", "category",
-			"priority", "status", "raised_by", "raised_on", "assigned_to",
+			"impact_level", "priority", "status", "due_date", "source_issue_id",
+			"raised_by", "raised_on", "assigned_to",
 			"resolved_on", "closed_on", "is_rma", "sla_profile",
 			"creation", "modified",
 		],
@@ -5007,19 +5740,24 @@ def resolve_ticket(name, resolution_notes=None):
 
 
 @frappe.whitelist()
-def close_ticket(name):
+def close_ticket(name, closure_type=None):
 	"""Close a resolved ticket."""
 	_require_om_write_access()
 	doc = frappe.get_doc("GE Ticket", name)
-	if doc.status != "RESOLVED":
-		return {"success": False, "message": f"Ticket must be RESOLVED to close (current: {doc.status})"}
+	if doc.status not in ("RESOLVED", "NEW", "ASSIGNED"):
+		return {"success": False, "message": f"Ticket must be RESOLVED, NEW, or ASSIGNED to close (current: {doc.status})"}
+	previous_status = doc.status
+	if closure_type:
+		doc.closure_type = closure_type
+	elif previous_status == "RESOLVED":
+		doc.closure_type = "RESOLVED"
 	doc.status = "CLOSED"
 	doc.closed_on = frappe.utils.now_datetime()
 	doc.append("actions", {
 		"action_type": "CLOSE",
 		"by_user": frappe.session.user,
 		"at_time": frappe.utils.now_datetime(),
-		"notes": "Ticket closed",
+		"notes": f"Ticket closed ({doc.closure_type or 'RESOLVED'})",
 	})
 	doc.save()
 	frappe.db.commit()
@@ -5028,20 +5766,25 @@ def close_ticket(name):
 
 @frappe.whitelist()
 def escalate_ticket(name, reason):
-	"""Escalate a ticket."""
+	"""Escalate a ticket (increments escalation_level)."""
 	_require_om_write_access()
 	doc = frappe.get_doc("GE Ticket", name)
 	if doc.status == "CLOSED":
 		return {"success": False, "message": "Cannot escalate a closed ticket"}
+	current_level = doc.escalation_level or 0
+	if current_level >= 5:
+		return {"success": False, "message": "Ticket is already at maximum escalation level (5)"}
+	doc.escalation_level = current_level + 1
+	doc.escalation_reason = reason
 	doc.append("actions", {
 		"action_type": "ESCALATE",
 		"by_user": frappe.session.user,
 		"at_time": frappe.utils.now_datetime(),
-		"notes": reason,
+		"notes": f"Escalated to level {doc.escalation_level}: {reason}",
 	})
 	doc.save()
 	frappe.db.commit()
-	return {"success": True, "data": doc.as_dict(), "message": "Ticket escalated"}
+	return {"success": True, "data": doc.as_dict(), "message": f"Ticket escalated to level {doc.escalation_level}"}
 
 
 @frappe.whitelist()
@@ -5591,6 +6334,9 @@ def update_rma_status(name, new_status):
 		"IN_TRANSIT": ["RECEIVED_AT_SERVICE_CENTER"],
 		"RECEIVED_AT_SERVICE_CENTER": ["UNDER_REPAIR"],
 		"UNDER_REPAIR": ["REPAIRED", "REPLACED"],
+		"REPAIRED": ["CLOSED"],
+		"REPLACED": ["CLOSED"],
+		"REJECTED": ["CLOSED", "PENDING"],
 	}
 	doc = frappe.get_doc("GE RMA Tracker", name)
 	allowed = valid_transitions.get(doc.rma_status, [])
@@ -5599,6 +6345,10 @@ def update_rma_status(name, new_status):
 	doc.rma_status = new_status
 	if new_status in ("REPAIRED", "REPLACED"):
 		doc.actual_resolution_date = frappe.utils.nowdate()
+	if new_status == "CLOSED":
+		doc.closed_on = frappe.utils.nowdate()
+		if not doc.actual_resolution_date:
+			doc.actual_resolution_date = frappe.utils.nowdate()
 	doc.save()
 	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": f"RMA status updated to {new_status}"}
@@ -5611,7 +6361,10 @@ def close_rma(name):
 	doc = frappe.get_doc("GE RMA Tracker", name)
 	if doc.rma_status not in ("REPAIRED", "REPLACED", "REJECTED"):
 		return {"success": False, "message": f"RMA must be REPAIRED, REPLACED, or REJECTED to close (current: {doc.rma_status})"}
+	doc.rma_status = "CLOSED"
 	doc.closed_on = frappe.utils.nowdate()
+	if not doc.actual_resolution_date:
+		doc.actual_resolution_date = frappe.utils.nowdate()
 	doc.save()
 	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": "RMA closed"}
@@ -5939,11 +6692,13 @@ def get_project_documents(folder=None, project=None, category=None):
 			"document_name",
 			"folder",
 			"linked_project",
+			"linked_site",
 			"category",
 			"file",
 			"version",
 			"uploaded_by",
 			"uploaded_on",
+			"expiry_date",
 			"remarks",
 			"creation",
 			"modified",
@@ -6043,20 +6798,43 @@ def upload_project_document(data):
 	values = _parse_payload(data)
 	values.setdefault("uploaded_by", frappe.session.user)
 	values.setdefault("uploaded_on", frappe.utils.now_datetime())
+	values["file"] = _require_param(values.get("file"), "file")
 	if not values.get("version"):
-		latest_version = frappe.db.get_value(
-			"GE Project Document",
-			{
-				"document_name": values.get("document_name"),
-				"linked_project": values.get("linked_project"),
-			},
-			"max(version)",
-		) or 0
+		latest_version = (
+			frappe.db.sql(
+				"""
+				select coalesce(max(version), 0)
+				from `tabGE Project Document`
+				where document_name = %s
+				  and linked_project = %s
+				  and coalesce(linked_site, '') = %s
+				""",
+				(
+					values.get("document_name"),
+					values.get("linked_project"),
+					values.get("linked_site") or "",
+				),
+			)[0][0]
+			or 0
+		)
 		values["version"] = int(latest_version) + 1
 	doc = frappe.get_doc({"doctype": "GE Project Document", **values})
 	doc.insert()
 	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": "Project document uploaded"}
+
+
+@frappe.whitelist()
+def delete_uploaded_project_file(file_url=None):
+	"""Delete an uploaded File record by file_url when document creation fails."""
+	_require_document_write_access()
+	file_url = _require_param(file_url, "file_url")
+	file_name = frappe.db.get_value("File", {"file_url": file_url}, "name")
+	if not file_name:
+		return {"success": True, "message": "No uploaded file record found for cleanup"}
+	frappe.delete_doc("File", file_name, ignore_permissions=True)
+	frappe.db.commit()
+	return {"success": True, "message": "Uploaded file cleaned up"}
 
 
 @frappe.whitelist()
@@ -6067,23 +6845,89 @@ def get_document_versions(name=None):
 	doc = frappe.get_doc("GE Project Document", name)
 	data = frappe.get_all(
 		"GE Project Document",
-		filters={"document_name": doc.document_name, "linked_project": doc.linked_project},
+		filters={
+			"document_name": doc.document_name,
+			"linked_project": doc.linked_project,
+			"linked_site": doc.linked_site,
+		},
 		fields=[
 			"name",
 			"document_name",
 			"folder",
 			"linked_project",
+			"linked_site",
 			"category",
 			"file",
 			"version",
 			"uploaded_by",
 			"uploaded_on",
+			"expiry_date",
 			"remarks",
 			"creation",
 		],
 		order_by="version desc, creation desc",
 	)
 	return {"success": True, "data": data}
+
+
+@frappe.whitelist()
+def get_expiring_documents(project=None, days=30):
+	"""Return project documents that are expiring within the given number of days."""
+	_require_document_read_access()
+	from frappe.utils import add_days, nowdate
+	today = nowdate()
+	cutoff = add_days(today, int(days))
+	filters = [
+		["expiry_date", "is", "set"],
+		["expiry_date", "<=", cutoff],
+		["expiry_date", ">=", today],
+	]
+	if project:
+		filters.append(["linked_project", "=", project])
+	data = frappe.get_all(
+		"GE Project Document",
+		filters=filters,
+		fields=[
+			"name", "document_name", "linked_project", "linked_site",
+			"category", "file", "version", "expiry_date", "uploaded_by",
+			"uploaded_on", "creation",
+		],
+		order_by="expiry_date asc",
+	)
+	for row in data:
+		row["file_url"] = row.file
+		row["days_until_expiry"] = (
+			frappe.utils.date_diff(row.expiry_date, today)
+		)
+	return {"success": True, "data": data}
+
+
+def _process_expiring_documents():
+	"""Scheduler job: emit document_expiring alerts for docs expiring within 7 days."""
+	from frappe.utils import add_days, nowdate
+	from gov_erp.alert_dispatcher import on_document_event
+
+	today = nowdate()
+	cutoff = add_days(today, 7)
+	expiring = frappe.get_all(
+		"GE Project Document",
+		filters=[
+			["expiry_date", "is", "set"],
+			["expiry_date", "<=", cutoff],
+			["expiry_date", ">=", today],
+		],
+		fields=["name", "document_name", "linked_project", "linked_site", "expiry_date"],
+	)
+	for doc_row in expiring:
+		days_left = frappe.utils.date_diff(doc_row.expiry_date, today)
+		try:
+			on_document_event(
+				project=doc_row.linked_project,
+				event="expiring",
+				doc_title=f"{doc_row.document_name} (expires in {days_left} day{'s' if days_left != 1 else ''})",
+			)
+		except Exception:
+			frappe.log_error(f"Expiry alert failed for {doc_row.name}", "Alert Error")
 
 
 def _get_finance_request_rows(filters):
@@ -6870,6 +7714,12 @@ def get_project_document(name=None):
 def update_document_folder(name, data):
 	"""Update a custom document folder."""
 	_require_document_write_access()
+	if frappe.db.count("GE Project Document", {"folder": name}):
+		values = _parse_payload(data)
+		if "linked_project" in values:
+			current_project = frappe.db.get_value("GE Document Folder", name, "linked_project")
+			if values.get("linked_project") != current_project:
+				frappe.throw("Folder project cannot be changed while documents are linked to this folder")
 	doc = _update_generic_doc("GE Document Folder", name, data)
 	return {"success": True, "data": doc.as_dict(), "message": "Document folder updated"}
 
@@ -6878,6 +7728,8 @@ def update_document_folder(name, data):
 def delete_document_folder(name):
 	"""Delete a custom document folder."""
 	_require_document_write_access()
+	if frappe.db.count("GE Project Document", {"folder": name}):
+		frappe.throw("Cannot delete a folder that still contains project documents")
 	_delete_generic_doc("GE Document Folder", name)
 	return {"success": True, "message": "Document folder deleted"}
 
@@ -6886,7 +7738,11 @@ def delete_document_folder(name):
 def update_project_document(name, data):
 	"""Update a custom project document."""
 	_require_document_write_access()
-	doc = _update_generic_doc("GE Project Document", name, data)
+	values = _parse_payload(data)
+	for forbidden in ["file", "version", "uploaded_by", "uploaded_on", "linked_project"]:
+		if forbidden in values:
+			frappe.throw(f"{forbidden} cannot be edited directly on an existing document")
+	doc = _update_generic_doc("GE Project Document", name, values)
 	return {"success": True, "data": doc.as_dict(), "message": "Project document updated"}
 
 
@@ -6894,7 +7750,15 @@ def update_project_document(name, data):
 def delete_project_document(name):
 	"""Delete a custom project document."""
 	_require_document_write_access()
+	name = _require_param(name, "name")
+	doc = frappe.get_doc("GE Project Document", name)
+	file_url = doc.file
 	_delete_generic_doc("GE Project Document", name)
+	if file_url and not frappe.db.exists("GE Project Document", {"file": file_url}):
+		file_name = frappe.db.get_value("File", {"file_url": file_url}, "name")
+		if file_name:
+			frappe.delete_doc("File", file_name, ignore_permissions=True)
+			frappe.db.commit()
 	return {"success": True, "message": "Project document deleted"}
 
 
@@ -7526,6 +8390,8 @@ def create_petty_cash_entry(data):
 	"""Create a petty cash entry."""
 	_require_petty_cash_write_access()
 	values = json.loads(data) if isinstance(data, str) else data
+	if not values.get("linked_project"):
+		frappe.throw("Project is required for petty cash entry")
 	doc = frappe.get_doc({"doctype": "GE Petty Cash", **values})
 	doc.insert()
 	frappe.db.commit()
@@ -7537,6 +8403,8 @@ def update_petty_cash_entry(name, data):
 	"""Update a petty cash entry."""
 	_require_petty_cash_write_access()
 	values = json.loads(data) if isinstance(data, str) else data
+	if "linked_project" in values and not values.get("linked_project"):
+		frappe.throw("Project is required for petty cash entry")
 	doc = frappe.get_doc("GE Petty Cash", name)
 	doc.update(values)
 	doc.save()
@@ -7672,6 +8540,133 @@ def get_manpower_summary(project=None, site=None):
 			"total_man_days": round(total_man_days, 2),
 			"total_overtime_hours": round(total_overtime, 2),
 			"total_cost": round(total_cost, 2),
+		},
+	}
+
+
+# ── Project Staffing Assignment APIs ─────────────────────────
+
+@frappe.whitelist()
+def get_staffing_assignments(project=None, site=None, is_active=None, position=None):
+	"""Return staffing assignment records, optionally filtered."""
+	_require_manpower_read_access()
+	filters = {}
+	if project:
+		filters["linked_project"] = project
+	if site:
+		filters["linked_site"] = site
+	if is_active is not None and is_active != "":
+		filters["is_active"] = cint(is_active)
+	if position:
+		filters["position"] = position
+	rows = frappe.get_all(
+		"GE Project Staffing Assignment",
+		filters=filters,
+		fields=[
+			"name", "linked_project", "linked_site", "employee_name",
+			"employee_code", "position", "qualifications", "contact_number",
+			"email", "join_date", "leave_date", "total_days_on_project",
+			"is_active", "remarks",
+		],
+		order_by="creation desc",
+		limit_page_length=500,
+	)
+	return {"success": True, "data": rows}
+
+
+@frappe.whitelist()
+def get_staffing_assignment(name):
+	"""Return a single staffing assignment."""
+	_require_manpower_read_access()
+	doc = frappe.get_doc("GE Project Staffing Assignment", name)
+	return {"success": True, "data": doc.as_dict()}
+
+
+@frappe.whitelist()
+def create_staffing_assignment(data):
+	"""Create a new project staffing assignment."""
+	_require_manpower_write_access()
+	if isinstance(data, str):
+		data = frappe.parse_json(data)
+	doc = frappe.new_doc("GE Project Staffing Assignment")
+	for field in [
+		"linked_project", "linked_site", "employee_name", "employee_code",
+		"position", "qualifications", "contact_number", "email",
+		"join_date", "leave_date", "is_active", "remarks",
+	]:
+		if field in data:
+			doc.set(field, data[field])
+	doc.insert()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Staffing assignment created"}
+
+
+@frappe.whitelist()
+def update_staffing_assignment(name, data):
+	"""Update an existing staffing assignment."""
+	_require_manpower_write_access()
+	if isinstance(data, str):
+		data = frappe.parse_json(data)
+	doc = frappe.get_doc("GE Project Staffing Assignment", name)
+	for field in [
+		"linked_project", "linked_site", "employee_name", "employee_code",
+		"position", "qualifications", "contact_number", "email",
+		"join_date", "leave_date", "is_active", "remarks",
+	]:
+		if field in data:
+			doc.set(field, data[field])
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Staffing assignment updated"}
+
+
+@frappe.whitelist()
+def delete_staffing_assignment(name):
+	"""Delete a staffing assignment."""
+	_require_manpower_write_access()
+	frappe.delete_doc("GE Project Staffing Assignment", name)
+	frappe.db.commit()
+	return {"success": True, "message": "Staffing assignment deleted"}
+
+
+@frappe.whitelist()
+def end_staffing_assignment(name, leave_date=None, remarks=None):
+	"""End a staffing assignment by setting leave_date and letting the controller auto-deactivate it."""
+	_require_manpower_write_access()
+	doc = frappe.get_doc("GE Project Staffing Assignment", name)
+	doc.leave_date = leave_date or frappe.utils.today()
+	if remarks:
+		doc.remarks = f"{doc.remarks}\n{remarks}".strip() if doc.remarks else remarks
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Staffing assignment ended"}
+
+
+@frappe.whitelist()
+def get_staffing_summary(project=None, site=None):
+	"""Return aggregated staffing stats for a project/site."""
+	_require_manpower_read_access()
+	filters = {}
+	if project:
+		filters["linked_project"] = project
+	if site:
+		filters["linked_site"] = site
+	rows = frappe.get_all(
+		"GE Project Staffing Assignment",
+		filters=filters,
+		fields=["is_active", "total_days_on_project", "position"],
+	)
+	active = [r for r in rows if r.is_active]
+	positions = {}
+	for r in rows:
+		positions[r.position] = positions.get(r.position, 0) + 1
+	return {
+		"success": True,
+		"data": {
+			"total_assignments": len(rows),
+			"active_assignments": len(active),
+			"position_breakdown": positions,
+			"total_person_days": sum(r.total_days_on_project or 0 for r in rows),
 		},
 	}
 
@@ -8959,12 +9954,11 @@ def restart_project_stage(project=None, remarks=None):
 
 @frappe.whitelist()
 def override_project_stage(project=None, new_stage=None, remarks=None):
-        """Manual workflow override for Director, Presales Head, and Project Head."""
+        """Manual workflow override for users with stage-override capability."""
         _require_project_workspace_access()
         project = _require_param(project, "project")
         new_stage = _require_param(new_stage, "new_stage")
-        if not _user_has_any_role(*WORKFLOW_SUPER_ROLES, ROLE_PROJECT_HEAD):
-                frappe.throw("Only Director, Presales Head, or Project Head can override project stage.")
+        _require_capability("project.stage.override", project=project, required_mode="override")
         if new_stage not in WORKFLOW_STAGE_KEYS:
                 frappe.throw(f"Invalid stage override: {new_stage}")
 
@@ -9981,3 +10975,611 @@ def seed_bookkeeping_demo():
 
 	frappe.db.commit()
 	return {"success": True, "message": "Bookkeeping demo data seeded", "data": {"customer": customer, "estimate": estimate_name, "proforma": proforma_name, "invoice": invoice_name, "project": project_name}}
+# ============================================================================
+# ALERTS API
+# ============================================================================
+
+@frappe.whitelist()
+def get_alerts(unread_only=False, project=None, limit=50):
+        """Get alerts for the current user."""
+        _require_authenticated_user()
+        from gov_erp.gov_erp.doctype.ge_alert.ge_alert import get_user_alerts
+
+        alerts = get_user_alerts(
+                unread_only=cint(unread_only),
+                project=project,
+                limit=cint(limit) or 50,
+        )
+        return {"success": True, "data": alerts}
+
+
+@frappe.whitelist()
+def get_unread_alert_count():
+        """Get unread alert count for the current user."""
+        _require_authenticated_user()
+        from gov_erp.gov_erp.doctype.ge_alert.ge_alert import get_unread_count
+
+        count = get_unread_count()
+        return {"success": True, "data": {"count": count}}
+
+
+@frappe.whitelist(methods=["POST"])
+def mark_alert_as_read(alert_name=None):
+        """Mark a single alert as read."""
+        _require_authenticated_user()
+        _require_param(alert_name, "alert_name")
+        from gov_erp.gov_erp.doctype.ge_alert.ge_alert import mark_alert_read
+
+        mark_alert_read(alert_name)
+        frappe.db.commit()
+        return {"success": True, "message": "Alert marked as read"}
+
+
+@frappe.whitelist(methods=["POST"])
+def mark_all_alerts_read():
+        """Mark all alerts as read for the current user."""
+        _require_authenticated_user()
+        from gov_erp.gov_erp.doctype.ge_alert.ge_alert import mark_all_read
+
+        mark_all_read()
+        frappe.db.commit()
+        return {"success": True, "message": "All alerts marked as read"}
+
+
+# ============================================================================
+# REMINDERS API
+# ============================================================================
+
+@frappe.whitelist(methods=["POST"])
+def create_user_reminder(
+        title=None,
+        reminder_datetime=None,
+        repeat_rule=None,
+        linked_project=None,
+        linked_site=None,
+        linked_stage=None,
+        linked_department=None,
+        reference_doctype=None,
+        reference_name=None,
+        notes=None,
+):
+        """Create a new reminder for the current user."""
+        _require_authenticated_user()
+        _require_param(title, "title")
+        _require_param(reminder_datetime, "reminder_datetime")
+
+        from gov_erp.gov_erp.doctype.ge_user_reminder.ge_user_reminder import create_reminder
+
+        name = create_reminder(
+                title=title,
+                reminder_datetime=reminder_datetime,
+                repeat_rule=repeat_rule,
+                linked_project=linked_project,
+                linked_site=linked_site,
+                linked_stage=linked_stage,
+                linked_department=linked_department,
+                reference_doctype=reference_doctype,
+                reference_name=reference_name,
+                notes=notes,
+        )
+        frappe.db.commit()
+        return {"success": True, "data": {"name": name}, "message": "Reminder created"}
+
+
+@frappe.whitelist()
+def get_reminders(project=None, active_only=1, limit=50):
+        """Get reminders for the current user."""
+        _require_authenticated_user()
+        from gov_erp.gov_erp.doctype.ge_user_reminder.ge_user_reminder import get_user_reminders
+
+        reminders = get_user_reminders(
+                project=project,
+                active_only=cint(active_only),
+                limit=cint(limit) or 50,
+        )
+        return {"success": True, "data": reminders}
+
+
+@frappe.whitelist(methods=["POST"])
+def update_reminder(
+        reminder_name=None,
+        title=None,
+        reminder_datetime=None,
+        repeat_rule=None,
+        linked_project=None,
+        linked_site=None,
+        linked_stage=None,
+        linked_department=None,
+        reference_doctype=None,
+        reference_name=None,
+        notes=None,
+):
+        """Update an existing reminder."""
+        _require_authenticated_user()
+        _require_param(reminder_name, "reminder_name")
+
+        doc = frappe.get_doc("GE User Reminder", reminder_name)
+        if doc.user != frappe.session.user and "System Manager" not in frappe.get_roles():
+                frappe.throw("You can only modify your own reminders", frappe.PermissionError)
+
+        if title is not None:
+                doc.title = title
+        if reminder_datetime is not None:
+                doc.reminder_datetime = reminder_datetime
+        if repeat_rule is not None:
+                doc.repeat_rule = repeat_rule
+        if linked_project is not None:
+                doc.linked_project = linked_project
+        if linked_site is not None:
+                doc.linked_site = linked_site
+        if linked_stage is not None:
+                doc.linked_stage = linked_stage
+        if linked_department is not None:
+                doc.linked_department = linked_department
+        if reference_doctype is not None:
+                doc.reference_doctype = reference_doctype
+        if reference_name is not None:
+                doc.reference_name = reference_name
+        if notes is not None:
+                doc.notes = notes
+
+        doc.save()
+        frappe.db.commit()
+        return {"success": True, "data": {"name": doc.name}, "message": "Reminder updated"}
+
+
+@frappe.whitelist(methods=["POST"])
+def snooze_reminder(reminder_name=None, minutes=15):
+        """Snooze a reminder by N minutes."""
+        _require_authenticated_user()
+        _require_param(reminder_name, "reminder_name")
+
+        doc = frappe.get_doc("GE User Reminder", reminder_name)
+        if doc.user != frappe.session.user and "System Manager" not in frappe.get_roles():
+                frappe.throw("You can only modify your own reminders", frappe.PermissionError)
+
+        doc.snooze(cint(minutes) or 15)
+        frappe.db.commit()
+        return {"success": True, "message": f"Reminder snoozed for {minutes} minutes"}
+
+
+@frappe.whitelist(methods=["POST"])
+def dismiss_reminder(reminder_name=None):
+        """Dismiss a reminder."""
+        _require_authenticated_user()
+        _require_param(reminder_name, "reminder_name")
+
+        doc = frappe.get_doc("GE User Reminder", reminder_name)
+        if doc.user != frappe.session.user and "System Manager" not in frappe.get_roles():
+                frappe.throw("You can only modify your own reminders", frappe.PermissionError)
+
+        doc.dismiss()
+        frappe.db.commit()
+        return {"success": True, "message": "Reminder dismissed"}
+
+
+@frappe.whitelist(methods=["POST"])
+def delete_reminder(reminder_name=None):
+        """Delete a reminder."""
+        _require_authenticated_user()
+        _require_param(reminder_name, "reminder_name")
+
+        doc = frappe.get_doc("GE User Reminder", reminder_name)
+        if doc.user != frappe.session.user and "System Manager" not in frappe.get_roles():
+                frappe.throw("You can only delete your own reminders", frappe.PermissionError)
+
+        doc.delete()
+        frappe.db.commit()
+        return {"success": True, "message": "Reminder deleted"}
+
+
+# ============================================================================
+# COLLABORATION API (record-based comments, mentions, assignments)
+# ============================================================================
+
+@frappe.whitelist(methods=["POST"])
+def add_record_comment(
+        reference_doctype=None,
+        reference_name=None,
+        content=None,
+        comment_type="Comment",
+):
+        """Add a comment to a record (project, site, milestone, etc.)."""
+        _require_authenticated_user()
+        _require_param(reference_doctype, "reference_doctype")
+        _require_param(reference_name, "reference_name")
+        _require_param(content, "content")
+
+        # Verify the user can see the referenced document
+        if not frappe.has_permission(reference_doctype, "read", reference_name):
+                frappe.throw("You do not have permission to comment on this record", frappe.PermissionError)
+
+        comment = frappe.get_doc({
+                "doctype": "Comment",
+                "comment_type": comment_type,
+                "reference_doctype": reference_doctype,
+                "reference_name": reference_name,
+                "content": content,
+                "comment_email": frappe.session.user,
+        })
+        comment.insert(ignore_permissions=True)
+        frappe.db.commit()
+
+        # Handle @mentions in the comment content
+        _process_mentions(content, reference_doctype, reference_name)
+
+        # Push realtime update
+        frappe.publish_realtime(
+                event="ge_new_comment",
+                message={
+                        "reference_doctype": reference_doctype,
+                        "reference_name": reference_name,
+                        "comment_name": comment.name,
+                        "comment_by": frappe.session.user,
+                },
+                doctype=reference_doctype,
+                docname=reference_name,
+        )
+
+        return {
+                "success": True,
+                "data": {
+                        "name": comment.name,
+                        "content": comment.content,
+                        "comment_by": comment.comment_email,
+                        "creation": str(comment.creation),
+                },
+        }
+
+
+@frappe.whitelist()
+def get_record_comments(reference_doctype=None, reference_name=None, limit=50):
+        """Get comments for a record."""
+        _require_authenticated_user()
+        _require_param(reference_doctype, "reference_doctype")
+        _require_param(reference_name, "reference_name")
+
+        if not frappe.has_permission(reference_doctype, "read", reference_name):
+                frappe.throw("You do not have permission to view this record", frappe.PermissionError)
+
+        comments = frappe.get_all(
+                "Comment",
+                filters={
+                        "reference_doctype": reference_doctype,
+                        "reference_name": reference_name,
+                        "comment_type": "Comment",
+                },
+                fields=[
+                        "name",
+                        "content",
+                        "comment_email",
+                        "comment_by",
+                        "creation",
+                        "modified",
+                ],
+                order_by="creation asc",
+                limit_page_length=cint(limit) or 50,
+        )
+
+        # Enrich with user full names
+        for c in comments:
+                c["full_name"] = frappe.db.get_value(
+                        "User", c.comment_email, "full_name"
+                ) or c.comment_email
+
+        return {"success": True, "data": comments}
+
+
+@frappe.whitelist(methods=["POST"])
+def assign_to_record(
+        reference_doctype=None,
+        reference_name=None,
+        assign_to_user=None,
+        description=None,
+        priority="Medium",
+        date=None,
+):
+        """Assign a user to a record (creates a ToDo)."""
+        _require_authenticated_user()
+        _require_param(reference_doctype, "reference_doctype")
+        _require_param(reference_name, "reference_name")
+        _require_param(assign_to_user, "assign_to_user")
+
+        if not frappe.has_permission(reference_doctype, "read", reference_name):
+                frappe.throw("You do not have permission to assign on this record", frappe.PermissionError)
+
+        from frappe.desk.form.assign_to import add as assign_add
+
+        result = assign_add({
+                "doctype": reference_doctype,
+                "name": reference_name,
+                "assign_to": [assign_to_user],
+                "description": description or f"Assigned by {frappe.session.user}",
+                "priority": priority,
+                "date": date,
+        })
+
+        frappe.db.commit()
+
+        # Emit alert for the assignee
+        from gov_erp.alert_dispatcher import emit_alert
+
+        # Try to get project context from the record
+        project = None
+        if reference_doctype == "Project":
+                project = reference_name
+        else:
+                project = frappe.db.get_value(
+                        reference_doctype, reference_name, "linked_project"
+                ) if frappe.get_meta(reference_doctype).has_field("linked_project") else None
+
+        emit_alert(
+                "approval_assigned",
+                f"You have been assigned to {reference_doctype} {reference_name}",
+                project=project,
+                reference_doctype=reference_doctype,
+                reference_name=reference_name,
+                extra_recipients=[assign_to_user],
+        )
+
+        return {"success": True, "message": f"Assigned to {assign_to_user}"}
+
+
+@frappe.whitelist()
+def get_record_assignments(reference_doctype=None, reference_name=None):
+        """Get current assignments (ToDos) for a record."""
+        _require_authenticated_user()
+        _require_param(reference_doctype, "reference_doctype")
+        _require_param(reference_name, "reference_name")
+
+        if not frappe.has_permission(reference_doctype, "read", reference_name):
+                frappe.throw("You do not have permission to view this record", frappe.PermissionError)
+
+        todos = frappe.get_all(
+                "ToDo",
+                filters={
+                        "reference_type": reference_doctype,
+                        "reference_name": reference_name,
+                        "status": ["!=", "Cancelled"],
+                },
+                fields=[
+                        "name",
+                        "allocated_to",
+                        "description",
+                        "priority",
+                        "date",
+                        "status",
+                        "creation",
+                ],
+                order_by="creation desc",
+        )
+
+        for t in todos:
+                t["full_name"] = frappe.db.get_value(
+                        "User", t.allocated_to, "full_name"
+                ) or t.allocated_to
+
+        return {"success": True, "data": todos}
+
+
+def _process_mentions(content: str, reference_doctype: str, reference_name: str):
+        """Parse @mentions from comment content and send alerts."""
+        import re
+
+        # Match @user@example.com or @FirstName LastName patterns
+        mention_pattern = re.compile(r'@([\w.+-]+@[\w.-]+\.\w+)')
+        mentions = mention_pattern.findall(content)
+
+        if not mentions:
+                return
+
+        from gov_erp.alert_dispatcher import on_mention
+
+        # Try to determine the project context
+        project = None
+        if reference_doctype == "Project":
+                project = reference_name
+        else:
+                meta = frappe.get_meta(reference_doctype)
+                if meta.has_field("linked_project"):
+                        project = frappe.db.get_value(reference_doctype, reference_name, "linked_project")
+
+        actor_name = frappe.db.get_value("User", frappe.session.user, "full_name") or frappe.session.user
+
+        for email in mentions:
+                if frappe.db.exists("User", email):
+                        on_mention(
+                                mentioned_user=email,
+                                summary=f"{actor_name} mentioned you in {reference_doctype} {reference_name}",
+                                project=project,
+                                reference_doctype=reference_doctype,
+                                reference_name=reference_name,
+                        )
+
+
+# ─── ANDA Import Framework ───────────────────────────────────────────────────
+
+_ANDA_IMPORTER_MAP = {
+	"project_overview": "gov_erp.importers.anda.project_overview.ProjectOverviewImporter",
+	"milestones_phases": "gov_erp.importers.anda.milestones_phases.MilestonesPhasesImporter",
+	"location_survey": "gov_erp.importers.anda.location_survey.LocationSurveyImporter",
+	"procurement_tracker": "gov_erp.importers.anda.procurement_tracker.ProcurementTrackerImporter",
+	"issue_log": "gov_erp.importers.anda.issue_log.IssueLogImporter",
+	"client_payment_milestones": "gov_erp.importers.anda.client_payment_milestones.ClientPaymentMilestonesImporter",
+	"material_issuance_consumption": "gov_erp.importers.anda.material_issuance_consumption.MaterialIssuanceImporter",
+	"project_communications": "gov_erp.importers.anda.project_communications.ProjectCommunicationsImporter",
+	"rma_tracker": "gov_erp.importers.anda.rma_tracker.RMATrackerImporter",
+	"project_assets_services": "gov_erp.importers.anda.project_assets_services.ProjectAssetsServicesImporter",
+	"petty_cash": "gov_erp.importers.anda.petty_cash.PettyCashImporter",
+	"device_uptime": "gov_erp.importers.anda.device_uptime.DeviceUptimeImporter",
+	"project_manpower_assignment": "gov_erp.importers.anda.project_manpower_assignment.ProjectManpowerAssignmentImporter",
+}
+
+
+def _require_import_access():
+	"""Only System Manager and Director can run ANDA imports."""
+	roles = frappe.get_roles(frappe.session.user)
+	if "System Manager" not in roles and "Director" not in roles:
+		frappe.throw("Import access denied", frappe.PermissionError)
+
+
+@frappe.whitelist()
+def run_anda_import(tab_name, rows, mode="dry_run"):
+	"""Run an ANDA tab importer.
+
+	Args:
+		tab_name: key from _ANDA_IMPORTER_MAP (e.g. "project_overview")
+		rows: JSON array of dicts (one per row from the sheet)
+		mode: "dry_run" | "stage_only" | "commit"
+
+	Returns:
+		dict with summary, accepted, rejected, duplicate, skipped counts
+	"""
+	_require_import_access()
+
+	if tab_name not in _ANDA_IMPORTER_MAP:
+		frappe.throw(f"Unknown tab: {tab_name}. Valid: {', '.join(sorted(_ANDA_IMPORTER_MAP.keys()))}")
+
+	if isinstance(rows, str):
+		rows = json.loads(rows)
+
+	from gov_erp.importers.anda.base import ImportMode
+	mode_enum = ImportMode[mode.upper()]
+
+	# Dynamic import of the importer class
+	module_path, class_name = _ANDA_IMPORTER_MAP[tab_name].rsplit(".", 1)
+	module = frappe.get_module(module_path)
+	importer_cls = getattr(module, class_name)
+
+	importer = importer_cls()
+	report = importer.run(rows, mode_enum)
+
+	return report.as_dict()
+
+
+@frappe.whitelist()
+def get_anda_import_logs(tab_name=None, limit=20):
+	"""Return recent ANDA import audit logs."""
+	_require_import_access()
+
+	filters = {}
+	if tab_name:
+		filters["tab_name"] = tab_name
+
+	logs = frappe.get_all(
+		"GE Import Log",
+		filters=filters,
+		fields=[
+			"name", "tab_name", "import_mode",
+			"total_rows", "accepted_rows", "rejected_rows",
+			"duplicate_rows", "skipped_rows", "unresolved_count",
+			"started_at", "finished_at",
+		],
+		order_by="started_at desc",
+		limit_page_length=cint(limit) or 20,
+	)
+	return logs
+
+
+@frappe.whitelist()
+def get_anda_import_tabs():
+	"""Return the list of available ANDA import tab names."""
+	_require_import_access()
+	return sorted(_ANDA_IMPORTER_MAP.keys())
+
+
+# ─── Phase 3: Master Data Loading ────────────────────────────────────────────
+
+@frappe.whitelist()
+def load_anda_masters(departments=None, designations=None, projects=None, sites=None, vendors=None):
+	"""Load master data in dependency order (Phase 3).
+
+	All arguments are optional JSON arrays.  If omitted, canonical ANDA
+	defaults are used for departments and designations.
+
+	Returns:
+		dict with per-step create/existing counts and any errors.
+	"""
+	_require_import_access()
+
+	if isinstance(departments, str):
+		departments = json.loads(departments)
+	if isinstance(designations, str):
+		designations = json.loads(designations)
+	if isinstance(projects, str):
+		projects = json.loads(projects)
+	if isinstance(sites, str):
+		sites = json.loads(sites)
+	if isinstance(vendors, str):
+		vendors = json.loads(vendors)
+
+	from gov_erp.importers.anda.master_loaders import load_all_masters
+	report = load_all_masters(
+		departments=departments,
+		designations=designations,
+		projects=projects,
+		sites=sites,
+		vendors=vendors,
+	)
+	return report.as_dict()
+
+
+@frappe.whitelist()
+def check_anda_master_integrity():
+	"""Check reference integrity of master data (Phase 3).
+
+	Returns:
+		dict with master counts and readiness flags.
+	"""
+	_require_import_access()
+
+	from gov_erp.importers.anda.master_loaders import check_reference_integrity
+	return check_reference_integrity()
+
+
+# ─── Phase 4: Orchestrated Transactional Import ──────────────────────────────
+
+@frappe.whitelist()
+def run_anda_orchestrated_import(tab_data, mode="dry_run", include_complex=False, tabs=None, skip_master_check=False):
+	"""Run imports across multiple tabs in dependency order (Phase 4).
+
+	Args:
+		tab_data: JSON object mapping tab_key → list of row dicts.
+			Example: {"milestones_phases": [...], "location_survey": [...]}
+		mode: "dry_run" | "stage_only" | "commit"
+		include_complex: if true, also run complex/noisy tabs
+		tabs: optional JSON array of specific tab_keys to run
+		skip_master_check: if true, skip master data readiness check
+
+	Returns:
+		OrchestratorReport dict with per-tab results and totals.
+	"""
+	_require_import_access()
+
+	if isinstance(tab_data, str):
+		tab_data = json.loads(tab_data)
+	if isinstance(tabs, str):
+		tabs = json.loads(tabs)
+
+	from gov_erp.importers.anda.orchestrator import run_orchestrated_import
+	report = run_orchestrated_import(
+		tab_data=tab_data,
+		mode=mode,
+		include_complex=include_complex,
+		tabs=tabs,
+		skip_master_check=skip_master_check,
+	)
+	return report.as_dict()
+
+
+@frappe.whitelist()
+def get_anda_import_order(include_complex=False):
+	"""Return the recommended tab import order (Phase 4).
+
+	Returns:
+		list of {tab_key, label, risk_level} in dependency order.
+	"""
+	_require_import_access()
+
+	from gov_erp.importers.anda.orchestrator import get_import_order
+	return get_import_order(include_complex=include_complex)

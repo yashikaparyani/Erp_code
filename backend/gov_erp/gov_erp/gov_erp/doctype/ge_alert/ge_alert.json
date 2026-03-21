@@ -1,0 +1,191 @@
+{
+ "actions": [],
+ "autoname": "hash",
+ "creation": "2026-03-19 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "event_type",
+  "column_break_event",
+  "actor",
+  "actor_name",
+  "section_break_recipient",
+  "recipient_user",
+  "column_break_recipient2",
+  "is_read",
+  "read_at",
+  "section_break_context",
+  "linked_project",
+  "linked_site",
+  "column_break_context2",
+  "linked_stage",
+  "linked_department",
+  "section_break_reference",
+  "reference_doctype",
+  "column_break_ref2",
+  "reference_name",
+  "section_break_content",
+  "summary",
+  "detail",
+  "section_break_route",
+  "route_path"
+ ],
+ "fields": [
+  {
+   "fieldname": "event_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Event Type",
+   "options": "project_created\nproject_stage_submitted\nproject_stage_approved\nproject_stage_rejected\nproject_stage_overridden\ndependency_override_raised\ndependency_override_acted\nsite_stage_changed\nsite_blocked\nsite_unblocked\nmilestone_overdue\nmilestone_completed\ndocument_uploaded\ndocument_replaced\ndocument_expiring\napproval_assigned\napproval_acted\ndispatch_event\ngrn_event\ninvoice_event\nretention_event\npenalty_event\nrma_event\nticket_escalation\nuser_mentioned\ngeneral",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_event",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "actor",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Actor",
+   "options": "User"
+  },
+  {
+   "fieldname": "actor_name",
+   "fieldtype": "Data",
+   "label": "Actor Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_recipient",
+   "fieldtype": "Section Break",
+   "label": "Recipient"
+  },
+  {
+   "fieldname": "recipient_user",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Recipient User",
+   "options": "User",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_recipient2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_read",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Read"
+  },
+  {
+   "fieldname": "read_at",
+   "fieldtype": "Datetime",
+   "label": "Read At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_context",
+   "fieldtype": "Section Break",
+   "label": "Context"
+  },
+  {
+   "fieldname": "linked_project",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Linked Project",
+   "options": "Project"
+  },
+  {
+   "fieldname": "linked_site",
+   "fieldtype": "Link",
+   "label": "Linked Site",
+   "options": "GE Site"
+  },
+  {
+   "fieldname": "column_break_context2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "linked_stage",
+   "fieldtype": "Data",
+   "label": "Linked Stage"
+  },
+  {
+   "fieldname": "linked_department",
+   "fieldtype": "Data",
+   "label": "Linked Department"
+  },
+  {
+   "fieldname": "section_break_reference",
+   "fieldtype": "Section Break",
+   "label": "Reference Document"
+  },
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Link",
+   "label": "Reference DocType",
+   "options": "DocType"
+  },
+  {
+   "fieldname": "column_break_ref2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "reference_name",
+   "fieldtype": "Dynamic Link",
+   "label": "Reference Name",
+   "options": "reference_doctype"
+  },
+  {
+   "fieldname": "section_break_content",
+   "fieldtype": "Section Break",
+   "label": "Content"
+  },
+  {
+   "fieldname": "summary",
+   "fieldtype": "Small Text",
+   "in_list_view": 1,
+   "label": "Summary",
+   "reqd": 1
+  },
+  {
+   "fieldname": "detail",
+   "fieldtype": "Text",
+   "label": "Detail"
+  },
+  {
+   "fieldname": "section_break_route",
+   "fieldtype": "Section Break",
+   "label": "Navigation"
+  },
+  {
+   "fieldname": "route_path",
+   "fieldtype": "Data",
+   "label": "Route Path",
+   "description": "Frontend route for deep-linking"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-03-19 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov Erp",
+ "name": "GE Alert",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "read": 1,
+   "role": "System Manager"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}

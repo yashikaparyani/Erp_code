@@ -291,6 +291,14 @@
    "read": 1,
    "report": 1,
    "role": "Director"
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Project Head",
+   "write": 1
   }
  ],
  "sort_field": "creation",

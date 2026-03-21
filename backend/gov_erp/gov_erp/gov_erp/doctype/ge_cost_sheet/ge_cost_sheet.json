@@ -217,7 +217,13 @@
   {
    "read": 1,
    "report": 1,
-   "role": "Engineering Head"
+   "role": "Engineering Head",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Engineer"
   },
   {
    "read": 1,

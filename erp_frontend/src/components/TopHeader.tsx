@@ -2,9 +2,10 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronDown, Bell, Search, LogOut, User } from 'lucide-react';
+import { ChevronDown, Search, LogOut, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { getRoleInitials, useRole } from '../context/RoleContext';
+import AlertBell from './alerts/AlertBell';
 
 export default function TopHeader() {
   const { currentUser, logout } = useAuth();
@@ -51,10 +52,7 @@ export default function TopHeader() {
         </div>
 
         {/* Notifications */}
-        <button className="relative shell-glass p-3 rounded-[22px] transition-colors flex-shrink-0 hover:bg-[var(--surface-hover)]">
-          <Bell className="w-5 h-5 text-[var(--text-main)]" />
-          <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-[var(--brand-orange)] rounded-full ring-2 ring-white" />
-        </button>
+        <AlertBell />
 
         {/* User Menu */}
         <div className="relative flex-shrink-0">

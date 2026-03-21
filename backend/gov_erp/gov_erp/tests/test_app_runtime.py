@@ -432,6 +432,39 @@ class TestAppRuntime(FrappeTestCase):
 		self.assertTrue(employee_name)
 		self._track_doc("Employee", employee_name)
 
+	def test_hr_mapping_rechecks_mandatory_documents(self):
+		onboarding_result = create_onboarding(
+			{
+				"onboarding_status": "DRAFT",
+				"company": self._default_company(),
+				"employee_name": self._unique("Runtime Employee Recheck"),
+				"gender": self._default_gender(),
+				"date_of_birth": "1995-01-01",
+				"date_of_joining": today(),
+				"documents": [
+					{
+						"document_type": "Aadhar Card",
+						"is_mandatory": 1,
+						"file": "/files/runtime-aadhar-recheck.pdf",
+					}
+				],
+			}
+		)
+		onboarding_name = onboarding_result["data"]["name"]
+		self._track_doc("GE Employee Onboarding", onboarding_name)
+
+		self.assertTrue(submit_onboarding(onboarding_name)["success"])
+		self.assertTrue(review_onboarding(onboarding_name)["success"])
+		self.assertTrue(approve_onboarding(onboarding_name)["success"])
+
+		doc = frappe.get_doc("GE Employee Onboarding", onboarding_name)
+		doc.documents[0].file = None
+		doc.save()
+
+		mapped = map_onboarding_to_employee(onboarding_name)
+		self.assertFalse(mapped["success"])
+		self.assertIn("Missing mandatory documents", mapped["message"])
+
 	def test_billing_and_om_runtime_flow(self):
 		project = self._make_project("Billing Project")
 

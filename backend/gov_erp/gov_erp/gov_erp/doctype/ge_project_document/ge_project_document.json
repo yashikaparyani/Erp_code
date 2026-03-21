@@ -10,6 +10,7 @@
   "folder",
   "cb_top",
   "linked_project",
+  "linked_site",
   "category",
   "sb_file",
   "file",
@@ -17,6 +18,7 @@
   "cb_file",
   "uploaded_by",
   "uploaded_on",
+  "expiry_date",
   "sb_remarks",
   "remarks"
  ],
@@ -55,6 +57,13 @@
    "label": "Project",
    "options": "Project",
    "reqd": 1
+  },
+  {
+   "fieldname": "linked_site",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Site",
+   "options": "GE Site"
   },
   {
    "fieldname": "category",
@@ -100,6 +109,11 @@
    "read_only": 1
   },
   {
+   "fieldname": "expiry_date",
+   "fieldtype": "Date",
+   "label": "Expiry Date"
+  },
+  {
    "fieldname": "sb_remarks",
    "fieldtype": "Section Break",
    "label": "Remarks"
@@ -112,7 +126,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-03-15 18:00:00.000000",
+ "modified": "2026-03-20 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "Gov ERP",
  "name": "GE Project Document",

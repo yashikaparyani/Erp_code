@@ -1,0 +1,214 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-03-21 10:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "linked_project",
+  "linked_site",
+  "cb_person",
+  "employee_name",
+  "employee_code",
+  "sb_role_info",
+  "position",
+  "qualifications",
+  "cb_contact",
+  "contact_number",
+  "email",
+  "sb_dates",
+  "join_date",
+  "leave_date",
+  "cb_duration",
+  "total_days_on_project",
+  "is_active",
+  "sb_remarks",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "reqd": 0,
+   "options": "PSA-.#####"
+  },
+  {
+   "fieldname": "linked_project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "reqd": 1,
+   "options": "Project",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "linked_site",
+   "fieldtype": "Link",
+   "label": "Site",
+   "reqd": 0,
+   "options": "GE Site",
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "cb_person",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "label": "Employee Name",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "employee_code",
+   "fieldtype": "Data",
+   "label": "Employee Code",
+   "reqd": 0,
+   "description": "Internal employee ID or HR code"
+  },
+  {
+   "fieldname": "sb_role_info",
+   "fieldtype": "Section Break",
+   "label": "Role & Qualifications"
+  },
+  {
+   "fieldname": "position",
+   "fieldtype": "Select",
+   "label": "Position / Role",
+   "reqd": 1,
+   "options": "Project Manager\nEngineer\nTechnician\nSite Supervisor\nInspector\nOperator\nDriver\nNetwork Engineer\nTechnical Executive\nFloor Incharge\nOther",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "qualifications",
+   "fieldtype": "Small Text",
+   "label": "Qualifications",
+   "reqd": 0,
+   "description": "Certifications, education, or relevant qualifications"
+  },
+  {
+   "fieldname": "cb_contact",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "contact_number",
+   "fieldtype": "Data",
+   "label": "Contact Number",
+   "reqd": 0
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "label": "Email",
+   "reqd": 0,
+   "options": "Email"
+  },
+  {
+   "fieldname": "sb_dates",
+   "fieldtype": "Section Break",
+   "label": "Assignment Period"
+  },
+  {
+   "fieldname": "join_date",
+   "fieldtype": "Date",
+   "label": "Project Join Date",
+   "reqd": 0,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "leave_date",
+   "fieldtype": "Date",
+   "label": "Project Leave Date",
+   "reqd": 0
+  },
+  {
+   "fieldname": "cb_duration",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "total_days_on_project",
+   "fieldtype": "Int",
+   "label": "Total Days On Project",
+   "reqd": 0,
+   "read_only": 1,
+   "description": "Auto-calculated from join and leave dates"
+  },
+  {
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Is Active",
+   "reqd": 0,
+   "default": "1",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "sb_remarks",
+   "fieldtype": "Section Break",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks",
+   "reqd": 0
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-03-21 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE Project Staffing Assignment",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Project Head",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Project Manager",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Director"
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "write": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "desc",
+ "track_changes": 1,
+ "naming_rule": "By \"Naming Series\" field",
+ "autoname": "naming_series:"
+}

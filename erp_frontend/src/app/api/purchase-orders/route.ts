@@ -25,3 +25,42 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const result = await callFrappeMethod('create_purchase_order', { data: JSON.stringify(body) }, request);
+    return NextResponse.json({ success: true, data: result.data, message: result.message });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, message: error instanceof Error ? error.message : 'Failed to create purchase order' },
+      { status: 500 },
+    );
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const result = await callFrappeMethod('update_purchase_order', { data: JSON.stringify(body) }, request);
+    return NextResponse.json({ success: true, data: result.data, message: result.message });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, message: error instanceof Error ? error.message : 'Failed to update purchase order' },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { name } = await request.json();
+    const result = await callFrappeMethod('delete_purchase_order', { name }, request);
+    return NextResponse.json({ success: true, message: result.message });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, message: error instanceof Error ? error.message : 'Failed to delete purchase order' },
+      { status: 500 },
+    );
+  }
+}

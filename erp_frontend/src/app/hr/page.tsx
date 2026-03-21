@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import {
   Briefcase,
   CalendarCheck2,
@@ -8,6 +9,8 @@ import {
   ShieldCheck,
   Wrench,
   Plus,
+  Users,
+  ChevronRight,
   X,
 } from 'lucide-react';
 
@@ -268,6 +271,18 @@ export default function HRPage() {
           Employee onboarding, attendance, movement, overtime, statutory ledgers, and field visit tracking.
         </p>
       </div>
+
+      {/* Employee Directory banner */}
+      <Link href="/hr/employees" className="mb-4 sm:mb-6 flex items-center justify-between rounded-xl border border-[#1e6b87]/20 bg-[#1e6b87]/5 px-5 py-4 transition-colors hover:bg-[#1e6b87]/10 group">
+        <div className="flex items-center gap-3">
+          <div className="rounded-lg bg-[#1e6b87] p-2.5 text-white"><Users className="h-5 w-5" /></div>
+          <div>
+            <div className="text-sm font-semibold text-gray-900">Employee Directory</div>
+            <div className="text-xs text-gray-500">Search, view, and manage all employee profiles</div>
+          </div>
+        </div>
+        <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-[#1e6b87] transition-colors" />
+      </Link>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
         <StatCard

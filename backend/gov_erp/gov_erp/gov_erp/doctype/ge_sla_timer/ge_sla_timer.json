@@ -170,6 +170,24 @@
    "read": 1,
    "report": 1,
    "role": "Director"
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "report": 1,
+   "role": "OM Operator",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "RMA Manager",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Project Head"
   }
  ],
  "sort_field": "creation",
