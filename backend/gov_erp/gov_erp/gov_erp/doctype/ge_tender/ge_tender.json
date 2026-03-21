@@ -35,6 +35,7 @@
   "column_break_pbg",
   "pbg_required",
   "pbg_amount",
+  "pbg_percent",
   "section_break_docs",
   "rfp_document",
   "tender_document",
@@ -43,7 +44,32 @@
   "section_break_compliance",
   "compliance_items",
   "section_break_clarifications",
-  "clarifications"
+  "clarifications",
+  "section_break_funnel_extras",
+  "user_color_slot",
+  "user_color_remarks",
+  "bid_denied_by_presales",
+  "bid_denied_reason",
+  "column_break_funnel2",
+  "enquiry_pending",
+  "pu_nzd_qualified",
+  "section_break_dates_extra",
+  "bid_opening_date",
+  "pre_bid_query_submission_date",
+  "pre_bid_meeting_date",
+  "column_break_dates2",
+  "latest_corrigendum_date",
+  "latest_corrigendum_desc",
+  "section_break_consultant",
+  "consultant_name",
+  "consultant_contact",
+  "section_break_tenure",
+  "tenure_years",
+  "tenure_end_date",
+  "column_break_closure",
+  "closure_letter_received",
+  "presales_closure_date",
+  "presales_closure_by"
  ],
  "fields": [
   {
@@ -237,6 +263,13 @@
    "label": "PBG Amount"
   },
   {
+   "default": "0",
+   "fieldname": "pbg_percent",
+   "fieldtype": "Float",
+   "depends_on": "pbg_required",
+   "label": "PBG Percent (%)"
+  },
+  {
    "fieldname": "section_break_docs",
    "fieldtype": "Section Break",
    "label": "Documents & Project"
@@ -282,11 +315,140 @@
    "fieldtype": "Table",
    "label": "Clarifications",
    "options": "GE Tender Clarification"
+  },
+  {
+   "fieldname": "section_break_funnel_extras",
+   "fieldtype": "Section Break",
+   "label": "Funnel & Color Settings"
+  },
+  {
+   "fieldname": "user_color_slot",
+   "fieldtype": "Select",
+   "label": "User Color Slot",
+   "options": "\n1\n2\n3\n4\n5\n6"
+  },
+  {
+   "fieldname": "user_color_remarks",
+   "fieldtype": "Small Text",
+   "label": "Color Tag Remarks"
+  },
+  {
+   "default": "0",
+   "fieldname": "bid_denied_by_presales",
+   "fieldtype": "Check",
+   "label": "Bid Denied by Presales Head"
+  },
+  {
+   "fieldname": "bid_denied_reason",
+   "fieldtype": "Small Text",
+   "label": "Bid Denial Reason"
+  },
+  {
+   "fieldname": "column_break_funnel2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "enquiry_pending",
+   "fieldtype": "Check",
+   "label": "Enquiry Pending"
+  },
+  {
+   "default": "0",
+   "fieldname": "pu_nzd_qualified",
+   "fieldtype": "Check",
+   "label": "PU-NZD Qualified"
+  },
+  {
+   "fieldname": "section_break_dates_extra",
+   "fieldtype": "Section Break",
+   "label": "Additional Dates"
+  },
+  {
+   "fieldname": "bid_opening_date",
+   "fieldtype": "Datetime",
+   "label": "Bid Opening Date & Time"
+  },
+  {
+   "fieldname": "pre_bid_query_submission_date",
+   "fieldtype": "Datetime",
+   "label": "Pre-Bid Query Submission Date"
+  },
+  {
+   "fieldname": "pre_bid_meeting_date",
+   "fieldtype": "Datetime",
+   "label": "Pre-Bid Meeting Date"
+  },
+  {
+   "fieldname": "column_break_dates2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "latest_corrigendum_date",
+   "fieldtype": "Date",
+   "label": "Latest Corrigendum Date"
+  },
+  {
+   "fieldname": "latest_corrigendum_desc",
+   "fieldtype": "Small Text",
+   "label": "Corrigendum Description"
+  },
+  {
+   "fieldname": "section_break_consultant",
+   "fieldtype": "Section Break",
+   "label": "Consultant Details"
+  },
+  {
+   "fieldname": "consultant_name",
+   "fieldtype": "Data",
+   "label": "Consultant Name"
+  },
+  {
+   "fieldname": "consultant_contact",
+   "fieldtype": "Data",
+   "label": "Consultant Contact"
+  },
+  {
+   "fieldname": "section_break_tenure",
+   "fieldtype": "Section Break",
+   "label": "Tenure & Closure"
+  },
+  {
+   "default": "0",
+   "fieldname": "tenure_years",
+   "fieldtype": "Int",
+   "label": "Tenure (Years)"
+  },
+  {
+   "fieldname": "tenure_end_date",
+   "fieldtype": "Date",
+   "label": "Tenure End Date"
+  },
+  {
+   "fieldname": "column_break_closure",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "closure_letter_received",
+   "fieldtype": "Check",
+   "label": "O&M Closure Letter Received"
+  },
+  {
+   "fieldname": "presales_closure_date",
+   "fieldtype": "Date",
+   "label": "Presales Closure Date"
+  },
+  {
+   "fieldname": "presales_closure_by",
+   "fieldtype": "Link",
+   "label": "Closed By",
+   "options": "User"
   }
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-03-19 00:00:00.000000",
+ "modified": "2026-03-21 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "Gov ERP",
  "name": "GE Tender",

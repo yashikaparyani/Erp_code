@@ -1,0 +1,138 @@
+{
+ "actions": [],
+ "autoname": "BID-.YYYY.-.#####",
+ "creation": "2026-03-21 10:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+
+  "tender",
+  "column_break_basic",
+  "bid_date",
+  "status",
+  "is_latest",
+  "section_break_amount",
+  "bid_amount",
+  "column_break_result",
+  "result_date",
+  "result_remarks",
+  "section_break_retender",
+  "retender_reason",
+  "cancel_reason"
+ ],
+ "fields": [
+
+  {
+   "fieldname": "tender",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Tender",
+   "options": "GE Tender",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_basic",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "bid_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Bid Date",
+   "reqd": 1
+  },
+  {
+   "default": "DRAFT",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "DRAFT\nSUBMITTED\nUNDER_EVALUATION\nWON\nLOST\nCANCEL\nRETENDER",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "is_latest",
+   "fieldtype": "Check",
+   "label": "Is Latest Bid"
+  },
+  {
+   "fieldname": "section_break_amount",
+   "fieldtype": "Section Break",
+   "label": "Bid Amount & Result"
+  },
+  {
+   "default": "0",
+   "fieldname": "bid_amount",
+   "fieldtype": "Currency",
+   "label": "Bid Amount"
+  },
+  {
+   "fieldname": "column_break_result",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "result_date",
+   "fieldtype": "Date",
+   "label": "Result Date"
+  },
+  {
+   "fieldname": "result_remarks",
+   "fieldtype": "Small Text",
+   "label": "Result Remarks"
+  },
+  {
+   "fieldname": "section_break_retender",
+   "fieldtype": "Section Break",
+   "label": "Cancel / Retender Details"
+  },
+  {
+   "fieldname": "retender_reason",
+   "fieldtype": "Small Text",
+   "label": "Retender Reason"
+  },
+  {
+   "fieldname": "cancel_reason",
+   "fieldtype": "Small Text",
+   "label": "Cancel Reason"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-03-21 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE Bid",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1, "delete": 1, "email": 1, "export": 1,
+   "print": 1, "read": 1, "report": 1, "role": "System Manager",
+   "share": 1, "write": 1
+  },
+  {
+   "create": 1, "delete": 1, "read": 1, "report": 1,
+   "role": "Presales Tendering Head", "write": 1
+  },
+  {
+   "create": 1, "read": 1, "report": 1,
+   "role": "Presales Executive", "write": 1
+  },
+  {
+   "create": 1, "read": 1, "report": 1,
+   "role": "Department Head", "write": 1
+  },
+  {
+   "create": 1, "read": 1, "report": 1,
+   "role": "Director", "write": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "tender",
+ "track_changes": 1
+}

@@ -1,0 +1,11 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { callPresalesMethod } from '../../../_lib/frappe';
+export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const body = await request.json().catch(() => ({}));
+    const result = await callPresalesMethod('mark_bid_lost', { name: params.id, result_date: body.result_date, remarks: body.remarks }, request);
+    return NextResponse.json({ success: true, data: result.data, message: result.message });
+  } catch (error) {
+    return NextResponse.json({ success: false, message: error instanceof Error ? error.message : 'Failed' }, { status: 500 });
+  }
+}

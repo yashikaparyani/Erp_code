@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { deriveTenderFunnelStatus, getTenderFunnelMeta } from '@/components/tenderFunnel';
+import { useRole } from '@/context/RoleContext';
 import {
   AlertCircle,
   ArrowLeft,
@@ -242,6 +243,7 @@ function EmptyBlock({ message }: { message: string }) {
 }
 
 export default function TenderWorkspacePage() {
+  const { currentRole } = useRole();
   const params = useParams();
   const tenderId = decodeURIComponent(params.id as string);
 
@@ -693,7 +695,6 @@ export default function TenderWorkspacePage() {
             title="Result Tracking"
             icon={Trophy}
             subtitle="Track tender results and competitive outcomes from this section after submission."
-            action={<Link href="/pre-sales/tender-result" className="text-sm font-medium text-[#1e6b87]">Open result page</Link>}
           >
             {latestResult ? (
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -767,7 +768,6 @@ export default function TenderWorkspacePage() {
             title="Finance Snapshot"
             icon={CreditCard}
             subtitle="EMD/PBG and finance request visibility for pre-sales head."
-            action={<Link href="/pre-sales/finance/new-request" className="text-sm font-medium text-[#1e6b87]">Open finance</Link>}
           >
             <div className="space-y-3">
               {workspace.financeRequests.slice(0, 4).map((request) => (
@@ -798,10 +798,10 @@ export default function TenderWorkspacePage() {
             <div className="space-y-2">
               {[
                 ['Tender list', '/pre-sales/tender'],
-                ['Tender result', '/pre-sales/tender-result'],
-                ['Tender tasks', '/pre-sales/tender-task/my-tender'],
-                ['Finance management', '/pre-sales/finance/new-request'],
-                ['Approvals', '/pre-sales/approvals'],
+                ['Bids', '/pre-sales/bids'],
+                ['Won bids & LOI', '/pre-sales/won-bids'],
+                ['EMD tracking', '/pre-sales/emd-tracking'],
+                ...(currentRole === 'Director' ? [['Approvals', '/pre-sales/approvals'] as const] : []),
               ].map(([label, href]) => (
                 <Link
                   key={href}

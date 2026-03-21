@@ -1,9 +1,11 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Search, ChevronDown, ChevronUp, Eye, ChevronsLeft, ChevronsRight, Loader2 } from 'lucide-react';
 import ModalFrame from '@/components/ui/ModalFrame';
+import { useRole } from '@/context/RoleContext';
 
 interface ApprovalData {
   id: string;
@@ -25,6 +27,8 @@ type ApprovalDialogState =
   | null;
 
 export default function ApprovalsPage() {
+  const router = useRouter();
+  const { currentRole } = useRole();
   const [showFilters, setShowFilters] = useState(false);
   const [data, setData] = useState<ApprovalData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,8 +64,17 @@ export default function ApprovalsPage() {
   }, []);
 
   useEffect(() => {
+    if (currentRole !== 'Director') {
+      router.replace('/pre-sales/dashboard');
+      return;
+    }
+
     void fetchData();
-  }, [fetchData]);
+  }, [currentRole, fetchData, router]);
+
+  if (currentRole !== 'Director') {
+    return null;
+  }
 
   const getApprovalKind = (row: ApprovalData) => {
     const approvalFor = row.approval_for.toLowerCase();
