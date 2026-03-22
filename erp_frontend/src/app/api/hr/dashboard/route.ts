@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { callFrappeMethod } from '../../../api/_lib/frappe';
+import { callFrappeMethod, jsonErrorResponse } from '../../../api/_lib/frappe';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,23 +55,18 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    return NextResponse.json(
-      {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to fetch HR dashboard data',
-        data: {
-          stats: {},
-          recent: {
-            onboardings: [],
-            attendance: [],
-            travel: [],
-            overtime: [],
-            statutory: [],
-            visits: [],
-          },
+    return jsonErrorResponse(error, 'Failed to fetch HR dashboard data', {
+      data: {
+        stats: {},
+        recent: {
+          onboardings: [],
+          attendance: [],
+          travel: [],
+          overtime: [],
+          statutory: [],
+          visits: [],
         },
       },
-      { status: 500 },
-    );
+    });
   }
 }

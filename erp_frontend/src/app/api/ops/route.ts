@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { callFrappeMethod } from '../_lib/frappe';
+import { callFrappeMethod, jsonErrorResponse } from '../_lib/frappe';
 
 export const dynamic = 'force-dynamic';
 
@@ -235,6 +235,12 @@ const CONNECTED_METHODS = new Set([
   'get_sla_timer',
   'get_sla_timers',
   'get_statutory_ledger',
+  'get_statutory_ledgers',
+  'get_sites',
+  'get_leave_balances',
+  'get_holiday_list',
+  'get_attendance_muster',
+  'get_expiring_documents',
   'get_stock_aging',
   'get_stock_position',
   'get_technical_deviation',
@@ -399,9 +405,6 @@ export async function POST(request: NextRequest) {
     const result = await callFrappeMethod(method, args, request);
     return NextResponse.json({ success: true, data: result?.data ?? result, message: result?.message });
   } catch (error) {
-    return NextResponse.json(
-      { success: false, message: error instanceof Error ? error.message : 'Failed to execute operation' },
-      { status: 500 },
-    );
+    return jsonErrorResponse(error, 'Failed to execute operation');
   }
 }

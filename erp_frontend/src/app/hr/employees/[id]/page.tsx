@@ -39,7 +39,7 @@ type EmployeeDetail = {
   date_of_birth?: string;
   date_of_joining?: string;
   salutation?: string;
-  cell_phone?: string;
+  cell_number?: string;
   company_email?: string;
   personal_email?: string;
   image?: string;
@@ -119,6 +119,7 @@ const TABS = [
   { key: 'family', label: 'Family', icon: Heart },
   { key: 'education', label: 'Education', icon: GraduationCap },
   { key: 'experience', label: 'Experience', icon: Building2 },
+  { key: 'contracts', label: 'Contracts', icon: Calendar },
   { key: 'documents', label: 'Documents', icon: FileText },
   { key: 'separation', label: 'Separation', icon: Shield },
 ] as const;
@@ -192,7 +193,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
   const startEdit = () => {
     if (!emp) return;
     setEditForm({
-      cell_phone: emp.cell_phone || '',
+      cell_number: emp.cell_number || '',
       personal_email: emp.personal_email || '',
       current_address: emp.current_address || '',
       permanent_address: emp.permanent_address || '',
@@ -308,7 +309,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
             {editing ? (
               <div className="space-y-4">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  <EditField label="Phone" value={editForm.cell_phone} onChange={v => setEditForm(f => ({ ...f, cell_phone: v }))} />
+                  <EditField label="Phone" value={editForm.cell_number} onChange={v => setEditForm(f => ({ ...f, cell_number: v }))} />
                   <EditField label="Personal Email" value={editForm.personal_email} onChange={v => setEditForm(f => ({ ...f, personal_email: v }))} />
                   <EditField label="Marital Status" value={editForm.marital_status} onChange={v => setEditForm(f => ({ ...f, marital_status: v }))} />
                   <EditField label="Blood Group" value={editForm.blood_group} onChange={v => setEditForm(f => ({ ...f, blood_group: v }))} />
@@ -351,7 +352,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                 <div className="sm:col-span-2 lg:col-span-3 border-t border-gray-100 pt-4 mt-2">
                   <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2"><Phone className="h-4 w-4" /> Contact</h4>
                 </div>
-                <Field label="Phone" value={emp.cell_phone} />
+                <Field label="Phone" value={emp.cell_number} />
                 <Field label="Personal Email" value={emp.personal_email} />
                 <Field label="Company Email" value={emp.company_email} />
                 <div className="sm:col-span-2 lg:col-span-3 border-t border-gray-100 pt-4 mt-2">
@@ -493,6 +494,31 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
             ) : (
               <p className="py-8 text-center text-sm text-gray-400">No work experience records found.</p>
             )}
+          </div>
+        )}
+
+        {activeTab === 'contracts' && (
+          <div>
+            <h3 className="mb-4 text-lg font-semibold text-gray-900">Contracts & Confirmation</h3>
+            <dl className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Field label="Company" value={emp.company} />
+              <Field label="Designation" value={emp.designation} />
+              <Field label="Branch" value={emp.branch} />
+              <Field label="Date of Joining" value={formatDate(emp.date_of_joining)} />
+              <Field label="Scheduled Confirmation" value={formatDate(emp.scheduled_confirmation_date)} />
+              <Field label="Final Confirmation" value={formatDate(emp.final_confirmation_date)} />
+              <Field label="Contract End Date" value={formatDate(emp.contract_end_date)} />
+              <Field label="Notice Period (days)" value={emp.notice_number_of_days} />
+              <Field label="Date of Retirement" value={formatDate(emp.date_of_retirement)} />
+              <Field label="Salary Mode" value={emp.salary_mode} />
+              <Field
+                label="CTC"
+                value={emp.ctc ? `${emp.salary_currency || 'INR'} ${Number(emp.ctc).toLocaleString('en-IN')}` : undefined}
+              />
+            </dl>
+            <div className="mt-6 rounded-lg bg-amber-50 p-4 text-sm text-amber-800">
+              Signed contracts, offer letters, and amendments should be stored in the <Link href="/documents" className="font-medium underline">Document Management System</Link> so the employee profile stays aligned with governed document versions.
+            </div>
           </div>
         )}
 

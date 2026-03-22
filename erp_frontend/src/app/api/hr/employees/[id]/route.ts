@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { callFrappeMethod } from '../../../_lib/frappe';
+import { callFrappeMethod, jsonErrorResponse } from '../../../_lib/frappe';
 
 export async function GET(
   request: NextRequest,
@@ -11,10 +11,7 @@ export async function GET(
     const result = await callFrappeMethod('get_employee', { name }, request);
     return NextResponse.json({ success: true, data: result.data || {} });
   } catch (error) {
-    return NextResponse.json(
-      { success: false, message: error instanceof Error ? error.message : 'Failed to fetch employee' },
-      { status: 500 },
-    );
+    return jsonErrorResponse(error, 'Failed to fetch employee');
   }
 }
 
@@ -33,9 +30,6 @@ export async function PATCH(
     );
     return NextResponse.json({ success: true, data: result.data, message: result.message });
   } catch (error) {
-    return NextResponse.json(
-      { success: false, message: error instanceof Error ? error.message : 'Failed to update employee' },
-      { status: 500 },
-    );
+    return jsonErrorResponse(error, 'Failed to update employee');
   }
 }

@@ -104,7 +104,7 @@ def map_onboarding_to_employee_dict(onboarding):
 		"designation": onboarding.designation,
 		"gender": onboarding.gender,
 		"date_of_birth": onboarding.date_of_birth,
-		"cell_phone": onboarding.contact_number,
+		"cell_number": onboarding.contact_number,
 		"personal_email": onboarding.personal_email,
 		"current_address": onboarding.local_address,
 		"permanent_address": onboarding.permanent_address,

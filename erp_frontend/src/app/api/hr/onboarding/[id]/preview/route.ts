@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { callFrappeMethod } from '../../../../_lib/frappe';
+import { callFrappeMethod, jsonErrorResponse } from '../../../../_lib/frappe';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,12 +16,6 @@ export async function GET(
     );
     return NextResponse.json(result);
   } catch (error) {
-    return NextResponse.json(
-      {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to build employee mapping preview',
-      },
-      { status: 500 },
-    );
+    return jsonErrorResponse(error, 'Failed to build employee mapping preview');
   }
 }

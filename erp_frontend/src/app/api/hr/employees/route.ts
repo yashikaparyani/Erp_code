@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { callFrappeMethod } from '../../_lib/frappe';
+import { callFrappeMethod, jsonErrorResponse } from '../../_lib/frappe';
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,9 +18,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ success: true, data: result.data || [] });
   } catch (error) {
-    return NextResponse.json(
-      { success: false, message: error instanceof Error ? error.message : 'Failed to fetch employees', data: [] },
-      { status: 500 },
-    );
+    return jsonErrorResponse(error, 'Failed to fetch employees', { data: [] });
   }
 }

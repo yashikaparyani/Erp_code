@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { callFrappeMethod } from '../../../_lib/frappe';
+import { callFrappeMethod, jsonErrorResponse } from '../../../_lib/frappe';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,13 +12,7 @@ export async function GET(
     const result = await callFrappeMethod('get_onboarding', { name: decodeURIComponent(id) }, request);
     return NextResponse.json(result);
   } catch (error) {
-    return NextResponse.json(
-      {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to load onboarding record',
-      },
-      { status: 500 },
-    );
+    return jsonErrorResponse(error, 'Failed to load onboarding record');
   }
 }
 
@@ -36,13 +30,7 @@ export async function PATCH(
     );
     return NextResponse.json(result);
   } catch (error) {
-    return NextResponse.json(
-      {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to update onboarding record',
-      },
-      { status: 500 },
-    );
+    return jsonErrorResponse(error, 'Failed to update onboarding record');
   }
 }
 
@@ -55,12 +43,6 @@ export async function DELETE(
     const result = await callFrappeMethod('delete_onboarding', { name: decodeURIComponent(id) }, request);
     return NextResponse.json(result);
   } catch (error) {
-    return NextResponse.json(
-      {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to delete onboarding record',
-      },
-      { status: 500 },
-    );
+    return jsonErrorResponse(error, 'Failed to delete onboarding record');
   }
 }

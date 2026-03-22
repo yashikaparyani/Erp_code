@@ -248,7 +248,7 @@ def test_map_onboarding_to_employee_dict():
 	assert result["designation"] == "Security Guard"
 	assert result["gender"] == "Male"
 	assert result["date_of_birth"] == "1990-05-10"
-	assert result["cell_phone"] == "9876543210"
+	assert result["cell_number"] == "9876543210"
 	assert result["personal_email"] == "rajesh@example.com"
 	assert result["current_address"] == "Local addr"
 	assert result["permanent_address"] == "Permanent addr"

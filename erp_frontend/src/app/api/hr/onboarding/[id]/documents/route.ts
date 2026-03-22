@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { callFrappeMethod, uploadFrappeFile } from '../../../../_lib/frappe';
+import { callFrappeMethod, jsonErrorResponse, uploadFrappeFile } from '../../../../_lib/frappe';
 
 export const dynamic = 'force-dynamic';
 
@@ -66,12 +66,6 @@ export async function POST(
       message: result.message || 'Document uploaded successfully',
     });
   } catch (error) {
-    return NextResponse.json(
-      {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to upload onboarding document',
-      },
-      { status: 500 },
-    );
+    return jsonErrorResponse(error, 'Failed to upload onboarding document');
   }
 }

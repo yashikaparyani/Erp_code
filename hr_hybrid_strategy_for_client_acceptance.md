@@ -132,6 +132,11 @@ Reason:
 
 Attendance alone is not enough. Users mentally group these features together.
 
+Implementation note:
+
+- biometric swipe ingestion can remain a clearly marked deferred integration if attendance logs, muster, leave, and regularization are already working
+- do not block HR acceptance on device-bridge work unless the client explicitly makes biometric sync a go-live requirement
+
 ### 5. Workflow Inbox Pattern
 
 Adopt greytHR’s simple approval framing:
@@ -272,7 +277,6 @@ Implement:
 - family, education, experience, bank, and document blocks
 
 Done means:
-
 - HR users can search, open, and maintain employee records in a familiar way
 
 ## Phase 2: Onboarding Upgrade
@@ -430,4 +434,3 @@ That tracker should convert this strategy into:
 - APIs touched
 - test coverage needed
 - UAT checklist
-
