@@ -1,0 +1,185 @@
+{
+ "actions": [],
+ "autoname": "naming_series:",
+ "creation": "2026-03-22 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "regularization_status",
+  "employee",
+  "regularization_date",
+  "linked_attendance_log",
+  "column_break_requested",
+  "requested_check_in",
+  "requested_check_out",
+  "requested_status",
+  "section_break_reason",
+  "reason",
+  "remarks",
+  "section_break_approval",
+  "submitted_by",
+  "approved_by",
+  "approved_at",
+  "column_break_reject",
+  "rejected_by",
+  "rejection_reason"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "REG-.#####"
+  },
+  {
+   "default": "DRAFT",
+   "fieldname": "regularization_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "DRAFT\nSUBMITTED\nAPPROVED\nREJECTED",
+   "reqd": 1
+  },
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Employee",
+   "options": "Employee",
+   "reqd": 1
+  },
+  {
+   "fieldname": "regularization_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Regularization Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "linked_attendance_log",
+   "fieldtype": "Link",
+   "label": "Linked Attendance Log",
+   "options": "GE Attendance Log"
+  },
+  {
+   "fieldname": "column_break_requested",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "requested_check_in",
+   "fieldtype": "Datetime",
+   "label": "Requested Check In"
+  },
+  {
+   "fieldname": "requested_check_out",
+   "fieldtype": "Datetime",
+   "label": "Requested Check Out"
+  },
+  {
+   "fieldname": "requested_status",
+   "fieldtype": "Select",
+   "label": "Requested Attendance Status",
+   "options": "PRESENT\nABSENT\nHALF_DAY\nON_DUTY\nWEEK_OFF"
+  },
+  {
+   "fieldname": "section_break_reason",
+   "fieldtype": "Section Break",
+   "label": "Reason"
+  },
+  {
+   "fieldname": "reason",
+   "fieldtype": "Small Text",
+   "label": "Reason",
+   "reqd": 1
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "section_break_approval",
+   "fieldtype": "Section Break",
+   "label": "Approval"
+  },
+  {
+   "fieldname": "submitted_by",
+   "fieldtype": "Link",
+   "label": "Submitted By",
+   "options": "User"
+  },
+  {
+   "fieldname": "approved_by",
+   "fieldtype": "Link",
+   "label": "Approved By",
+   "options": "User"
+  },
+  {
+   "fieldname": "approved_at",
+   "fieldtype": "Datetime",
+   "label": "Approved At"
+  },
+  {
+   "fieldname": "column_break_reject",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "rejected_by",
+   "fieldtype": "Link",
+   "label": "Rejected By",
+   "options": "User"
+  },
+  {
+   "fieldname": "rejection_reason",
+   "fieldtype": "Small Text",
+   "label": "Rejection Reason"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-03-22 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE Attendance Regularization",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Director"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Department Head",
+   "write": 1
+  }
+ ],
+ "sort_field": "regularization_date",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

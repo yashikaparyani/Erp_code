@@ -17,6 +17,8 @@ export default function HrTravelLogsPage() {
         { name: 'travel_date', label: 'Travel Date', type: 'date' },
         { name: 'from_location', label: 'From', placeholder: 'Origin' },
         { name: 'to_location', label: 'To', placeholder: 'Destination' },
+        { name: 'linked_project', label: 'Linked Project', placeholder: 'Project ID' },
+        { name: 'linked_site', label: 'Linked Site', placeholder: 'Site ID' },
         { name: 'expense_amount', label: 'Expense Amount', type: 'number', defaultValue: 0 },
       ]}
       actions={[
@@ -34,6 +36,7 @@ export default function HrTravelLogsPage() {
         { key: 'employee', label: 'Employee', render: (row) => row.employee || '-' },
         { key: 'travel_date', label: 'Date', render: (row) => row.travel_date || '-' },
         { key: 'route', label: 'Route', render: (row) => `${row.from_location || '-'} -> ${row.to_location || '-'}` },
+        { key: 'context', label: 'Project / Site', render: (row) => `${row.linked_project || '-'} / ${row.linked_site || '-'}` },
         { key: 'travel_status', label: 'Status', render: (row) => row.travel_status || row.status || '-' },
       ]}
       emptyMessage="No travel logs found"

@@ -23,7 +23,7 @@ type Employee = {
   status: string;
   gender?: string;
   date_of_joining?: string;
-  cell_phone?: string;
+  cell_number?: string;
   company_email?: string;
   personal_email?: string;
   image?: string;
@@ -231,7 +231,7 @@ export default function EmployeeDirectoryPage() {
                     {emp.date_of_joining ? new Date(emp.date_of_joining).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
                   </td>
                   <td className="px-4 py-3 text-gray-500">
-                    {emp.cell_phone || emp.company_email || emp.personal_email || '-'}
+                    {emp.cell_number || emp.company_email || emp.personal_email || '-'}
                   </td>
                   <td className="px-4 py-3">
                     <Link href={`/hr/employees/${encodeURIComponent(emp.name)}`} className="text-gray-400 hover:text-[#1e6b87]">

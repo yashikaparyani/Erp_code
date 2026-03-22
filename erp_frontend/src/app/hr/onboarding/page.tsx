@@ -1329,7 +1329,7 @@ export default function HrOnboardingPage() {
                           <ReadField label="Employee Name" value={String(preview.employee_preview.first_name || '')} />
                           <ReadField label="Company" value={String(preview.employee_preview.company || '')} />
                           <ReadField label="Designation" value={String(preview.employee_preview.designation || '')} />
-                          <ReadField label="Contact" value={String(preview.employee_preview.cell_phone || '')} />
+                          <ReadField label="Contact" value={String(preview.employee_preview.cell_number || '')} />
                           <ReadField label="Personal Email" value={String(preview.employee_preview.personal_email || '')} />
                           <ReadField label="Education Rows" value={preview.readiness.education_rows} />
                           <ReadField label="Experience Rows" value={preview.readiness.experience_rows} />

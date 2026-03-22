@@ -1,0 +1,197 @@
+{
+ "actions": [],
+ "autoname": "naming_series:",
+ "creation": "2026-03-22 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "leave_status",
+  "employee",
+  "leave_type",
+  "column_break_dates",
+  "from_date",
+  "to_date",
+  "total_leave_days",
+  "linked_project",
+  "linked_site",
+  "section_break_reason",
+  "reason",
+  "contact_during_leave",
+  "section_break_approval",
+  "submitted_by",
+  "approved_by",
+  "approved_at",
+  "column_break_reject",
+  "rejected_by",
+  "rejection_reason"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "LEV-.#####"
+  },
+  {
+   "default": "DRAFT",
+   "fieldname": "leave_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "DRAFT\nSUBMITTED\nAPPROVED\nREJECTED",
+   "reqd": 1
+  },
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Employee",
+   "options": "Employee",
+   "reqd": 1
+  },
+  {
+   "fieldname": "leave_type",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Leave Type",
+   "options": "GE Leave Type",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_dates",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "from_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "From Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "to_date",
+   "fieldtype": "Date",
+   "label": "To Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "total_leave_days",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Total Leave Days",
+   "reqd": 1
+  },
+  {
+   "fieldname": "linked_project",
+   "fieldtype": "Link",
+   "label": "Linked Project",
+   "options": "Project"
+  },
+  {
+   "fieldname": "linked_site",
+   "fieldtype": "Link",
+   "label": "Linked Site",
+   "options": "GE Site"
+  },
+  {
+   "fieldname": "section_break_reason",
+   "fieldtype": "Section Break",
+   "label": "Reason"
+  },
+  {
+   "fieldname": "reason",
+   "fieldtype": "Small Text",
+   "label": "Reason",
+   "reqd": 1
+  },
+  {
+   "fieldname": "contact_during_leave",
+   "fieldtype": "Data",
+   "label": "Contact During Leave"
+  },
+  {
+   "fieldname": "section_break_approval",
+   "fieldtype": "Section Break",
+   "label": "Approval"
+  },
+  {
+   "fieldname": "submitted_by",
+   "fieldtype": "Link",
+   "label": "Submitted By",
+   "options": "User"
+  },
+  {
+   "fieldname": "approved_by",
+   "fieldtype": "Link",
+   "label": "Approved By",
+   "options": "User"
+  },
+  {
+   "fieldname": "approved_at",
+   "fieldtype": "Datetime",
+   "label": "Approved At"
+  },
+  {
+   "fieldname": "column_break_reject",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "rejected_by",
+   "fieldtype": "Link",
+   "label": "Rejected By",
+   "options": "User"
+  },
+  {
+   "fieldname": "rejection_reason",
+   "fieldtype": "Small Text",
+   "label": "Rejection Reason"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-03-22 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE Leave Application",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Director"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Department Head",
+   "write": 1
+  }
+ ],
+ "sort_field": "from_date",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
