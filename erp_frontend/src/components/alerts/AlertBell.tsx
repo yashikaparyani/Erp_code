@@ -42,6 +42,7 @@ const EVENT_LABELS: Record<string, string> = {
   rma_created: 'RMA Created',
   invoice_created: 'Invoice Created',
   mention: 'Mentioned You',
+  user_mentioned: 'Mentioned You',
   reminder_due: 'Reminder Due',
   general: 'Notification',
 };
@@ -237,6 +238,19 @@ export default function AlertBell() {
                 </div>
               </button>
             ))}
+          </div>
+
+          {/* Footer - Link to full Notification Center */}
+          <div className="border-t border-[var(--border-subtle)] px-4 py-3">
+            <button
+              onClick={() => {
+                router.push('/notifications');
+                setOpen(false);
+              }}
+              className="w-full text-center text-xs font-medium text-[var(--accent-strong)] hover:underline"
+            >
+              View All Notifications →
+            </button>
           </div>
         </div>
       )}

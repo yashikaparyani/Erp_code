@@ -231,6 +231,7 @@ const navLinks: NavLink[] = [
     children: [
       { name: 'Project Workspace', href: '/om-helpdesk/projects', icon: Layers3 },
       { name: 'Tickets', href: '/om-helpdesk', icon: HeadphonesIcon },
+      { name: 'Device Uptime', href: '/device-uptime', icon: Cpu },
     ],
   },
   { name: 'SLA Profiles', href: '/sla', icon: Clock },

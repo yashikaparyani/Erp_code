@@ -11,7 +11,7 @@ const CONFIG: DepartmentConfig = {
   backLabel: 'Back to Execution Projects',
   kickerLabel: 'Execution & I&C Workspace',
   allowedStages: ['STORES_DISPATCH', 'EXECUTION', 'BILLING_PAYMENT'],
-  tabs: ['overview', 'sites', 'board', 'files', 'activity'],
+  tabs: ['overview', 'sites', 'board', 'ops', 'files', 'activity'],
 };
 
 export default function ExecutionProjectWorkspacePage() {

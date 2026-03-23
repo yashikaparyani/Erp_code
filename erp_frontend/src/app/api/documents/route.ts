@@ -6,12 +6,14 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const folder = searchParams.get('folder') || '';
     const project = searchParams.get('project') || '';
+    const site = searchParams.get('site') || '';
     const category = searchParams.get('category') || '';
+    const latestOnly = searchParams.get('latest_only') || '';
     const source = searchParams.get('source') || '';
-    const useCustom = source === 'custom' || Boolean(project) || Boolean(category);
+    const useCustom = source === 'custom' || Boolean(project) || Boolean(category) || Boolean(site) || Boolean(latestOnly);
     const result = await callFrappeMethod(
       useCustom ? 'get_project_documents' : 'get_documents',
-      useCustom ? { folder, project, category } : { folder },
+      useCustom ? { folder, project, site, category, latest_only: latestOnly } : { folder },
       request,
     );
     return NextResponse.json({ success: true, data: result.data || [] });

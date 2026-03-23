@@ -7688,8 +7688,58 @@ def get_documents(folder=None):
 	return {"success": True, "data": data}
 
 
+def _project_document_group_key(row):
+	return (
+		row.get("document_name") or row.get("name"),
+		row.get("linked_project") or "",
+		row.get("linked_site") or "",
+	)
+
+
+def _project_document_sort_key(row):
+	return (
+		frappe.utils.cint(row.get("version") or 0),
+		row.get("modified") or "",
+		row.get("creation") or "",
+		row.get("name") or "",
+	)
+
+
+def _annotate_project_documents(rows, latest_only=False):
+	today = frappe.utils.nowdate()
+	group_latest = {}
+	group_counts = {}
+
+	for raw_row in rows:
+		row = dict(raw_row)
+		key = _project_document_group_key(row)
+		group_counts[key] = group_counts.get(key, 0) + 1
+		current_latest = group_latest.get(key)
+		if not current_latest or _project_document_sort_key(row) > _project_document_sort_key(current_latest):
+			group_latest[key] = row
+
+	annotated = []
+	for raw_row in rows:
+		row = dict(raw_row)
+		key = _project_document_group_key(row)
+		latest_row = group_latest.get(key) or {}
+		row["file_name"] = row.get("document_name")
+		row["file_url"] = row.get("file")
+		row["uploaded_by"] = row.get("uploaded_by") or row.get("owner")
+		row["version_count"] = group_counts.get(key, 1)
+		row["is_latest_version"] = row.get("name") == latest_row.get("name")
+		row["days_until_expiry"] = (
+			frappe.utils.date_diff(row.get("expiry_date"), today) if row.get("expiry_date") else None
+		)
+		if latest_only and not row["is_latest_version"]:
+			continue
+		annotated.append(row)
+
+	return annotated
+
+
 @frappe.whitelist()
-def get_project_documents(folder=None, project=None, category=None):
+def get_project_documents(folder=None, project=None, category=None, site=None, latest_only=0):
 	"""Return custom GE Project Document records."""
 	_require_document_read_access()
 	filters = {}
@@ -7699,6 +7749,8 @@ def get_project_documents(folder=None, project=None, category=None):
 		filters["linked_project"] = project
 	if category:
 		filters["category"] = category
+	if site:
+		filters["linked_site"] = site
 	data = frappe.get_all(
 		"GE Project Document",
 		filters=filters,
@@ -7719,13 +7771,12 @@ def get_project_documents(folder=None, project=None, category=None):
 			"modified",
 			"owner",
 		],
-		order_by="modified desc, creation desc",
+		order_by="modified desc, creation desc, version desc",
 	)
-	for row in data:
-		row["file_name"] = row.document_name
-		row["file_url"] = row.file
-		row["uploaded_by"] = row.uploaded_by or row.owner
-	return {"success": True, "data": data}
+	return {
+		"success": True,
+		"data": _annotate_project_documents(data, latest_only=frappe.utils.cint(latest_only)),
+	}
 
 
 @frappe.whitelist()
@@ -7882,7 +7933,7 @@ def get_document_versions(name=None):
 		],
 		order_by="version desc, creation desc",
 	)
-	return {"success": True, "data": data}
+	return {"success": True, "data": _annotate_project_documents(data)}
 
 
 @frappe.whitelist()
@@ -9075,6 +9126,11 @@ def get_commissioning_checklists(project=None, site=None, status=None):
 		filters,
 		["name", "checklist_name", "linked_project", "linked_site", "template_type", "status", "commissioned_by", "commissioned_date", "creation", "modified"],
 	)
+	item_counts = _get_commissioning_checklist_item_counts([row["name"] for row in data])
+	for row in data:
+		counts = item_counts.get(row["name"], {"total_items": 0, "done_items": 0})
+		row["total_items"] = counts["total_items"]
+		row["done_items"] = counts["done_items"]
 	return {"success": True, "data": data}
 
 
@@ -9120,7 +9176,11 @@ def get_test_reports(project=None, site=None, status=None):
 	data = _list_generic_docs(
 		"GE Test Report",
 		filters,
-		["name", "report_name", "test_type", "linked_project", "linked_site", "status", "tested_by", "test_date", "creation", "modified"],
+		[
+			"name", "report_name", "test_type", "linked_project", "linked_site",
+			"status", "tested_by", "test_date", "file", "remarks",
+			"creation", "modified",
+		],
 	)
 	return {"success": True, "data": data}
 
@@ -9135,7 +9195,13 @@ def get_test_report(name=None):
 @frappe.whitelist()
 def create_test_report(data):
 	_require_execution_write_access()
-	doc = _create_generic_doc("GE Test Report", data)
+	values = _parse_payload(data)
+	values.setdefault("status", "Submitted")
+	values.setdefault("tested_by", frappe.session.user)
+	values.setdefault("test_date", frappe.utils.today())
+	doc = frappe.get_doc({"doctype": "GE Test Report", **values})
+	doc.insert()
+	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": "Test report created"}
 
 
@@ -9167,7 +9233,11 @@ def get_client_signoffs(project=None, site=None, status=None):
 	data = _list_generic_docs(
 		"GE Client Signoff",
 		filters,
-		["name", "signoff_type", "linked_project", "linked_site", "status", "signed_by_client", "signoff_date", "creation", "modified"],
+		[
+			"name", "signoff_type", "linked_project", "linked_site", "status",
+			"signed_by_client", "signoff_date", "attachment", "remarks",
+			"creation", "modified",
+		],
 	)
 	return {"success": True, "data": data}
 
@@ -10035,6 +10105,8 @@ def sign_client_signoff(name, signed_by_client=None):
 	doc = frappe.get_doc("GE Client Signoff", name)
 	if doc.status != "Pending":
 		frappe.throw(f"Cannot sign in '{doc.status}' state. Must be 'Pending'.")
+	if not (signed_by_client or doc.signed_by_client):
+		frappe.throw("Signed By Client is required before recording signoff.")
 	doc.status = "Signed"
 	if signed_by_client:
 		doc.signed_by_client = signed_by_client
@@ -12598,3 +12670,885 @@ def get_anda_import_order(include_complex=False):
 
 	from gov_erp.importers.anda.orchestrator import get_import_order
 	return get_import_order(include_complex=include_complex)
+
+
+# ─── PM Cockpit Summary ──────────────────────────────────────
+
+@frappe.whitelist()
+def get_pm_cockpit_summary(project=None, stages=None):
+	"""Aggregated PM cockpit summary with DPRs, commissioning, and dependencies.
+
+	Returns:
+		- dpr_summary: recent DPRs, stats, manpower trends
+		- commissioning_summary: checklists, test reports, signoffs
+		- dependency_summary: blocking issues, overrides
+		- document_expiry: docs expiring soon
+		- signal_summary: alerts and reminders in project context
+		- action_items: prioritized next actions
+	"""
+	_require_execution_read_access()
+	project = _require_param(project, "project")
+	stage_scope = [cstr(stage).strip().upper() for stage in _parse_json_list(stages) if cstr(stage).strip()]
+
+	from datetime import datetime, timedelta
+	today = frappe.utils.today()
+	week_ago = (datetime.strptime(today, "%Y-%m-%d") - timedelta(days=7)).strftime("%Y-%m-%d")
+	month_ahead = (datetime.strptime(today, "%Y-%m-%d") + timedelta(days=30)).strftime("%Y-%m-%d")
+	week_ahead = (datetime.strptime(today, "%Y-%m-%d") + timedelta(days=7)).strftime("%Y-%m-%d")
+
+	site_filters = {"linked_project": project}
+	if stage_scope:
+		site_filters["current_site_stage"] = ["in", stage_scope]
+
+	scoped_sites = frappe.get_all(
+		"GE Site",
+		filters=site_filters,
+		fields=["name", "site_blocked", "blocker_reason", "current_site_stage"],
+		order_by="modified desc",
+		limit_page_length=500,
+	)
+	scoped_site_names = {row.name for row in scoped_sites}
+
+	def _is_in_scope(row, site_field="linked_site", stage_field=None):
+		if not stage_scope:
+			return True
+
+		row_site = cstr(row.get(site_field) if hasattr(row, "get") else getattr(row, site_field, None) or "").strip()
+		row_stage = ""
+		if stage_field:
+			row_stage = cstr(row.get(stage_field) if hasattr(row, "get") else getattr(row, stage_field, None) or "").strip().upper()
+
+		if row_site:
+			return row_site in scoped_site_names
+		if row_stage:
+			return row_stage in stage_scope
+		return True
+
+	# DPR Summary
+	all_dprs = frappe.get_all(
+		"GE DPR",
+		filters={"linked_project": project},
+		fields=["name", "linked_site", "report_date", "manpower_on_site", "equipment_count", "summary", "creation"],
+		order_by="report_date desc",
+		limit_page_length=500,
+	)
+	dprs = [row for row in all_dprs if _is_in_scope(row, site_field="linked_site")][:10]
+	if stage_scope:
+		dpr_total = len([row for row in all_dprs if _is_in_scope(row, site_field="linked_site")])
+		dpr_this_week = len([
+			row
+			for row in all_dprs
+			if _is_in_scope(row, site_field="linked_site")
+			and row.report_date
+			and str(row.report_date) >= week_ago
+		])
+		dpr_manpower_total = sum(cint(row.manpower_on_site) for row in all_dprs if _is_in_scope(row, site_field="linked_site"))
+	else:
+		dpr_total = frappe.db.count("GE DPR", {"linked_project": project})
+		dpr_this_week = frappe.db.count("GE DPR", {"linked_project": project, "report_date": [">=", week_ago]})
+		dpr_manpower_total = frappe.db.sql(
+			"SELECT SUM(manpower_on_site) FROM `tabGE DPR` WHERE linked_project = %s",
+			(project,),
+		)[0][0] or 0
+
+	# Commissioning Summary
+	all_checklists = frappe.get_all(
+		"GE Commissioning Checklist",
+		filters={"linked_project": project},
+		fields=["name", "checklist_name", "linked_site", "status", "commissioned_date", "template_type"],
+		order_by="creation desc",
+		limit_page_length=500,
+	)
+	checklists = [row for row in all_checklists if _is_in_scope(row, site_field="linked_site")][:10]
+	checklist_by_status = {}
+	for c in [row for row in all_checklists if _is_in_scope(row, site_field="linked_site")]:
+		s = c.status or "Draft"
+		checklist_by_status[s] = checklist_by_status.get(s, 0) + 1
+
+	all_test_reports = frappe.get_all(
+		"GE Test Report",
+		filters={"linked_project": project},
+		fields=["name", "report_name", "test_type", "linked_site", "status", "test_date"],
+		order_by="creation desc",
+		limit_page_length=500,
+	)
+	test_reports = [row for row in all_test_reports if _is_in_scope(row, site_field="linked_site")][:10]
+	test_by_status = {}
+	for t in [row for row in all_test_reports if _is_in_scope(row, site_field="linked_site")]:
+		s = t.status or "Draft"
+		test_by_status[s] = test_by_status.get(s, 0) + 1
+
+	all_signoffs = frappe.get_all(
+		"GE Client Signoff",
+		filters={"linked_project": project},
+		fields=["name", "signoff_type", "linked_site", "status", "signoff_date", "signed_by_client"],
+		order_by="creation desc",
+		limit_page_length=500,
+	)
+	signoffs = [row for row in all_signoffs if _is_in_scope(row, site_field="linked_site")][:10]
+	signoff_by_status = {}
+	for s in [row for row in all_signoffs if _is_in_scope(row, site_field="linked_site")]:
+		st = s.status or "Draft"
+		signoff_by_status[st] = signoff_by_status.get(st, 0) + 1
+
+	# Dependency Summary (via scoped sites)
+	blocked_sites = [s for s in scoped_sites if s.site_blocked]
+	# GE Site currently stores only blocked/not-blocked, not blocker severity.
+	# Treat blocked sites as hard blockers in the PM cockpit until severity is modeled explicitly.
+	hard_blocked = list(blocked_sites)
+	soft_blocked = []
+
+	project_rule_filters = {"linked_project": project}
+	if stage_scope and scoped_site_names:
+		project_rule_filters["linked_site"] = ["in", list(scoped_site_names)]
+	project_rules = frappe.get_all(
+		"GE Dependency Rule",
+		filters=project_rule_filters,
+		fields=["name", "linked_site"],
+		limit_page_length=500,
+	)
+	project_rule_names = {row.name for row in project_rules}
+	project_site_rule_names = {row.name for row in project_rules if row.linked_site}
+
+	overrides = frappe.get_all(
+		"GE Dependency Override",
+		filters={"status": ["in", ["REQUESTED", "APPROVED"]]},
+		fields=["name", "linked_task", "dependency_rule", "status", "requested_by", "creation"],
+		limit_page_length=500,
+	)
+	project_overrides = []
+	for row in overrides:
+		if row.dependency_rule in project_rule_names:
+			project_overrides.append(row)
+		elif stage_scope and not scoped_site_names and row.dependency_rule in project_site_rule_names:
+			project_overrides.append(row)
+
+	# Document Expiry
+	all_docs = frappe.get_all(
+		"GE Project Document",
+		filters=[["linked_project", "=", project], ["expiry_date", "is", "set"]],
+		fields=["name", "document_name", "linked_site", "expiry_date", "category"],
+		order_by="expiry_date asc",
+		limit_page_length=500,
+	)
+	scoped_docs = [row for row in all_docs if _is_in_scope(row, site_field="linked_site")]
+	expiring_docs = [
+		row for row in scoped_docs
+		if row.expiry_date and today <= str(row.expiry_date) <= month_ahead
+	][:10]
+	expired_docs = [row for row in scoped_docs if row.expiry_date and str(row.expiry_date) < today][:10]
+
+	# Milestones
+	all_milestones = frappe.get_all(
+		"GE Milestone",
+		filters={"linked_project": project},
+		fields=["name", "milestone_name", "linked_site", "status", "planned_date", "actual_date"],
+		limit_page_length=500,
+	)
+	milestones = [row for row in all_milestones if _is_in_scope(row, site_field="linked_site")]
+	milestone_by_status = {}
+	for m in milestones:
+		s = m.status or "PLANNED"
+		milestone_by_status[s] = milestone_by_status.get(s, 0) + 1
+	overdue_milestones = [
+		m for m in milestones
+		if (m.status or "PLANNED") not in ("COMPLETED", "CANCELLED")
+		and m.planned_date
+		and str(m.planned_date) < today
+	]
+
+	# Alerts and reminders in project context
+	from gov_erp.gov_erp.doctype.ge_alert.ge_alert import get_user_alerts
+	from gov_erp.gov_erp.doctype.ge_user_reminder.ge_user_reminder import get_user_reminders
+
+	project_alerts = [
+		row for row in get_user_alerts(project=project, limit=20)
+		if _is_in_scope(row, site_field="linked_site", stage_field="linked_stage")
+	]
+	project_reminders = [
+		row for row in get_user_reminders(project=project, active_only=1, limit=20)
+		if _is_in_scope(row, site_field="linked_site", stage_field="linked_stage")
+	]
+	unread_alerts = [row for row in project_alerts if not cint(row.get("is_read"))]
+	due_reminders = [
+		row for row in project_reminders
+		if row.get("next_reminder_at") and str(row.get("next_reminder_at"))[:10] <= week_ahead
+	]
+
+	# Action Items (prioritized)
+	action_items = []
+	for s in hard_blocked[:3]:
+		action_items.append({
+			"type": "blocker",
+			"priority": "high",
+			"title": f"Hard block on {s.name}",
+			"detail": s.blocker_reason or "No reason specified",
+			"ref_doctype": "GE Site",
+			"ref_name": s.name,
+		})
+	for d in expired_docs[:3]:
+		action_items.append({
+			"type": "document",
+			"priority": "high",
+			"title": f"Expired: {d.document_name}",
+			"detail": f"Expired on {d.expiry_date}",
+			"ref_doctype": "GE Project Document",
+			"ref_name": d.name,
+		})
+	for m in overdue_milestones[:3]:
+		action_items.append({
+			"type": "milestone",
+			"priority": "medium",
+			"title": f"Overdue: {m.milestone_name}",
+			"detail": f"Due {m.planned_date}",
+			"ref_doctype": "GE Milestone",
+			"ref_name": m.name,
+		})
+	for r in due_reminders[:2]:
+		reminder_dt = cstr(r.get("next_reminder_at") or r.get("reminder_datetime") or "")
+		action_items.append({
+			"type": "reminder",
+			"priority": "medium",
+			"title": cstr(r.get("title") or "Reminder"),
+			"detail": f"Due {reminder_dt[:16] or 'soon'}",
+			"ref_doctype": cstr(r.get("reference_doctype") or ""),
+			"ref_name": cstr(r.get("reference_name") or r.get("name") or ""),
+		})
+	for a in unread_alerts[:2]:
+		action_items.append({
+			"type": "alert",
+			"priority": "medium",
+			"title": cstr(a.get("summary") or "Project alert"),
+			"detail": cstr(a.get("detail") or a.get("event_type") or ""),
+			"ref_doctype": cstr(a.get("reference_doctype") or ""),
+			"ref_name": cstr(a.get("reference_name") or a.get("name") or ""),
+		})
+
+	return {
+		"success": True,
+		"data": {
+			"dpr_summary": {
+				"recent": dprs,
+				"total_count": dpr_total,
+				"this_week_count": dpr_this_week,
+				"total_manpower": dpr_manpower_total,
+			},
+			"commissioning_summary": {
+				"checklists": checklists[:10],
+				"checklist_by_status": checklist_by_status,
+				"test_reports": test_reports[:10],
+				"test_by_status": test_by_status,
+				"signoffs": signoffs[:10],
+				"signoff_by_status": signoff_by_status,
+			},
+			"dependency_summary": {
+				"blocked_sites": len(blocked_sites),
+				"hard_blocked": len(hard_blocked),
+				"soft_blocked": len(soft_blocked),
+				"blocked_details": blocked_sites[:10],
+				"pending_overrides": [o for o in project_overrides if o.status == "REQUESTED"],
+			},
+			"document_expiry": {
+				"expiring_soon": expiring_docs,
+				"expired": expired_docs,
+				"expiring_count": len(expiring_docs),
+				"expired_count": len(expired_docs),
+			},
+			"signal_summary": {
+				"unread_alerts_count": len(unread_alerts),
+				"recent_alerts": project_alerts[:5],
+				"active_reminders_count": len(project_reminders),
+				"due_reminders_count": len(due_reminders),
+				"reminders": project_reminders[:5],
+			},
+			"milestones_summary": {
+				"by_status": milestone_by_status,
+				"overdue": overdue_milestones[:10],
+				"overdue_count": len(overdue_milestones),
+				"total": len(milestones),
+			},
+			"action_items": action_items,
+		},
+	}
+
+
+# ─────────────────────────────────────────────────────────────
+# Execution Summary (Phase 2 - Unified Execution Dashboard)
+# ─────────────────────────────────────────────────────────────
+
+@frappe.whitelist()
+def get_execution_summary(project=None):
+	"""
+	Returns a unified execution/commissioning summary for the execution dashboard.
+	Shows site-level commissioning readiness, blockers, and aggregated KPIs.
+	"""
+	filters = {}
+	if project:
+		filters["linked_project"] = project
+
+	# ─── Sites Summary ───
+	sites = frappe.get_all(
+		"GE Site",
+		filters=filters or None,
+		fields=["name", "site_code", "site_name", "linked_project", "status"],
+		limit_page_length=500,
+	)
+	site_names = [s.name for s in sites]
+	site_by_status = {}
+	for s in sites:
+		st = s.status or "Unknown"
+		site_by_status[st] = site_by_status.get(st, 0) + 1
+
+	# ─── DPR Stats ───
+	dpr_filters = {}
+	if project:
+		dpr_filters["linked_project"] = project
+	if site_names:
+		dpr_filters["linked_site"] = ["in", site_names]
+	dprs = frappe.get_all(
+		"GE DPR",
+		filters=dpr_filters or None,
+		fields=["name", "linked_project", "linked_site", "report_date", "summary", "manpower_on_site", "equipment_count"],
+		order_by="report_date desc",
+		limit_page_length=100,
+	)
+	dpr_count = len(dprs)
+	manpower_total = sum(cint(d.manpower_on_site or 0) for d in dprs)
+	equipment_total = sum(cint(d.equipment_count or 0) for d in dprs)
+
+	# ─── Commissioning Checklists ───
+	cl_filters = {}
+	if project:
+		cl_filters["linked_project"] = project
+	if site_names:
+		cl_filters["linked_site"] = ["in", site_names]
+	checklists = frappe.get_all(
+		"GE Commissioning Checklist",
+		filters=cl_filters or None,
+		fields=["name", "linked_project", "linked_site", "checklist_name", "status", "commissioned_by", "commissioned_date"],
+		limit_page_length=500,
+	)
+	checklist_counts = _get_commissioning_checklist_item_counts([c.name for c in checklists])
+	# Per-site completion
+	checklist_by_site = {}
+	for c in checklists:
+		site = c.linked_site or "Unassigned"
+		if site not in checklist_by_site:
+			checklist_by_site[site] = {"total": 0, "done": 0, "count": 0}
+		counts = checklist_counts.get(c.name, {"total_items": 0, "done_items": 0})
+		checklist_by_site[site]["total"] += cint(counts["total_items"] or 0)
+		checklist_by_site[site]["done"] += cint(counts["done_items"] or 0)
+		checklist_by_site[site]["count"] += 1
+	checklist_by_status = {}
+	for c in checklists:
+		st = c.status or "Not Started"
+		checklist_by_status[st] = checklist_by_status.get(st, 0) + 1
+
+	# ─── Test Reports ───
+	tr_filters = {}
+	if project:
+		tr_filters["linked_project"] = project
+	if site_names:
+		tr_filters["linked_site"] = ["in", site_names]
+	test_reports = frappe.get_all(
+		"GE Test Report",
+		filters=tr_filters or None,
+		fields=["name", "linked_project", "linked_site", "test_type", "test_date", "status", "tested_by"],
+		order_by="test_date desc",
+		limit_page_length=200,
+	)
+	test_by_status = {}
+	for t in test_reports:
+		st = t.status or "Draft"
+		test_by_status[st] = test_by_status.get(st, 0) + 1
+	test_by_site = {}
+	for t in test_reports:
+		site = t.linked_site or "Unassigned"
+		if site not in test_by_site:
+			test_by_site[site] = {"total": 0, "approved": 0}
+		test_by_site[site]["total"] += 1
+		if t.status == "Approved":
+			test_by_site[site]["approved"] += 1
+
+	# ─── Client Signoffs ───
+	so_filters = {}
+	if project:
+		so_filters["linked_project"] = project
+	if site_names:
+		so_filters["linked_site"] = ["in", site_names]
+	signoffs = frappe.get_all(
+		"GE Client Signoff",
+		filters=so_filters or None,
+		fields=["name", "linked_project", "linked_site", "signoff_type", "signoff_date", "signed_by_client", "status"],
+		order_by="signoff_date desc",
+		limit_page_length=200,
+	)
+	signoff_by_status = {}
+	for s in signoffs:
+		st = s.status or "Pending"
+		signoff_by_status[st] = signoff_by_status.get(st, 0) + 1
+	signoff_by_site = {}
+	for s in signoffs:
+		site = s.linked_site or "Unassigned"
+		if site not in signoff_by_site:
+			signoff_by_site[site] = {"total": 0, "signed": 0}
+		signoff_by_site[site]["total"] += 1
+		if s.status in ("Signed", "Approved"):
+			signoff_by_site[site]["signed"] += 1
+
+	# ─── Dependency Blockers ───
+	blocked_sites = []
+	for s in sites:
+		# Check rules vs overrides
+		rules = frappe.get_all(
+			"GE Dependency Rule",
+			filters={"linked_site": s.name, "active": 1, "hard_block": 1},
+			fields=["name", "linked_task", "prerequisite_reference_name", "block_message"],
+			limit_page_length=20,
+		)
+		rule_names = [r.name for r in rules]
+		approved_overrides = frappe.get_all(
+			"GE Dependency Override",
+			filters={"dependency_rule": ["in", rule_names], "status": "APPROVED"},
+			pluck="dependency_rule",
+		) if rule_names else []
+		active_blocks = [
+			{
+				"name": r.name,
+				"prerequisite_task": r.prerequisite_reference_name or r.linked_task,
+				"block_message": r.block_message,
+			}
+			for r in rules
+			if r.name not in approved_overrides
+		]
+		if active_blocks:
+			blocked_sites.append({
+				"site": s.name,
+				"site_name": s.site_name,
+				"project": s.linked_project,
+				"block_count": len(active_blocks),
+				"blocks": active_blocks[:3],
+			})
+
+	# ─── Sites Readiness Summary ───
+	readiness_data = []
+	for s in sites:
+		site_name = s.name
+		cl_data = checklist_by_site.get(site_name, {"total": 0, "done": 0, "count": 0})
+		tr_data = test_by_site.get(site_name, {"total": 0, "approved": 0})
+		so_data = signoff_by_site.get(site_name, {"total": 0, "signed": 0})
+
+		checklist_pct = round(cl_data["done"] / cl_data["total"] * 100) if cl_data["total"] else 0
+		test_pct = round(tr_data["approved"] / tr_data["total"] * 100) if tr_data["total"] else 0
+		signoff_pct = round(so_data["signed"] / so_data["total"] * 100) if so_data["total"] else 0
+
+		is_blocked = any(b["site"] == site_name for b in blocked_sites)
+
+		readiness_data.append({
+			"site": site_name,
+			"site_code": s.site_code,
+			"site_name": s.site_name,
+			"project": s.linked_project,
+			"status": s.status,
+			"checklist_pct": checklist_pct,
+			"checklist_count": cl_data["count"],
+			"test_pct": test_pct,
+			"test_count": tr_data["total"],
+			"signoff_pct": signoff_pct,
+			"signoff_count": so_data["total"],
+			"is_blocked": is_blocked,
+			"overall_readiness": round((checklist_pct + test_pct + signoff_pct) / 3) if (cl_data["total"] or tr_data["total"] or so_data["total"]) else 0,
+		})
+
+	# Sort by overall readiness descending (most ready first)
+	readiness_data.sort(key=lambda x: (-x["overall_readiness"], x["site"]))
+
+	# ─── Action Items ───
+	action_items = []
+
+	# Pending signoffs
+	pending_signoffs = [s for s in signoffs if s.status == "Pending"][:5]
+	for s in pending_signoffs:
+		action_items.append({
+			"type": "signoff",
+			"priority": "high",
+			"title": f"Client signoff pending: {s.signoff_type or 'Signoff'}",
+			"detail": f"{s.signed_by_client or 'Client signatory pending'} at {s.linked_site or 'site'}",
+			"ref_doctype": "GE Client Signoff",
+			"ref_name": s.name,
+		})
+
+	# Submitted test reports needing approval
+	submitted_tests = [t for t in test_reports if t.status == "Submitted"][:5]
+	for t in submitted_tests:
+		action_items.append({
+			"type": "test_report",
+			"priority": "medium",
+			"title": f"{t.test_type or 'Test'} report awaiting approval",
+			"detail": f"Site: {t.linked_site or '-'}, Date: {t.test_date or '-'}",
+			"ref_doctype": "GE Test Report",
+			"ref_name": t.name,
+		})
+
+	# Blocked sites
+	for b in blocked_sites[:3]:
+		action_items.append({
+			"type": "blocker",
+			"priority": "high",
+			"title": f"Site blocked: {b['site_name'] or b['site']}",
+			"detail": f"{b['block_count']} active block(s)",
+			"ref_doctype": "GE Site",
+			"ref_name": b["site"],
+		})
+
+	# Incomplete checklists
+	incomplete_checklists = [c for c in checklists if c.status == "In Progress"][:3]
+	for c in incomplete_checklists:
+		counts = checklist_counts.get(c.name, {"total_items": 0, "done_items": 0})
+		done = cint(counts["done_items"] or 0)
+		total = max(cint(counts["total_items"] or 0), 1)
+		action_items.append({
+			"type": "checklist",
+			"priority": "medium",
+			"title": f"Checklist in progress: {c.checklist_name or c.name}",
+			"detail": f"{done}/{total} items done ({round(done/total*100)}%)",
+			"ref_doctype": "GE Commissioning Checklist",
+			"ref_name": c.name,
+		})
+
+	return {
+		"success": True,
+		"data": {
+			"sites_summary": {
+				"total": len(sites),
+				"by_status": site_by_status,
+				"blocked_count": len(blocked_sites),
+				"ready_for_commissioning": len([r for r in readiness_data if r["overall_readiness"] >= 80 and not r["is_blocked"]]),
+			},
+			"dpr_summary": {
+				"total_reports": dpr_count,
+				"total_manpower": manpower_total,
+				"total_equipment": equipment_total,
+				"recent": dprs[:10],
+			},
+			"commissioning_summary": {
+				"checklists_total": len(checklists),
+				"checklists_by_status": checklist_by_status,
+				"test_reports_total": len(test_reports),
+				"test_by_status": test_by_status,
+				"signoffs_total": len(signoffs),
+				"signoff_by_status": signoff_by_status,
+			},
+			"blocked_sites": blocked_sites,
+			"site_readiness": readiness_data,
+			"action_items": action_items,
+		},
+	}
+
+
+def _get_commissioning_checklist_item_counts(checklist_names):
+	"""Return per-checklist total and completed item counts."""
+	names = [cstr(name).strip() for name in checklist_names if cstr(name).strip()]
+	if not names:
+		return {}
+
+	rows = frappe.db.sql(
+		"""
+		select
+			parent,
+			count(*) as total_items,
+			sum(case when ifnull(is_completed, 0) = 1 then 1 else 0 end) as done_items
+		from `tabGE Commissioning Checklist Item`
+		where parenttype = 'GE Commissioning Checklist'
+		  and parent in %(parents)s
+		group by parent
+		""",
+		{"parents": tuple(names)},
+		as_dict=True,
+	)
+	counts = {
+		row.parent: {
+			"total_items": cint(row.total_items or 0),
+			"done_items": cint(row.done_items or 0),
+		}
+		for row in rows
+	}
+	for name in names:
+		counts.setdefault(name, {"total_items": 0, "done_items": 0})
+	return counts
+
+
+# ─────────────────────────────────────────────────────────────
+# Unified Notifications Center (Phase 3 - Alerts/Reminders/Collaboration)
+# ─────────────────────────────────────────────────────────────
+
+def _is_mention_alert(alert_row):
+	"""Return true when an alert row represents an @mention event."""
+	event_type = cstr((alert_row or {}).get("event_type") or "").strip().lower()
+	return event_type in {"mention", "user_mentioned"}
+
+
+def _get_mention_alerts(project=None, limit=20):
+	"""Return mention-shaped rows backed by the GE Alert stream."""
+	from gov_erp.gov_erp.doctype.ge_alert.ge_alert import get_user_alerts
+
+	raw_alerts = get_user_alerts(project=project, limit=max(cint(limit) * 4, 20))
+	mentions = []
+	for row in raw_alerts:
+		if not _is_mention_alert(row):
+			continue
+		mentions.append(
+			{
+				"name": row.get("name"),
+				"mentioned_user": frappe.session.user,
+				"mentioned_by": row.get("actor_name") or row.get("actor") or "Unknown",
+				"reference_doctype": row.get("reference_doctype"),
+				"reference_name": row.get("reference_name"),
+				"context_summary": row.get("detail") or row.get("summary") or "",
+				"is_read": cint(row.get("is_read")),
+				"creation": row.get("creation"),
+				"linked_project": row.get("linked_project"),
+				"route_path": row.get("route_path"),
+			}
+		)
+		if len(mentions) >= (cint(limit) or 20):
+			break
+	return mentions
+
+
+@frappe.whitelist()
+def get_notification_center():
+	"""
+	Returns a unified view of alerts, reminders, mentions, and due items.
+	Used by the notification center page to show all actionable items.
+	"""
+	_require_authenticated_user()
+	from datetime import date, timedelta
+
+	today = str(date.today())
+	week_ahead = str(date.today() + timedelta(days=7))
+	user = frappe.session.user
+
+	# ─── Alerts ───
+	from gov_erp.gov_erp.doctype.ge_alert.ge_alert import get_user_alerts
+
+	all_alerts = get_user_alerts(unread_only=0, limit=30)
+	mentions = _get_mention_alerts(limit=30)
+	mention_names = {row.get("name") for row in mentions}
+	alerts = [row for row in all_alerts if row.get("name") not in mention_names]
+	unread_alert_count = len([row for row in alerts if not cint(row.get("is_read"))])
+
+	# ─── Reminders ───
+	from gov_erp.gov_erp.doctype.ge_user_reminder.ge_user_reminder import get_user_reminders
+
+	all_reminders = get_user_reminders(active_only=0, limit=50)
+	active_reminders = [r for r in all_reminders if r.get("status") == "Active"]
+	due_reminders = [
+		r for r in active_reminders
+		if r.get("next_reminder_at") and str(r.get("next_reminder_at"))[:10] <= week_ahead
+	]
+	overdue_reminders = [
+		r for r in active_reminders
+		if r.get("next_reminder_at") and str(r.get("next_reminder_at"))[:10] < today
+	]
+
+	unread_mentions = [m for m in mentions if not cint(m.is_read)]
+
+	# ─── Document Expiry (high-value reminders) ───
+	expiring_docs = frappe.get_all(
+		"GE Project Document",
+		filters=[
+			["expiry_date", "is", "set"],
+			["expiry_date", ">=", today],
+			["expiry_date", "<=", week_ahead],
+		],
+		fields=["name", "document_name", "linked_project", "expiry_date", "category"],
+		order_by="expiry_date asc",
+		limit_page_length=20,
+	)
+	expired_docs = frappe.get_all(
+		"GE Project Document",
+		filters=[
+			["expiry_date", "is", "set"],
+			["expiry_date", "<", today],
+		],
+		fields=["name", "document_name", "linked_project", "expiry_date", "category"],
+		order_by="expiry_date desc",
+		limit_page_length=20,
+	)
+
+	# ─── Tender Deadlines ───
+	upcoming_tenders = frappe.get_all(
+		"GE Tender",
+		filters=[
+			["submission_date", "is", "set"],
+			["submission_date", ">=", today],
+			["submission_date", "<=", week_ahead],
+			["status", "not in", ["SUBMITTED", "WON", "LOST", "CANCELLED", "DROPPED", "CONVERTED_TO_PROJECT"]],
+		],
+		fields=["name", "title", "tender_number", "submission_date", "status"],
+		order_by="submission_date asc",
+		limit_page_length=10,
+	)
+
+	# ─── Overdue Milestones ───
+	overdue_milestones = frappe.get_all(
+		"GE Milestone",
+		filters=[
+			["status", "not in", ["COMPLETED", "CANCELLED"]],
+			["planned_date", "<", today],
+		],
+		fields=["name", "milestone_name", "linked_project", "linked_site", "planned_date", "status"],
+		order_by="planned_date asc",
+		limit_page_length=15,
+	)
+
+	# ─── Pending Approvals ───
+	try:
+		pending_approvals = get_pending_approvals().get("data", [])
+	except Exception:
+		pending_approvals = []
+
+	# ─── Unified Feed (sorted by time) ───
+	feed = []
+
+	for a in alerts[:15]:
+		feed.append({
+			"type": "alert",
+			"subtype": a.get("event_type") or "general",
+			"title": a.get("summary") or "Notification",
+			"detail": a.get("detail") or "",
+			"ref_doctype": a.get("reference_doctype"),
+			"ref_name": a.get("reference_name"),
+			"route": a.get("route_path"),
+			"project": a.get("linked_project"),
+			"is_read": cint(a.get("is_read")),
+			"timestamp": a.get("creation"),
+			"source_name": a.get("name"),
+		})
+
+	for r in due_reminders[:10]:
+		feed.append({
+			"type": "reminder",
+			"subtype": "due",
+			"title": r.get("title") or "Reminder",
+			"detail": f"Due: {str(r.get('next_reminder_at') or '')[:16]}",
+			"ref_doctype": r.get("reference_doctype"),
+			"ref_name": r.get("reference_name"),
+			"route": None,
+			"project": r.get("linked_project"),
+			"is_read": 0,
+			"timestamp": r.get("next_reminder_at") or r.get("creation"),
+			"source_name": r.get("name"),
+		})
+
+	for m in unread_mentions[:10]:
+		feed.append({
+			"type": "mention",
+			"subtype": "mention",
+			"title": f"Mentioned by {m.mentioned_by}",
+			"detail": m.context_summary or "",
+			"ref_doctype": m.reference_doctype,
+			"ref_name": m.reference_name,
+			"route": m.get("route_path") or None,
+			"project": m.get("linked_project"),
+			"is_read": 0,
+			"timestamp": m.creation,
+			"source_name": m.name,
+		})
+
+	for d in expiring_docs[:5]:
+		feed.append({
+			"type": "document",
+			"subtype": "expiring",
+			"title": f"Document expiring: {d.document_name}",
+			"detail": f"Expires {d.expiry_date}",
+			"ref_doctype": "GE Project Document",
+			"ref_name": d.name,
+			"route": None,
+			"project": d.linked_project,
+			"is_read": 0,
+			"timestamp": str(d.expiry_date),
+			"source_name": d.name,
+		})
+
+	for t in upcoming_tenders[:5]:
+		feed.append({
+			"type": "tender",
+			"subtype": "deadline",
+			"title": f"Tender deadline: {t.title or t.tender_number}",
+			"detail": f"Due {t.submission_date}",
+			"ref_doctype": "GE Tender",
+			"ref_name": t.name,
+			"route": f"/pre-sales/{t.name}",
+			"project": None,
+			"is_read": 0,
+			"timestamp": str(t.submission_date),
+			"source_name": t.name,
+		})
+
+	for p in pending_approvals[:5]:
+		feed.append({
+			"type": "approval",
+			"subtype": p.get("type") or "approval",
+			"title": f"Pending approval: {p.get('approval_for') or p.get('type') or 'Review'}",
+			"detail": p.get("action_hint") or f"Requested by {p.get('requester') or 'system'}",
+			"ref_doctype": "GE Tender" if p.get("type") == "Tender Approval" and p.get("tender_id") not in (None, "") else None,
+			"ref_name": p.get("tender_id") if p.get("type") == "Tender Approval" else None,
+			"route": f"/pre-sales/{p.get('tender_id')}" if p.get("type") == "Tender Approval" and p.get("tender_id") not in (None, "", "-") else "/approvals",
+			"project": None,
+			"is_read": 0,
+			"timestamp": p.get("request_date"),
+			"source_name": p.get("id"),
+		})
+
+	# Sort feed by timestamp descending
+	feed.sort(key=lambda x: x["timestamp"] or "", reverse=True)
+
+	return {
+		"success": True,
+		"data": {
+			"summary": {
+				"unread_alerts": unread_alert_count,
+				"active_reminders": len(active_reminders),
+				"due_reminders": len(due_reminders),
+				"overdue_reminders": len(overdue_reminders),
+				"unread_mentions": len(unread_mentions),
+				"expiring_documents": len(expiring_docs),
+				"expired_documents": len(expired_docs),
+				"tender_deadlines": len(upcoming_tenders),
+				"overdue_milestones": len(overdue_milestones),
+				"pending_approvals": len(pending_approvals),
+			},
+			"alerts": alerts,
+			"reminders": all_reminders,
+			"mentions": mentions,
+			"expiring_documents": expiring_docs,
+			"expired_documents": expired_docs,
+			"upcoming_tenders": upcoming_tenders,
+			"overdue_milestones": overdue_milestones,
+			"pending_approvals": pending_approvals,
+			"feed": feed[:30],
+		},
+	}
+
+
+@frappe.whitelist(methods=["POST"])
+def mark_mention_read(mention_name=None):
+	"""Mark a mention as read."""
+	_require_authenticated_user()
+	_require_param(mention_name, "mention_name")
+
+	from gov_erp.gov_erp.doctype.ge_alert.ge_alert import mark_alert_read
+
+	mark_alert_read(mention_name)
+	frappe.db.commit()
+	return {"success": True, "message": "Mention marked as read"}
+
+
+@frappe.whitelist()
+def get_user_mentions(project=None, limit=20):
+	"""Get mentions for the current user, optionally filtered by project."""
+	_require_authenticated_user()
+	mentions = _get_mention_alerts(project=project, limit=limit)
+	return {"success": True, "data": mentions}

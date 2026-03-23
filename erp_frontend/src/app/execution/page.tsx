@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Plus, Wrench, Camera, Activity, CheckCircle2, Eye, X } from 'lucide-react';
+import Link from 'next/link';
+import { Plus, Wrench, Camera, Activity, CheckCircle2, Eye, X, ClipboardCheck, FileCheck2, GitBranch, ArrowRight, AlertTriangle } from 'lucide-react';
 
 interface Site {
   name: string;
@@ -30,10 +31,22 @@ interface DPRStats {
   total_equipment_logged?: number;
 }
 
+interface CommissioningSummary {
+  ready_for_commissioning: number;
+  blocked_count: number;
+  checklists_total: number;
+  checklists_completed: number;
+  test_reports_total: number;
+  test_reports_approved: number;
+  signoffs_total: number;
+  signoffs_signed: number;
+}
+
 export default function ExecutionPage() {
   const [sites, setSites] = useState<Site[]>([]);
   const [dprs, setDprs] = useState<DPR[]>([]);
   const [dprStats, setDprStats] = useState<DPRStats>({});
+  const [commSummary, setCommSummary] = useState<CommissioningSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -53,7 +66,8 @@ export default function ExecutionPage() {
     Promise.all([
       fetch('/api/sites').then(r => r.json()).catch(() => ({ data: [] })),
       fetch('/api/dprs').then(r => r.json()).catch(() => ({ data: [] })),
-    ]).then(([sitesRes, dprsRes]) => {
+      fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method: 'get_execution_summary', args: {} }) }).then(r => r.json()).catch(() => ({ success: false })),
+    ]).then(([sitesRes, dprsRes, execRes]) => {
       setSites(sitesRes.data || []);
       setDprs(dprsRes.data || []);
       const d = dprsRes.data || [];
@@ -62,6 +76,21 @@ export default function ExecutionPage() {
         total_manpower_logged: d.reduce((s: number, r: DPR) => s + (r.manpower_on_site || 0), 0),
         total_equipment_logged: d.reduce((s: number, r: DPR) => s + (r.equipment_count || 0), 0),
       });
+      // Commissioning summary from execution API
+      if (execRes.success && execRes.data) {
+        const cs = execRes.data.commissioning_summary || {};
+        const ss = execRes.data.sites_summary || {};
+        setCommSummary({
+          ready_for_commissioning: ss.ready_for_commissioning || 0,
+          blocked_count: ss.blocked_count || 0,
+          checklists_total: cs.checklists_total || 0,
+          checklists_completed: cs.checklists_by_status?.['Completed'] || 0,
+          test_reports_total: cs.test_reports_total || 0,
+          test_reports_approved: cs.test_by_status?.['Approved'] || 0,
+          signoffs_total: cs.signoffs_total || 0,
+          signoffs_signed: (cs.signoff_by_status?.['Signed'] || 0) + (cs.signoff_by_status?.['Approved'] || 0),
+        });
+      }
     }).finally(() => setLoading(false));
   };
 
@@ -213,6 +242,98 @@ export default function ExecutionPage() {
             <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
               <button className="btn btn-secondary" onClick={() => setShowDprModal(false)}>Cancel</button>
               <button className="btn btn-primary" onClick={handleCreateDpr} disabled={creating}>{creating ? 'Creating...' : 'Create DPR'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Links */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+        <Link href="/execution/commissioning" className="card p-4 hover:border-blue-300 hover:bg-blue-50/30 transition group">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200">
+              <ClipboardCheck className="w-5 h-5 text-blue-600" />
+            </div>
+            <div className="flex-1">
+              <div className="font-medium text-gray-900">Commissioning Dashboard</div>
+              <div className="text-xs text-gray-500">Checklists, test reports, signoffs</div>
+            </div>
+            <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-blue-600" />
+          </div>
+        </Link>
+        <Link href="/execution/commissioning/test-reports" className="card p-4 hover:border-violet-300 hover:bg-violet-50/30 transition group">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-violet-100 rounded-lg flex items-center justify-center group-hover:bg-violet-200">
+              <FileCheck2 className="w-5 h-5 text-violet-600" />
+            </div>
+            <div className="flex-1">
+              <div className="font-medium text-gray-900">Test Reports & Signoffs</div>
+              <div className="text-xs text-gray-500">FAT/SAT/UAT and client approval</div>
+            </div>
+            <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-violet-600" />
+          </div>
+        </Link>
+        <Link href="/execution/dependencies" className="card p-4 hover:border-amber-300 hover:bg-amber-50/30 transition group">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center group-hover:bg-amber-200">
+              <GitBranch className="w-5 h-5 text-amber-600" />
+            </div>
+            <div className="flex-1">
+              <div className="font-medium text-gray-900">Dependency Management</div>
+              <div className="text-xs text-gray-500">Blockers, overrides, rules</div>
+            </div>
+            <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-amber-600" />
+          </div>
+        </Link>
+      </div>
+
+      {/* Commissioning Readiness Preview */}
+      {commSummary && (
+        <div className="card mb-6">
+          <div className="card-header flex items-center justify-between">
+            <h3 className="font-semibold text-gray-900">Commissioning Readiness</h3>
+            <Link href="/execution/commissioning" className="text-xs font-medium text-blue-600 hover:underline flex items-center gap-1">
+              View Dashboard <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
+          <div className="p-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                  <CheckCircle2 className="w-5 h-5 text-green-600" />
+                </div>
+                <div>
+                  <div className="text-xl font-bold text-gray-900">{commSummary.ready_for_commissioning}</div>
+                  <div className="text-xs text-gray-500">Sites Ready</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-rose-100 rounded-lg flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5 text-rose-600" />
+                </div>
+                <div>
+                  <div className="text-xl font-bold text-gray-900">{commSummary.blocked_count}</div>
+                  <div className="text-xs text-gray-500">Blocked</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <ClipboardCheck className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <div className="text-xl font-bold text-gray-900">{commSummary.checklists_completed}/{commSummary.checklists_total}</div>
+                  <div className="text-xs text-gray-500">Checklists Done</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-violet-100 rounded-lg flex items-center justify-center">
+                  <FileCheck2 className="w-5 h-5 text-violet-600" />
+                </div>
+                <div>
+                  <div className="text-xl font-bold text-gray-900">{commSummary.test_reports_approved}/{commSummary.test_reports_total}</div>
+                  <div className="text-xs text-gray-500">Reports Approved</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

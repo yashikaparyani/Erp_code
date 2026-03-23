@@ -20,6 +20,12 @@ import {
   Trash2,
   Clock,
   ChevronDown,
+  Activity,
+  CheckCircle2,
+  ClipboardCheck,
+  FileWarning,
+  Wrench,
+  ExternalLink,
 } from 'lucide-react';
 import { formatPercent } from '../dashboards/shared';
 import { usePermissions } from '../../context/PermissionContext';
@@ -129,7 +135,121 @@ export type ActivityEntry = {
   detail?: string[];
 };
 
-export type TabKey = 'overview' | 'sites' | 'board' | 'milestones' | 'files' | 'activity';
+/* PM Cockpit Types */
+export type DPREntry = {
+  name: string;
+  linked_site?: string;
+  report_date?: string;
+  manpower_on_site?: number;
+  equipment_count?: number;
+  summary?: string;
+};
+
+export type CommissioningChecklist = {
+  name: string;
+  checklist_name?: string;
+  linked_site?: string;
+  status?: string;
+  commissioned_date?: string;
+  template_type?: string;
+};
+
+export type TestReport = {
+  name: string;
+  report_name?: string;
+  test_type?: string;
+  linked_site?: string;
+  status?: string;
+  test_date?: string;
+};
+
+export type ClientSignoff = {
+  name: string;
+  signoff_type?: string;
+  linked_site?: string;
+  status?: string;
+  signoff_date?: string;
+  signed_by_client?: string;
+};
+
+export type ActionItem = {
+  type: string;
+  priority: string;
+  title: string;
+  detail: string;
+  ref_doctype: string;
+  ref_name: string;
+};
+
+export type WorkspaceAlert = {
+  name: string;
+  event_type?: string;
+  summary?: string;
+  detail?: string;
+  linked_site?: string;
+  linked_stage?: string;
+  route_path?: string;
+  is_read?: number;
+  creation?: string;
+};
+
+export type WorkspaceReminder = {
+  name: string;
+  title?: string;
+  next_reminder_at?: string;
+  reminder_datetime?: string;
+  linked_site?: string;
+  linked_stage?: string;
+  status?: string;
+  reference_doctype?: string;
+  reference_name?: string;
+};
+
+export type PMCockpitSummary = {
+  dpr_summary: {
+    recent: DPREntry[];
+    total_count: number;
+    this_week_count: number;
+    total_manpower: number;
+  };
+  commissioning_summary: {
+    checklists: CommissioningChecklist[];
+    checklist_by_status: Record<string, number>;
+    test_reports: TestReport[];
+    test_by_status: Record<string, number>;
+    signoffs: ClientSignoff[];
+    signoff_by_status: Record<string, number>;
+  };
+  dependency_summary: {
+    blocked_sites: number;
+    hard_blocked: number;
+    soft_blocked: number;
+    blocked_details: Array<{ name: string; blocker_reason?: string; current_site_stage?: string }>;
+    pending_overrides: Array<{ name: string; status?: string; requested_by?: string }>;
+  };
+  document_expiry: {
+    expiring_soon: Array<{ name: string; document_name?: string; expiry_date?: string; category?: string }>;
+    expired: Array<{ name: string; document_name?: string; expiry_date?: string; category?: string }>;
+    expiring_count: number;
+    expired_count: number;
+  };
+  milestones_summary: {
+    by_status: Record<string, number>;
+    overdue: Array<{ name: string; milestone_name?: string; planned_date?: string; status?: string }>;
+    overdue_count: number;
+    total: number;
+  };
+  signal_summary: {
+    unread_alerts_count: number;
+    recent_alerts: WorkspaceAlert[];
+    active_reminders_count: number;
+    due_reminders_count: number;
+    reminders: WorkspaceReminder[];
+  };
+  action_items: ActionItem[];
+};
+
+export type TabKey = 'overview' | 'sites' | 'board' | 'milestones' | 'ops' | 'files' | 'activity';
 
 export type DepartmentConfig = {
   departmentKey: string;
@@ -177,6 +297,7 @@ const TAB_META: Record<TabKey, { label: string; icon: typeof LayoutDashboard }> 
   sites:      { label: 'Sites',      icon: FolderTree },
   board:      { label: 'Site Board', icon: Columns3 },
   milestones: { label: 'Milestones', icon: Flag },
+  ops:        { label: 'Operations', icon: Activity },
   files:      { label: 'Files',      icon: FileText },
   activity:   { label: 'Activity',   icon: History },
 };
@@ -466,8 +587,69 @@ function OverviewTab({ detail, config, deptSites, projectId, onTabChange, wp }: 
         </div>
       )}
 
+      {/* Action Items Preview */}
+      <ActionItemsPreview projectId={projectId} onViewAll={() => onTabChange('ops')} config={config} />
+
       {/* Recent Activity Preview */}
       <RecentActivityPreview projectId={projectId} onViewAll={() => onTabChange('activity')} />
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Action Items Preview (used in Overview)
+   ═══════════════════════════════════════════════════════════ */
+
+function ActionItemsPreview({ projectId, onViewAll, config }: { projectId: string; onViewAll: () => void; config: DepartmentConfig }) {
+  const [items, setItems] = useState<ActionItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const data = await callOps<PMCockpitSummary>('get_pm_cockpit_summary', {
+          project: projectId,
+          stages: config.allowedStages || [],
+        });
+        if (active) setItems(data.action_items || []);
+      } catch {
+        // Silently skip — overview still works without action items
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => { active = false; };
+  }, [projectId, config.allowedStages]);
+
+  if (loading || items.length === 0) return null;
+
+  return (
+    <div>
+      <div className="mb-4 flex items-center justify-between">
+        <SectionHeader title="Requires Attention" subtitle={`${items.length} item${items.length > 1 ? 's' : ''} need follow-up`} />
+        <button onClick={onViewAll} className="text-xs font-medium text-[var(--accent-strong)] hover:underline">View Operations →</button>
+      </div>
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
+        {items.slice(0, 3).map((item, idx) => (
+          <div key={idx} className={`flex items-start gap-3 rounded-xl border px-4 py-3 ${
+            item.priority === 'high' ? 'border-rose-200 bg-rose-50/50' : 'border-amber-200 bg-amber-50/50'
+          }`}>
+            <span className={`mt-0.5 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${
+              item.priority === 'high' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'
+            }`}>{item.type}</span>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium text-[var(--text-main)]">{item.title}</div>
+              <div className="text-xs text-[var(--text-muted)] line-clamp-2">{item.detail}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      {items.length > 3 && (
+        <button onClick={onViewAll} className="mt-2 text-xs font-medium text-[var(--accent-strong)] hover:underline">
+          View all {items.length} action items →
+        </button>
+      )}
     </div>
   );
 }
@@ -833,14 +1015,54 @@ function FilesTab({ projectId, wp }: { projectId: string; wp: WorkspacePermissio
   if (loading) return <div className="flex items-center justify-center py-16 text-[var(--text-muted)]"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading documents...</div>;
   if (error && !docs.length) return <p className="py-12 text-center text-sm text-rose-600">{error}</p>;
 
-  const expiringCount = docs.filter(d => {
+  // Document statistics
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const expiredDocs = docs.filter(d => d.expiry_date && new Date(d.expiry_date) < today);
+  const expiringDocs = docs.filter(d => {
     if (!d.expiry_date) return false;
-    const diff = Math.ceil((new Date(d.expiry_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-    return diff <= 30 && diff >= 0;
-  }).length;
+    const exp = new Date(d.expiry_date);
+    const diff = Math.ceil((exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return diff >= 0 && diff <= 30;
+  });
+  const versionedDocCount = Object.values(versionCounts).filter(c => c > 1).length;
+  const controlledDocs = docs.filter(d => d.expiry_date);
 
   return (
     <div className="space-y-4">
+      {/* DMS Summary Stats */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
+        <div className="rounded-xl border border-[var(--border-subtle)] bg-white p-3">
+          <div className="text-xs text-[var(--text-muted)]">Total Documents</div>
+          <div className="mt-1 text-xl font-bold text-[var(--text-main)]">{docs.length}</div>
+        </div>
+        <div className="rounded-xl border border-[var(--border-subtle)] bg-white p-3">
+          <div className="text-xs text-[var(--text-muted)]">Multi-Version</div>
+          <div className="mt-1 text-xl font-bold text-violet-600">{versionedDocCount}</div>
+        </div>
+        {expiredDocs.length > 0 && (
+          <div className="rounded-xl border border-rose-200 bg-rose-50 p-3">
+            <div className="text-xs text-rose-600">Expired</div>
+            <div className="mt-1 flex items-center gap-1.5 text-xl font-bold text-rose-700">
+              <AlertCircle className="h-4 w-4" />{expiredDocs.length}
+            </div>
+          </div>
+        )}
+        {expiringDocs.length > 0 && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+            <div className="text-xs text-amber-600">Expiring Soon</div>
+            <div className="mt-1 flex items-center gap-1.5 text-xl font-bold text-amber-700">
+              <Clock className="h-4 w-4" />{expiringDocs.length}
+            </div>
+          </div>
+        )}
+        <div className="rounded-xl border border-[var(--border-subtle)] bg-white p-3">
+          <div className="text-xs text-[var(--text-muted)]">Controlled</div>
+          <div className="mt-1 text-xl font-bold text-emerald-600">{controlledDocs.length}</div>
+          <div className="mt-0.5 text-[10px] text-[var(--text-muted)]">with expiry tracking</div>
+        </div>
+      </div>
+
       {/* Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         {/* Category filter pills */}
@@ -860,9 +1082,9 @@ function FilesTab({ projectId, wp }: { projectId: string; wp: WorkspacePermissio
           ))}
         </div>
         <div className="flex items-center gap-2">
-          {expiringCount > 0 && (
+          {(expiredDocs.length + expiringDocs.length) > 0 && (
             <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
-              <AlertCircle className="h-3.5 w-3.5" />{expiringCount} expiring
+              <AlertCircle className="h-3.5 w-3.5" />{expiredDocs.length + expiringDocs.length} need attention
             </span>
           )}
           {canUpload && (
@@ -965,7 +1187,7 @@ function FilesTab({ projectId, wp }: { projectId: string; wp: WorkspacePermissio
                 <th className="px-4 py-3 font-medium">Category</th>
                 <th className="px-4 py-3 font-medium">Site</th>
                 <th className="px-4 py-3 font-medium">Version</th>
-                <th className="px-4 py-3 font-medium">Expiry</th>
+                <th className="px-4 py-3 font-medium">Status / Expiry</th>
                 <th className="px-4 py-3 font-medium">Uploaded By</th>
                 <th className="px-4 py-3 font-medium">Date</th>
                 <th className="px-4 py-3 font-medium w-20"></th>
@@ -1000,19 +1222,35 @@ function FilesTab({ projectId, wp }: { projectId: string; wp: WorkspacePermissio
                     </td>
                     <td className="px-4 py-3 text-[var(--text-muted)]">{doc.linked_site || 'Project-level'}</td>
                     <td className="px-4 py-3">
-                      <button
-                        onClick={() => openVersions(doc)}
-                        className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-medium transition-colors ${
-                          hasVersions
-                            ? 'bg-violet-50 text-violet-700 hover:bg-violet-100 cursor-pointer'
-                            : 'bg-gray-50 text-gray-600'
-                        }`}
-                      >
-                        v{doc.version || 1}
-                        {hasVersions && <ChevronDown className="h-3 w-3" />}
-                      </button>
+                      {(() => {
+                        const versionCount = versionCounts[`${doc.document_name || doc.name}::${doc.linked_site || ''}`] || 1;
+                        return (
+                          <button
+                            onClick={() => openVersions(doc)}
+                            className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-medium transition-colors ${
+                              hasVersions
+                                ? 'bg-violet-50 text-violet-700 hover:bg-violet-100 cursor-pointer'
+                                : 'bg-gray-50 text-gray-600'
+                            }`}
+                            title={hasVersions ? `${versionCount} versions available` : 'Single version'}
+                          >
+                            v{doc.version || 1}
+                            {hasVersions && (
+                              <>
+                                <span className="text-[10px] opacity-70">of {versionCount}</span>
+                                <ChevronDown className="h-3 w-3" />
+                              </>
+                            )}
+                          </button>
+                        );
+                      })()}
                     </td>
-                    <td className="px-4 py-3"><ExpiryBadge expiryDate={doc.expiry_date} /></td>
+                    <td className="px-4 py-3">
+                      <ExpiryBadge expiryDate={doc.expiry_date} />
+                      {!doc.expiry_date && (
+                        <span className="text-[10px] text-[var(--text-muted)] italic">Untracked</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-[var(--text-muted)]">{doc.uploaded_by || doc.owner || '-'}</td>
                     <td className="px-4 py-3 text-[var(--text-muted)]">{doc.creation ? new Date(doc.creation).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}</td>
                     <td className="px-4 py-3">
@@ -1573,6 +1811,452 @@ function MilestonesTab({ sites, projectId, config }: { sites: SiteRow[]; project
 }
 
 /* ═══════════════════════════════════════════════════════════
+   Operations Tab (PM Cockpit)
+   ═══════════════════════════════════════════════════════════ */
+
+function OpsTab({ projectId, config }: { projectId: string; config: DepartmentConfig }) {
+  const [data, setData] = useState<PMCockpitSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      setLoading(true);
+      try {
+        const result = await callOps<PMCockpitSummary>('get_pm_cockpit_summary', {
+          project: projectId,
+          stages: config.allowedStages || [],
+        });
+        if (active) setData(result);
+      } catch (err) {
+        if (active) setError(err instanceof Error ? err.message : 'Failed to load operations data');
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => { active = false; };
+  }, [projectId, config.allowedStages]);
+
+  if (loading) return <div className="flex items-center justify-center py-16 text-[var(--text-muted)]"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading operations...</div>;
+  if (error) return <p className="py-12 text-center text-sm text-rose-600">{error}</p>;
+  if (!data) return <p className="py-12 text-center text-sm text-[var(--text-muted)]">No operations data available.</p>;
+
+  const { dpr_summary, commissioning_summary, dependency_summary, document_expiry, milestones_summary, signal_summary, action_items } = data;
+
+  return (
+    <div className="space-y-8">
+      {/* Action Items Banner */}
+      {action_items.length > 0 && (
+        <div className="rounded-xl border-2 border-rose-200 bg-rose-50/50 p-4">
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-rose-700">
+            <AlertCircle className="h-4 w-4" /> Requires Attention ({action_items.length})
+          </h3>
+          <div className="space-y-2">
+            {action_items.map((item, idx) => (
+              <div key={idx} className={`flex items-start gap-3 rounded-lg border px-3 py-2 ${
+                item.priority === 'high' ? 'border-rose-200 bg-white' : 'border-amber-200 bg-amber-50/50'
+              }`}>
+                <span className={`mt-0.5 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${
+                  item.priority === 'high' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'
+                }`}>{item.type}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-[var(--text-main)]">{item.title}</div>
+                  <div className="text-xs text-[var(--text-muted)]">{item.detail}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* KPI Row */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
+        <div className="rounded-2xl border border-[var(--border-subtle)] bg-blue-50 px-4 py-3 text-center">
+          <div className="text-[11px] font-medium uppercase tracking-wider text-blue-600">DPRs This Week</div>
+          <div className="mt-1 text-2xl font-bold text-blue-700">{dpr_summary.this_week_count}</div>
+        </div>
+        <div className="rounded-2xl border border-[var(--border-subtle)] bg-emerald-50 px-4 py-3 text-center">
+          <div className="text-[11px] font-medium uppercase tracking-wider text-emerald-600">Manpower Logged</div>
+          <div className="mt-1 text-2xl font-bold text-emerald-700">{dpr_summary.total_manpower}</div>
+        </div>
+        <div className="rounded-2xl border border-[var(--border-subtle)] bg-violet-50 px-4 py-3 text-center">
+          <div className="text-[11px] font-medium uppercase tracking-wider text-violet-600">Test Reports</div>
+          <div className="mt-1 text-2xl font-bold text-violet-700">{commissioning_summary.test_reports.length}</div>
+        </div>
+        <div className="rounded-2xl border border-[var(--border-subtle)] bg-teal-50 px-4 py-3 text-center">
+          <div className="text-[11px] font-medium uppercase tracking-wider text-teal-600">Signoffs</div>
+          <div className="mt-1 text-2xl font-bold text-teal-700">{commissioning_summary.signoffs.length}</div>
+        </div>
+        <div className={`rounded-2xl border px-4 py-3 text-center ${
+          document_expiry.expired_count > 0 ? 'border-rose-200 bg-rose-50' : 'border-[var(--border-subtle)] bg-amber-50'
+        }`}>
+          <div className={`text-[11px] font-medium uppercase tracking-wider ${document_expiry.expired_count > 0 ? 'text-rose-600' : 'text-amber-600'}`}>Docs Expiring</div>
+          <div className={`mt-1 text-2xl font-bold ${document_expiry.expired_count > 0 ? 'text-rose-700' : 'text-amber-700'}`}>
+            {document_expiry.expiring_count + document_expiry.expired_count}
+          </div>
+        </div>
+        <div className={`rounded-2xl border px-4 py-3 text-center ${
+          dependency_summary.hard_blocked > 0 ? 'border-rose-200 bg-rose-50' : 'border-[var(--border-subtle)] bg-gray-50'
+        }`}>
+          <div className={`text-[11px] font-medium uppercase tracking-wider ${dependency_summary.hard_blocked > 0 ? 'text-rose-600' : 'text-gray-600'}`}>Hard Blocks</div>
+          <div className={`mt-1 text-2xl font-bold ${dependency_summary.hard_blocked > 0 ? 'text-rose-700' : 'text-gray-700'}`}>
+            {dependency_summary.hard_blocked}
+          </div>
+        </div>
+      </div>
+
+      {/* Two Column Layout */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* DPR Section */}
+        <div className="card">
+          <div className="card-header flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Wrench className="h-4 w-4 text-[var(--text-muted)]" />
+              <h4 className="font-semibold text-[var(--text-main)]">Daily Progress Reports</h4>
+            </div>
+            <Link href={`/execution?project=${encodeURIComponent(projectId)}`} className="inline-flex items-center gap-1 text-xs font-medium text-[var(--accent-strong)] hover:underline">
+              View All <ExternalLink className="h-3 w-3" />
+            </Link>
+          </div>
+          <div className="card-body">
+            {dpr_summary.recent.length === 0 ? (
+              <p className="py-6 text-center text-sm text-[var(--text-muted)]">No DPRs recorded yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {dpr_summary.recent.slice(0, 5).map((dpr) => (
+                  <div key={dpr.name} className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-3 py-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium text-[var(--text-main)]">{dpr.linked_site || 'Project-level'}</div>
+                      <div className="text-xs text-[var(--text-muted)]">{dpr.report_date || '-'}</div>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs">
+                      {dpr.manpower_on_site && <span className="rounded bg-blue-50 px-1.5 py-0.5 font-medium text-blue-700">{dpr.manpower_on_site} staff</span>}
+                      {dpr.equipment_count && <span className="rounded bg-amber-50 px-1.5 py-0.5 font-medium text-amber-700">{dpr.equipment_count} equip</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="mt-3 flex items-center gap-4 border-t border-[var(--border-subtle)] pt-3 text-xs text-[var(--text-muted)]">
+              <span>Total: {dpr_summary.total_count} DPRs</span>
+              <span>Manpower: {dpr_summary.total_manpower}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Commissioning Section */}
+        <div className="card">
+          <div className="card-header flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ClipboardCheck className="h-4 w-4 text-[var(--text-muted)]" />
+              <h4 className="font-semibold text-[var(--text-main)]">Commissioning & Handover</h4>
+            </div>
+            <Link href={`/execution/commissioning?project=${encodeURIComponent(projectId)}`} className="inline-flex items-center gap-1 text-xs font-medium text-[var(--accent-strong)] hover:underline">
+              View All <ExternalLink className="h-3 w-3" />
+            </Link>
+          </div>
+          <div className="card-body space-y-4">
+            {/* Checklists */}
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-xs font-medium text-[var(--text-muted)]">Checklists</span>
+                <div className="flex gap-2">
+                  {Object.entries(commissioning_summary.checklist_by_status).map(([status, count]) => (
+                    <span key={status} className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                      status === 'Completed' ? 'bg-emerald-50 text-emerald-700' :
+                      status === 'In Progress' ? 'bg-blue-50 text-blue-700' :
+                      'bg-gray-100 text-gray-600'
+                    }`}>{status}: {count}</span>
+                  ))}
+                </div>
+              </div>
+              {commissioning_summary.checklists.length === 0 ? (
+                <p className="text-xs text-[var(--text-muted)]">No checklists yet</p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {commissioning_summary.checklists.slice(0, 4).map((c) => (
+                    <span key={c.name} className={`rounded-lg border px-2 py-1 text-xs ${
+                      c.status === 'Completed' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' :
+                      'border-[var(--border-subtle)] bg-white text-[var(--text-main)]'
+                    }`}>
+                      {c.checklist_name || c.linked_site || c.name}
+                    </span>
+                  ))}
+                  {commissioning_summary.checklists.length > 4 && (
+                    <span className="rounded-lg bg-gray-100 px-2 py-1 text-xs text-[var(--text-muted)]">+{commissioning_summary.checklists.length - 4} more</span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Test Reports */}
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-xs font-medium text-[var(--text-muted)]">Test Reports</span>
+                <div className="flex gap-2">
+                  {Object.entries(commissioning_summary.test_by_status).map(([status, count]) => (
+                    <span key={status} className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                      status === 'Passed' ? 'bg-emerald-50 text-emerald-700' :
+                      status === 'Failed' ? 'bg-rose-50 text-rose-700' :
+                      'bg-gray-100 text-gray-600'
+                    }`}>{status}: {count}</span>
+                  ))}
+                </div>
+              </div>
+              {commissioning_summary.test_reports.length === 0 ? (
+                <p className="text-xs text-[var(--text-muted)]">No test reports yet</p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {commissioning_summary.test_reports.slice(0, 4).map((t) => (
+                    <span key={t.name} className={`rounded-lg border px-2 py-1 text-xs ${
+                      t.status === 'Passed' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' :
+                      t.status === 'Failed' ? 'border-rose-200 bg-rose-50 text-rose-700' :
+                      'border-[var(--border-subtle)] bg-white text-[var(--text-main)]'
+                    }`}>
+                      {t.report_name || t.test_type || t.name}
+                    </span>
+                  ))}
+                  {commissioning_summary.test_reports.length > 4 && (
+                    <span className="rounded-lg bg-gray-100 px-2 py-1 text-xs text-[var(--text-muted)]">+{commissioning_summary.test_reports.length - 4} more</span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Signoffs */}
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-xs font-medium text-[var(--text-muted)]">Client Signoffs</span>
+                <div className="flex gap-2">
+                  {Object.entries(commissioning_summary.signoff_by_status).map(([status, count]) => (
+                    <span key={status} className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                      status === 'Signed' ? 'bg-emerald-50 text-emerald-700' :
+                      status === 'Pending' ? 'bg-amber-50 text-amber-700' :
+                      'bg-gray-100 text-gray-600'
+                    }`}>{status}: {count}</span>
+                  ))}
+                </div>
+              </div>
+              {commissioning_summary.signoffs.length === 0 ? (
+                <p className="text-xs text-[var(--text-muted)]">No signoffs yet</p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {commissioning_summary.signoffs.slice(0, 4).map((s) => (
+                    <span key={s.name} className={`rounded-lg border px-2 py-1 text-xs ${
+                      s.status === 'Signed' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' :
+                      'border-[var(--border-subtle)] bg-white text-[var(--text-main)]'
+                    }`}>
+                      {s.signoff_type || s.linked_site || s.name}
+                    </span>
+                  ))}
+                  {commissioning_summary.signoffs.length > 4 && (
+                    <span className="rounded-lg bg-gray-100 px-2 py-1 text-xs text-[var(--text-muted)]">+{commissioning_summary.signoffs.length - 4} more</span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Document Expiry + Dependencies Row */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* Document Expiry */}
+        <div className="card">
+          <div className="card-header flex items-center gap-2">
+            <FileWarning className="h-4 w-4 text-amber-500" />
+            <h4 className="font-semibold text-[var(--text-main)]">Document Expiry</h4>
+          </div>
+          <div className="card-body">
+            {document_expiry.expired.length > 0 && (
+              <div className="mb-3">
+                <div className="mb-2 text-xs font-medium text-rose-600">Expired ({document_expiry.expired_count})</div>
+                <div className="space-y-1.5">
+                  {document_expiry.expired.slice(0, 3).map((doc) => (
+                    <div key={doc.name} className="flex items-center justify-between rounded-lg border border-rose-200 bg-rose-50/50 px-3 py-1.5 text-xs">
+                      <span className="font-medium text-rose-700">{doc.document_name || doc.name}</span>
+                      <span className="text-rose-500">{doc.expiry_date}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {document_expiry.expiring_soon.length > 0 && (
+              <div>
+                <div className="mb-2 text-xs font-medium text-amber-600">Expiring Soon ({document_expiry.expiring_count})</div>
+                <div className="space-y-1.5">
+                  {document_expiry.expiring_soon.slice(0, 3).map((doc) => (
+                    <div key={doc.name} className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50/50 px-3 py-1.5 text-xs">
+                      <span className="font-medium text-amber-700">{doc.document_name || doc.name}</span>
+                      <span className="text-amber-500">{doc.expiry_date}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {document_expiry.expired.length === 0 && document_expiry.expiring_soon.length === 0 && (
+              <p className="py-4 text-center text-sm text-emerald-600">
+                <CheckCircle2 className="mr-1 inline h-4 w-4" /> All documents current
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Dependencies & Blocks */}
+        <div className="card">
+          <div className="card-header flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="h-4 w-4 text-rose-500" />
+              <h4 className="font-semibold text-[var(--text-main)]">Dependencies & Blocks</h4>
+            </div>
+            <Link href={`/execution/dependencies?project=${encodeURIComponent(projectId)}`} className="inline-flex items-center gap-1 text-xs font-medium text-[var(--accent-strong)] hover:underline">
+              Manage <ExternalLink className="h-3 w-3" />
+            </Link>
+          </div>
+          <div className="card-body">
+            <div className="mb-4 grid grid-cols-3 gap-3 text-center">
+              <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-raised)] py-2">
+                <div className="text-lg font-bold text-[var(--text-main)]">{dependency_summary.blocked_sites}</div>
+                <div className="text-[10px] text-[var(--text-muted)]">Total Blocked</div>
+              </div>
+              <div className={`rounded-lg border py-2 ${dependency_summary.hard_blocked > 0 ? 'border-rose-200 bg-rose-50' : 'border-[var(--border-subtle)] bg-[var(--surface-raised)]'}`}>
+                <div className={`text-lg font-bold ${dependency_summary.hard_blocked > 0 ? 'text-rose-700' : 'text-[var(--text-main)]'}`}>{dependency_summary.hard_blocked}</div>
+                <div className="text-[10px] text-[var(--text-muted)]">Hard Blocked</div>
+              </div>
+              <div className={`rounded-lg border py-2 ${dependency_summary.soft_blocked > 0 ? 'border-amber-200 bg-amber-50' : 'border-[var(--border-subtle)] bg-[var(--surface-raised)]'}`}>
+                <div className={`text-lg font-bold ${dependency_summary.soft_blocked > 0 ? 'text-amber-700' : 'text-[var(--text-main)]'}`}>{dependency_summary.soft_blocked}</div>
+                <div className="text-[10px] text-[var(--text-muted)]">Soft Blocked</div>
+              </div>
+            </div>
+            {dependency_summary.blocked_details.length > 0 && (
+              <div className="space-y-1.5">
+                {dependency_summary.blocked_details.slice(0, 4).map((site) => (
+                  <div key={site.name} className="flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50/50 px-3 py-2 text-xs">
+                    <ShieldAlert className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-rose-500" />
+                    <div className="min-w-0 flex-1">
+                      <span className="font-medium text-rose-700">{site.name}</span>
+                      {site.blocker_reason && <p className="mt-0.5 text-rose-600">{site.blocker_reason}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {dependency_summary.pending_overrides.length > 0 && (
+              <div className="mt-4 border-t border-[var(--border-subtle)] pt-3">
+                <div className="mb-2 text-xs font-medium text-amber-600">Pending Override Requests ({dependency_summary.pending_overrides.length})</div>
+                {dependency_summary.pending_overrides.slice(0, 2).map((o) => (
+                  <div key={o.name} className="text-xs text-[var(--text-muted)]">• {o.name} - requested by {o.requested_by}</div>
+                ))}
+              </div>
+            )}
+            {dependency_summary.blocked_sites === 0 && (
+              <p className="py-4 text-center text-sm text-emerald-600">
+                <CheckCircle2 className="mr-1 inline h-4 w-4" /> No blocking issues
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="card">
+          <div className="card-header flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-blue-500" />
+              <h4 className="font-semibold text-[var(--text-main)]">Signals & Follow-ups</h4>
+            </div>
+            <div className="text-[10px] text-[var(--text-muted)]">
+              {signal_summary.unread_alerts_count} unread alerts • {signal_summary.due_reminders_count} due reminders
+            </div>
+          </div>
+          <div className="card-body grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <div className="mb-2 text-xs font-medium text-[var(--text-muted)]">Recent Alerts</div>
+              {signal_summary.recent_alerts.length === 0 ? (
+                <p className="text-xs text-[var(--text-muted)]">No project alerts right now.</p>
+              ) : (
+                <div className="space-y-2">
+                  {signal_summary.recent_alerts.slice(0, 4).map((alert) => (
+                    <div
+                      key={alert.name}
+                      className={`rounded-lg border px-3 py-2 text-xs ${
+                        alert.is_read ? 'border-[var(--border-subtle)] bg-white' : 'border-blue-200 bg-blue-50/50'
+                      }`}
+                    >
+                      <div className="font-medium text-[var(--text-main)]">{alert.summary || alert.event_type || 'Alert'}</div>
+                      <div className="mt-0.5 text-[var(--text-muted)]">
+                        {alert.linked_site || alert.linked_stage || 'Project-wide'}
+                        {alert.creation
+                          ? ` • ${new Date(alert.creation).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}`
+                          : ''}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <div className="mb-2 text-xs font-medium text-[var(--text-muted)]">Active Reminders</div>
+              {signal_summary.reminders.length === 0 ? (
+                <p className="text-xs text-[var(--text-muted)]">No project reminders right now.</p>
+              ) : (
+                <div className="space-y-2">
+                  {signal_summary.reminders.slice(0, 4).map((reminder) => (
+                    <div key={reminder.name} className="rounded-lg border border-[var(--border-subtle)] bg-white px-3 py-2 text-xs">
+                      <div className="font-medium text-[var(--text-main)]">{reminder.title || 'Reminder'}</div>
+                      <div className="mt-0.5 text-[var(--text-muted)]">
+                        {(reminder.next_reminder_at || reminder.reminder_datetime)
+                          ? new Date(reminder.next_reminder_at || reminder.reminder_datetime || '').toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+                          : 'No due date'}
+                        {reminder.linked_site ? ` • ${reminder.linked_site}` : reminder.linked_stage ? ` • ${reminder.linked_stage}` : ' • Project-wide'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-header flex items-center gap-2">
+            <History className="h-4 w-4 text-violet-500" />
+            <h4 className="font-semibold text-[var(--text-main)]">Activity & Collaboration</h4>
+          </div>
+          <div className="card-body">
+            <p className="text-sm text-[var(--text-muted)]">
+              Project discussion, workflow comments, mentions, and site-level change history continue in the activity tab so the cockpit stays focused on live operational signals.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Overdue Milestones */}
+      {milestones_summary.overdue_count > 0 && (
+        <div className="card border-amber-200">
+          <div className="card-header flex items-center gap-2 bg-amber-50">
+            <Flag className="h-4 w-4 text-amber-500" />
+            <h4 className="font-semibold text-amber-700">Overdue Milestones ({milestones_summary.overdue_count})</h4>
+          </div>
+          <div className="card-body">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {milestones_summary.overdue.slice(0, 6).map((m) => (
+                <div key={m.name} className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50/50 px-3 py-2 text-xs">
+                  <span className="font-medium text-amber-700">{m.milestone_name || m.name}</span>
+                  <span className="text-amber-500">Due: {m.planned_date}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
    Main Shell
    ═══════════════════════════════════════════════════════════ */
 
@@ -1733,6 +2417,7 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
       {activeTab === 'sites' && <SitesTab sites={deptSites} config={config} wp={wp} />}
       {activeTab === 'board' && <SiteBoardTab sites={deptSites} config={config} wp={wp} />}
       {activeTab === 'milestones' && <MilestonesTab sites={deptSites} projectId={projectId} config={config} />}
+      {activeTab === 'ops' && <OpsTab projectId={projectId} config={config} />}
       {activeTab === 'files' && <FilesTab projectId={projectId} wp={wp} />}
       {activeTab === 'activity' && <ActivityTab projectId={projectId} />}
     </div>
