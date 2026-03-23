@@ -16,6 +16,8 @@ export default function HrOvertimePage() {
         { name: 'employee', label: 'Employee', placeholder: 'Employee ID/name' },
         { name: 'overtime_date', label: 'Date', type: 'date' },
         { name: 'overtime_hours', label: 'Hours', type: 'number', defaultValue: 0 },
+        { name: 'linked_project', label: 'Linked Project', placeholder: 'Project ID' },
+        { name: 'linked_site', label: 'Linked Site', placeholder: 'Site ID' },
         { name: 'remarks', label: 'Remarks', type: 'textarea' },
       ]}
       actions={[
@@ -33,6 +35,7 @@ export default function HrOvertimePage() {
         { key: 'employee', label: 'Employee', render: (row) => row.employee || '-' },
         { key: 'overtime_date', label: 'Date', render: (row) => row.overtime_date || '-' },
         { key: 'overtime_hours', label: 'Hours', render: (row) => row.overtime_hours || '-' },
+        { key: 'context', label: 'Project / Site', render: (row) => `${row.linked_project || '-'} / ${row.linked_site || '-'}` },
         { key: 'overtime_status', label: 'Status', render: (row) => row.overtime_status || row.status || '-' },
       ]}
       emptyMessage="No overtime entries found"

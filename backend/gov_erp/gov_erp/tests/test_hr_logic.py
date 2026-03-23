@@ -1,5 +1,6 @@
 from gov_erp.gov_erp.doctype.ge_employee_onboarding.ge_employee_onboarding import (
 	check_mandatory_documents,
+	get_onboarding_mapping_readiness,
 	map_onboarding_to_employee_dict,
 	validate_aadhar,
 	validate_dob_before_doj,
@@ -152,6 +153,68 @@ def test_empty_docs_list():
 	assert check_mandatory_documents([]) == []
 
 
+# ── Mapping readiness ────────────────────────────────────────
+
+
+def test_mapping_readiness_ready_to_map():
+	onb = OnboardingStub(
+		onboarding_status="APPROVED",
+		employee_name="Rajesh Kumar",
+		company="Technosys",
+		date_of_joining="2026-01-15",
+		employee_reference=None,
+		documents=[DocStub("Aadhar Card", 1, "/files/aadhar.pdf")],
+		education=[object(), object()],
+		experience=[object()],
+	)
+
+	readiness = get_onboarding_mapping_readiness(onb)
+	assert readiness["can_map"] is True
+	assert readiness["missing_documents"] == []
+	assert readiness["missing_fields"] == []
+	assert readiness["blocking_reasons"] == []
+	assert readiness["education_rows"] == 2
+	assert readiness["experience_rows"] == 1
+	assert readiness["document_rows"] == 1
+
+
+def test_mapping_readiness_blocks_missing_fields_and_documents():
+	onb = OnboardingStub(
+		onboarding_status="APPROVED",
+		employee_name="",
+		company="Technosys",
+		date_of_joining=None,
+		employee_reference=None,
+		documents=[DocStub("PAN Card", 1, None)],
+		education=[],
+		experience=[],
+	)
+
+	readiness = get_onboarding_mapping_readiness(onb)
+	assert readiness["can_map"] is False
+	assert "Employee Name" in readiness["missing_fields"]
+	assert "Date Of Joining" in readiness["missing_fields"]
+	assert "PAN Card" in readiness["missing_documents"]
+	assert any("Missing required fields" in reason for reason in readiness["blocking_reasons"])
+	assert any("Missing mandatory documents" in reason for reason in readiness["blocking_reasons"])
+
+
+def test_mapping_readiness_blocks_wrong_status_and_existing_link():
+	onb = OnboardingStub(
+		onboarding_status="UNDER_REVIEW",
+		employee_name="Rajesh Kumar",
+		company="Technosys",
+		date_of_joining="2026-01-15",
+		employee_reference="EMP-0001",
+		documents=[DocStub("Aadhar Card", 1, "/files/aadhar.pdf")],
+	)
+
+	readiness = get_onboarding_mapping_readiness(onb)
+	assert readiness["can_map"] is False
+	assert any("APPROVED" in reason for reason in readiness["blocking_reasons"])
+	assert any("EMP-0001" in reason for reason in readiness["blocking_reasons"])
+
+
 # ── Employee mapping ─────────────────────────────────────────
 
 
@@ -185,7 +248,7 @@ def test_map_onboarding_to_employee_dict():
 	assert result["designation"] == "Security Guard"
 	assert result["gender"] == "Male"
 	assert result["date_of_birth"] == "1990-05-10"
-	assert result["cell_phone"] == "9876543210"
+	assert result["cell_number"] == "9876543210"
 	assert result["personal_email"] == "rajesh@example.com"
 	assert result["current_address"] == "Local addr"
 	assert result["permanent_address"] == "Permanent addr"

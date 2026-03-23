@@ -4,18 +4,51 @@ from frappe.utils import getdate, nowdate
 
 
 VALID_TRANSITIONS = {
-	"PENDING": ["APPROVED", "REJECTED"],
-	"APPROVED": ["IN_TRANSIT"],
-	"IN_TRANSIT": ["RECEIVED_AT_SERVICE_CENTER"],
-	"RECEIVED_AT_SERVICE_CENTER": ["UNDER_REPAIR"],
-	"UNDER_REPAIR": ["REPAIRED", "REPLACED"],
+	"PENDING": {"APPROVED", "REJECTED"},
+	"APPROVED": {"IN_TRANSIT"},
+	"IN_TRANSIT": {"RECEIVED_AT_SERVICE_CENTER"},
+	"RECEIVED_AT_SERVICE_CENTER": {"UNDER_REPAIR"},
+	"UNDER_REPAIR": {"REPAIRED", "REPLACED"},
+	"REPAIRED": {"CLOSED"},
+	"REPLACED": {"CLOSED"},
+	"REJECTED": {"CLOSED", "PENDING"},
+	"CLOSED": set(),
 }
 
 
 class GERMATracker(Document):
 	def validate(self):
+		self._validate_status_transition()
+		self._validate_gating_rules()
 		self._sync_aging_days()
 		self._apply_rma_business_rules()
+
+	def _validate_status_transition(self):
+		if not self.has_value_changed("rma_status"):
+			return
+		old = self.get_doc_before_save()
+		if not old:
+			return
+		old_status = old.rma_status
+		allowed = VALID_TRANSITIONS.get(old_status, set())
+		if self.rma_status not in allowed:
+			frappe.throw(
+				f"Cannot change RMA status from {old_status} to {self.rma_status}. "
+				f"Allowed: {', '.join(sorted(allowed)) or 'none (terminal state)'}"
+			)
+
+	def _validate_gating_rules(self):
+		if not self.has_value_changed("rma_status"):
+			return
+
+		if self.rma_status == "APPROVED" and not self.approved_by_project_head:
+			frappe.throw("Project Head approval is required before marking RMA as APPROVED.")
+
+		if self.rma_status == "REPLACED" and not self.replaced_serial_number:
+			frappe.throw("Replacement serial number is required before marking RMA as REPLACED.")
+
+		if self.rma_status == "CLOSED" and not self.actual_resolution_date:
+			frappe.throw("Actual resolution date is required before closing an RMA.")
 
 	def _sync_aging_days(self):
 		if not self.faulty_date:

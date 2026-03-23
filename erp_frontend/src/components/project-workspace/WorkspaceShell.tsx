@@ -14,10 +14,18 @@ import {
   Search,
   ShieldAlert,
   AlertCircle,
+  Upload,
+  X,
+  Download,
+  Trash2,
+  Clock,
+  ChevronDown,
 } from 'lucide-react';
 import { formatPercent } from '../dashboards/shared';
 import { usePermissions } from '../../context/PermissionContext';
 import { useWorkspacePermissions, WorkspacePermissions } from '../../context/WorkspacePermissionContext';
+import ReminderDrawer from '../reminders/ReminderDrawer';
+import RecordComments from '../collaboration/RecordComments';
 
 /* ═══════════════════════════════════════════════════════════
    Types
@@ -96,9 +104,13 @@ export type ProjectDocument = {
   status?: string;
   linked_project?: string;
   linked_site?: string;
+  file?: string;
   file_url?: string;
-  version?: string;
+  version?: number | string;
   expiry_date?: string;
+  uploaded_by?: string;
+  uploaded_on?: string;
+  remarks?: string;
   owner?: string;
   creation?: string;
   modified?: string;
@@ -145,6 +157,15 @@ async function callOps<T>(method: string, args?: Record<string, unknown>): Promi
     throw new Error(payload.message || 'Failed to load data');
   }
   return (payload.data ?? payload) as T;
+}
+
+function getDocumentExtension(fileUrl?: string) {
+  const cleaned = (fileUrl || '').split('?', 1)[0].trim().toLowerCase();
+  return cleaned.includes('.') ? cleaned.split('.').pop() || '' : '';
+}
+
+function isPreviewableDocument(fileUrl?: string) {
+  return ['pdf', 'jpg', 'jpeg'].includes(getDocumentExtension(fileUrl));
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -229,12 +250,23 @@ function OverviewTab({ detail, config, deptSites, projectId, onTabChange, wp }: 
     : allLanes;
   const isDept = config.departmentKey !== 'all';
 
-  const blockedCount = isDept
-    ? deptSites.filter((s) => s.site_blocked).length
-    : aq.blocked_count;
+  const blockedSites = isDept
+    ? deptSites.filter((s) => s.site_blocked)
+    : detail.sites.filter((s) => s.site_blocked);
+  const blockedCount = blockedSites.length;
   const progressAvg = isDept
     ? (deptSites.reduce((sum, s) => sum + (s.site_progress_pct || 0), 0) / (deptSites.length || 1))
     : (ps.spine_progress_pct || 0);
+
+  // Sites close to or past deadline
+  const overdueSites = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return (isDept ? deptSites : detail.sites).filter((s) => {
+      if (!s.latest_planned_end_date) return false;
+      return new Date(s.latest_planned_end_date) < today;
+    });
+  }, [isDept, deptSites, detail.sites]);
 
   // Stage coverage — filtered to department stages if applicable
   const visibleCoverage = useMemo(() => {
@@ -259,7 +291,7 @@ function OverviewTab({ detail, config, deptSites, projectId, onTabChange, wp }: 
         <button onClick={() => onTabChange('sites')} className="text-left">
           <StatPill label="Blocked" value={blockedCount} tone={blockedCount ? 'error' : 'default'} />
         </button>
-        {!isDept && <StatPill label="Overdue" value={aq.overdue_count} tone={aq.overdue_count ? 'warning' : 'default'} />}
+        {!isDept && <StatPill label="Overdue" value={overdueSites.length} tone={overdueSites.length ? 'warning' : 'default'} />}
         {isDept && <StatPill label="Total Project Sites" value={detail.site_count} />}
       </div>
 
@@ -274,7 +306,7 @@ function OverviewTab({ detail, config, deptSites, projectId, onTabChange, wp }: 
                 ['Company', ps.company],
                 ['Project Head', ps.project_head],
                 ['Project Manager', ps.project_manager_user],
-                ['Current Stage', ps.current_project_stage],
+                ['Current Stage', STAGE_LABELS[ps.current_project_stage || ''] || ps.current_project_stage],
                 ['Stage Status', ps.current_stage_status],
                 ['Owner Dept', ps.current_stage_owner_department],
                 ['Linked Tender', ps.linked_tender],
@@ -328,33 +360,77 @@ function OverviewTab({ detail, config, deptSites, projectId, onTabChange, wp }: 
         </div>
       </div>
 
-      {/* Stage distribution */}
-      {Object.keys(visibleCoverage).length > 0 && (
+      {/* Blocker triage — individual blocked sites with reasons */}
+      {blockedSites.length > 0 && (
         <div>
-          <SectionHeader title="Stage Distribution" subtitle={isDept ? `Stages within ${config.departmentLabel} lane` : 'How sites are distributed across the lifecycle'} />
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
-            {Object.entries(visibleCoverage).map(([stage, count]) => (
-              <div key={stage} className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-4 py-3 text-center">
-                <div className="text-xs font-medium text-[var(--text-muted)]">{stage.replaceAll('_', ' ')}</div>
-                <div className="mt-1 text-xl font-bold text-[var(--text-main)]">{count}</div>
+          <SectionHeader title="Blocked Sites" subtitle={`${blockedSites.length} site${blockedSites.length > 1 ? 's' : ''} need attention`} />
+          <div className="space-y-2">
+            {blockedSites.slice(0, 8).map((site) => (
+              <div key={site.name} className="flex items-center gap-4 rounded-xl border border-rose-200 bg-rose-50/40 px-4 py-2.5">
+                <ShieldAlert className="h-4 w-4 flex-shrink-0 text-rose-500" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                    <span className="text-sm font-medium text-[var(--text-main)]">{site.site_name || site.site_code || site.name}</span>
+                    <span className="rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-semibold text-rose-700">
+                      {STAGE_LABELS[site.current_site_stage || ''] || (site.current_site_stage || 'SURVEY').replaceAll('_', ' ')}
+                    </span>
+                  </div>
+                  {site.blocker_reason && (
+                    <p className="mt-0.5 text-xs text-rose-600">{site.blocker_reason}</p>
+                  )}
+                </div>
+                <div className="text-right text-xs text-[var(--text-muted)] whitespace-nowrap">
+                  {site.current_owner_role ? (site.current_owner_role).replaceAll('_', ' ') : 'Unassigned'}
+                </div>
               </div>
             ))}
+            {blockedSites.length > 8 && (
+              <button onClick={() => onTabChange('sites')} className="text-xs font-medium text-[var(--accent-strong)] hover:underline">
+                View all {blockedSites.length} blocked sites →
+              </button>
+            )}
           </div>
         </div>
       )}
 
-      {/* Department lanes — show all lanes for 'all', highlight own lane for department view */}
+      {/* Stage distribution with human-readable labels and blocked counts */}
+      {Object.keys(visibleCoverage).length > 0 && (
+        <div>
+          <SectionHeader title="Stage Distribution" subtitle={isDept ? `Stages within ${config.departmentLabel} lane` : 'How sites are distributed across the lifecycle'} />
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
+            {Object.entries(visibleCoverage).map(([stage, count]) => {
+              const stageBlocked = (isDept ? deptSites : detail.sites).filter(
+                (s) => (s.current_site_stage || 'SURVEY') === stage && s.site_blocked,
+              ).length;
+              return (
+                <div key={stage} className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-4 py-3 text-center">
+                  <div className="text-xs font-medium text-[var(--text-muted)]">{STAGE_LABELS[stage] || stage.replaceAll('_', ' ')}</div>
+                  <div className="mt-1 text-xl font-bold text-[var(--text-main)]">{count}</div>
+                  {stageBlocked > 0 && (
+                    <div className="mt-1 text-[10px] font-semibold text-rose-600">{stageBlocked} blocked</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Department health — lanes with readiness signals */}
       {lanes.length > 0 && (
         <div>
           <SectionHeader
-            title={isDept ? 'All Department Lanes' : 'Department Lanes'}
-            subtitle="Each department operates on sites within its stage window"
+            title={isDept ? 'All Department Lanes' : 'Department Health'}
+            subtitle="Each department's operational readiness at a glance"
           />
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {lanes.map((lane) => {
               const isOwn = isDept && lane.department === config.departmentKey;
+              const healthTone = lane.blocked_count > 0
+                ? (lane.blocked_count / (lane.site_count || 1) > 0.3 ? 'border-l-rose-500' : 'border-l-amber-400')
+                : (lane.avg_progress_pct >= 50 ? 'border-l-emerald-500' : 'border-l-blue-400');
               return (
-                <div key={lane.department} className={`card ${isOwn ? 'ring-2 ring-[var(--accent)]' : ''}`}>
+                <div key={lane.department} className={`card border-l-4 ${healthTone} ${isOwn ? 'ring-2 ring-[var(--accent)]' : ''}`}>
                   <div className="card-body">
                     <div className="flex items-center justify-between">
                       <h5 className="text-sm font-semibold text-[var(--text-main)]">
@@ -363,10 +439,24 @@ function OverviewTab({ detail, config, deptSites, projectId, onTabChange, wp }: 
                       </h5>
                       <span className="text-xs text-[var(--text-muted)]">{lane.site_count} sites</span>
                     </div>
-                    <div className="mt-2 text-xs text-[var(--text-muted)]">{lane.allowed_stages.join(' → ')}</div>
-                    <div className="mt-3 flex gap-4 text-sm">
-                      <span>Avg {formatPercent(lane.avg_progress_pct || 0)}</span>
-                      {lane.blocked_count > 0 && <span className="text-rose-600">{lane.blocked_count} blocked</span>}
+                    <div className="mt-2 text-xs text-[var(--text-muted)]">
+                      {lane.allowed_stages.map((s) => STAGE_LABELS[s] || s).join(' → ')}
+                    </div>
+                    <div className="mt-3 flex items-center gap-2">
+                      <div className="h-1.5 flex-1 rounded-full bg-gray-200">
+                        <div className="h-1.5 rounded-full bg-emerald-500 transition-all" style={{ width: `${Math.min(lane.avg_progress_pct || 0, 100)}%` }} />
+                      </div>
+                      <span className="text-xs font-medium text-[var(--text-muted)]">{formatPercent(lane.avg_progress_pct || 0)}</span>
+                    </div>
+                    <div className="mt-2 flex gap-4 text-xs">
+                      {lane.blocked_count > 0 && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 font-medium text-rose-600">
+                          <ShieldAlert className="h-3 w-3" />{lane.blocked_count} blocked
+                        </span>
+                      )}
+                      {lane.blocked_count === 0 && lane.site_count > 0 && (
+                        <span className="inline-flex items-center gap-1 text-emerald-600 font-medium">Clear</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -446,11 +536,13 @@ function RecentActivityPreview({ projectId, onViewAll }: { projectId: string; on
    Sites Tab
    ═══════════════════════════════════════════════════════════ */
 
-function SitesTab({ sites, config }: { sites: SiteRow[]; config: DepartmentConfig }) {
+function SitesTab({ sites, config, wp }: { sites: SiteRow[]; config: DepartmentConfig; wp: WorkspacePermissions | null }) {
   const [search, setSearch] = useState('');
   const [stageFilter, setStageFilter] = useState('');
+  const [blockedOnly, setBlockedOnly] = useState(false);
 
   const stages = useMemo(() => [...new Set(sites.map((s) => s.current_site_stage || 'SURVEY'))].sort(), [sites]);
+  const totalBlocked = useMemo(() => sites.filter((s) => s.site_blocked).length, [sites]);
 
   const filtered = useMemo(() => {
     let result = sites;
@@ -460,16 +552,32 @@ function SitesTab({ sites, config }: { sites: SiteRow[]; config: DepartmentConfi
         (s) =>
           (s.site_name || '').toLowerCase().includes(q) ||
           (s.site_code || '').toLowerCase().includes(q) ||
-          (s.name || '').toLowerCase().includes(q),
+          (s.name || '').toLowerCase().includes(q) ||
+          (s.blocker_reason || '').toLowerCase().includes(q),
       );
     }
     if (stageFilter) {
       result = result.filter((s) => (s.current_site_stage || 'SURVEY') === stageFilter);
     }
+    if (blockedOnly) {
+      result = result.filter((s) => s.site_blocked);
+    }
     return result;
-  }, [sites, search, stageFilter]);
+  }, [sites, search, stageFilter, blockedOnly]);
 
   const isDept = config.departmentKey !== 'all';
+
+  // Deadline urgency helper
+  const deadlineUrgency = (dateStr?: string): 'overdue' | 'soon' | 'normal' | null => {
+    if (!dateStr) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const target = new Date(dateStr);
+    const diff = Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (diff < 0) return 'overdue';
+    if (diff <= 7) return 'soon';
+    return 'normal';
+  };
 
   return (
     <div className="space-y-4">
@@ -495,9 +603,21 @@ function SitesTab({ sites, config }: { sites: SiteRow[]; config: DepartmentConfi
           >
             <option value="">All Stages</option>
             {stages.map((s) => (
-              <option key={s} value={s}>{s.replaceAll('_', ' ')}</option>
+              <option key={s} value={s}>{STAGE_LABELS[s] || s.replaceAll('_', ' ')}</option>
             ))}
           </select>
+          {totalBlocked > 0 && (
+            <button
+              onClick={() => setBlockedOnly(!blockedOnly)}
+              className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
+                blockedOnly
+                  ? 'bg-rose-100 text-rose-700 border border-rose-200'
+                  : 'bg-white text-[var(--text-muted)] border border-[var(--border-subtle)] hover:border-rose-200 hover:text-rose-600'
+              }`}
+            >
+              <ShieldAlert className="mr-1 inline h-3.5 w-3.5" />{totalBlocked} Blocked
+            </button>
+          )}
         </div>
       </div>
 
@@ -510,28 +630,30 @@ function SitesTab({ sites, config }: { sites: SiteRow[]; config: DepartmentConfi
               <tr>
                 <th className="px-4 py-3 font-medium">Site</th>
                 <th className="px-4 py-3 font-medium">Stage</th>
-                <th className="px-4 py-3 font-medium">Dept Lane</th>
+                {!isDept && <th className="px-4 py-3 font-medium">Dept Lane</th>}
                 <th className="px-4 py-3 font-medium">Progress</th>
                 <th className="px-4 py-3 font-medium">Milestones</th>
                 <th className="px-4 py-3 font-medium">Owner</th>
-                <th className="px-4 py-3 font-medium">Target Date</th>
+                <th className="px-4 py-3 font-medium">Deadline</th>
                 <th className="px-4 py-3 font-medium">Last Updated</th>
                 <th className="px-4 py-3 font-medium">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border-subtle)]">
-              {filtered.map((site) => (
-                <tr key={site.name} className="hover:bg-[var(--surface-raised)]/60">
+              {filtered.map((site) => {
+                const urgency = deadlineUrgency(site.latest_planned_end_date);
+                return (
+                <tr key={site.name} className={`hover:bg-[var(--surface-raised)]/60 ${site.site_blocked ? 'bg-rose-50/30' : ''}`}>
                   <td className="px-4 py-3">
                     <div className="font-medium text-[var(--text-main)]">{site.site_name || site.site_code || site.name}</div>
                     {site.site_code && site.site_name && <div className="text-xs text-[var(--text-muted)]">{site.site_code}</div>}
                   </td>
                   <td className="px-4 py-3">
                     <span className="inline-block rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
-                      {(site.current_site_stage || 'SURVEY').replaceAll('_', ' ')}
+                      {STAGE_LABELS[site.current_site_stage || 'SURVEY'] || (site.current_site_stage || 'SURVEY').replaceAll('_', ' ')}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-[var(--text-muted)]">{(site.department_lane || '-').replaceAll('_', ' ')}</td>
+                  {!isDept && <td className="px-4 py-3 text-[var(--text-muted)]">{(site.department_lane || '-').replaceAll('_', ' ')}</td>}
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <div className="h-2 w-20 rounded-full bg-gray-200">
@@ -547,22 +669,42 @@ function SitesTab({ sites, config }: { sites: SiteRow[]; config: DepartmentConfi
                     <div className="text-[var(--text-main)]">{(site.current_owner_role || '-').replaceAll('_', ' ')}</div>
                     <div className="text-xs text-[var(--text-muted)]">{site.current_owner_user || 'Unassigned'}</div>
                   </td>
-                  <td className="px-4 py-3 text-[var(--text-muted)]">{site.latest_planned_end_date || '-'}</td>
+                  <td className="px-4 py-3">
+                    {site.latest_planned_end_date ? (
+                      <span className={`text-xs font-medium ${
+                        urgency === 'overdue' ? 'text-rose-600' :
+                        urgency === 'soon' ? 'text-amber-600' :
+                        'text-[var(--text-muted)]'
+                      }`}>
+                        {new Date(site.latest_planned_end_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        {urgency === 'overdue' && <span className="ml-1 rounded bg-rose-100 px-1 py-0.5 text-[10px]">Overdue</span>}
+                        {urgency === 'soon' && <span className="ml-1 rounded bg-amber-100 px-1 py-0.5 text-[10px]">This week</span>}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-[var(--text-muted)]">-</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-[var(--text-muted)]">
                     {site.modified
-                      ? new Date(site.modified).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                      ? new Date(site.modified).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
                       : site.latest_dpr_date || '-'
                     }
                   </td>
                   <td className="px-4 py-3">
                     {site.site_blocked ? (
-                      <span className="inline-block rounded-lg bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700">Blocked</span>
+                      <div>
+                        <span className="inline-block rounded-lg bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700">Blocked</span>
+                        {site.blocker_reason && (
+                          <p className="mt-1 max-w-[180px] truncate text-[10px] text-rose-500" title={site.blocker_reason}>{site.blocker_reason}</p>
+                        )}
+                      </div>
                     ) : (
                       <span className="inline-block rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">{site.status || 'Active'}</span>
                     )}
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -575,72 +717,398 @@ function SitesTab({ sites, config }: { sites: SiteRow[]; config: DepartmentConfi
    Files Tab
    ═══════════════════════════════════════════════════════════ */
 
+const DOC_CATEGORIES = ['All', 'Survey', 'Engineering', 'Procurement', 'Execution', 'O&M', 'Finance', 'HR', 'Other'] as const;
+
+function ExpiryBadge({ expiryDate }: { expiryDate?: string }) {
+  if (!expiryDate) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const expiry = new Date(expiryDate);
+  const diffDays = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) {
+    return <span className="inline-flex items-center gap-1 rounded-lg bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-700"><Clock className="h-3 w-3" />Expired</span>;
+  }
+  if (diffDays <= 7) {
+    return <span className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700"><Clock className="h-3 w-3" />{diffDays}d left</span>;
+  }
+  if (diffDays <= 30) {
+    return <span className="inline-flex items-center gap-1 rounded-lg bg-yellow-50 px-2 py-0.5 text-[10px] font-semibold text-yellow-700">{diffDays}d left</span>;
+  }
+  return <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">{new Date(expiryDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>;
+}
+
 function FilesTab({ projectId, wp }: { projectId: string; wp: WorkspacePermissions | null }) {
   const canUpload = wp?.can_upload_files ?? true;
   const canDelete = wp?.can_delete_files ?? false;
   const [docs, setDocs] = useState<ProjectDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [activeCategory, setActiveCategory] = useState<string>('All');
+  const [showUpload, setShowUpload] = useState(false);
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const [uploadForm, setUploadForm] = useState({ document_name: '', category: 'Engineering', linked_site: '', expiry_date: '', remarks: '' });
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<ProjectDocument | null>(null);
 
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      setLoading(true);
-      try {
-        const data = await callOps<ProjectDocument[]>('get_project_documents', { project: projectId });
-        if (active) setDocs(data);
-      } catch (err) {
-        if (active) setError(err instanceof Error ? err.message : 'Failed to load documents');
-      } finally {
-        if (active) setLoading(false);
+  // Version drawer state
+  const [versionDoc, setVersionDoc] = useState<ProjectDocument | null>(null);
+  const [versions, setVersions] = useState<ProjectDocument[]>([]);
+  const [versionsLoading, setVersionsLoading] = useState(false);
+
+  const loadDocs = async () => {
+    setLoading(true);
+    try {
+      const data = await callOps<ProjectDocument[]>('get_project_documents', { project: projectId });
+      setDocs(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load documents');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { loadDocs(); }, [projectId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const filtered = activeCategory === 'All' ? docs : docs.filter(d => d.category === activeCategory);
+
+  // Group docs by document_name to detect multi-version docs
+  const versionCounts = docs.reduce<Record<string, number>>((acc, d) => {
+    const key = `${d.document_name || d.name}::${d.linked_site || ''}`;
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+
+  const handleUpload = async () => {
+    if (!uploadForm.document_name.trim() || !uploadFile) return;
+    setUploadBusy(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', uploadFile);
+      formData.append('document_name', uploadForm.document_name.trim());
+      formData.append('linked_project', projectId);
+      formData.append('category', uploadForm.category);
+      if (uploadForm.linked_site) formData.append('linked_site', uploadForm.linked_site);
+      if (uploadForm.expiry_date) formData.append('expiry_date', uploadForm.expiry_date);
+      if (uploadForm.remarks) formData.append('remarks', uploadForm.remarks);
+      const res = await fetch('/api/documents/upload', { method: 'POST', body: formData });
+      const payload = await res.json();
+      if (!res.ok || payload.success === false) {
+        setError(payload.message || 'Upload failed');
+      } else {
+        setUploadForm({ document_name: '', category: 'Engineering', linked_site: '', expiry_date: '', remarks: '' });
+        setUploadFile(null);
+        setShowUpload(false);
+        loadDocs();
       }
-    })();
-    return () => { active = false; };
-  }, [projectId]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setUploadBusy(false);
+    }
+  };
+
+  const handleDelete = async (name: string) => {
+    try {
+      await callOps('delete_project_document', { name });
+      loadDocs();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Delete failed');
+    }
+  };
+
+  const openVersions = async (doc: ProjectDocument) => {
+    setVersionDoc(doc);
+    setVersionsLoading(true);
+    try {
+      const res = await fetch(`/api/documents/versions?name=${encodeURIComponent(doc.name)}`);
+      const payload = await res.json();
+      setVersions(payload.data || []);
+    } catch {
+      setVersions([]);
+    } finally {
+      setVersionsLoading(false);
+    }
+  };
 
   if (loading) return <div className="flex items-center justify-center py-16 text-[var(--text-muted)]"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading documents...</div>;
-  if (error) return <p className="py-12 text-center text-sm text-rose-600">{error}</p>;
-  if (!docs.length) return <p className="py-12 text-center text-sm text-[var(--text-muted)]">No documents are linked to this project yet.</p>;
+  if (error && !docs.length) return <p className="py-12 text-center text-sm text-rose-600">{error}</p>;
+
+  const expiringCount = docs.filter(d => {
+    if (!d.expiry_date) return false;
+    const diff = Math.ceil((new Date(d.expiry_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    return diff <= 30 && diff >= 0;
+  }).length;
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-[var(--border-subtle)]">
-      <table className="min-w-full text-left text-sm">
-        <thead className="bg-[var(--surface-raised)] text-[var(--text-muted)]">
-          <tr>
-            <th className="px-4 py-3 font-medium">Document</th>
-            <th className="px-4 py-3 font-medium">Category</th>
-            <th className="px-4 py-3 font-medium">Site</th>
-            <th className="px-4 py-3 font-medium">Version</th>
-            <th className="px-4 py-3 font-medium">Status</th>
-            <th className="px-4 py-3 font-medium">Uploaded By</th>
-            <th className="px-4 py-3 font-medium">Date</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-[var(--border-subtle)]">
-          {docs.map((doc) => (
-            <tr key={doc.name} className="hover:bg-[var(--surface-raised)]/60">
-              <td className="px-4 py-3">
-                <div className="font-medium text-[var(--text-main)]">{doc.document_name || doc.name}</div>
-                {doc.file_url && (
-                  <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">
-                    View file
-                  </a>
-                )}
-              </td>
-              <td className="px-4 py-3 text-[var(--text-muted)]">{doc.category || '-'}</td>
-              <td className="px-4 py-3 text-[var(--text-muted)]">{doc.linked_site || 'Project-level'}</td>
-              <td className="px-4 py-3 text-[var(--text-muted)]">{doc.version || '-'}</td>
-              <td className="px-4 py-3">
-                <span className="inline-block rounded-lg bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
-                  {doc.status || 'Active'}
-                </span>
-              </td>
-              <td className="px-4 py-3 text-[var(--text-muted)]">{doc.owner || '-'}</td>
-              <td className="px-4 py-3 text-[var(--text-muted)]">{doc.creation ? new Date(doc.creation).toLocaleDateString('en-IN') : '-'}</td>
-            </tr>
+    <div className="space-y-4">
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {/* Category filter pills */}
+        <div className="flex flex-wrap gap-1.5">
+          {DOC_CATEGORIES.map(cat => (
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(cat)}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                activeCategory === cat
+                  ? 'bg-[var(--brand-orange)] text-white'
+                  : 'bg-[var(--surface-raised)] text-[var(--text-muted)] hover:bg-[var(--border-subtle)]'
+              }`}
+            >
+              {cat}
+            </button>
           ))}
-        </tbody>
-      </table>
+        </div>
+        <div className="flex items-center gap-2">
+          {expiringCount > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
+              <AlertCircle className="h-3.5 w-3.5" />{expiringCount} expiring
+            </span>
+          )}
+          {canUpload && (
+            <button onClick={() => setShowUpload(!showUpload)} className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--brand-orange)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 transition-opacity">
+              <Upload className="h-3.5 w-3.5" /> Upload
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Upload form */}
+      {showUpload && (
+        <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-semibold text-[var(--text-main)]">Upload Document</h4>
+            <button onClick={() => setShowUpload(false)} className="text-[var(--text-muted)] hover:text-[var(--text-main)]"><X className="h-4 w-4" /></button>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <label className="mb-1 block text-xs text-[var(--text-muted)]">Document Name *</label>
+              <input
+                type="text"
+                value={uploadForm.document_name}
+                onChange={e => setUploadForm(f => ({ ...f, document_name: e.target.value }))}
+                className="w-full rounded-lg border border-[var(--border-subtle)] bg-white px-3 py-1.5 text-sm text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-orange)]"
+                placeholder="e.g. Site Survey Report"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-[var(--text-muted)]">File *</label>
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg"
+                onChange={e => setUploadFile(e.target.files?.[0] || null)}
+                className="w-full rounded-lg border border-[var(--border-subtle)] bg-white px-3 py-1.5 text-sm text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-orange)] file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--brand-orange)] file:px-3 file:py-1 file:text-xs file:font-medium file:text-white"
+              />
+              {uploadFile && <p className="mt-1 text-xs text-[var(--text-muted)]">{uploadFile.name} ({(uploadFile.size / 1024).toFixed(1)} KB)</p>}
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-[var(--text-muted)]">Category *</label>
+              <select
+                value={uploadForm.category}
+                onChange={e => setUploadForm(f => ({ ...f, category: e.target.value }))}
+                className="w-full rounded-lg border border-[var(--border-subtle)] bg-white px-3 py-1.5 text-sm text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-orange)]"
+              >
+                {DOC_CATEGORIES.filter(c => c !== 'All').map(cat => <option key={cat} value={cat}>{cat}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-[var(--text-muted)]">Site (optional)</label>
+              <input
+                type="text"
+                value={uploadForm.linked_site}
+                onChange={e => setUploadForm(f => ({ ...f, linked_site: e.target.value }))}
+                className="w-full rounded-lg border border-[var(--border-subtle)] bg-white px-3 py-1.5 text-sm text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-orange)]"
+                placeholder="Site name or ID"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-[var(--text-muted)]">Expiry Date (optional)</label>
+              <input
+                type="date"
+                value={uploadForm.expiry_date}
+                onChange={e => setUploadForm(f => ({ ...f, expiry_date: e.target.value }))}
+                className="w-full rounded-lg border border-[var(--border-subtle)] bg-white px-3 py-1.5 text-sm text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-orange)]"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-xs text-[var(--text-muted)]">Remarks</label>
+              <input
+                type="text"
+                value={uploadForm.remarks}
+                onChange={e => setUploadForm(f => ({ ...f, remarks: e.target.value }))}
+                className="w-full rounded-lg border border-[var(--border-subtle)] bg-white px-3 py-1.5 text-sm text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-orange)]"
+                placeholder="Optional notes"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <button onClick={handleUpload} disabled={uploadBusy || !uploadForm.document_name.trim() || !uploadForm.category.trim() || !uploadFile} className="rounded-xl bg-[var(--brand-orange)] px-4 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50 transition-opacity">
+              {uploadBusy ? 'Uploading...' : 'Upload Document'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {error && <p className="text-xs text-rose-600">{error}</p>}
+
+      {/* Documents table */}
+      {!filtered.length ? (
+        <p className="py-12 text-center text-sm text-[var(--text-muted)]">
+          {activeCategory !== 'All' ? `No ${activeCategory} documents found.` : 'No documents are linked to this project yet.'}
+        </p>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-[var(--border-subtle)]">
+          <table className="min-w-full text-left text-sm">
+            <thead className="bg-[var(--surface-raised)] text-[var(--text-muted)]">
+              <tr>
+                <th className="px-4 py-3 font-medium">Document</th>
+                <th className="px-4 py-3 font-medium">Category</th>
+                <th className="px-4 py-3 font-medium">Site</th>
+                <th className="px-4 py-3 font-medium">Version</th>
+                <th className="px-4 py-3 font-medium">Expiry</th>
+                <th className="px-4 py-3 font-medium">Uploaded By</th>
+                <th className="px-4 py-3 font-medium">Date</th>
+                <th className="px-4 py-3 font-medium w-20"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--border-subtle)]">
+              {filtered.map((doc) => {
+                const hasVersions = (versionCounts[`${doc.document_name || doc.name}::${doc.linked_site || ''}`] || 0) > 1;
+                return (
+                  <tr key={doc.name} className="hover:bg-[var(--surface-raised)]/60">
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-[var(--text-main)]">{doc.document_name || doc.name}</div>
+                      {(doc.file_url || doc.file) && (
+                        <div className="flex items-center gap-3">
+                          {isPreviewableDocument(doc.file_url || doc.file) ? (
+                            <button
+                              onClick={() => setPreviewDoc(doc)}
+                              className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                            >
+                              <FileText className="h-3 w-3" />Preview
+                            </button>
+                          ) : null}
+                          <a href={doc.file_url || doc.file} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline">
+                            <Download className="h-3 w-3" />{isPreviewableDocument(doc.file_url || doc.file) ? 'Open' : 'Download'}
+                          </a>
+                        </div>
+                      )}
+                      {doc.remarks && <div className="mt-0.5 text-[11px] text-[var(--text-muted)] italic">{doc.remarks}</div>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="inline-block rounded-lg bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">{doc.category || '-'}</span>
+                    </td>
+                    <td className="px-4 py-3 text-[var(--text-muted)]">{doc.linked_site || 'Project-level'}</td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => openVersions(doc)}
+                        className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-medium transition-colors ${
+                          hasVersions
+                            ? 'bg-violet-50 text-violet-700 hover:bg-violet-100 cursor-pointer'
+                            : 'bg-gray-50 text-gray-600'
+                        }`}
+                      >
+                        v{doc.version || 1}
+                        {hasVersions && <ChevronDown className="h-3 w-3" />}
+                      </button>
+                    </td>
+                    <td className="px-4 py-3"><ExpiryBadge expiryDate={doc.expiry_date} /></td>
+                    <td className="px-4 py-3 text-[var(--text-muted)]">{doc.uploaded_by || doc.owner || '-'}</td>
+                    <td className="px-4 py-3 text-[var(--text-muted)]">{doc.creation ? new Date(doc.creation).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}</td>
+                    <td className="px-4 py-3">
+                      {canDelete && (
+                        <button
+                          onClick={() => handleDelete(doc.name)}
+                          className="rounded-lg p-1 text-[var(--text-muted)] hover:bg-rose-50 hover:text-rose-600 transition-colors"
+                          title="Delete document"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Version History Drawer */}
+      {versionDoc && (
+        <div className="fixed inset-0 z-50 flex justify-end" onClick={() => setVersionDoc(null)}>
+          <div className="absolute inset-0 bg-black/30" />
+          <div className="relative w-full max-w-md bg-white shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-5 py-4">
+              <div>
+                <h3 className="text-sm font-semibold text-[var(--text-main)]">Version History</h3>
+                <p className="text-xs text-[var(--text-muted)]">{versionDoc.document_name}</p>
+              </div>
+              <button onClick={() => setVersionDoc(null)} className="rounded-lg p-1 hover:bg-[var(--surface-raised)]"><X className="h-4 w-4" /></button>
+            </div>
+            <div className="overflow-y-auto p-5" style={{ maxHeight: 'calc(100vh - 80px)' }}>
+              {versionsLoading ? (
+                <div className="flex items-center justify-center py-12 text-[var(--text-muted)]"><Loader2 className="mr-2 h-5 w-5 animate-spin" />Loading...</div>
+              ) : !versions.length ? (
+                <p className="py-8 text-center text-sm text-[var(--text-muted)]">No version history found.</p>
+              ) : (
+                <div className="space-y-3">
+                  {versions.map((v, i) => (
+                    <div key={v.name} className={`rounded-xl border p-3 ${i === 0 ? 'border-violet-200 bg-violet-50/50' : 'border-[var(--border-subtle)]'}`}>
+                      <div className="flex items-center justify-between">
+                        <span className={`inline-block rounded-lg px-2 py-0.5 text-xs font-semibold ${i === 0 ? 'bg-violet-100 text-violet-800' : 'bg-gray-100 text-gray-600'}`}>
+                          v{v.version}{i === 0 ? ' (latest)' : ''}
+                        </span>
+                        {(v.file_url || v.file) && (
+                          <div className="flex items-center gap-3">
+                            {isPreviewableDocument(v.file_url || v.file) ? (
+                              <button
+                                onClick={() => setPreviewDoc(v)}
+                                className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                              >
+                                <FileText className="h-3 w-3" />Preview
+                              </button>
+                            ) : null}
+                            <a href={v.file_url || v.file} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline">
+                              <Download className="h-3 w-3" />{isPreviewableDocument(v.file_url || v.file) ? 'Open' : 'Download'}
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                      <div className="mt-2 space-y-1 text-xs text-[var(--text-muted)]">
+                        <div>Uploaded by: {v.uploaded_by || '-'}</div>
+                        <div>{v.uploaded_on ? new Date(v.uploaded_on).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : v.creation ? new Date(v.creation).toLocaleString('en-IN') : '-'}</div>
+                        {v.remarks && <div className="italic">{v.remarks}</div>}
+                        {v.expiry_date && <div className="flex items-center gap-1"><ExpiryBadge expiryDate={v.expiry_date} /></div>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      {previewDoc && (previewDoc.file_url || previewDoc.file) && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={() => setPreviewDoc(null)}>
+          <div className="w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-5 py-4">
+              <div>
+                <h3 className="text-sm font-semibold text-[var(--text-main)]">{previewDoc.document_name || previewDoc.name}</h3>
+                <p className="text-xs text-[var(--text-muted)]">{previewDoc.category || 'Document'}</p>
+              </div>
+              <button onClick={() => setPreviewDoc(null)} className="rounded-lg p-1 hover:bg-[var(--surface-raised)]"><X className="h-4 w-4" /></button>
+            </div>
+            <div className="h-[75vh] bg-[var(--surface-raised)]">
+              {getDocumentExtension(previewDoc.file_url || previewDoc.file) === 'pdf' ? (
+                <iframe title={previewDoc.document_name || previewDoc.name} src={previewDoc.file_url || previewDoc.file} className="h-full w-full" />
+              ) : (
+                <img src={previewDoc.file_url || previewDoc.file} alt={previewDoc.document_name || previewDoc.name} className="h-full w-full object-contain" />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -649,10 +1117,19 @@ function FilesTab({ projectId, wp }: { projectId: string; wp: WorkspacePermissio
    Activity Tab
    ═══════════════════════════════════════════════════════════ */
 
+const ACTIVITY_FILTERS = [
+  { key: 'all', label: 'All' },
+  { key: 'version', label: 'Updates' },
+  { key: 'comment', label: 'Comments' },
+  { key: 'site_comment', label: 'Sites' },
+  { key: 'workflow', label: 'Workflow' },
+] as const;
+
 function ActivityTab({ projectId }: { projectId: string }) {
   const [entries, setEntries] = useState<ActivityEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
 
   useEffect(() => {
     let active = true;
@@ -670,32 +1147,105 @@ function ActivityTab({ projectId }: { projectId: string }) {
     return () => { active = false; };
   }, [projectId]);
 
+  const filtered = typeFilter === 'all' ? entries : entries.filter((e) => e.type === typeFilter);
+
+  // Count per type for filter badges
+  const typeCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const e of entries) counts[e.type] = (counts[e.type] || 0) + 1;
+    return counts;
+  }, [entries]);
+
   if (loading) return <div className="flex items-center justify-center py-16 text-[var(--text-muted)]"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading activity...</div>;
   if (error) return <p className="py-12 text-center text-sm text-rose-600">{error}</p>;
   if (!entries.length) return <p className="py-12 text-center text-sm text-[var(--text-muted)]">No activity recorded for this project yet.</p>;
 
   const typeLabel: Record<string, string> = { version: 'Update', comment: 'Comment', site_comment: 'Site', workflow: 'Workflow' };
   const typeBg: Record<string, string> = { version: 'bg-blue-50 text-blue-700', comment: 'bg-violet-50 text-violet-700', site_comment: 'bg-amber-50 text-amber-700', workflow: 'bg-emerald-50 text-emerald-700' };
+  const typeIcon: Record<string, string> = { version: '🔄', comment: '💬', site_comment: '📍', workflow: '⚡' };
 
   return (
-    <div className="space-y-3">
-      {entries.map((entry, idx) => (
-        <div key={`${entry.type}-${entry.timestamp}-${idx}`} className="flex gap-4 rounded-xl border border-[var(--border-subtle)] bg-white px-4 py-3">
-          <div className="pt-0.5">
+    <div className="space-y-6">
+      {/* Project Discussion */}
+      <RecordComments referenceDoctype="Project" referenceName={projectId} />
+
+      {/* Type filter tabs */}
+      <div className="flex flex-wrap items-center gap-1.5 border-b border-[var(--border-subtle)] pb-3">
+        {ACTIVITY_FILTERS.map(({ key, label }) => {
+          const active = typeFilter === key;
+          const count = key === 'all' ? entries.length : (typeCounts[key] || 0);
+          if (key !== 'all' && count === 0) return null;
+          return (
+            <button
+              key={key}
+              onClick={() => setTypeFilter(key)}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                active
+                  ? 'bg-[var(--brand-orange)] text-white'
+                  : 'bg-[var(--surface-raised)] text-[var(--text-muted)] hover:bg-[var(--border-subtle)]'
+              }`}
+            >
+              {label}
+              <span className={`ml-1 ${active ? 'opacity-80' : 'opacity-60'}`}>{count}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Activity Feed */}
+      <div className="space-y-2">
+      {filtered.map((entry, idx) => {
+        const isWorkflow = entry.type === 'workflow';
+        const isApproval = isWorkflow && (entry.action === 'approve' || entry.action === 'submit');
+        const isReject = isWorkflow && (entry.action === 'reject' || entry.action === 'block');
+
+        return (
+        <div
+          key={`${entry.type}-${entry.timestamp}-${idx}`}
+          className={`flex gap-4 rounded-xl border px-4 py-3 ${
+            isReject ? 'border-rose-200 bg-rose-50/30' :
+            isApproval ? 'border-emerald-200 bg-emerald-50/30' :
+            'border-[var(--border-subtle)] bg-white'
+          }`}
+        >
+          <div className="pt-0.5 flex-shrink-0">
             <span className={`inline-block rounded-lg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${typeBg[entry.type] || 'bg-gray-100 text-gray-600'}`}>
-              {typeLabel[entry.type] || entry.type}
+              {typeIcon[entry.type] || ''} {typeLabel[entry.type] || entry.type}
             </span>
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm text-[var(--text-main)]">{entry.summary}</p>
             <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--text-muted)]">
-              <span>{entry.actor}</span>
+              <span className="font-medium">{entry.actor}</span>
               <span>{entry.timestamp ? new Date(entry.timestamp).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}</span>
-              {entry.ref_doctype === 'GE Site' && <span>Site: {entry.ref_name}</span>}
+              {entry.ref_doctype === 'GE Site' && (
+                <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
+                  Site: {entry.ref_name}
+                </span>
+              )}
+              {isWorkflow && entry.stage && (
+                <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+                  {STAGE_LABELS[entry.stage] || entry.stage}
+                </span>
+              )}
             </div>
+            {entry.type === 'version' && entry.detail && entry.detail.length > 0 && (
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                {entry.detail.slice(0, 5).map((field) => (
+                  <span key={field} className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] text-blue-600">{field}</span>
+                ))}
+                {entry.detail.length > 5 && <span className="text-[10px] text-[var(--text-muted)]">+{entry.detail.length - 5} more</span>}
+              </div>
+            )}
           </div>
         </div>
-      ))}
+        );
+      })}
+      </div>
+
+      {filtered.length === 0 && entries.length > 0 && (
+        <p className="py-8 text-center text-sm text-[var(--text-muted)]">No {typeFilter} entries found.</p>
+      )}
     </div>
   );
 }
@@ -716,7 +1266,7 @@ const STAGE_COLUMN_COLORS: Record<string, string> = {
   CLOSED: 'border-t-gray-400',
 };
 
-function SiteBoardTab({ sites, config }: { sites: SiteRow[]; config: DepartmentConfig }) {
+function SiteBoardTab({ sites, config, wp }: { sites: SiteRow[]; config: DepartmentConfig; wp: WorkspacePermissions | null }) {
   const visibleStages = config.allowedStages || SPINE_STAGES;
 
   const columns = useMemo(() => {
@@ -726,52 +1276,93 @@ function SiteBoardTab({ sites, config }: { sites: SiteRow[]; config: DepartmentC
       const stage = site.current_site_stage || 'SURVEY';
       if (grouped[stage]) grouped[stage].push(site);
     }
-    return visibleStages.map((stage) => ({
-      stage,
-      label: STAGE_LABELS[stage] || stage.replaceAll('_', ' '),
-      sites: grouped[stage] || [],
-    }));
+    return visibleStages.map((stage) => {
+      const colSites = grouped[stage] || [];
+      return {
+        stage,
+        label: STAGE_LABELS[stage] || stage.replaceAll('_', ' '),
+        sites: colSites,
+        blockedCount: colSites.filter((s) => s.site_blocked).length,
+      };
+    });
   }, [sites, visibleStages]);
 
   if (!sites.length) {
     return <p className="py-12 text-center text-sm text-[var(--text-muted)]">No sites to display on the board.</p>;
   }
 
+  // Deadline urgency helper
+  const deadlineUrgency = (dateStr?: string): 'overdue' | 'soon' | null => {
+    if (!dateStr) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diff = Math.ceil((new Date(dateStr).getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (diff < 0) return 'overdue';
+    if (diff <= 7) return 'soon';
+    return null;
+  };
+
   return (
     <div className="space-y-4">
-      <p className="text-sm text-[var(--text-muted)]">
-        {sites.length} sites grouped by lifecycle stage
-        {config.departmentKey !== 'all' ? ` (${config.departmentLabel} lane)` : ''}
-      </p>
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-[var(--text-muted)]">
+          {sites.length} sites grouped by lifecycle stage
+          {config.departmentKey !== 'all' ? ` (${config.departmentLabel} lane)` : ''}
+        </p>
+        <p className="text-[11px] text-[var(--text-muted)]">Read-only board — stage transitions via site workflow</p>
+      </div>
       <div className="flex gap-3 overflow-x-auto pb-4">
-        {columns.map(({ stage, label, sites: colSites }) => (
+        {columns.map(({ stage, label, sites: colSites, blockedCount }) => (
           <div
             key={stage}
-            className={`flex w-64 flex-shrink-0 flex-col rounded-xl border border-[var(--border-subtle)] border-t-4 bg-white ${STAGE_COLUMN_COLORS[stage] || 'border-t-gray-300'}`}
+            className={`flex w-72 flex-shrink-0 flex-col rounded-xl border border-[var(--border-subtle)] border-t-4 bg-white ${STAGE_COLUMN_COLORS[stage] || 'border-t-gray-300'}`}
           >
             {/* Column header */}
             <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-3 py-2.5">
               <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-main)]">{label}</h4>
-              <span className="rounded-full bg-[var(--surface-raised)] px-2 py-0.5 text-[10px] font-semibold text-[var(--text-muted)]">
-                {colSites.length}
-              </span>
+              <div className="flex items-center gap-1.5">
+                {blockedCount > 0 && (
+                  <span className="rounded-full bg-rose-50 px-1.5 py-0.5 text-[10px] font-semibold text-rose-600">
+                    {blockedCount} blocked
+                  </span>
+                )}
+                <span className="rounded-full bg-[var(--surface-raised)] px-2 py-0.5 text-[10px] font-semibold text-[var(--text-muted)]">
+                  {colSites.length}
+                </span>
+              </div>
             </div>
             {/* Cards */}
             <div className="flex flex-1 flex-col gap-2 p-2" style={{ minHeight: '5rem' }}>
               {colSites.length === 0 && (
                 <p className="py-4 text-center text-[11px] text-[var(--text-muted)]">No sites</p>
               )}
-              {colSites.map((site) => (
+              {colSites.map((site) => {
+                const urgency = deadlineUrgency(site.latest_planned_end_date);
+                return (
                 <div
                   key={site.name}
-                  className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-3 py-2.5 text-sm"
+                  className={`rounded-lg border px-3 py-2.5 text-sm ${
+                    site.site_blocked
+                      ? 'border-rose-200 bg-rose-50/50'
+                      : 'border-[var(--border-subtle)] bg-[var(--surface-raised)]'
+                  }`}
                 >
-                  <div className="font-medium text-[var(--text-main)] truncate">
-                    {site.site_name || site.site_code || site.name}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-[var(--text-main)] truncate">
+                        {site.site_name || site.site_code || site.name}
+                      </div>
+                      {site.site_code && site.site_name && (
+                        <div className="mt-0.5 text-[11px] text-[var(--text-muted)] truncate">{site.site_code}</div>
+                      )}
+                    </div>
+                    {site.site_blocked ? (
+                      <span className="flex-shrink-0 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-semibold text-rose-600">Blocked</span>
+                    ) : (
+                      <span className="flex-shrink-0 text-[10px] font-medium text-emerald-600">{site.status || 'Active'}</span>
+                    )}
                   </div>
-                  {site.site_code && site.site_name && (
-                    <div className="mt-0.5 text-[11px] text-[var(--text-muted)] truncate">{site.site_code}</div>
-                  )}
+                  {/* Progress bar */}
                   <div className="mt-2 flex items-center gap-2">
                     <div className="h-1.5 flex-1 rounded-full bg-gray-200">
                       <div
@@ -783,18 +1374,36 @@ function SiteBoardTab({ sites, config }: { sites: SiteRow[]; config: DepartmentC
                       {formatPercent(site.site_progress_pct || 0)}
                     </span>
                   </div>
-                  <div className="mt-2 flex items-center justify-between text-[11px]">
-                    <span className="text-[var(--text-muted)]">
+                  {/* Meta row: owner, deadline, milestones */}
+                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+                    <span className="text-[var(--text-muted)]" title={site.current_owner_user || undefined}>
                       {(site.current_owner_role || '-').replaceAll('_', ' ')}
                     </span>
-                    {site.site_blocked ? (
-                      <span className="rounded bg-rose-50 px-1.5 py-0.5 text-[10px] font-semibold text-rose-600">Blocked</span>
-                    ) : (
-                      <span className="text-emerald-600">{site.status || 'Active'}</span>
+                    {(site.milestone_count || 0) > 0 && (
+                      <span className="text-[var(--text-muted)]">
+                        <Flag className="mr-0.5 inline h-3 w-3" />{site.open_milestone_count || 0}/{site.milestone_count}
+                      </span>
+                    )}
+                    {site.latest_planned_end_date && (
+                      <span className={`${
+                        urgency === 'overdue' ? 'text-rose-600 font-semibold' :
+                        urgency === 'soon' ? 'text-amber-600 font-semibold' :
+                        'text-[var(--text-muted)]'
+                      }`}>
+                        {new Date(site.latest_planned_end_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                        {urgency === 'overdue' && ' ⚠'}
+                      </span>
                     )}
                   </div>
+                  {/* Blocker reason */}
+                  {site.site_blocked && site.blocker_reason && (
+                    <p className="mt-1.5 truncate text-[10px] text-rose-500" title={site.blocker_reason}>
+                      {site.blocker_reason}
+                    </p>
+                  )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         ))}
@@ -1016,32 +1625,9 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
     return detail.sites.filter((s) => allowed.has(s.current_site_stage || 'SURVEY'));
   }, [detail?.sites, detail?.selected_department_lane, config.allowedStages, config.departmentKey]);
 
-  /* –– Loading / Error states –– */
-  if (loading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="flex items-center gap-3 text-[var(--text-muted)]">
-          <Loader2 className="h-6 w-6 animate-spin" />
-          <span>Loading {config.kickerLabel.toLowerCase()}...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !detail) {
-    return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 text-center">
-        <AlertCircle className="h-10 w-10 text-rose-400" />
-        <p className="text-sm text-rose-600">{error || 'Project not found'}</p>
-        <button onClick={() => setReloadKey((k) => k + 1)} className="btn btn-primary">Retry</button>
-      </div>
-    );
-  }
-
-  const ps = detail.project_summary;
+  const ps = detail?.project_summary;
   const visibleTabs = useMemo(() => {
     const configured = config.tabs;
-    // Prefer project-scoped workspace permissions when loaded
     const tabSource = isWpLoaded && wp?.visible_tabs?.length
       ? wp.visible_tabs
       : (isPermissionLoaded && permissions?.visible_tabs?.length
@@ -1064,6 +1650,28 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
     }
   }, [activeTab, visibleTabs]);
 
+  /* –– Loading / Error states –– */
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="flex items-center gap-3 text-[var(--text-muted)]">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <span>Loading {config.kickerLabel.toLowerCase()}...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !detail) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 text-center">
+        <AlertCircle className="h-10 w-10 text-rose-400" />
+        <p className="text-sm text-rose-600">{error || 'Project not found'}</p>
+        <button onClick={() => setReloadKey((k) => k + 1)} className="btn btn-primary">Retry</button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-0">
       {/* ── Workspace Header ── */}
@@ -1075,10 +1683,10 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
             </Link>
             <div className="workspace-kicker">{config.kickerLabel}</div>
             <h1 className="mt-2 text-[clamp(1.5rem,2.2vw,2.2rem)] font-semibold tracking-tight text-[var(--text-main)]">
-              {ps.project_name || projectId}
+              {ps?.project_name || projectId}
             </h1>
             <p className="mt-2 text-sm text-[var(--text-muted)]">
-              {ps.customer || 'No customer'} &middot; {(ps.current_project_stage || 'SURVEY').replaceAll('_', ' ')} &middot; {formatPercent(ps.spine_progress_pct || 0)} complete
+              {ps?.customer || 'No customer'} &middot; {((ps?.current_project_stage) || 'SURVEY').replaceAll('_', ' ')} &middot; {formatPercent(ps?.spine_progress_pct || 0)} complete
             </p>
           </div>
 
@@ -1087,10 +1695,11 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
               <div className="workspace-chip !border-blue-200 !bg-blue-50 !text-blue-700">{config.departmentLabel}</div>
             )}
             <div className="workspace-chip">{config.departmentKey === 'all' ? detail.site_count : deptSites.length} sites</div>
-            <div className="workspace-chip">{ps.status || 'Open'}</div>
+            <div className="workspace-chip">{ps?.status || 'Open'}</div>
             {detail.action_queue.blocked_count > 0 && (
               <div className="workspace-chip !border-rose-200 !bg-rose-50 !text-rose-600">{detail.action_queue.blocked_count} blocked</div>
             )}
+            <ReminderDrawer projectId={projectId} projectName={ps?.project_name || projectId} />
           </div>
         </div>
       </div>
@@ -1121,8 +1730,8 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
 
       {/* ── Tab Content ── */}
       {activeTab === 'overview' && <OverviewTab detail={detail} config={config} deptSites={deptSites} projectId={projectId} onTabChange={setActiveTab} wp={wp} />}
-      {activeTab === 'sites' && <SitesTab sites={deptSites} config={config} />}
-      {activeTab === 'board' && <SiteBoardTab sites={deptSites} config={config} />}
+      {activeTab === 'sites' && <SitesTab sites={deptSites} config={config} wp={wp} />}
+      {activeTab === 'board' && <SiteBoardTab sites={deptSites} config={config} wp={wp} />}
       {activeTab === 'milestones' && <MilestonesTab sites={deptSites} projectId={projectId} config={config} />}
       {activeTab === 'files' && <FilesTab projectId={projectId} wp={wp} />}
       {activeTab === 'activity' && <ActivityTab projectId={projectId} />}

@@ -91,6 +91,12 @@ Keep this file for backend scope breakdown, implementation history, and deeper t
 - [x] Stock snapshot from built-in `Bin`
 - [x] `Stock Entry` integration for dispatch
 - [x] Serial number validation in dispatch workflow
+- [x] `GE PO Payment Term` (child table for 6 payment term types + Custom)
+- [x] `GE PO Extension` (companion 1:1 to Purchase Order for payment terms + accounts approval)
+- [x] PO CRUD APIs: create, update, delete, submit, cancel
+- [x] PO payment terms APIs: get, save, approve, reject
+- [x] PO detail page frontend with payment terms management UI
+- [x] PO list page enhanced with Create PO, row-level actions, and click-through to detail
 
 ### Execution / Dependency Engine
 
@@ -118,6 +124,7 @@ Keep this file for backend scope breakdown, implementation history, and deeper t
 - [x] `GE Overtime Entry`
 - [x] `GE Statutory Ledger`
 - [x] `GE Technician Visit Log`
+- [x] `GE Project Staffing Assignment` (20 fields, 7 APIs, ANDA Phase 1B)
 - [x] Payroll / leave explicitly kept out of scope for the current stack
 
 ### Billing / Retention / Penalties / O&M
@@ -136,6 +143,31 @@ Keep this file for backend scope breakdown, implementation history, and deeper t
 - [x] `GE RMA Tracker`
 - [x] Dedicated `RMA Manager` business role
 - [x] RMA flow enriched with dispatch, RCA, warranty, approval, PO, invoice, and return-tracking fields
+
+### ANDA Compliance (Import Framework)
+
+- [x] `GE Ticket` enhanced: `impact_level` + `due_date` + `source_issue_id` fields, `Procurement Manager` permission (Phase 1A)
+- [x] `GE Import Log` DocType for import audit trail
+- [x] ANDA import base framework: BaseImporter, ImportMode (dry_run/stage_only/commit), normalizers
+- [x] 13 per-tab importers covering all applicable ANDA tabs
+- [x] 3 whitelisted API endpoints: run_anda_import, get_anda_import_logs, get_anda_import_tabs
+- [x] Duplicate detection, reference validation, idempotent reruns across all importers
+- [x] Master data loaders: departments, designations, role mappings, projects, sites, vendors
+- [x] Reference integrity checker with `ready_for_transactional_import` flag
+- [x] Import orchestrator with dependency-ordered tab execution + master readiness gate
+- [x] 4 additional API endpoints: load_anda_masters, check_anda_master_integrity, run_anda_orchestrated_import, get_anda_import_order
+
+### ANDA Compliance (Workflow Fidelity)
+
+- [x] 5 state machines: GE Ticket (6 states), GE RMA Tracker (10 states), GE Milestone (5 states), GE Site status (5 states), GE Site installation stage (8 ordered stages)
+- [x] GE Ticket: escalation levels, closure types, days_to_resolve auto-compute, auto-timestamps
+- [x] GE RMA Tracker: gating rules (APPROVED/REPLACED/CLOSED), CLOSED terminal state
+- [x] GE Dispatch Challan: linked_purchase_order with item/qty validation against PO
+- [x] GE Invoice + GE Payment Receipt: total_paid/outstanding auto-compute, overpayment guard, cascade refresh
+- [x] GE Milestone→GE Site: milestone progress sync to site_progress_pct
+- [x] GE Site: installation stage regression guard (8 stages, forward-only)
+- [x] 2 new API endpoints: reconcile_invoice_payments, sync_site_milestone_progress
+- [x] 4 enhanced API endpoints: close_ticket, escalate_ticket, close_rma, update_rma_status
 
 ## What Is Not Implemented Yet
 
@@ -208,6 +240,10 @@ Keep this file for backend scope breakdown, implementation history, and deeper t
 - [x] PO creation hook from approved comparison
 - [x] Dispatch challan workflow
 - [x] Stock entry posting and serial validation
+- [x] PO payment terms with 6 term types (full advance, X days after delivery, PDC, partial advance variants, custom)
+- [x] PO CRUD lifecycle (create, update, delete, submit, cancel)
+- [x] PO payment terms accounts approval/rejection flow
+- [x] PO detail page and list page CRUD frontend
 
 ### Phase 5: Execution + Dependency Engine ✅ DONE
 
@@ -228,6 +264,47 @@ Keep this file for backend scope breakdown, implementation history, and deeper t
 - [x] Invoice / payment / retention / penalty tracking
 - [x] Ticketing / SLA / penalty rules / timers
 - [x] RMA tracker
+
+### Phase 8: ANDA Compliance (Phase 1+2) ✅ DONE
+
+- [x] Phase 1A: Issue Log → GE Ticket formalization (impact_level, due_date, Procurement Manager perm)
+- [x] Phase 1B: GE Project Staffing Assignment DocType (20 fields, 7 APIs)
+- [x] Phase 2: ANDA import base framework (BaseImporter, ImportMode, normalizers, GE Import Log)
+- [x] Phase 2: 13 per-tab importers for all applicable ANDA tabs
+- [x] Phase 2: Whitelisted API endpoints for running imports
+
+### Phase 9: ANDA Compliance (Phase 3+4) ✅ DONE
+
+- [x] Phase 3: Master data loaders (departments, designations, role mappings, projects, sites, vendors)
+- [x] Phase 3: Reference integrity checker with readiness flag
+- [x] Phase 3: 2 whitelisted API endpoints (load_anda_masters, check_anda_master_integrity)
+- [x] Phase 4: Import orchestrator with dependency-ordered tab execution
+- [x] Phase 4: Master readiness gate (blocks COMMIT if masters aren't ready)
+- [x] Phase 4: OrchestratorReport with per-tab summaries and audit logging
+- [x] Phase 4: 2 whitelisted API endpoints (run_anda_orchestrated_import, get_anda_import_order)
+
+### Phase 10: ANDA Compliance (Phase 5+6) ✅ DONE
+
+- [x] Phase 5: Verified all 4 complex tab importers work via orchestrator (include_complex=True)
+- [x] Phase 6: GE Ticket lifecycle — 6-state machine, escalation tracking, closure types, days_to_resolve auto-compute
+- [x] Phase 6: GE RMA Tracker — full state machine enforcement, gating rules, CLOSED terminal state
+- [x] Phase 6: GE Dispatch Challan — linked_purchase_order field with item/qty validation against PO
+- [x] Phase 6: GE Invoice — total_paid and outstanding_amount auto-computed from GE Payment Receipts
+- [x] Phase 6: GE Payment Receipt — overpayment validation, cascade refresh to linked invoice
+- [x] Phase 6: GE Milestone — 5-state machine, milestone→site progress sync
+- [x] Phase 6: GE Site — status state machine, installation stage regression guard
+- [x] Phase 6: 2 new API endpoints (reconcile_invoice_payments, sync_site_milestone_progress)
+- [x] Phase 6: 4 enhanced API endpoints (close_ticket, escalate_ticket, close_rma, update_rma_status)
+
+### Phase 11: ANDA Compliance (Phase 7 — RBAC + UAT) ✅ DONE
+
+- [x] Phase 7: DocType permission alignment — 13 JSONs updated for ANDA tab-role matrix
+- [x] Phase 7: Programmatic `ensure_anda_role_permissions()` in role_utils.py, called on every migrate and covering all 13 target DocTypes
+- [x] Phase 7: Bug fix — "Procurement Head" stale role name → "Procurement Manager" in GE Ticket
+- [x] Phase 7: API guard audit — all 200+ endpoints confirmed guarded
+- [x] Phase 7: Department-wise UAT — 57/57 minimum role-by-tab permission checks passed
+- [x] Phase 7: Import log review — 21 logs, no unexpected failures
+- [x] Phase 7: Parity checks — 337 records, 44/69 DocTypes populated, 18/19 user contexts
 
 ## Next Smallest Backend Steps
 

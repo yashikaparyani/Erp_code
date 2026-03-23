@@ -28,6 +28,14 @@ Other overlapping docs are now reference material only:
 - [x] Stage-policy alignment — added `Department Head`, `Purchase`, `Stores Logistics Head` to stage matrix; aligned `Engineering Head`/`Engineer`/`HR Manager` with backend `DEPARTMENT_STAGE_MAP`
 - [x] Settings migration — redirect stubs replaced with re-exports; `/pre-sales/settings` → `/settings` canonical
 - [x] Pre-sales boundary — removed `/pre-sales` from `Project Manager`; post-conversion roles stay on spine
+- [x] ANDA Phase 1A — Issue Log → GE Ticket formalization (impact_level, due_date, source_issue_id, Procurement Manager perm)
+- [x] ANDA Phase 1B — GE Project Staffing Assignment DocType (20 fields, 7 APIs)
+- [x] ANDA Phase 2 — Import framework: BaseImporter, 13 per-tab importers, GE Import Log, 3 API endpoints
+- [x] ANDA Phase 3 — Master data loaders: departments, designations, role mappings, projects, sites, vendors + integrity checker
+- [x] ANDA Phase 4 — Import orchestrator: dependency-ordered tab execution, master readiness gate, 2 API endpoints
+- [x] ANDA Phase 5 — Complex tab importers verified: all 4 work via orchestrator with include_complex=True
+- [x] ANDA Phase 6 — Workflow fidelity: 5 state machines (ticket/RMA/milestone/site), invoice/payment reconciliation, PO-dispatch linkage, milestone→site sync, 2 new + 4 enhanced APIs
+- [x] ANDA Phase 7 — RBAC alignment + UAT: 13 DocType permissions aligned to ANDA tab-role matrix, 57/57 minimum UAT checks passed, API guards verified, import logs reviewed
 
 ## Active Priorities
 
@@ -45,7 +53,7 @@ Other overlapping docs are now reference material only:
 - [ ] Add inline DPR edit/delete flows on `/execution`
 - [ ] Deepen `/rma` lifecycle actions beyond the current simplified workflow
 - [ ] Surface more of the backend ticket action spectrum in `/om-helpdesk`
-- [ ] Build richer guided UX for purchase-order creation from vendor comparison
+- [x] Build richer guided UX for purchase-order creation from vendor comparison — PO CRUD, payment terms (6 types), accounts approval, detail page, and list page actions all implemented
 - [ ] Build richer SLA workflow UX for timers, penalty rules, penalty records, and related actions
 - [ ] Add organization edit/delete when matching backend methods exist
 
@@ -112,4 +120,3 @@ How access control is enforced at each layer:
 | `/settings/roles` | **Reference** | Displays role categories and module mapping; does not change backend roles |
 | `/settings/permissions` | **Reference** | Displays permission profiles and enforcement notes; does not change backend permissions |
 | `/settings/stage-visibility` | **Reference** | Displays stage-visibility matrix; does not change backend stage filtering |
-

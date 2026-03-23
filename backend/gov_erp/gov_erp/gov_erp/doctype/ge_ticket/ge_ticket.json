@@ -10,8 +10,11 @@
   "linked_site",
   "cb_ticket_meta",
   "category",
+  "impact_level",
   "priority",
   "status",
+  "due_date",
+  "source_issue_id",
   "sb_ticket_desc",
   "title",
   "description",
@@ -24,10 +27,15 @@
   "sb_resolution",
   "resolved_on",
   "closed_on",
+  "closure_type",
+  "days_to_resolve",
   "resolution_notes",
   "cb_rma_flag",
   "is_rma",
   "linked_rma",
+  "sb_escalation",
+  "escalation_level",
+  "escalation_reason",
   "sb_ticket_actions",
   "actions",
   "sb_sla_link",
@@ -68,6 +76,14 @@
    "options": "HARDWARE_ISSUE\nSOFTWARE_ISSUE\nNETWORK_ISSUE\nPERFORMANCE\nMAINTENANCE\nOTHER"
   },
   {
+   "fieldname": "impact_level",
+   "fieldtype": "Select",
+   "label": "Impact Level",
+   "reqd": 0,
+   "options": "HIGH\nMEDIUM\nLOW",
+   "description": "ANDA Issue Log: impact level of this issue on project operations"
+  },
+  {
    "fieldname": "priority",
    "fieldtype": "Select",
    "label": "Priority",
@@ -82,6 +98,20 @@
    "reqd": 1,
    "options": "NEW\nASSIGNED\nIN_PROGRESS\nON_HOLD\nRESOLVED\nCLOSED",
    "default": "NEW"
+  },
+  {
+   "fieldname": "due_date",
+   "fieldtype": "Date",
+   "label": "Due Date",
+   "reqd": 0,
+   "description": "ANDA Issue Log: target resolution date"
+  },
+  {
+   "fieldname": "source_issue_id",
+   "fieldtype": "Data",
+   "label": "Source Issue ID",
+   "reqd": 0,
+   "description": "ANDA Issue Log: original sheet Issue ID for traceability and duplicate-safe imports"
   },
   {
    "fieldname": "sb_ticket_desc",
@@ -153,6 +183,23 @@
    "reqd": 0
   },
   {
+   "fieldname": "closure_type",
+   "fieldtype": "Select",
+   "label": "Closure Type",
+   "reqd": 0,
+   "options": "\nRESOLVED\nWONTFIX\nDUPLICATE\nDEFERRED",
+   "depends_on": "eval:doc.status=='CLOSED'",
+   "description": "Reason for closing the ticket"
+  },
+  {
+   "fieldname": "days_to_resolve",
+   "fieldtype": "Int",
+   "label": "Days to Resolve",
+   "reqd": 0,
+   "read_only": 1,
+   "description": "Auto-computed: business days from raised_on to resolved_on"
+  },
+  {
    "fieldname": "resolution_notes",
    "fieldtype": "Text Editor",
    "label": "Resolution Notes",
@@ -174,6 +221,26 @@
    "label": "Linked RMA",
    "reqd": 0,
    "options": "GE RMA Tracker"
+  },
+  {
+   "fieldname": "sb_escalation",
+   "fieldtype": "Section Break",
+   "label": "Escalation"
+  },
+  {
+   "fieldname": "escalation_level",
+   "fieldtype": "Int",
+   "label": "Escalation Level",
+   "reqd": 0,
+   "default": "0",
+   "description": "Escalation depth (0 = not escalated, 1–5 = escalation tiers)"
+  },
+  {
+   "fieldname": "escalation_reason",
+   "fieldtype": "Small Text",
+   "label": "Escalation Reason",
+   "reqd": 0,
+   "depends_on": "eval:doc.escalation_level>0"
   },
   {
    "fieldname": "sb_ticket_actions",
@@ -258,6 +325,26 @@
    "read": 1,
    "report": 1,
    "role": "Director"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Procurement Manager",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Project Head",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "report": 1,
+   "role": "OM Operator",
+   "write": 1
   }
  ],
  "sort_field": "creation",

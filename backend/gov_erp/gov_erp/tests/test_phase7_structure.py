@@ -18,6 +18,10 @@ def _load_doctype_json(slug):
         return json.load(f)
 
 
+def _load_source(rel_path):
+    return (APP_ROOT / rel_path).read_text()
+
+
 # ── DPR DocType structure ──────────────────────────────────
 
 def test_dpr_has_required_fields():
@@ -90,6 +94,229 @@ def test_project_team_member_has_naming_series():
     assert dt.get("autoname") == "naming_series:"
 
 
+# ── ANDA compliance structure ───────────────────────────────
+
+def test_ticket_has_anda_issue_log_fields():
+    dt = _load_doctype_json("ge_ticket")
+    fields = {f["fieldname"]: f for f in dt["fields"]}
+
+    assert "impact_level" in fields
+    assert fields["impact_level"]["fieldtype"] == "Select"
+    assert fields["impact_level"]["options"].split("\n") == ["HIGH", "MEDIUM", "LOW"]
+
+    assert "due_date" in fields
+    assert fields["due_date"]["fieldtype"] == "Date"
+
+    assert "source_issue_id" in fields
+    assert fields["source_issue_id"]["fieldtype"] == "Data"
+
+
+def test_ticket_has_procurement_manager_permission():
+    dt = _load_doctype_json("ge_ticket")
+    perms = {p["role"]: p for p in dt["permissions"]}
+    assert "Procurement Manager" in perms
+    assert perms["Procurement Manager"]["read"] == 1
+    assert perms["Procurement Manager"]["write"] == 1
+    assert perms["Procurement Manager"]["report"] == 1
+
+
+def test_staffing_assignment_has_20_fields_and_required_logic_fields():
+    dt = _load_doctype_json("ge_project_staffing_assignment")
+    field_names = {f["fieldname"] for f in dt["fields"]}
+
+    assert len(dt["fields"]) == 20
+    required = {
+        "linked_project",
+        "linked_site",
+        "employee_name",
+        "employee_code",
+        "position",
+        "join_date",
+        "leave_date",
+        "total_days_on_project",
+        "is_active",
+        "remarks",
+    }
+    assert required.issubset(field_names)
+
+
+def test_staffing_assignment_controller_has_auto_compute_and_auto_deactivate():
+    source = _load_source(
+        "gov_erp/doctype/ge_project_staffing_assignment/ge_project_staffing_assignment.py"
+    )
+    assert "def _compute_total_days" in source
+    assert "self.total_days_on_project" in source
+    assert "def _auto_deactivate_on_leave" in source
+    assert "self.is_active = 0" in source
+
+
+def test_anda_importer_registry_has_13_tabs():
+    source = _load_source("api.py")
+    tree = ast.parse(source)
+
+    importer_map = None
+    for node in tree.body:
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id == "_ANDA_IMPORTER_MAP":
+                    importer_map = ast.literal_eval(node.value)
+                    break
+        if importer_map is not None:
+            break
+
+    assert importer_map is not None
+    assert len(importer_map) == 13
+    assert set(importer_map.keys()) == {
+        "project_overview",
+        "milestones_phases",
+        "location_survey",
+        "procurement_tracker",
+        "issue_log",
+        "client_payment_milestones",
+        "material_issuance_consumption",
+        "project_communications",
+        "rma_tracker",
+        "project_assets_services",
+        "petty_cash",
+        "device_uptime",
+        "project_manpower_assignment",
+    }
+
+
+def test_anda_import_base_has_modes_and_pipeline_steps():
+    source = _load_source("importers/anda/base.py")
+
+    assert 'DRY_RUN = "dry_run"' in source
+    assert 'STAGE_ONLY = "stage_only"' in source
+    assert 'COMMIT = "commit"' in source
+
+    for expected in [
+        "self.parse_row(",
+        "self.validate_row(",
+        "self.check_references(",
+        "self.find_duplicate(",
+        "self.commit_row(",
+        '"doctype": "GE Import Log"',
+    ]:
+        assert expected in source
+
+
+def test_master_loader_module_has_required_functions():
+    source = _load_source("importers/anda/master_loaders.py")
+
+    for expected in [
+        "class MasterLoadReport",
+        "def load_departments",
+        "def load_designations",
+        "def resolve_role_alias",
+        "def load_role_mappings",
+        "def load_projects",
+        "def load_sites",
+        "def load_vendors",
+        "def load_milestone_templates",
+        "def check_reference_integrity",
+        '"ready_for_transactional_import"',
+        "def load_all_masters",
+    ]:
+        assert expected in source
+
+
+def test_orchestrator_has_master_gate_and_complex_support():
+    source = _load_source("importers/anda/orchestrator.py")
+
+    for expected in [
+        "class OrchestratorReport",
+        "IMPORT_ORDER =",
+        "include_complex=False",
+        "skip_master_check=False",
+        "ready_for_transactional_import",
+        "_save_orchestrator_log",
+        "project_manpower_assignment",
+        "issue_log",
+        "procurement_tracker",
+        "material_issuance_consumption",
+    ]:
+        assert expected in source
+
+
+def test_procurement_tracker_commit_is_forced_to_stage_only():
+    source = _load_source("importers/anda/procurement_tracker.py")
+
+    assert "def run(self, rows, mode=ImportMode.DRY_RUN):" in source
+    assert "if mode == ImportMode.COMMIT" in source
+    assert "ImportMode.STAGE_ONLY" in source
+    assert "Procurement Tracker is stage-only" in source
+
+
+def test_ticket_phase6_fields_and_controller_rules_exist():
+    dt = _load_doctype_json("ge_ticket")
+    fields = {f["fieldname"] for f in dt["fields"]}
+    assert {"closure_type", "days_to_resolve", "escalation_level", "escalation_reason"}.issubset(fields)
+
+    source = _load_source("gov_erp/doctype/ge_ticket/ge_ticket.py")
+    for expected in [
+        "VALID_TICKET_TRANSITIONS",
+        "def _validate_escalation_level",
+        "Escalation level must be between 0 and 5",
+        "def _auto_timestamps",
+        "self.days_to_resolve",
+    ]:
+        assert expected in source
+
+
+def test_rma_phase6_transition_and_gating_rules_exist():
+    source = _load_source("gov_erp/doctype/ge_rma_tracker/ge_rma_tracker.py")
+    for expected in [
+        "VALID_TRANSITIONS",
+        "approved_by_project_head",
+        "replaced_serial_number",
+        "actual_resolution_date",
+        'self.rma_status == "CLOSED"',
+    ]:
+        assert expected in source
+
+
+def test_dispatch_po_traceability_and_invoice_reconciliation_exist():
+    dispatch_source = _load_source("gov_erp/doctype/ge_dispatch_challan/ge_dispatch_challan.py")
+    invoice_source = _load_source("gov_erp/doctype/ge_invoice/ge_invoice.py")
+    receipt_source = _load_source("gov_erp/doctype/ge_payment_receipt/ge_payment_receipt.py")
+
+    for expected in [
+        "linked_purchase_order",
+        "exceeds PO qty",
+        "is not in linked Purchase Order",
+    ]:
+        assert expected in dispatch_source
+
+    for expected in [
+        "self.total_paid",
+        "self.outstanding_amount",
+        "_validate_amount_against_invoice",
+        "_refresh_invoice_totals",
+    ]:
+        assert expected in invoice_source or expected in receipt_source
+
+
+def test_project_site_stage_phase6_guards_exist():
+    milestone_source = _load_source("gov_erp/doctype/ge_milestone/ge_milestone.py")
+    site_source = _load_source("gov_erp/doctype/ge_site/ge_site.py")
+
+    for expected in [
+        "VALID_MILESTONE_TRANSITIONS",
+        "_sync_site_progress",
+        "site_progress_pct",
+        "location_progress_pct",
+    ]:
+        assert expected in milestone_source
+
+    for expected in [
+        "VALID_SITE_STATUS_TRANSITIONS",
+        "INSTALLATION_STAGE_ORDER",
+        "cannot regress",
+    ]:
+        assert expected in site_source
+
+
 # ── API coverage check ──────────────────────────────────────
 
 def _load_api_whitelist_names():
@@ -141,6 +368,184 @@ def test_ticket_apis_exist():
         "add_ticket_comment", "get_ticket_stats",
     }
     assert expected.issubset(names)
+
+
+def test_staffing_assignment_apis_exist():
+    names = _load_api_whitelist_names()
+    expected = {
+        "get_staffing_assignments",
+        "get_staffing_assignment",
+        "create_staffing_assignment",
+        "update_staffing_assignment",
+        "delete_staffing_assignment",
+        "end_staffing_assignment",
+        "get_staffing_summary",
+    }
+    assert expected.issubset(names)
+
+
+def test_anda_import_apis_exist():
+    names = _load_api_whitelist_names()
+    expected = {
+        "run_anda_import",
+        "get_anda_import_logs",
+        "get_anda_import_tabs",
+    }
+    assert expected.issubset(names)
+
+
+def test_phase3_apis_exist():
+    names = _load_api_whitelist_names()
+    expected = {
+        "load_anda_masters",
+        "check_anda_master_integrity",
+    }
+    assert expected.issubset(names)
+
+
+def test_phase4_apis_exist():
+    names = _load_api_whitelist_names()
+    expected = {
+        "run_anda_orchestrated_import",
+        "get_anda_import_order",
+    }
+    assert expected.issubset(names)
+
+
+def test_phase6_apis_exist():
+    names = _load_api_whitelist_names()
+    expected = {
+        "reconcile_invoice_payments",
+        "sync_site_milestone_progress",
+        "close_ticket",
+        "escalate_ticket",
+        "close_rma",
+    }
+    assert expected.issubset(names)
+
+
+def _load_anda_role_grants():
+    source = _load_source("role_utils.py")
+    tree = ast.parse(source)
+    constants = {}
+    grants = []
+
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+            target = node.targets[0].id
+            if isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
+                constants[target] = node.value.value
+
+    for node in tree.body:
+        if not isinstance(node, ast.Assign):
+            continue
+        if not any(isinstance(target, ast.Name) and target.id == "ANDA_ROLE_GRANTS" for target in node.targets):
+            continue
+        for role_entry in node.value.elts:
+            role_name = constants[role_entry.elts[0].id]
+            for grant in role_entry.elts[1].elts:
+                doctype_name = ast.literal_eval(grant.elts[0])
+                flags = ast.literal_eval(grant.elts[1])
+                grants.append((role_name, doctype_name, flags))
+        break
+
+    return grants
+
+
+def test_anda_role_sync_covers_13_target_doctypes():
+    grants = _load_anda_role_grants()
+    doctypes = {doctype_name for _, doctype_name, _ in grants}
+    assert len(doctypes) == 13
+    assert doctypes == {
+        "GE Ticket",
+        "GE Site",
+        "GE Project Team Member",
+        "GE Payment Receipt",
+        "GE SLA Timer",
+        "GE SLA Penalty Rule",
+        "GE SLA Profile",
+        "GE SLA Penalty Record",
+        "GE Device Uptime Log",
+        "GE Device Register",
+        "GE Technician Visit Log",
+        "GE BOQ",
+        "GE Cost Sheet",
+    }
+
+
+def test_phase7_uat_permission_matrix_has_57_minimum_checks():
+    """Validate the minimum create/read/write UAT matrix claimed in Phase 7."""
+    matrix = {
+        "ge_ticket": {
+            "Project Head": ["create", "read", "write"],
+            "OM Operator": ["create", "read", "write"],
+        },
+        "ge_site": {
+            "Project Head": ["create", "read", "write"],
+        },
+        "ge_project_team_member": {
+            "Project Head": ["create", "read", "write"],
+        },
+        "ge_payment_receipt": {
+            "Project Head": ["read"],
+        },
+        "ge_sla_timer": {
+            "OM Operator": ["create", "read", "write"],
+            "RMA Manager": ["read", "write"],
+            "Project Head": ["read"],
+        },
+        "ge_sla_penalty_rule": {
+            "OM Operator": ["create", "read", "write"],
+            "RMA Manager": ["read", "write"],
+            "Project Head": ["read"],
+        },
+        "ge_sla_profile": {
+            "OM Operator": ["create", "read", "write"],
+            "RMA Manager": ["read", "write"],
+            "Project Head": ["read"],
+        },
+        "ge_sla_penalty_record": {
+            "OM Operator": ["create", "read", "write"],
+            "RMA Manager": ["read", "write"],
+            "Project Head": ["read"],
+        },
+        "ge_device_uptime_log": {
+            "OM Operator": ["create", "read", "write"],
+        },
+        "ge_device_register": {
+            "OM Operator": ["create", "read", "write"],
+            "RMA Manager": ["read", "write"],
+        },
+        "ge_technician_visit_log": {
+            "OM Operator": ["create", "read", "write"],
+            "Field Technician": ["create", "read", "write"],
+            "Project Manager": ["read"],
+            "Project Head": ["read"],
+        },
+        "ge_boq": {
+            "Engineering Head": ["write"],
+            "Engineer": ["read"],
+        },
+        "ge_cost_sheet": {
+            "Engineering Head": ["write"],
+            "Engineer": ["read"],
+        },
+    }
+
+    required_checks = sum(
+        len(flags)
+        for role_map in matrix.values()
+        for flags in role_map.values()
+    )
+    assert required_checks == 57
+
+    for slug, role_map in matrix.items():
+        dt = _load_doctype_json(slug)
+        perms = {perm["role"]: perm for perm in dt["permissions"]}
+        for role, flags in role_map.items():
+            assert role in perms, f"{slug} missing role {role}"
+            for flag in flags:
+                assert perms[role].get(flag) == 1, f"{slug} missing {flag} for {role}"
 
 
 def test_sla_apis_exist():

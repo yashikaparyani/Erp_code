@@ -21,6 +21,8 @@
   "tds_percent",
   "tds_amount",
   "net_receivable",
+  "total_paid",
+  "outstanding_amount",
   "sb_milestone_flag",
   "milestone_complete",
   "audit_note",
@@ -146,6 +148,22 @@
    "label": "Net Receivable",
    "reqd": 0,
    "default": "0"
+  },
+  {
+   "fieldname": "total_paid",
+   "fieldtype": "Currency",
+   "label": "Total Paid",
+   "read_only": 1,
+   "default": "0",
+   "description": "Auto-computed from linked GE Payment Receipts"
+  },
+  {
+   "fieldname": "outstanding_amount",
+   "fieldtype": "Currency",
+   "label": "Outstanding Amount",
+   "read_only": 1,
+   "default": "0",
+   "description": "net_receivable - total_paid"
   },
   {
    "fieldname": "sb_milestone_flag",

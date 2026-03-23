@@ -6,6 +6,7 @@ This is the next backend slice after BOQ.
 
 ## Entities
 
+
 ### `GE Cost Sheet`
 
 Fields:

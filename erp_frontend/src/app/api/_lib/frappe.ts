@@ -175,6 +175,47 @@ export function clearFrappeCookies(response: NextResponse) {
   }
 }
 
+export function getFrappeErrorStatus(error: unknown): number {
+  const message = error instanceof Error ? error.message : String(error || '');
+  const normalized = message.toLowerCase();
+
+  if (
+    normalized.includes('authentication required')
+    || normalized.includes('missing frappe csrf token')
+    || normalized.includes('csrf token')
+    || normalized.includes('session expired')
+    || normalized.includes('login required')
+  ) {
+    return 401;
+  }
+
+  if (
+    normalized.includes('not permitted')
+    || normalized.includes('permission')
+    || normalized.includes('access denied')
+    || normalized.includes('insufficient')
+  ) {
+    return 403;
+  }
+
+  return 500;
+}
+
+export function jsonErrorResponse(
+  error: unknown,
+  fallbackMessage: string,
+  extra: Record<string, unknown> = {},
+) {
+  return NextResponse.json(
+    {
+      success: false,
+      message: error instanceof Error ? error.message : fallbackMessage,
+      ...extra,
+    },
+    { status: getFrappeErrorStatus(error) },
+  );
+}
+
 async function getAuthHeaders(request?: NextRequest, needsCsrf = false): Promise<Record<string, string>> {
   if (FRAPPE_API_KEY && FRAPPE_API_SECRET) {
     return {

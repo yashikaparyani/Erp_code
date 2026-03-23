@@ -1,0 +1,88 @@
+{
+ "actions": [],
+ "autoname": "field:purchase_order",
+ "creation": "2026-03-20 10:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "purchase_order",
+  "payment_terms_note",
+  "column_break_meta",
+  "total_payment_terms_pct",
+  "accounts_approval_status",
+  "section_break_terms",
+  "payment_terms"
+ ],
+ "fields": [
+  {
+   "fieldname": "purchase_order",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Purchase Order",
+   "options": "Purchase Order",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "payment_terms_note",
+   "fieldtype": "Small Text",
+   "label": "Payment Terms Notes"
+  },
+  {
+   "fieldname": "column_break_meta",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "total_payment_terms_pct",
+   "fieldtype": "Percent",
+   "label": "Total Payment Terms %",
+   "read_only": 1
+  },
+  {
+   "default": "Pending",
+   "fieldname": "accounts_approval_status",
+   "fieldtype": "Select",
+   "label": "Accounts Approval",
+   "options": "\nPending\nApproved\nRejected"
+  },
+  {
+   "fieldname": "section_break_terms",
+   "fieldtype": "Section Break",
+   "label": "Payment Terms"
+  },
+  {
+   "fieldname": "payment_terms",
+   "fieldtype": "Table",
+   "label": "Payment Terms",
+   "options": "GE PO Payment Term",
+   "reqd": 0
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-03-20 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE PO Extension",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

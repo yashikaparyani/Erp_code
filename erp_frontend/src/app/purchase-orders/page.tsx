@@ -1,6 +1,10 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { ShoppingCart, Clock, CheckCircle2, XCircle, TrendingUp, Package } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import {
+  ShoppingCart, Clock, CheckCircle2, XCircle, TrendingUp, Package,
+  Plus, Send, Ban, Trash2, ExternalLink, Loader2,
+} from 'lucide-react';
 
 interface PurchaseOrder {
   name: string;
@@ -49,9 +53,18 @@ function statusBadge(status?: string) {
 }
 
 export default function PurchaseOrdersPage() {
+  const router = useRouter();
   const [items, setItems] = useState<PurchaseOrder[]>([]);
   const [stats, setStats] = useState<POStats>({});
   const [loading, setLoading] = useState(true);
+  const [actionBusy, setActionBusy] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+
+  // Create PO modal state
+  const [showCreate, setShowCreate] = useState(false);
+  const [createForm, setCreateForm] = useState({ supplier: '', project: '', warehouse: '' });
+  const [creating, setCreating] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -65,6 +78,68 @@ export default function PurchaseOrdersPage() {
   };
 
   useEffect(() => { loadData(); }, []);
+
+  const showSuccess = (msg: string) => {
+    setSuccessMsg(msg);
+    setTimeout(() => setSuccessMsg(''), 3000);
+  };
+
+  const handleRowAction = async (action: 'submit' | 'cancel' | 'delete', poName: string) => {
+    if (action === 'delete' && !confirm(`Delete PO ${poName}? This cannot be undone.`)) return;
+    setActionBusy(`${action}-${poName}`);
+    setErrorMsg('');
+    try {
+      let res: Response;
+      if (action === 'delete') {
+        res = await fetch('/api/purchase-orders', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: poName }),
+        });
+      } else {
+        res = await fetch(`/api/purchase-orders/${action}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: poName }),
+        });
+      }
+      const result = await res.json();
+      if (!result.success) throw new Error(result.message);
+      showSuccess(result.message || `PO ${poName} ${action}${action === 'delete' ? 'd' : action === 'submit' ? 'ted' : 'led'}`);
+      loadData();
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : `Failed to ${action}`);
+    } finally {
+      setActionBusy('');
+    }
+  };
+
+  const handleCreate = async () => {
+    if (!createForm.supplier.trim()) { setErrorMsg('Supplier is required'); return; }
+    setCreating(true);
+    setErrorMsg('');
+    try {
+      const res = await fetch('/api/purchase-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          supplier: createForm.supplier.trim(),
+          project: createForm.project.trim() || undefined,
+          set_warehouse: createForm.warehouse.trim() || undefined,
+          items: [{ item_code: 'Item', qty: 1, rate: 0, schedule_date: new Date().toISOString().split('T')[0] }],
+        }),
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.message);
+      setShowCreate(false);
+      setCreateForm({ supplier: '', project: '', warehouse: '' });
+      router.push(`/purchase-orders/${encodeURIComponent(result.data?.name || '')}`);
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Failed to create PO');
+    } finally {
+      setCreating(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -83,7 +158,50 @@ export default function PurchaseOrdersPage() {
             Track all purchase orders raised against vendor comparisons.
           </p>
         </div>
+        <button onClick={() => setShowCreate(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 shadow-sm">
+          <Plus className="h-4 w-4" /> Create PO
+        </button>
       </div>
+
+      {/* Messages */}
+      {successMsg && (
+        <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">{successMsg}</div>
+      )}
+      {errorMsg && (
+        <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700">{errorMsg}
+          <button onClick={() => setErrorMsg('')} className="ml-2 font-medium underline">Dismiss</button>
+        </div>
+      )}
+
+      {/* Create PO Modal */}
+      {showCreate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={() => setShowCreate(false)}>
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Create Purchase Order</h2>
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-500">Supplier *</label>
+                <input type="text" value={createForm.supplier} onChange={e => setCreateForm({ ...createForm, supplier: e.target.value })} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="Enter supplier name" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-500">Project</label>
+                <input type="text" value={createForm.project} onChange={e => setCreateForm({ ...createForm, project: e.target.value })} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="Optional" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-500">Warehouse</label>
+                <input type="text" value={createForm.warehouse} onChange={e => setCreateForm({ ...createForm, warehouse: e.target.value })} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="Optional" />
+              </div>
+            </div>
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button onClick={() => setShowCreate(false)} className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">Cancel</button>
+              <button onClick={handleCreate} disabled={creating} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
+                {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                {creating ? 'Creating...' : 'Create'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4 mb-4 sm:mb-6">
         <div className="stat-card"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg flex items-center justify-center bg-blue-100 text-blue-600"><ShoppingCart className="w-5 h-5" /></div><div><div className="stat-value">{stats.total ?? items.length}</div><div className="stat-label">Total POs</div></div></div><div className="text-xs text-gray-500 mt-2">{formatCurrency(stats.total_amount)} value</div></div>
@@ -109,14 +227,15 @@ export default function PurchaseOrdersPage() {
                 <th>Grand Total</th>
                 <th>% Received</th>
                 <th>% Billed</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {items.length === 0 ? (
-                <tr><td colSpan={9} className="text-center py-8 text-gray-500">No purchase orders found</td></tr>
+                <tr><td colSpan={10} className="text-center py-8 text-gray-500">No purchase orders found</td></tr>
               ) : items.map(item => (
-                <tr key={item.name}>
-                  <td><div className="font-medium text-gray-900">{item.name}</div></td>
+                <tr key={item.name} className="cursor-pointer hover:bg-blue-50/50" onClick={() => router.push(`/purchase-orders/${encodeURIComponent(item.name)}`)}>
+                  <td><div className="font-medium text-blue-700 flex items-center gap-1">{item.name}<ExternalLink className="h-3 w-3 text-blue-400" /></div></td>
                   <td><div className="text-sm text-gray-900">{item.supplier || '-'}</div></td>
                   <td><div className="text-sm text-gray-700">{item.transaction_date || '-'}</div></td>
                   <td><div className="text-sm text-gray-700">{item.project || '-'}</div></td>
@@ -125,6 +244,40 @@ export default function PurchaseOrdersPage() {
                   <td><div className="text-sm font-medium text-gray-900">{formatCurrency(item.grand_total)}</div></td>
                   <td><div className="text-sm text-gray-700">{item.per_received?.toFixed(0) ?? 0}%</div></td>
                   <td><div className="text-sm text-gray-700">{item.per_billed?.toFixed(0) ?? 0}%</div></td>
+                  <td>
+                    <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                      {item.docstatus === 0 && (
+                        <>
+                          <button
+                            onClick={() => handleRowAction('submit', item.name)}
+                            disabled={!!actionBusy}
+                            className="rounded p-1 text-blue-600 hover:bg-blue-50"
+                            title="Submit"
+                          >
+                            {actionBusy === `submit-${item.name}` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                          </button>
+                          <button
+                            onClick={() => handleRowAction('delete', item.name)}
+                            disabled={!!actionBusy}
+                            className="rounded p-1 text-rose-600 hover:bg-rose-50"
+                            title="Delete"
+                          >
+                            {actionBusy === `delete-${item.name}` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                          </button>
+                        </>
+                      )}
+                      {item.docstatus === 1 && (
+                        <button
+                          onClick={() => handleRowAction('cancel', item.name)}
+                          disabled={!!actionBusy}
+                          className="rounded p-1 text-rose-600 hover:bg-rose-50"
+                          title="Cancel PO"
+                        >
+                          {actionBusy === `cancel-${item.name}` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Ban className="h-3.5 w-3.5" />}
+                        </button>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>

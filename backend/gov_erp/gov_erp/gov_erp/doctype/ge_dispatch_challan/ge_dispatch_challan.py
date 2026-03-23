@@ -133,6 +133,7 @@ class GEDispatchChallan(Document):
 		self._calculate_totals()
 		self._validate_status_transition()
 		self._validate_destinations()
+		self._validate_against_purchase_order()
 
 	def before_save(self):
 		if self.has_value_changed("status") and self.status == "DISPATCHED":
@@ -272,3 +273,24 @@ class GEDispatchChallan(Document):
 			)
 		if self.has_value_changed("status") and self.status == "DISPATCHED":
 			self._create_linked_stock_entry()
+
+	def _validate_against_purchase_order(self):
+		if not self.linked_purchase_order:
+			return
+
+		po = frappe.get_doc("Purchase Order", self.linked_purchase_order)
+		po_items = {}
+		for item in po.items:
+			po_items[item.item_code] = po_items.get(item.item_code, 0) + (item.qty or 0)
+
+		for item in self.items:
+			if not item.item_link:
+				continue
+			if item.item_link not in po_items:
+				frappe.throw(
+					f"Item {item.item_link} is not in linked Purchase Order {self.linked_purchase_order}"
+				)
+			if (item.qty or 0) > po_items[item.item_link]:
+				frappe.throw(
+					f"Dispatch qty ({item.qty}) for {item.item_link} exceeds PO qty ({po_items[item.item_link]})"
+				)

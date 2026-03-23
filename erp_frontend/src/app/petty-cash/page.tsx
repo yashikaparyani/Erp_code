@@ -17,6 +17,16 @@ interface PettyCash {
   approved_by?: string;
 }
 
+interface ProjectOption {
+  name: string;
+  project_name?: string;
+}
+
+interface SiteOption {
+  name: string;
+  site_name?: string;
+}
+
 function formatCurrency(v?: number) {
   if (!v) return '₹ 0';
   return `₹ ${v.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
@@ -29,11 +39,14 @@ function statusBadge(s?: string) {
 
 export default function PettyCashPage() {
   const [items, setItems] = useState<PettyCash[]>([]);
+  const [projects, setProjects] = useState<ProjectOption[]>([]);
+  const [sites, setSites] = useState<SiteOption[]>([]);
   const [loading, setLoading] = useState(true);
+  const [lookupLoading, setLookupLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
-  const [form, setForm] = useState({ description: '', category: '', amount: '', paid_to: '', linked_project: '', entry_date: '' });
+  const [form, setForm] = useState({ description: '', category: '', amount: '', paid_to: '', linked_project: '', linked_site: '', entry_date: '' });
 
   const loadData = async () => {
     setLoading(true);
@@ -42,9 +55,58 @@ export default function PettyCashPage() {
     setLoading(false);
   };
 
-  useEffect(() => { loadData(); }, []);
+  const loadProjects = async () => {
+    setLookupLoading(true);
+    try {
+      const response = await fetch('/api/ops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ method: 'get_project_spine_list' }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || payload.success === false) {
+        throw new Error(payload.message || 'Failed to load projects');
+      }
+      setProjects(payload.data || []);
+    } catch {
+      setProjects([]);
+    } finally {
+      setLookupLoading(false);
+    }
+  };
+
+  const loadSites = async (project: string) => {
+    if (!project) {
+      setSites([]);
+      return;
+    }
+    const res = await fetch(`/api/sites?project=${encodeURIComponent(project)}`).then(r => r.json()).catch(() => ({ data: [] }));
+    setSites(res.data || []);
+  };
+
+  useEffect(() => {
+    loadData();
+    loadProjects();
+  }, []);
+
+  useEffect(() => {
+    loadSites(form.linked_project);
+  }, [form.linked_project]);
+
+  const resetForm = () => {
+    setForm({ description: '', category: '', amount: '', paid_to: '', linked_project: '', linked_site: '', entry_date: '' });
+    setSites([]);
+  };
+
+  const handleProjectChange = (linked_project: string) => {
+    setForm((current) => ({ ...current, linked_project, linked_site: '' }));
+  };
 
   const handleCreate = async () => {
+    if (!form.description.trim() || !form.linked_project.trim() || !(parseFloat(form.amount) > 0)) {
+      setError('Description, project, and amount are required.');
+      return;
+    }
     setError('');
     setCreating(true);
     try {
@@ -52,7 +114,7 @@ export default function PettyCashPage() {
       const payload = await res.json().catch(() => ({}));
       if (!res.ok || !payload.success) throw new Error(payload.message || 'Failed');
       setShowCreate(false);
-      setForm({ description: '', category: '', amount: '', paid_to: '', linked_project: '', entry_date: '' });
+      resetForm();
       await loadData();
     } catch (e) { setError(e instanceof Error ? e.message : 'Failed'); } finally { setCreating(false); }
   };
@@ -62,11 +124,12 @@ export default function PettyCashPage() {
   const totalAmount = items.reduce((s, i) => s + (i.amount || 0), 0);
   const approved = items.filter(i => i.status === 'Approved').length;
   const pending = items.filter(i => i.status === 'Draft' || i.status === 'Submitted').length;
+  const canCreate = Boolean(form.description.trim() && form.linked_project.trim() && parseFloat(form.amount) > 0);
 
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
-        <div><h1 className="text-xl sm:text-2xl font-bold text-gray-900">Petty Cash</h1><p className="text-xs sm:text-sm text-gray-500 mt-1">Site-level petty cash expenses and reimbursements.</p></div>
+        <div><h1 className="text-xl sm:text-2xl font-bold text-gray-900">Petty Cash</h1><p className="text-xs sm:text-sm text-gray-500 mt-1">Project-linked petty cash expenses and reimbursements, with optional site-level tagging.</p></div>
         <button className="btn btn-primary w-full sm:w-auto" onClick={() => setShowCreate(true)}><Plus className="w-4 h-4" />New Entry</button>
       </div>
 
@@ -81,9 +144,9 @@ export default function PettyCashPage() {
         <div className="card-header"><h3 className="font-semibold text-gray-900">All Petty Cash Entries</h3></div>
         <div className="overflow-x-auto">
           <table className="data-table">
-            <thead><tr><th>ID</th><th>Date</th><th>Description</th><th>Category</th><th>Paid To</th><th>Project</th><th>Amount</th><th>Status</th></tr></thead>
+            <thead><tr><th>ID</th><th>Date</th><th>Description</th><th>Category</th><th>Paid To</th><th>Project</th><th>Site</th><th>Amount</th><th>Status</th></tr></thead>
             <tbody>
-              {items.length === 0 ? <tr><td colSpan={8} className="text-center py-8 text-gray-500">No petty cash entries found</td></tr> : items.map(item => (
+              {items.length === 0 ? <tr><td colSpan={9} className="text-center py-8 text-gray-500">No petty cash entries found</td></tr> : items.map(item => (
                 <tr key={item.name}>
                   <td><div className="font-medium text-gray-900">{item.name}</div></td>
                   <td><div className="text-sm text-gray-700">{item.entry_date || '-'}</div></td>
@@ -91,6 +154,7 @@ export default function PettyCashPage() {
                   <td><div className="text-sm text-gray-700">{item.category || '-'}</div></td>
                   <td><div className="text-sm text-gray-700">{item.paid_to || '-'}</div></td>
                   <td><div className="text-sm text-gray-700">{item.linked_project || '-'}</div></td>
+                  <td><div className="text-sm text-gray-700">{item.linked_site || '-'}</div></td>
                   <td><div className="text-sm font-medium text-gray-900">{formatCurrency(item.amount)}</div></td>
                   <td><span className={`badge ${statusBadge(item.status)}`}>{item.status || 'Draft'}</span></td>
                 </tr>
@@ -105,19 +169,20 @@ export default function PettyCashPage() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <div><h2 className="text-lg font-semibold text-gray-900">New Petty Cash Entry</h2></div>
-              <button className="p-2 rounded-lg hover:bg-gray-100" onClick={() => setShowCreate(false)}><X className="w-5 h-5" /></button>
+              <button className="p-2 rounded-lg hover:bg-gray-100" onClick={() => { setShowCreate(false); resetForm(); }}><X className="w-5 h-5" /></button>
             </div>
             <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <label className="sm:col-span-2"><div className="text-sm font-medium text-gray-700 mb-2">Description *</div><input className="input" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></label>
               <label><div className="text-sm font-medium text-gray-700 mb-2">Category</div><input className="input" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} /></label>
-              <label><div className="text-sm font-medium text-gray-700 mb-2">Amount (₹) *</div><input className="input" type="number" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} /></label>
+              <label><div className="text-sm font-medium text-gray-700 mb-2">Amount (₹) *</div><input className="input" type="number" min="0" step="0.01" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} /></label>
               <label><div className="text-sm font-medium text-gray-700 mb-2">Paid To</div><input className="input" value={form.paid_to} onChange={e => setForm({ ...form, paid_to: e.target.value })} /></label>
-              <label><div className="text-sm font-medium text-gray-700 mb-2">Project</div><input className="input" value={form.linked_project} onChange={e => setForm({ ...form, linked_project: e.target.value })} /></label>
+              <label><div className="text-sm font-medium text-gray-700 mb-2">Project *</div><select className="input" value={form.linked_project} onChange={e => handleProjectChange(e.target.value)} disabled={lookupLoading}><option value="">{lookupLoading ? 'Loading projects...' : 'Select project'}</option>{projects.map(project => <option key={project.name} value={project.name}>{project.name}{project.project_name ? ` | ${project.project_name}` : ''}</option>)}</select></label>
+              <label><div className="text-sm font-medium text-gray-700 mb-2">Site</div><select className="input" value={form.linked_site} onChange={e => setForm({ ...form, linked_site: e.target.value })} disabled={!form.linked_project}><option value="">{form.linked_project ? 'Select site' : 'Select project first'}</option>{sites.map(site => <option key={site.name} value={site.name}>{site.site_name ? `${site.name} | ${site.site_name}` : site.name}</option>)}</select></label>
               <label className="sm:col-span-2"><div className="text-sm font-medium text-gray-700 mb-2">Date</div><input className="input" type="date" value={form.entry_date} onChange={e => setForm({ ...form, entry_date: e.target.value })} /></label>
             </div>
             <div className="px-6 pb-6">
               {error && <div className="mb-4 text-sm text-red-600">{error}</div>}
-              <div className="flex justify-end gap-3"><button className="btn btn-secondary" onClick={() => setShowCreate(false)}>Cancel</button><button className="btn btn-primary" onClick={handleCreate} disabled={creating}>{creating ? 'Creating...' : 'Create'}</button></div>
+              <div className="flex justify-end gap-3"><button className="btn btn-secondary" onClick={() => { setShowCreate(false); resetForm(); }}>Cancel</button><button className="btn btn-primary" onClick={handleCreate} disabled={creating || !canCreate}>{creating ? 'Creating...' : 'Create'}</button></div>
             </div>
           </div>
         </div>

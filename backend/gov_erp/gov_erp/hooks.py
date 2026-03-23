@@ -153,26 +153,53 @@ after_migrate = ["gov_erp.install.after_migrate"]
 # 	}
 # }
 
+# Doc Events — auto-emit alerts on record lifecycle
+doc_events = {
+	"Project": {
+		"after_insert": "gov_erp.doc_event_handlers.project_after_insert",
+		"on_update": "gov_erp.doc_event_handlers.project_on_update",
+	},
+	"GE Site": {
+		"on_update": "gov_erp.doc_event_handlers.site_on_update",
+	},
+	"GE Milestone": {
+		"on_update": "gov_erp.doc_event_handlers.milestone_on_update",
+	},
+	"GE Project Document": {
+		"after_insert": "gov_erp.doc_event_handlers.document_after_insert",
+		"on_update": "gov_erp.doc_event_handlers.document_on_update",
+	},
+	"GE Dependency Override": {
+		"after_insert": "gov_erp.doc_event_handlers.dependency_override_after_insert",
+		"on_update": "gov_erp.doc_event_handlers.dependency_override_on_update",
+	},
+	"GE Dispatch Challan": {
+		"after_insert": "gov_erp.doc_event_handlers.dispatch_challan_after_insert",
+	},
+	"GE Ticket": {
+		"on_update": "gov_erp.doc_event_handlers.ticket_on_update",
+	},
+	"GE RMA Tracker": {
+		"after_insert": "gov_erp.doc_event_handlers.rma_after_insert",
+	},
+	"GE Invoice": {
+		"after_insert": "gov_erp.doc_event_handlers.invoice_after_insert",
+	},
+}
+
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"gov_erp.tasks.all"
-# 	],
-# 	"daily": [
-# 		"gov_erp.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"gov_erp.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"gov_erp.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"gov_erp.tasks.monthly"
-# 	],
-# }
+scheduler_events = {
+	"cron": {
+		"* * * * *": [
+			"gov_erp.gov_erp.doctype.ge_user_reminder.ge_user_reminder.process_due_reminders"
+		],
+		"0 6 * * *": [
+			"gov_erp.api._process_expiring_documents"
+		]
+	}
+}
 
 # Testing
 # -------

@@ -5,6 +5,7 @@ from frappe.model.document import Document
 class GEInvoice(Document):
 	def before_save(self):
 		self.calculate_totals()
+		self.sync_payment_totals()
 
 	def calculate_totals(self):
 		"""Auto-calculate amount, GST, TDS, and net receivable from line items."""
@@ -16,6 +17,23 @@ class GEInvoice(Document):
 		self.gst_amount = base_amount * (self.gst_percent or 0) / 100
 		self.tds_amount = base_amount * (self.tds_percent or 0) / 100
 		self.net_receivable = self.amount + self.gst_amount - self.tds_amount
+
+	def sync_payment_totals(self):
+		"""Compute total_paid and outstanding_amount from linked payment receipts."""
+		if not self.name:
+			self.total_paid = 0
+			self.outstanding_amount = self.net_receivable or 0
+			return
+
+		paid = frappe.db.sql(
+			"""SELECT COALESCE(SUM(amount_received), 0) as total
+			   FROM `tabGE Payment Receipt`
+			   WHERE linked_invoice = %s""",
+			self.name,
+			as_dict=True,
+		)
+		self.total_paid = paid[0].total if paid else 0
+		self.outstanding_amount = max((self.net_receivable or 0) - self.total_paid, 0)
 
 
 def calculate_invoice_totals(items, gst_percent=0, tds_percent=0):

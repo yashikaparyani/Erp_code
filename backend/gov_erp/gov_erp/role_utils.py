@@ -209,3 +209,91 @@ def grant_presales_head_project_flow_access():
 		"updated_doctypes": updated_doctypes,
 		"count": len(updated_doctypes),
 	}
+
+# ── ANDA role-permission alignment ──────────────────────────────────────────
+# Maps roles to DocTypes they must have access to, per ANDA tab expectations.
+ANDA_ROLE_GRANTS = [
+	(ROLE_PROJECT_HEAD, [
+		("GE Ticket",                 {"read": 1, "write": 1, "create": 1, "report": 1}),
+		("GE Site",                   {"read": 1, "write": 1, "create": 1, "delete": 1, "report": 1}),
+		("GE Project Team Member",    {"read": 1, "write": 1, "create": 1, "delete": 1, "report": 1}),
+		("GE Payment Receipt",        {"read": 1, "report": 1}),
+		("GE SLA Timer",              {"read": 1, "report": 1}),
+		("GE SLA Penalty Rule",       {"read": 1, "report": 1}),
+		("GE SLA Profile",            {"read": 1, "report": 1}),
+		("GE SLA Penalty Record",     {"read": 1, "report": 1}),
+		("GE Technician Visit Log",   {"read": 1, "report": 1}),
+	]),
+	(ROLE_PROJECT_MANAGER, [
+		("GE Technician Visit Log",   {"read": 1, "report": 1}),
+	]),
+	(ROLE_OM_OPERATOR, [
+		("GE Ticket",                 {"read": 1, "write": 1, "create": 1, "report": 1}),
+		("GE SLA Timer",              {"read": 1, "write": 1, "create": 1, "report": 1}),
+		("GE SLA Penalty Rule",       {"read": 1, "write": 1, "create": 1, "report": 1}),
+		("GE SLA Profile",            {"read": 1, "write": 1, "create": 1, "report": 1}),
+		("GE SLA Penalty Record",     {"read": 1, "write": 1, "create": 1, "report": 1}),
+		("GE Device Uptime Log",      {"read": 1, "write": 1, "create": 1, "report": 1}),
+		("GE Device Register",        {"read": 1, "write": 1, "create": 1, "report": 1}),
+		("GE Technician Visit Log",   {"read": 1, "write": 1, "create": 1, "report": 1}),
+	]),
+	(ROLE_RMA_MANAGER, [
+		("GE SLA Timer",              {"read": 1, "write": 1, "report": 1}),
+		("GE SLA Penalty Rule",       {"read": 1, "write": 1, "report": 1}),
+		("GE SLA Profile",            {"read": 1, "write": 1, "report": 1}),
+		("GE SLA Penalty Record",     {"read": 1, "write": 1, "report": 1}),
+		("GE Device Register",        {"read": 1, "write": 1, "report": 1}),
+	]),
+	(ROLE_PROCUREMENT_MANAGER, [
+		("GE Ticket",                 {"read": 1, "write": 1, "report": 1}),
+	]),
+	(ROLE_FIELD_TECHNICIAN, [
+		("GE Technician Visit Log",   {"read": 1, "write": 1, "create": 1, "report": 1}),
+	]),
+	(ROLE_ENGINEERING_HEAD, [
+		("GE BOQ",                    {"read": 1, "write": 1, "report": 1}),
+		("GE Cost Sheet",             {"read": 1, "write": 1, "report": 1}),
+	]),
+	(ROLE_ENGINEER, [
+		("GE BOQ",                    {"read": 1, "report": 1}),
+		("GE Cost Sheet",             {"read": 1, "report": 1}),
+	]),
+]
+
+
+def ensure_anda_role_permissions():
+	"""Ensure ANDA-expected role-to-DocType permissions exist in DocPerm table."""
+	updated = []
+	for role, grants in ANDA_ROLE_GRANTS:
+		for doctype_name, flags in grants:
+			if not frappe.db.exists("DocType", doctype_name):
+				continue
+			perm_name = frappe.db.get_value(
+				"DocPerm",
+				{
+					"parent": doctype_name,
+					"parenttype": "DocType",
+					"parentfield": "permissions",
+					"role": role,
+					"permlevel": 0,
+				},
+				"name",
+			)
+			if not perm_name:
+				perm_doc = frappe.get_doc({
+					"doctype": "DocPerm",
+					"parent": doctype_name,
+					"parenttype": "DocType",
+					"parentfield": "permissions",
+					"role": role,
+					"permlevel": 0,
+				})
+				perm_doc.insert(ignore_permissions=True)
+				perm_name = perm_doc.name
+			update_values = {"if_owner": 0}
+			update_values.update(flags)
+			frappe.db.set_value("DocPerm", perm_name, update_values, update_modified=False)
+			updated.append(f"{role} → {doctype_name}")
+	if updated:
+		frappe.db.commit()
+	return {"updated": updated, "count": len(updated)}

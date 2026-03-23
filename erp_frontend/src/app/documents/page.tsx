@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Eye, FileText, FolderOpen, FolderPlus, GitBranch, Lock, Shield, UploadCloud, X } from 'lucide-react';
+import { Download, Eye, FileText, FolderOpen, FolderPlus, GitBranch, Lock, Shield, UploadCloud, X } from 'lucide-react';
 import { EmptyState, SectionCard, formatDateTime, useApiData } from '../../components/dashboards/shared';
 
 type FolderRecord = {
@@ -30,6 +30,16 @@ type DocumentRecord = {
 
 const initialFolders: FolderRecord[] = [];
 const initialDocuments: DocumentRecord[] = [];
+const DOC_CATEGORIES = ['Survey', 'Engineering', 'Procurement', 'Execution', 'O&M', 'Finance', 'HR', 'Other'] as const;
+
+function getFileExtension(fileUrl?: string) {
+	const cleaned = (fileUrl || '').split('?', 1)[0].trim().toLowerCase();
+	return cleaned.includes('.') ? cleaned.split('.').pop() || '' : '';
+}
+
+function isPreviewable(fileUrl?: string) {
+	return ['pdf', 'jpg', 'jpeg'].includes(getFileExtension(fileUrl));
+}
 
 function getFolderAccent(label: string) {
 	const normalized = label.toLowerCase();
@@ -58,6 +68,7 @@ export default function DocumentsPage() {
 	const [uploadForm, setUploadForm] = useState({ document_name: '', linked_project: '', folder: '', category: '' });
 	const [uploadFile, setUploadFile] = useState<File | null>(null);
 	const [busy, setBusy] = useState(false);
+	const [previewDoc, setPreviewDoc] = useState<DocumentRecord | null>(null);
 
 	const handleCreateFolder = async () => {
 		if (!newFolderName.trim()) return;
@@ -69,13 +80,30 @@ export default function DocumentsPage() {
 		setBusy(false);
 	};
 
+	const [uploadError, setUploadError] = useState('');
+
 	const handleUpload = async () => {
-		if (!uploadForm.document_name.trim()) return;
+		if (!uploadForm.document_name.trim() || !uploadFile) return;
 		setBusy(true);
+		setUploadError('');
 		try {
-			await fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method: 'upload_project_document', args: { document_name: uploadForm.document_name.trim(), linked_project: uploadForm.linked_project || undefined, folder: uploadForm.folder || undefined, category: uploadForm.category || undefined } }) });
-			setUploadForm({ document_name: '', linked_project: '', folder: '', category: '' }); setUploadFile(null); setShowUploadModal(false); docsState.refresh();
-		} catch (e) { console.error('Upload failed:', e); }
+			const formData = new FormData();
+			formData.append('file', uploadFile);
+			formData.append('document_name', uploadForm.document_name.trim());
+			if (uploadForm.linked_project) formData.append('linked_project', uploadForm.linked_project);
+			if (uploadForm.folder) formData.append('folder', uploadForm.folder);
+			if (uploadForm.category) formData.append('category', uploadForm.category);
+			const res = await fetch('/api/documents/upload', { method: 'POST', body: formData });
+			const payload = await res.json();
+			if (!res.ok || payload.success === false) {
+				setUploadError(payload.message || 'Upload failed');
+			} else {
+				setUploadForm({ document_name: '', linked_project: '', folder: '', category: '' });
+				setUploadFile(null);
+				setShowUploadModal(false);
+				docsState.refresh();
+			}
+		} catch (e) { setUploadError(e instanceof Error ? e.message : 'Upload failed'); }
 		setBusy(false);
 	};
 
@@ -235,10 +263,21 @@ export default function DocumentsPage() {
 										</div>
 									</div>
 									{doc.file_url ? (
-										<a href={doc.file_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800">
-											<Eye className="h-4 w-4" />
-											View
-										</a>
+										<div className="flex items-center gap-3">
+											{isPreviewable(doc.file_url) ? (
+												<button
+													onClick={() => setPreviewDoc(doc)}
+													className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800"
+												>
+													<Eye className="h-4 w-4" />
+													Preview
+												</button>
+											) : null}
+											<a href={doc.file_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800">
+												<Download className="h-4 w-4" />
+												{isPreviewable(doc.file_url) ? 'Open' : 'Download'}
+											</a>
+										</div>
 									) : (
 										<span className="text-sm text-gray-400">No file URL</span>
 									)}
@@ -266,14 +305,54 @@ export default function DocumentsPage() {
 			{showUploadModal && (
 				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
 					<div className="bg-white rounded-lg shadow-xl w-full max-w-md">
-						<div className="flex items-center justify-between px-4 py-3 border-b"><h3 className="text-lg font-semibold">Upload Document</h3><button onClick={() => setShowUploadModal(false)} className="p-1 hover:bg-gray-100 rounded"><X className="w-5 h-5" /></button></div>
+						<div className="flex items-center justify-between px-4 py-3 border-b"><h3 className="text-lg font-semibold">Upload Document</h3><button onClick={() => { setShowUploadModal(false); setUploadError(''); }} className="p-1 hover:bg-gray-100 rounded"><X className="w-5 h-5" /></button></div>
 						<div className="p-4 space-y-3">
 							<div><label className="block text-sm font-medium text-gray-700 mb-1">Document Name *</label><input type="text" value={uploadForm.document_name} onChange={(e) => setUploadForm(p => ({ ...p, document_name: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" /></div>
-							<div><label className="block text-sm font-medium text-gray-700 mb-1">Linked Project</label><input type="text" value={uploadForm.linked_project} onChange={(e) => setUploadForm(p => ({ ...p, linked_project: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" /></div>
+							<div>
+								<label className="block text-sm font-medium text-gray-700 mb-1">File *</label>
+								<input
+									type="file"
+									accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg"
+									onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+									className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none file:mr-3 file:rounded-lg file:border-0 file:bg-[#1e6b87] file:px-3 file:py-1 file:text-sm file:font-medium file:text-white hover:file:bg-[#185a73]"
+								/>
+								{uploadFile && <p className="mt-1 text-xs text-gray-500">{uploadFile.name} ({(uploadFile.size / 1024).toFixed(1)} KB)</p>}
+							</div>
+							<div><label className="block text-sm font-medium text-gray-700 mb-1">Linked Project *</label><input type="text" value={uploadForm.linked_project} onChange={(e) => setUploadForm(p => ({ ...p, linked_project: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" /></div>
 							<div><label className="block text-sm font-medium text-gray-700 mb-1">Folder</label><select value={uploadForm.folder} onChange={(e) => setUploadForm(p => ({ ...p, folder: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"><option value="">Select folder</option>{folders.map(f => <option key={f.name} value={f.name}>{f.folder_name || f.file_name || f.name}</option>)}</select></div>
-							<div><label className="block text-sm font-medium text-gray-700 mb-1">Category</label><input type="text" value={uploadForm.category} onChange={(e) => setUploadForm(p => ({ ...p, category: e.target.value }))} placeholder="e.g., Drawing, Report" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" /></div>
+							<div>
+								<label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
+								<select value={uploadForm.category} onChange={(e) => setUploadForm(p => ({ ...p, category: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+									<option value="">Select category</option>
+									{DOC_CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
+								</select>
+							</div>
+							{uploadError && <p className="text-sm text-red-600">{uploadError}</p>}
 						</div>
-						<div className="flex justify-end gap-3 px-4 py-3 border-t"><button onClick={() => setShowUploadModal(false)} className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg text-sm font-medium">Cancel</button><button onClick={handleUpload} disabled={busy} className="px-4 py-2 bg-[#1e6b87] text-white rounded-lg text-sm font-medium disabled:opacity-50">{busy ? 'Uploading...' : 'Upload'}</button></div>
+						<div className="flex justify-end gap-3 px-4 py-3 border-t"><button onClick={() => { setShowUploadModal(false); setUploadError(''); }} className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg text-sm font-medium">Cancel</button><button onClick={handleUpload} disabled={busy || !uploadForm.document_name.trim() || !uploadForm.linked_project.trim() || !uploadForm.category.trim() || !uploadFile} className="px-4 py-2 bg-[#1e6b87] text-white rounded-lg text-sm font-medium disabled:opacity-50">{busy ? 'Uploading...' : 'Upload'}</button></div>
+					</div>
+				</div>
+			)}
+
+			{previewDoc && previewDoc.file_url && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+					<div className="w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+						<div className="flex items-center justify-between border-b px-4 py-3">
+							<div>
+								<div className="text-sm font-semibold text-gray-900">{previewDoc.document_name || previewDoc.file_name || previewDoc.name}</div>
+								<div className="text-xs text-gray-500">{previewDoc.category || 'Document'}</div>
+							</div>
+							<button onClick={() => setPreviewDoc(null)} className="rounded-md p-1 hover:bg-gray-100">
+								<X className="h-5 w-5" />
+							</button>
+						</div>
+						<div className="h-[75vh] bg-gray-100">
+							{getFileExtension(previewDoc.file_url) === 'pdf' ? (
+								<iframe title={previewDoc.document_name || previewDoc.name} src={previewDoc.file_url} className="h-full w-full" />
+							) : (
+								<img src={previewDoc.file_url} alt={previewDoc.document_name || previewDoc.name} className="h-full w-full object-contain" />
+							)}
+						</div>
 					</div>
 				</div>
 			)}

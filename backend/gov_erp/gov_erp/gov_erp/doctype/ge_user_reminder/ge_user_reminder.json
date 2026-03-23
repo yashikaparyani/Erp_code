@@ -1,0 +1,217 @@
+{
+ "actions": [],
+ "autoname": "hash",
+ "creation": "2026-03-19 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "title",
+  "column_break_time",
+  "reminder_datetime",
+  "section_break_repeat",
+  "repeat_rule",
+  "column_break_repeat2",
+  "next_reminder_at",
+  "section_break_context",
+  "linked_project",
+  "linked_site",
+  "column_break_context2",
+  "linked_stage",
+  "linked_department",
+  "section_break_reference",
+  "reference_doctype",
+  "column_break_ref2",
+  "reference_name",
+  "section_break_owner",
+  "user",
+  "column_break_status",
+  "status",
+  "section_break_delivery",
+  "is_sent",
+  "column_break_delivery2",
+  "sent_at",
+  "section_break_notes",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_time",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "reminder_datetime",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Reminder Date/Time",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_repeat",
+   "fieldtype": "Section Break",
+   "label": "Repeat"
+  },
+  {
+   "fieldname": "repeat_rule",
+   "fieldtype": "Select",
+   "label": "Repeat Rule",
+   "options": "\nNone\nDaily\nWeekly\nMonthly"
+  },
+  {
+   "fieldname": "column_break_repeat2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "next_reminder_at",
+   "fieldtype": "Datetime",
+   "label": "Next Reminder At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_context",
+   "fieldtype": "Section Break",
+   "label": "Context"
+  },
+  {
+   "fieldname": "linked_project",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Linked Project",
+   "options": "Project"
+  },
+  {
+   "fieldname": "linked_site",
+   "fieldtype": "Link",
+   "label": "Linked Site",
+   "options": "GE Site"
+  },
+  {
+   "fieldname": "column_break_context2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "linked_stage",
+   "fieldtype": "Data",
+   "label": "Linked Stage"
+  },
+  {
+   "fieldname": "linked_department",
+   "fieldtype": "Data",
+   "label": "Linked Department"
+  },
+  {
+   "fieldname": "section_break_reference",
+   "fieldtype": "Section Break",
+   "label": "Reference Document"
+  },
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Link",
+   "label": "Reference DocType",
+   "options": "DocType"
+  },
+  {
+   "fieldname": "column_break_ref2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "reference_name",
+   "fieldtype": "Dynamic Link",
+   "label": "Reference Name",
+   "options": "reference_doctype"
+  },
+  {
+   "fieldname": "section_break_owner",
+   "fieldtype": "Section Break",
+   "label": "Owner"
+  },
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "User",
+   "options": "User",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_status",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Active",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Active\nSnoozed\nDismissed\nCompleted"
+  },
+  {
+   "fieldname": "section_break_delivery",
+   "fieldtype": "Section Break",
+   "label": "Delivery"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_sent",
+   "fieldtype": "Check",
+   "label": "Sent"
+  },
+  {
+   "fieldname": "column_break_delivery2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "sent_at",
+   "fieldtype": "Datetime",
+   "label": "Sent At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_notes",
+   "fieldtype": "Section Break",
+   "label": "Notes"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-03-19 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov Erp",
+ "name": "GE User Reminder",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "write": 1,
+   "role": "System Manager"
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "write": 1,
+   "role": "All",
+   "if_owner": 1
+  }
+ ],
+ "sort_field": "reminder_datetime",
+ "sort_order": "ASC",
+ "states": [],
+ "track_changes": 0
+}

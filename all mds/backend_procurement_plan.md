@@ -104,3 +104,83 @@ Fields:
 2. wire comparison approval to PO creation readiness
 3. decide whether to expose ERPNext `Supplier Quotation` directly or add helper APIs
 4. start stores slice with custom stock / dispatch extensions only where ERPNext is insufficient
+
+## PO Payment Terms & CRUD (Implemented)
+
+### Problem
+
+ERPNext's built-in `Purchase Order` has a generic `payment_schedule` child table, but it does not support the 6 domain-specific payment term types required by Technosys workflow, nor does it support document-mapped accounts approval.
+
+### Solution
+
+Added a companion layer on top of ERPNext's `Purchase Order` rather than modifying ERPNext schema directly.
+
+### New DocTypes
+
+#### `GE PO Payment Term` (child table, `istable = 1`)
+
+Fields:
+
+- `term_type` — Select with 7 options:
+  1. Full Advance Before Dispatch
+  2. Within X Days After Delivery
+  3. Post Dated Cheque Within X Days
+  4. Percentage Advance Against PO Balance Before Dispatch
+  5. Percentage Advance Against PO Balance After Delivery X Days
+  6. Custom
+- `percentage` — Percent, required
+- `amount` — Currency, read-only (computed as percentage × PO grand_total)
+- `days` — Int (the "X" in term types 2, 3, 5)
+- `due_date` — Date, read-only
+- `status` — Select: Pending / Approved / Paid / Overdue
+- `approval_document` — Attach
+- `approval_document_name` — Data
+- `remarks` — Small Text
+
+#### `GE PO Extension` (parent, `autoname = field:purchase_order`)
+
+Fields:
+
+- `purchase_order` — Link to Purchase Order, unique, required
+- `payment_terms` — Table of `GE PO Payment Term`
+- `payment_terms_note` — Small Text
+- `total_payment_terms_pct` — Percent, read-only (sum of all term percentages)
+- `accounts_approval_status` — Select: Pending / Approved / Rejected
+
+### Backend APIs Added (api.py)
+
+- `create_purchase_order(data)` — creates ERPNext PO + optional payment terms
+- `update_purchase_order(data)` — edits draft PO fields/items + updates payment terms
+- `delete_purchase_order(name)` — deletes draft PO + linked extension
+- `submit_purchase_order(name)` — submits draft PO
+- `cancel_purchase_order(name)` — cancels submitted PO
+- `_save_po_payment_terms(po_name, terms_list, note)` — internal helper
+- `get_po_payment_terms(purchase_order)` — returns payment terms data
+- `save_po_payment_terms(data)` — saves/replaces payment terms
+- `approve_po_payment_terms(purchase_order)` — accounts approval
+- `reject_po_payment_terms(purchase_order, reason)` — accounts rejection with reason
+
+### Frontend API Routes
+
+- `POST /api/purchase-orders` — create PO
+- `PUT /api/purchase-orders` — update PO
+- `DELETE /api/purchase-orders` — delete PO
+- `GET /api/purchase-orders/detail` — get single PO with items
+- `POST /api/purchase-orders/submit` — submit PO
+- `POST /api/purchase-orders/cancel` — cancel PO
+- `GET /api/purchase-orders/payment-terms` — get payment terms
+- `POST /api/purchase-orders/payment-terms` — save payment terms
+- `POST /api/purchase-orders/payment-terms/approve` — approve payment terms
+- `POST /api/purchase-orders/payment-terms/reject` — reject payment terms
+
+### Frontend Pages
+
+- `/purchase-orders` — list page enhanced with Create PO button, clickable rows, row-level Submit/Delete/Cancel actions
+- `/purchase-orders/[id]` — detail page with:
+  - PO header with status badge and lifecycle actions (submit, delete, cancel)
+  - Order details card (supplier, company, project, warehouse, dates, totals, % received/billed)
+  - Line items table
+  - Payment terms section with edit mode (add/remove terms, select from 6 types, set percentage/days/doc ref/remarks)
+  - Total percentage validation (warns if not 100%)
+  - Accounts approval actions (approve/reject with reason)
+  - Approval status badge (Pending/Approved/Rejected)

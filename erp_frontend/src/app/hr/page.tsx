@@ -1,13 +1,18 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import {
+  BarChart3,
   Briefcase,
   CalendarCheck2,
   Plane,
   Clock3,
+  HardHat,
   ShieldCheck,
   Wrench,
   Plus,
+  Users,
+  ChevronRight,
   X,
 } from 'lucide-react';
 
@@ -265,9 +270,65 @@ export default function HRPage() {
       <div className="mb-4 sm:mb-6">
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900">HR Operations</h1>
         <p className="text-xs sm:text-sm text-gray-500 mt-1">
-          Employee onboarding, attendance, movement, overtime, statutory ledgers, and field visit tracking.
+		  Employee onboarding, leave and attendance, movement, overtime, statutory ledgers, and field visit tracking.
         </p>
       </div>
+
+      {/* Employee Directory banner */}
+      <Link href="/hr/employees" className="mb-4 sm:mb-6 flex items-center justify-between rounded-xl border border-[#1e6b87]/20 bg-[#1e6b87]/5 px-5 py-4 transition-colors hover:bg-[#1e6b87]/10 group">
+        <div className="flex items-center gap-3">
+          <div className="rounded-lg bg-[#1e6b87] p-2.5 text-white"><Users className="h-5 w-5" /></div>
+          <div>
+            <div className="text-sm font-semibold text-gray-900">Employee Directory</div>
+            <div className="text-xs text-gray-500">Search, view, and manage all employee profiles</div>
+          </div>
+        </div>
+        <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-[#1e6b87] transition-colors" />
+      </Link>
+
+      <Link href="/hr/approvals" className="mb-4 sm:mb-6 flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 transition-colors hover:bg-amber-100 group">
+        <div className="flex items-center gap-3">
+          <div className="rounded-lg bg-amber-500 p-2.5 text-white"><ShieldCheck className="h-5 w-5" /></div>
+          <div>
+            <div className="text-sm font-semibold text-gray-900">Approval Inbox</div>
+            <div className="text-xs text-gray-500">One queue for onboarding, leave, travel, overtime, and regularization approvals</div>
+          </div>
+        </div>
+        <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-amber-700 transition-colors" />
+      </Link>
+
+      <Link href="/hr/reports" className="mb-4 sm:mb-6 flex items-center justify-between rounded-xl border border-sky-200 bg-sky-50 px-5 py-4 transition-colors hover:bg-sky-100 group">
+        <div className="flex items-center gap-3">
+          <div className="rounded-lg bg-sky-600 p-2.5 text-white"><BarChart3 className="h-5 w-5" /></div>
+          <div>
+            <div className="text-sm font-semibold text-gray-900">Reports Gallery</div>
+            <div className="text-xs text-gray-500">Employee master, PF and ESI, leave, muster, overtime, travel, and onboarding exports</div>
+          </div>
+        </div>
+        <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-sky-700 transition-colors" />
+      </Link>
+
+      <Link href="/hr/operations" className="mb-4 sm:mb-6 flex items-center justify-between rounded-xl border border-violet-200 bg-violet-50 px-5 py-4 transition-colors hover:bg-violet-100 group">
+        <div className="flex items-center gap-3">
+          <div className="rounded-lg bg-violet-600 p-2.5 text-white"><HardHat className="h-5 w-5" /></div>
+          <div>
+            <div className="text-sm font-semibold text-gray-900">Operations Cockpit</div>
+            <div className="text-xs text-gray-500">Project staffing, site attendance, field deployment, DMS governance, and compliance in one view</div>
+          </div>
+        </div>
+        <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-violet-700 transition-colors" />
+      </Link>
+
+      <Link href="/hr/attendance" className="mb-4 sm:mb-6 flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 transition-colors hover:bg-emerald-100 group">
+        <div className="flex items-center gap-3">
+          <div className="rounded-lg bg-emerald-600 p-2.5 text-white"><CalendarCheck2 className="h-5 w-5" /></div>
+          <div>
+            <div className="text-sm font-semibold text-gray-900">Leave And Attendance</div>
+            <div className="text-xs text-gray-500">Leave requests, balances, holiday lists, who is in, muster, and regularization</div>
+          </div>
+        </div>
+        <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-emerald-700 transition-colors" />
+      </Link>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
         <StatCard
@@ -278,7 +339,7 @@ export default function HRPage() {
           tone="blue"
         />
         <StatCard
-          title="Attendance"
+		  title="Leave & Attendance"
           value={attendanceStats.total ?? 0}
           hint={`${attendanceStats.present ?? 0} present • ${attendanceStats.absent ?? 0} absent`}
           icon={CalendarCheck2}

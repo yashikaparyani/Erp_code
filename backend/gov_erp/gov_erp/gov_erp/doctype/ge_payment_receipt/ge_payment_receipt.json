@@ -198,6 +198,11 @@
    "read": 1,
    "report": 1,
    "role": "Presales Tendering Head"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Project Head"
   }
  ],
  "sort_field": "creation",
