@@ -23,9 +23,11 @@
   "go_no_go_by",
   "go_no_go_on",
   "go_no_go_remarks",
+  "qualification_reason",
   "section_break_readiness",
   "technical_readiness",
   "commercial_readiness",
+  "technical_rejection_reason",
   "column_break_readiness",
   "finance_readiness",
   "section_break_value",
@@ -191,6 +193,11 @@
    "label": "Go / No-Go Remarks"
   },
   {
+   "fieldname": "qualification_reason",
+   "fieldtype": "Small Text",
+   "label": "Qualification Reason"
+  },
+  {
    "fieldname": "section_break_readiness",
    "fieldtype": "Section Break",
    "label": "Readiness"
@@ -208,6 +215,11 @@
    "fieldtype": "Select",
    "label": "Commercial Readiness",
    "options": "NOT_STARTED\nPENDING_APPROVAL\nAPPROVED\nREJECTED"
+  },
+  {
+   "fieldname": "technical_rejection_reason",
+   "fieldtype": "Small Text",
+   "label": "Technical Rejection Reason"
   },
   {
    "fieldname": "column_break_readiness",

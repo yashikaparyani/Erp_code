@@ -813,3 +813,165 @@ The system should feel like this:
 - one project conversion path
 
 Everything else should be filters, reports, or supporting pages.
+
+## 14. Revised Bid Lifecycle Scope (2026-03-22)
+
+This section supersedes the earlier bid-state interpretation.
+
+### Final bid states to implement
+
+The active bid lifecycle should now be treated as:
+
+- `UNDER_EVALUATION`
+- `LOST`
+- `WON`
+- `CANCEL`
+- `RETENDER`
+
+`DRAFT` and `SUBMITTED` are no longer the primary operating states for the target UX.
+
+### Updated rule at tender conversion
+
+When a tender is converted from `Green` using `Convert To Bid`:
+
+- a bid should be created automatically
+- the created bid should directly enter `UNDER_EVALUATION`
+- the bid should become the current lifecycle record for that tender
+
+### State-by-state business meaning
+
+#### `UNDER_EVALUATION`
+
+- default state immediately after tender-to-bid conversion
+- means the bid is now live and under result tracking
+- this bid should appear in the main `Bids` page
+- bid workspace should show bid details and downstream actions
+
+#### `LOST`
+
+- when a bid is marked lost, it should move into `EMD Tracking`
+- the tender/bid should be tracked there for `EMD refund status`
+- refund tracking remains the operating purpose of that record after loss
+
+#### `WON`
+
+- when a bid is marked won, it should move into `Won Bids & LOI`
+- keep the list page broadly as-is
+- add a dedicated bid workspace for won bids
+- won bid workspace should collect department-wise `LOI` entries
+- once all required department LOIs are received, `Presales Tendering Head` decides:
+  - accept
+  - reject
+- if accepted, the bid should move into a new tab/page: `In Process Bid`
+
+#### `CANCEL`
+
+- used when the bid exists but the organization no longer wants to continue it
+- this bid should move into a new `Cancel Bid` tab/page
+- cancelling must require a reason
+- cancel reason must be stored back against the underlying tender/workspace trail as well
+
+#### `RETENDER`
+
+- used when `Presales Tendering Head` wants to restart the tender cycle from bid stage
+- the bid should be removed from active bid lifecycle views
+- the linked tender should return to the tender dashboard funnel
+- the tender should reappear in `Blue`
+- the tender process should restart from the beginning
+- retender must require a reason
+- retender reason must be stored against the linked tender/workspace trail
+
+### Won bid acceptance flow
+
+After `WON`:
+
+1. bid moves to `Won Bids & LOI`
+2. department-wise LOIs are collected in bid workspace
+3. when all LOIs are received, `Presales Tendering Head` reviews the bid
+4. head can `Accept` or `Reject`
+5. on `Accept`, move bid into `In Process Bid`
+6. on `Reject`, keep it in won-bid handling state until explicit next action is defined
+
+### New `In Process Bid` operating model
+
+`In Process Bid` should track awarded operational tenure.
+
+Required behavior:
+
+- show awarded bids that were accepted after LOI completion
+- display tenure duration clearly
+- show remaining duration countdown
+- show important dates and closure readiness
+- include a dedicated bid workspace
+
+### Tenure completion and closure
+
+When tenure is near completion:
+
+- bid workspace should show a new action for `Project Completion Certificate`
+- this certificate will be submitted by `Project Head`
+
+### Project Head sidebar addition
+
+Add a new sidebar item for `Project Head`:
+
+- `Letter of Submission`
+
+Purpose:
+
+- list bids/tenders that are nearing closure
+- allow project head to upload/add completion letters
+- these letters should feed back into the presales closure process
+
+### Implementation roadmap for this revised scope
+
+#### Phase A - Bid lifecycle refactor
+
+- replace old front-end bid status assumptions with the new 5-state model
+- change tender-to-bid conversion so created bids start at `UNDER_EVALUATION`
+- update all bid pages, badges, filters, and actions
+
+#### Phase B - Lost to EMD tracking linkage
+
+- ensure `LOST` bids surface correctly in `EMD Tracking`
+- show refund status and refund follow-up state
+- keep lost bid reason/result data visible
+
+#### Phase C - Won bid workspace and LOI control
+
+- create/expand won bid workspace
+- store department-wise LOIs there
+- add acceptance gate for `Presales Tendering Head`
+- move accepted bids into `In Process Bid`
+
+#### Phase D - In Process Bid module
+
+- add new `In Process Bid` page/tab
+- show tenure years, start/end dates, and countdown
+- show bid detail workspace for active awarded tenure
+
+#### Phase E - Cancel and Retender handling
+
+- add `Cancel Bid` page/tab
+- add cancel action with mandatory reason
+- add retender action with mandatory reason
+- on retender, send tender back to `Blue` funnel
+- persist both reasons in tender workspace
+
+#### Phase F - Closure certificate workflow
+
+- add `Project Completion Certificate` action in in-process/workspace when tenure is near end
+- add `Project Head > Letter of Submission` sidebar item
+- allow project head to add completion letters for bids/tenders due for closure
+
+### Immediate implementation note
+
+The next implementation pass should treat the following as active scope:
+
+- new bid status engine
+- won bid workspace
+- LOI completion + accept/reject gate
+- in-process bid page
+- cancel bid page
+- retender reset to blue funnel
+- closure certificate and project-head letter submission linkage

@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
       tender: sp.get('tender') || undefined,
       status: sp.get('status') || undefined,
       is_latest: sp.get('is_latest') || undefined,
+      loi_decision_status: sp.get('loi_decision_status') || undefined,
     }, request);
     return NextResponse.json({ success: true, data: result.data });
   } catch (error) {

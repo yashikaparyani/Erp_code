@@ -92,8 +92,8 @@ export const SYSTEM_FUNNEL_META: Record<SystemFunnelKey, FunnelDisplayMeta> = {
   },
   Yellow: {
     key: 'Yellow',
-    label: 'Technical Qualified',
-    description: 'GO decision made, technical team cleared. EMD still pending.',
+    label: 'Qualified',
+    description: 'GO decision made and presales qualification completed.',
     hex: '#eab308',
     bgClass: 'bg-yellow-50',
     borderClass: 'border-yellow-400',
@@ -105,8 +105,8 @@ export const SYSTEM_FUNNEL_META: Record<SystemFunnelKey, FunnelDisplayMeta> = {
   },
   Red: {
     key: 'Red',
-    label: 'Not Qualified',
-    description: 'Technical evaluation rejected this tender.',
+    label: 'Qualification Rejected',
+    description: 'Presales qualification marked this tender as not qualified.',
     hex: '#ef4444',
     bgClass: 'bg-red-50',
     borderClass: 'border-red-400',
@@ -118,8 +118,8 @@ export const SYSTEM_FUNNEL_META: Record<SystemFunnelKey, FunnelDisplayMeta> = {
   },
   Green: {
     key: 'Green',
-    label: 'Bid Ready',
-    description: 'Technical cleared + EMD/finance confirmed. Ready to bid.',
+    label: 'Technical Approved',
+    description: 'Director approved technical review. Ready to convert into a bid.',
     hex: '#22c55e',
     bgClass: 'bg-green-50',
     borderClass: 'border-green-400',
@@ -131,8 +131,8 @@ export const SYSTEM_FUNNEL_META: Record<SystemFunnelKey, FunnelDisplayMeta> = {
   },
   Orange: {
     key: 'Orange',
-    label: 'Locked',
-    description: 'Bid submitted, awaiting result (Won/Lost/Retender).',
+    label: 'Technical Rejected',
+    description: 'Director rejected technical review for this tender.',
     hex: '#f97316',
     bgClass: 'bg-orange-50',
     borderClass: 'border-orange-400',
@@ -145,7 +145,7 @@ export const SYSTEM_FUNNEL_META: Record<SystemFunnelKey, FunnelDisplayMeta> = {
   Pink: {
     key: 'Pink',
     label: 'Under Observation',
-    description: 'NO-GO decision, bid denied, dropped, or lost.',
+    description: 'NO-GO or manually kept under observation after rejection.',
     hex: '#ec4899',
     bgClass: 'bg-pink-50',
     borderClass: 'border-pink-400',
@@ -203,37 +203,16 @@ export function deriveSystemFunnelKey(tender: TenderFunnelSignals): SystemFunnel
   const status = tender.status || '';
   const gng = tender.go_no_go_status || 'PENDING';
   const tech = tender.technical_readiness || 'NOT_STARTED';
-  const emdRequired = Boolean(tender.emd_required || tender.pbg_required);
-  const financeReady = tender.finance_readiness === 'APPROVED';
-  const bidStatus = tender.latest_bid?.status;
+  const qualification = tender.commercial_readiness || 'NOT_STARTED';
   const bidDenied = Boolean(tender.bid_denied_by_presales);
 
-  // --- Pink: under observation ---
-  if (gng === 'NO_GO') return 'Pink';
-  if (bidDenied) return 'Pink';
-  if (['DROPPED', 'CANCELLED'].includes(status)) return 'Pink';
-
-  // --- Bid lifecycle: active bid overrides ---
-  if (bidStatus) {
-    if (bidStatus === 'RETENDER') return 'Blue';   // reset to evaluation
-    if (['SUBMITTED', 'UNDER_EVALUATION', 'WON'].includes(bidStatus)) return 'Orange';
-    if (bidStatus === 'LOST') return 'Pink';
-    if (bidStatus === 'CANCEL') return 'Pink';
-  }
-
-  // --- No active bid: pre-bid funnel ---
+  if (gng === 'NO_GO' || bidDenied || ['DROPPED', 'CANCELLED', 'LOST'].includes(status)) return 'Pink';
   if (!gng || gng === 'PENDING') return 'Blue';
-
-  if (tech === 'REJECTED') return 'Red';
-
-  if (tech === 'APPROVED') {
-    const emdOk = !emdRequired || financeReady;
-    if (emdOk) return 'Green';
-    return 'Yellow';
-  }
-
-  // GO made but technical still in progress
-  return 'Yellow';
+  if (qualification === 'REJECTED') return 'Red';
+  if (tech === 'REJECTED') return 'Orange';
+  if (tech === 'APPROVED' || ['WON', 'CONVERTED_TO_PROJECT'].includes(status)) return 'Green';
+  if (qualification === 'APPROVED') return 'Yellow';
+  return 'Blue';
 }
 
 /** Map backend computed_funnel_status string to system key */
@@ -319,4 +298,3 @@ export function getTenderFunnelMeta(key?: SystemFunnelKey | string): FunnelDispl
   if (!key) return SYSTEM_FUNNEL_META['Blue'];
   return SYSTEM_FUNNEL_META[key as SystemFunnelKey] ?? SYSTEM_FUNNEL_META['Blue'];
 }
-

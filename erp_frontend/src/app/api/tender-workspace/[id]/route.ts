@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { callFrappeMethod } from '../../_lib/frappe';
+import { callFrappeMethod, callPresalesMethod } from '../../_lib/frappe';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,8 +19,10 @@ export async function GET(
       boqs,
       costSheets,
       financeRequests,
+      instruments,
       checklistTemplates,
       approvals,
+      bids,
     ] = await Promise.all([
       callFrappeMethod('get_tender', { name: tenderName }, request),
       callFrappeMethod('get_tender_results', { tender: tenderName }, request),
@@ -29,8 +31,10 @@ export async function GET(
       callFrappeMethod('get_boqs', { tender: tenderName }, request),
       callFrappeMethod('get_cost_sheets', { tender: tenderName }, request),
       callFrappeMethod('get_finance_requests', { tender: tenderName }, request),
+      callFrappeMethod('get_emd_pbg_instruments', { tender: tenderName }, request),
       callFrappeMethod('get_tender_checklists', {}, request),
       callFrappeMethod('get_tender_approvals', { tender: tenderName }, request),
+      callPresalesMethod('get_bids', { tender: tenderName, is_latest: 1 }, request),
     ]);
 
     return NextResponse.json({
@@ -43,8 +47,10 @@ export async function GET(
         boqs: boqs.data || [],
         costSheets: costSheets.data || [],
         financeRequests: financeRequests.data || [],
+        instruments: instruments.data || [],
         checklistTemplates: checklistTemplates.data || [],
         approvals: approvals.data || [],
+        bids: bids.data || [],
       },
     });
   } catch (error) {

@@ -128,6 +128,8 @@ const navLinks: NavLink[] = [
       { name: 'Tender', href: '/pre-sales/tender', icon: FileSearch },
       { name: 'Bids', href: '/pre-sales/bids', icon: ListChecks },
       { name: 'Won Bids & LOI', href: '/pre-sales/won-bids', icon: Banknote },
+      { name: 'In Process Bid', href: '/pre-sales/in-process-bid', icon: Clock },
+      { name: 'Cancel Bid', href: '/pre-sales/cancel-bid', icon: AlertTriangle },
       { name: 'EMD Tracking', href: '/pre-sales/emd-tracking', icon: CreditCard },
       { name: "Approval's", href: '/pre-sales/approvals', icon: CheckSquare },
     ],
