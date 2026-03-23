@@ -48,6 +48,9 @@ function AccessDenied({ role, path }: { role: string; path: string }) {
           Your role <span className="font-medium text-gray-700">{role}</span> does not have access to this page.
         </p>
         <p className="text-xs text-gray-400 font-mono">{path}</p>
+        <p className="text-xs text-gray-400 mt-3">
+          If you believe this is a mistake, contact your system administrator.
+        </p>
         <a
           href="/"
           className="mt-6 inline-block px-5 py-2 bg-[#1e6b87] text-white text-sm font-medium rounded-lg hover:bg-[#185a72] transition-colors"

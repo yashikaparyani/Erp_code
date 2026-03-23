@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Plus, ShoppingCart, Truck, Clock, CheckCircle2, Eye, X } from 'lucide-react';
+import Link from 'next/link';
+import { Plus, ShoppingCart, Truck, Clock, CheckCircle2, ArrowRight, FolderTree, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 interface VendorComparison {
@@ -37,6 +38,11 @@ function formatCurrency(val?: number): string {
   return `₹${val.toLocaleString('en-IN')}`;
 }
 
+function getProjectWorkspaceHref(project?: string): string | null {
+  if (!project) return null;
+  return `/procurement/projects/${encodeURIComponent(project)}`;
+}
+
 export default function ProcurementPage() {
   const { currentUser } = useAuth();
   const [items, setItems] = useState<VendorComparison[]>([]);
@@ -64,6 +70,7 @@ export default function ProcurementPage() {
 
   const canCreateOrSubmit = hasAnyRole('Director', 'System Manager', 'Procurement Manager', 'Purchase');
   const canApproveReject = hasAnyRole('Director', 'System Manager', 'Project Head', 'Department Head');
+  const linkedProjectCount = new Set(items.map((item) => item.linked_project).filter(Boolean)).size;
 
   const loadData = async () => {
     setLoading(true);
@@ -186,18 +193,24 @@ export default function ProcurementPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Procurement</h1>
-          <p className="text-xs sm:text-sm text-gray-500 mt-1">Vendor comparisons and purchase management</p>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">Vendor comparisons, approvals, and project-linked procurement workspace</p>
         </div>
-        <button
-          className="btn btn-primary w-full sm:w-auto"
-          onClick={() => {
-            resetCreateForm();
-            setShowCreateModal(true);
-          }}
-        >
-          <Plus className="w-4 h-4" />
-          New Comparison
-        </button>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <Link href="/procurement/projects" className="btn btn-secondary w-full sm:w-auto">
+            <FolderTree className="w-4 h-4" />
+            Project Workspace
+          </Link>
+          <button
+            className="btn btn-primary w-full sm:w-auto"
+            onClick={() => {
+              resetCreateForm();
+              setShowCreateModal(true);
+            }}
+          >
+            <Plus className="w-4 h-4" />
+            New Comparison
+          </button>
+        </div>
       </div>
 
       {showCreateModal ? (
@@ -258,6 +271,39 @@ export default function ProcurementPage() {
           {actionError}
         </div>
       ) : null}
+
+      <div className="mb-4 sm:mb-6 rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50 via-white to-orange-50 p-5 sm:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="max-w-2xl">
+            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-700">Project-style workflow</div>
+            <h2 className="mt-2 text-lg sm:text-xl font-semibold text-gray-900">Open procurement by project, not just by comparison row.</h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Use the procurement workspace to click into project context first, then review sites, milestones, files, and activity with the same shell pattern as the main project workspace.
+            </p>
+          </div>
+          <Link
+            href="/procurement/projects"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-amber-700"
+          >
+            Open Procurement Workspace
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-white/70 bg-white/80 px-4 py-3">
+            <div className="text-xs uppercase tracking-wide text-gray-500">Project-linked comparisons</div>
+            <div className="mt-1 text-2xl font-semibold text-gray-900">{linkedProjectCount}</div>
+          </div>
+          <div className="rounded-xl border border-white/70 bg-white/80 px-4 py-3">
+            <div className="text-xs uppercase tracking-wide text-gray-500">Pending approvals</div>
+            <div className="mt-1 text-2xl font-semibold text-gray-900">{stats.pending_approval ?? 0}</div>
+          </div>
+          <div className="rounded-xl border border-white/70 bg-white/80 px-4 py-3">
+            <div className="text-xs uppercase tracking-wide text-gray-500">Approved for PO</div>
+            <div className="mt-1 text-2xl font-semibold text-gray-900">{stats.approved ?? 0}</div>
+          </div>
+        </div>
+      </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
@@ -345,7 +391,16 @@ export default function ProcurementPage() {
                     <div className="text-sm text-gray-900">{vc.linked_material_request || '-'}</div>
                   </td>
                   <td>
-                    <div className="text-sm text-gray-900">{vc.linked_project || '-'}</div>
+                    {getProjectWorkspaceHref(vc.linked_project) ? (
+                      <Link
+                        href={getProjectWorkspaceHref(vc.linked_project)!}
+                        className="text-sm font-medium text-amber-700 hover:text-amber-900 hover:underline"
+                      >
+                        {vc.linked_project}
+                      </Link>
+                    ) : (
+                      <div className="text-sm text-gray-900">-</div>
+                    )}
                     <div className="text-xs text-gray-500">{vc.linked_tender || ''}</div>
                   </td>
                   <td>
@@ -370,13 +425,16 @@ export default function ProcurementPage() {
                   </td>
                   <td>
                     <div className="flex flex-wrap gap-2 items-center">
-                      <button
-                        className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1"
-                        onClick={() => alert(`Comparison: ${vc.name}\nStatus: ${vc.status || '-'}\nSupplier: ${vc.recommended_supplier || '-'}`)}
-                      >
-                        <Eye className="w-4 h-4" />
-                        View
-                      </button>
+                      {getProjectWorkspaceHref(vc.linked_project) ? (
+                        <Link
+                          href={getProjectWorkspaceHref(vc.linked_project)!}
+                          className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1"
+                        >
+                          Open Workspace
+                        </Link>
+                      ) : (
+                        <span className="text-sm text-gray-400">No project link</span>
+                      )}
 
                       {vc.status === 'DRAFT' && canCreateOrSubmit ? (
                         <button className="text-indigo-600 hover:text-indigo-800 text-sm font-medium" disabled={actionLoadingName === vc.name} onClick={() => runAction(vc.name, 'submit')}>

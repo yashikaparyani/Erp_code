@@ -1,0 +1,14 @@
+{
+  "remote.autoForwardPorts": true,
+  "remote.restoreForwardedPorts": true,
+  "remote.portsAttributes": {
+    "3000": {
+      "label": "Gov ERP Frontend",
+      "onAutoForward": "openBrowser"
+    },
+    "8000": {
+      "label": "Gov ERP Frappe Backend",
+      "onAutoForward": "silent"
+    }
+  }
+}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, RefreshCcw } from 'lucide-react';
 import { DashboardShell, SectionCard, StatCard } from '../dashboards/shared';
 import ModalFrame from '../ui/ModalFrame';
@@ -12,11 +12,13 @@ type FieldOption = { label: string; value: string };
 export type WorkspaceField = {
   name: string;
   label: string;
-  type?: 'text' | 'number' | 'date' | 'textarea' | 'select';
+  type?: 'text' | 'number' | 'date' | 'textarea' | 'select' | 'file';
   placeholder?: string;
   required?: boolean;
   options?: FieldOption[];
   defaultValue?: string | number;
+  /** Comma-separated list of accepted file extensions, e.g. '.pdf,.dwg' */
+  accept?: string;
 };
 
 export type WorkspaceColumn<T extends Record<string, any>> = {
@@ -129,9 +131,14 @@ export default function OpsWorkspace<T extends Record<string, any>>({
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [formValues, setFormValues] = useState<Record<string, string>>(() => buildInitialForm(createFields));
+  const [fileValues, setFileValues] = useState<Record<string, File | null>>({});
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const attachmentInputRef = useRef<HTMLInputElement | null>(null);
   const [actionLoadingKey, setActionLoadingKey] = useState('');
   const [pendingAction, setPendingAction] = useState<PendingActionState<T>>(null);
 
+  const hasFileFields = createFields.some((f) => f.type === 'file');
   const canCreate = Boolean(createMethod && createFields.length);
 
   const refresh = async () => {
@@ -179,9 +186,44 @@ export default function OpsWorkspace<T extends Record<string, any>>({
     setError('');
     try {
       const payload = mapCreatePayload ? mapCreatePayload(formValues) : formValues;
-      await callOps(createMethod, { data: JSON.stringify(payload) });
+      const activeFile = hasFileFields
+        ? Object.values(fileValues).find((f): f is File => f instanceof File && f.size > 0)
+        : null;
+
+      let createdData: Record<string, any> | undefined;
+
+      if (activeFile) {
+        const body = new FormData();
+        body.append('method', createMethod);
+        body.append('data', JSON.stringify(payload));
+        body.append('file', activeFile);
+        const response = await fetch('/api/ops/upload', { method: 'POST', body });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || result.success === false) {
+          throw new Error(result.message || 'Failed to create record with file');
+        }
+        createdData = result.data;
+      } else {
+        createdData = await callOps(createMethod, { data: JSON.stringify(payload) });
+      }
+
+      // Upload generic attachments if any
+      if (attachments.length > 0 && createdData?.doctype && createdData?.name) {
+        for (const file of attachments) {
+          const body = new FormData();
+          body.append('file', file);
+          body.append('doctype', createdData.doctype);
+          body.append('docname', createdData.name);
+          await fetch('/api/ops/attach', { method: 'POST', body });
+        }
+      }
+
       setShowCreateModal(false);
       setFormValues(buildInitialForm(createFields));
+      setFileValues({});
+      setAttachments([]);
+      Object.values(fileInputRefs.current).forEach((input) => { if (input) input.value = ''; });
+      if (attachmentInputRef.current) attachmentInputRef.current.value = '';
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create record');
@@ -319,7 +361,7 @@ export default function OpsWorkspace<T extends Record<string, any>>({
       >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {createFields.map((field) => (
-            <div key={field.name} className={field.type === 'textarea' ? 'sm:col-span-2' : ''}>
+            <div key={field.name} className={field.type === 'textarea' || field.type === 'file' ? 'sm:col-span-2' : ''}>
               <label className="mb-1 block text-sm font-medium text-gray-700">{field.label}</label>
               {field.type === 'textarea' ? (
                 <textarea
@@ -339,6 +381,22 @@ export default function OpsWorkspace<T extends Record<string, any>>({
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </select>
+              ) : field.type === 'file' ? (
+                <div>
+                  <input
+                    ref={(el) => { fileInputRefs.current[field.name] = el; }}
+                    type="file"
+                    accept={field.accept || '.pdf,.jpg,.jpeg,.png,.doc,.docx'}
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:rounded file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-blue-700 hover:file:bg-blue-100"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0] || null;
+                      setFileValues((prev) => ({ ...prev, [field.name]: file }));
+                    }}
+                  />
+                  {fileValues[field.name] ? (
+                    <p className="mt-1 text-xs text-gray-500">Selected: {fileValues[field.name]!.name}</p>
+                  ) : null}
+                </div>
               ) : (
                 <input
                   className="input"
@@ -350,6 +408,37 @@ export default function OpsWorkspace<T extends Record<string, any>>({
               )}
             </div>
           ))}
+        </div>
+
+        {/* Generic attachments – available on every create form */}
+        <div className="mt-4 border-t pt-4">
+          <label className="mb-1 block text-sm font-medium text-gray-700">Attachments (optional)</label>
+          <input
+            ref={attachmentInputRef}
+            type="file"
+            multiple
+            className="block w-full text-sm text-gray-500 file:mr-4 file:rounded file:border-0 file:bg-gray-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-100"
+            onChange={(event) => {
+              const files = event.target.files;
+              if (files) setAttachments(Array.from(files));
+            }}
+          />
+          {attachments.length > 0 ? (
+            <ul className="mt-2 space-y-1">
+              {attachments.map((file, i) => (
+                <li key={i} className="flex items-center justify-between text-xs text-gray-600">
+                  <span className="truncate">{file.name}</span>
+                  <button
+                    type="button"
+                    className="ml-2 text-red-500 hover:text-red-700"
+                    onClick={() => setAttachments((prev) => prev.filter((_, j) => j !== i))}
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </div>
       </ModalFrame>
 

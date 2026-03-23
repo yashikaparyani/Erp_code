@@ -393,6 +393,23 @@ const CONNECTED_METHODS = new Set([
   'override_project_stage',
   'upload_project_document',
   'waive_sla_penalty',
+  // PM Workspace – Phase 1
+  'get_project_issues',
+  'get_project_issue',
+  'create_project_issue',
+  'update_project_issue',
+  'delete_project_issue',
+  'get_pm_central_status',
+  // PM Workspace – Phase 2
+  'get_pm_requests',
+  'get_pm_request',
+  'create_pm_request',
+  'update_pm_request',
+  'submit_pm_request',
+  'approve_pm_request',
+  'reject_pm_request',
+  'withdraw_pm_request',
+  'delete_pm_request',
 ]);
 
 const METHOD_ALIASES: Record<string, string> = {

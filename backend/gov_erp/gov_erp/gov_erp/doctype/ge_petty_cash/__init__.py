@@ -1,0 +1,1 @@
+"""GE Petty Cash DocType."""

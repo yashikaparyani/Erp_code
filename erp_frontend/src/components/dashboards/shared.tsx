@@ -164,11 +164,11 @@ export function StatCard({
 	return (
 		<div className="stat-card">
 			<div className="flex items-center justify-between gap-3">
-				<div>
-					<div className="stat-label">{title}</div>
-					<div className="stat-value mt-1">{value}</div>
+				<div className="min-w-0">
+					<div className="stat-label truncate">{title}</div>
+					<div className="stat-value mt-1 truncate">{value}</div>
 				</div>
-				<div className={`flex h-11 w-11 items-center justify-center rounded-2xl border border-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] ${statToneClasses[tone]}`}>
+				<div className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl border border-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] ${statToneClasses[tone]}`}>
 					<Icon className="h-5 w-5" />
 				</div>
 			</div>

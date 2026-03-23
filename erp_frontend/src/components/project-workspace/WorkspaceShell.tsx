@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -15,6 +15,9 @@ import {
   ShieldAlert,
   AlertCircle,
   Upload,
+  MessageSquare,
+  Wallet,
+  Building2,
   X,
   Download,
   Trash2,
@@ -26,12 +29,19 @@ import {
   FileWarning,
   Wrench,
   ExternalLink,
+  Send,
 } from 'lucide-react';
 import { formatPercent } from '../dashboards/shared';
 import { usePermissions } from '../../context/PermissionContext';
 import { useWorkspacePermissions, WorkspacePermissions } from '../../context/WorkspacePermissionContext';
 import ReminderDrawer from '../reminders/ReminderDrawer';
 import RecordComments from '../collaboration/RecordComments';
+import IssuesTab from './IssuesTab';
+import StaffTab from './StaffTab';
+import PettyCashTab from './PettyCashTab';
+import CommunicationsTab from './CommunicationsTab';
+import CentralStatusTab from './CentralStatusTab';
+import RequestsTab from './RequestsTab';
 
 /* ═══════════════════════════════════════════════════════════
    Types
@@ -249,7 +259,7 @@ export type PMCockpitSummary = {
   action_items: ActionItem[];
 };
 
-export type TabKey = 'overview' | 'sites' | 'board' | 'milestones' | 'ops' | 'files' | 'activity';
+export type TabKey = 'overview' | 'sites' | 'board' | 'milestones' | 'ops' | 'files' | 'activity' | 'issues' | 'staff' | 'petty_cash' | 'comms' | 'central_status' | 'requests';
 
 export type DepartmentConfig = {
   departmentKey: string;
@@ -293,13 +303,19 @@ function isPreviewableDocument(fileUrl?: string) {
    ═══════════════════════════════════════════════════════════ */
 
 const TAB_META: Record<TabKey, { label: string; icon: typeof LayoutDashboard }> = {
-  overview:   { label: 'Overview',   icon: LayoutDashboard },
-  sites:      { label: 'Sites',      icon: FolderTree },
-  board:      { label: 'Site Board', icon: Columns3 },
-  milestones: { label: 'Milestones', icon: Flag },
-  ops:        { label: 'Operations', icon: Activity },
-  files:      { label: 'Files',      icon: FileText },
-  activity:   { label: 'Activity',   icon: History },
+  overview:       { label: 'Overview',       icon: LayoutDashboard },
+  sites:          { label: 'Sites',          icon: FolderTree },
+  board:          { label: 'Site Board',     icon: Columns3 },
+  milestones:     { label: 'Milestones',     icon: Flag },
+  ops:            { label: 'Operations',     icon: Activity },
+  issues:         { label: 'Issues',         icon: AlertCircle },
+  staff:          { label: 'Staff',          icon: ShieldAlert },
+  petty_cash:     { label: 'Petty Cash',     icon: Wallet },
+  comms:          { label: 'Communications', icon: MessageSquare },
+  central_status: { label: 'Central Status', icon: Building2 },
+  requests:       { label: 'Requests',       icon: Send },
+  files:          { label: 'Files',          icon: FileText },
+  activity:       { label: 'Activity',       icon: History },
 };
 
 const SPINE_STAGES = [
@@ -1363,6 +1379,25 @@ const ACTIVITY_FILTERS = [
   { key: 'workflow', label: 'Workflow' },
 ] as const;
 
+class TabErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() { return { hasError: true }; }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="py-12 text-center">
+          <p className="text-sm text-rose-600 mb-2">Something went wrong rendering this tab.</p>
+          <button className="text-sm text-[var(--accent)] hover:underline" onClick={() => this.setState({ hasError: false })}>Try again</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function ActivityTab({ projectId }: { projectId: string }) {
   const [entries, setEntries] = useState<ActivityEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1375,7 +1410,7 @@ function ActivityTab({ projectId }: { projectId: string }) {
       setLoading(true);
       try {
         const data = await callOps<ActivityEntry[]>('get_project_activity', { project: projectId, limit: 50 });
-        if (active) setEntries(data);
+        if (active) setEntries(Array.isArray(data) ? data : []);
       } catch (err) {
         if (active) setError(err instanceof Error ? err.message : 'Failed to load activity');
       } finally {
@@ -1467,7 +1502,7 @@ function ActivityTab({ projectId }: { projectId: string }) {
                 </span>
               )}
             </div>
-            {entry.type === 'version' && entry.detail && entry.detail.length > 0 && (
+            {entry.type === 'version' && Array.isArray(entry.detail) && entry.detail.length > 0 && (
               <div className="mt-1.5 flex flex-wrap gap-1">
                 {entry.detail.slice(0, 5).map((field) => (
                   <span key={field} className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] text-blue-600">{field}</span>
@@ -2418,8 +2453,14 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
       {activeTab === 'board' && <SiteBoardTab sites={deptSites} config={config} wp={wp} />}
       {activeTab === 'milestones' && <MilestonesTab sites={deptSites} projectId={projectId} config={config} />}
       {activeTab === 'ops' && <OpsTab projectId={projectId} config={config} />}
+      {activeTab === 'issues' && <IssuesTab projectId={projectId} />}
+      {activeTab === 'staff' && <StaffTab projectId={projectId} />}
+      {activeTab === 'petty_cash' && <PettyCashTab projectId={projectId} />}
+      {activeTab === 'comms' && <CommunicationsTab projectId={projectId} />}
+      {activeTab === 'central_status' && <CentralStatusTab projectId={projectId} />}
+      {activeTab === 'requests' && <RequestsTab projectId={projectId} />}
       {activeTab === 'files' && <FilesTab projectId={projectId} wp={wp} />}
-      {activeTab === 'activity' && <ActivityTab projectId={projectId} />}
+      {activeTab === 'activity' && <TabErrorBoundary><ActivityTab projectId={projectId} /></TabErrorBoundary>}
     </div>
   );
 }

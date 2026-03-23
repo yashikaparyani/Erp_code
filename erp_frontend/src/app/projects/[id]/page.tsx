@@ -10,7 +10,7 @@ const CONFIG: DepartmentConfig = {
   backHref: '/projects',
   backLabel: 'Back to Projects',
   kickerLabel: 'Project Workspace',
-  tabs: ['overview', 'sites', 'board', 'milestones', 'ops', 'files', 'activity'],
+  tabs: ['overview', 'sites', 'board', 'milestones', 'ops', 'issues', 'staff', 'petty_cash', 'comms', 'central_status', 'requests', 'files', 'activity'],
 };
 
 export default function ProjectWorkspacePage() {

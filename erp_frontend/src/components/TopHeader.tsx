@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronDown, Search, LogOut, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -12,6 +12,18 @@ export default function TopHeader() {
   const { currentRole } = useRole();
   const router = useRouter();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    const onClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, [userMenuOpen]);
 
   const handleLogout = async () => {
     await logout();
@@ -55,7 +67,7 @@ export default function TopHeader() {
         <AlertBell />
 
         {/* User Menu */}
-        <div className="relative flex-shrink-0">
+        <div className="relative flex-shrink-0" ref={menuRef}>
           <button
             onClick={() => setUserMenuOpen(!userMenuOpen)}
             className="shell-glass flex items-center gap-2 lg:gap-3 pl-2 lg:pl-4 hover:bg-[var(--surface-hover)] rounded-[24px] px-2 py-2 transition-colors"

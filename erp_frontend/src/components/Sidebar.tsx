@@ -17,7 +17,6 @@ import {
   Database,
   ChevronRight,
   ChevronDown,
-  FileSearch,
   CreditCard,
   PieChart,
   CheckSquare,
@@ -43,20 +42,22 @@ import {
   BookOpen,
   ListChecks,
   Banknote,
+  CheckCircle2,
+  type LucideIcon,
 } from 'lucide-react';
 import { useRole, type Role, PROJECT_SIDE_ROLES } from '../context/RoleContext';
 
 interface SubMenuItem {
   name: string;
   href: string;
-  icon?: any;
+  icon?: LucideIcon;
   children?: SubMenuItem[];
 }
 
 interface NavLink {
   name: string;
   href: string;
-  icon: any;
+  icon: LucideIcon;
   children?: SubMenuItem[];
 }
 
@@ -125,11 +126,10 @@ const navLinks: NavLink[] = [
     href: '/pre-sales/dashboard',
     icon: FileText,
     children: [
-      { name: 'Tender', href: '/pre-sales/tender', icon: FileSearch },
       { name: 'Bids', href: '/pre-sales/bids', icon: ListChecks },
       { name: 'Won Bids & LOI', href: '/pre-sales/won-bids', icon: Banknote },
       { name: 'EMD Tracking', href: '/pre-sales/emd-tracking', icon: CreditCard },
-      { name: "Approval's", href: '/pre-sales/approvals', icon: CheckSquare },
+      { name: 'Approvals', href: '/pre-sales/approvals', icon: CheckSquare },
     ],
   },
   { name: 'Projects', href: '/projects', icon: Layers3 },
@@ -182,8 +182,8 @@ const navLinks: NavLink[] = [
         href: '/execution/commissioning',
         icon: Cpu,
         children: [
-          { name: 'Devices & IP', href: '/execution/commissioning/devices' },
-          { name: 'Test Reports & Signoffs', href: '/execution/commissioning/test-reports' },
+          { name: 'Devices & IP', href: '/execution/commissioning/devices', icon: Cpu },
+          { name: 'Test Reports & Signoffs', href: '/execution/commissioning/test-reports', icon: CheckCircle2 },
         ],
       },
       { name: 'Milestones', href: '/milestones', icon: Flag },

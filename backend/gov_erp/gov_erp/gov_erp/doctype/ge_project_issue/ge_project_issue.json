@@ -1,0 +1,175 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-03-23 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "linked_project",
+  "linked_site",
+  "cb_meta",
+  "title",
+  "severity",
+  "status",
+  "category",
+  "assigned_to",
+  "sb_details",
+  "description",
+  "resolution_notes",
+  "sb_dates",
+  "target_date",
+  "resolved_date",
+  "raised_by"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "PISS-.#####"
+  },
+  {
+   "fieldname": "linked_project",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Linked Project",
+   "options": "Project",
+   "reqd": 1
+  },
+  {
+   "fieldname": "linked_site",
+   "fieldtype": "Link",
+   "label": "Linked Site",
+   "options": "GE Site"
+  },
+  {
+   "fieldname": "cb_meta",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title",
+   "reqd": 1
+  },
+  {
+   "default": "Medium",
+   "fieldname": "severity",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Severity",
+   "options": "Critical\nHigh\nMedium\nLow",
+   "reqd": 1
+  },
+  {
+   "default": "Open",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Open\nIn Progress\nResolved\nClosed",
+   "reqd": 1
+  },
+  {
+   "fieldname": "category",
+   "fieldtype": "Data",
+   "label": "Category"
+  },
+  {
+   "fieldname": "assigned_to",
+   "fieldtype": "Data",
+   "label": "Assigned To"
+  },
+  {
+   "fieldname": "sb_details",
+   "fieldtype": "Section Break",
+   "label": "Details"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Text Editor",
+   "label": "Description"
+  },
+  {
+   "fieldname": "resolution_notes",
+   "fieldtype": "Text Editor",
+   "label": "Resolution Notes"
+  },
+  {
+   "fieldname": "sb_dates",
+   "fieldtype": "Section Break",
+   "label": "Dates"
+  },
+  {
+   "fieldname": "target_date",
+   "fieldtype": "Date",
+   "label": "Target Date"
+  },
+  {
+   "fieldname": "resolved_date",
+   "fieldtype": "Date",
+   "label": "Resolved Date"
+  },
+  {
+   "fieldname": "raised_by",
+   "fieldtype": "Link",
+   "label": "Raised By",
+   "options": "User"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "modified": "2026-03-23 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE Project Issue",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Project Manager",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Project Head",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Department Head"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Director"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
