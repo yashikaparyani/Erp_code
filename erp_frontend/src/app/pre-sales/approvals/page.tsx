@@ -176,6 +176,13 @@ export default function ApprovalsPage() {
     });
   };
 
+  const getActionLabels = (row: ApprovalData) => {
+    const normalized = row.approval_for.toLowerCase();
+    if (normalized.includes('go_no_go')) return { approve: 'Go', reject: 'No Go' };
+    if (normalized.includes('technical')) return { approve: 'Approve Technical', reject: 'Reject Technical' };
+    return { approve: 'Approve', reject: 'Reject' };
+  };
+
   return (
     <div className="p-3 sm:p-4 md:p-6 bg-gray-50 min-h-screen">
       <div className="mb-4 sm:mb-6">
@@ -281,6 +288,7 @@ export default function ApprovalsPage() {
                   paginatedRows.map((row, index) => {
                     const supported = Boolean(getApprovalKind(row));
                     const rowNumber = (currentPage - 1) * itemsPerPage + index + 1;
+                    const actionLabels = getActionLabels(row);
 
                     return (
                       <tr key={row.id} className="hover:bg-gray-50">
@@ -330,14 +338,14 @@ export default function ApprovalsPage() {
                                   disabled={processingId === row.id}
                                   onClick={() => void runApproval(row, 'approve')}
                                 >
-                                  Approve
+                                  {actionLabels.approve}
                                 </button>
                                 <button
                                   className="text-xs font-medium text-red-600 hover:text-red-800 disabled:opacity-50"
                                   disabled={processingId === row.id}
                                   onClick={() => setDialog({ mode: 'reject', row, value: '' })}
                                 >
-                                  Reject
+                                  {actionLabels.reject}
                                 </button>
                               </>
                             ) : null}

@@ -580,7 +580,7 @@ def get_funnel_tenders(
 # ─────────────────────────────────────────────────────────────────────────────
 
 @frappe.whitelist()
-def get_bids(tender=None, status=None, is_latest=None):
+def get_bids(tender=None, status=None, is_latest=None, loi_decision_status=None):
     """Return bids, optionally filtered."""
     _ps_read_access()
     filters = {}
@@ -592,6 +592,10 @@ def get_bids(tender=None, status=None, is_latest=None):
             filters["status"] = ["in", sl]
     if is_latest is not None:
         filters["is_latest"] = 1 if cstr(is_latest) in ("1", "true", "True") else 0
+    if loi_decision_status:
+        statuses = [s.strip() for s in cstr(loi_decision_status).split(",") if s.strip()]
+        if statuses:
+            filters["loi_decision_status"] = ["in", statuses]
     data = frappe.get_all(
         "GE Bid",
         filters=filters,
@@ -599,6 +603,7 @@ def get_bids(tender=None, status=None, is_latest=None):
             "name", "tender", "bid_date", "status", "bid_amount",
             "result_date", "result_remarks", "is_latest",
             "retender_reason", "cancel_reason", "creation",
+            "loi_decision_status", "loi_decision_reason", "loi_decision_by", "loi_decision_on",
         ],
         order_by="creation desc",
     )
@@ -612,6 +617,20 @@ def get_bid(name):
     name = _local_require_param(name)
     doc = frappe.get_doc("GE Bid", name)
     bid_dict = doc.as_dict()
+    tender_doc = frappe.get_doc("GE Tender", doc.tender)
+    bid_dict["tender_detail"] = {
+        "name": tender_doc.name,
+        "tender_number": tender_doc.get("tender_number"),
+        "title": tender_doc.get("title"),
+        "status": tender_doc.get("status"),
+        "client": tender_doc.get("client"),
+        "organization": tender_doc.get("organization"),
+        "tenure_years": tender_doc.get("tenure_years"),
+        "tenure_end_date": tender_doc.get("tenure_end_date"),
+        "closure_letter_received": tender_doc.get("closure_letter_received"),
+        "presales_closure_date": tender_doc.get("presales_closure_date"),
+        "bid_denied_reason": tender_doc.get("bid_denied_reason"),
+    }
 
     loi_rows = []
     if frappe.db.table_exists("GE LOI Tracker"):
@@ -645,12 +664,100 @@ def create_bid(tender, bid_amount=0, bid_date=None):
         "tender": tender,
         "bid_date": bid_date or today(),
         "bid_amount": float(bid_amount or 0),
-        "status": "DRAFT",
+        "status": "UNDER_EVALUATION",
         "is_latest": 1,
     })
     doc.insert()
     frappe.db.commit()
-    return {"success": True, "data": doc.as_dict(), "message": "Bid created"}
+    return {"success": True, "data": doc.as_dict(), "message": "Bid created and moved under evaluation"}
+
+
+@frappe.whitelist()
+def set_tender_qualification(name, qualified=None, reason=None):
+    """Set presales qualification outcome after GO/NO-GO approval."""
+    _ps_write_access()
+    name = _local_require_param(name, "name")
+    doc = frappe.get_doc("GE Tender", name)
+    if cstr(doc.go_no_go_status or "PENDING") != "GO":
+        return {"success": False, "message": "Tender must be GO before qualification can be updated"}
+
+    is_qualified = cstr(qualified).lower() in ("1", "true", "yes", "qualified")
+    if not is_qualified and not cstr(reason or "").strip():
+        return {"success": False, "message": "Reason is required when qualification is rejected"}
+
+    doc.commercial_readiness = "APPROVED" if is_qualified else "REJECTED"
+    doc.qualification_reason = cstr(reason or "")
+    doc.bid_denied_by_presales = 0
+    if is_qualified:
+        doc.status = "TECHNICAL_IN_PROGRESS"
+    else:
+        doc.technical_readiness = "NOT_STARTED"
+        doc.status = "TECHNICAL_IN_PROGRESS"
+    doc.save()
+    frappe.db.commit()
+    return {
+        "success": True,
+        "data": doc.as_dict(),
+        "message": "Tender qualification marked as {}".format("qualified" if is_qualified else "not qualified"),
+    }
+
+
+@frappe.whitelist()
+def mark_tender_under_observation(name, reason=None):
+    """Move a rejected tender into observation with a mandatory reason."""
+    _ps_write_access()
+    name = _local_require_param(name, "name")
+    reason = cstr(reason or "").strip()
+    if not reason:
+        return {"success": False, "message": "Reason is required to keep a tender under observation"}
+
+    doc = frappe.get_doc("GE Tender", name)
+    funnel = _derive_tender_funnel_status(doc.as_dict())
+    if funnel not in ("Not Qualified Tender", "Locked Tender", "Tender not bided but under observation"):
+        return {"success": False, "message": "Under observation is only available for red, orange, or pink tenders"}
+
+    doc.bid_denied_by_presales = 1
+    doc.bid_denied_reason = reason
+    doc.status = "DROPPED"
+    doc.save()
+    frappe.db.commit()
+    return {"success": True, "data": doc.as_dict(), "message": "Tender moved under observation"}
+
+
+@frappe.whitelist()
+def clear_tender_observation(name):
+    """Clear observation marker and reopen the tender at its current stage."""
+    _ps_write_access()
+    name = _local_require_param(name, "name")
+    doc = frappe.get_doc("GE Tender", name)
+    doc.bid_denied_by_presales = 0
+    doc.bid_denied_reason = ""
+    if cstr(doc.go_no_go_status or "") == "NO_GO":
+        doc.status = "NO_GO"
+    elif cstr(doc.technical_readiness or "") == "REJECTED":
+        doc.status = "TECHNICAL_IN_PROGRESS"
+    elif cstr(doc.commercial_readiness or "") == "REJECTED":
+        doc.status = "TECHNICAL_IN_PROGRESS"
+    else:
+        doc.status = "DRAFT"
+    doc.save()
+    frappe.db.commit()
+    return {"success": True, "data": doc.as_dict(), "message": "Tender observation cleared"}
+
+
+@frappe.whitelist()
+def convert_tender_to_bid(name):
+    """Create the latest bid for a green tender and place it directly under evaluation."""
+    _ps_write_access()
+    name = _local_require_param(name, "name")
+    result = create_bid(tender=name)
+    if not result.get("success"):
+        return result
+    doc = frappe.get_doc("GE Tender", name)
+    doc.status = "UNDER_EVALUATION"
+    doc.save()
+    frappe.db.commit()
+    return {"success": True, "data": result.get("data"), "message": "Bid created from tender and moved under evaluation"}
 
 
 @frappe.whitelist()
@@ -690,17 +797,17 @@ def submit_bid(name):
 
 @frappe.whitelist()
 def mark_bid_under_evaluation(name):
-    """SUBMITTED → UNDER_EVALUATION."""
+    """Move a legacy DRAFT/SUBMITTED bid into UNDER_EVALUATION."""
     _ps_write_access()
     name = _local_require_param(name)
     doc = frappe.get_doc("GE Bid", name)
-    if doc.status != "SUBMITTED":
-        return {"success": False, "message": "Bid must be SUBMITTED. Current: {}".format(doc.status)}
+    if doc.status not in ("DRAFT", "SUBMITTED"):
+        return {"success": False, "message": "Bid must be DRAFT or SUBMITTED. Current: {}".format(doc.status)}
     doc.status = "UNDER_EVALUATION"
     doc.save()
     frappe.db.set_value("GE Tender", doc.tender, "status", "UNDER_EVALUATION")
     frappe.db.commit()
-    return {"success": True, "data": doc.as_dict(), "message": "Marked Under Evaluation"}
+    return {"success": True, "data": doc.as_dict(), "message": "Bid moved under evaluation"}
 
 
 @frappe.whitelist()
@@ -748,12 +855,19 @@ def mark_bid_cancelled(name, reason=None):
     """Cancel a bid. Not allowed in terminal states."""
     _ps_write_access()
     name = _local_require_param(name)
+    reason = cstr(reason or "").strip()
+    if not reason:
+        return {"success": False, "message": "Reason is required to cancel a bid"}
     doc = frappe.get_doc("GE Bid", name)
     if doc.status in ("WON", "LOST", "CANCEL", "RETENDER"):
         return {"success": False, "message": "Cannot cancel a bid in {} state".format(doc.status)}
     doc.status = "CANCEL"
-    doc.cancel_reason = cstr(reason or "")
+    doc.cancel_reason = reason
     doc.save()
+    tender_doc = frappe.get_doc("GE Tender", doc.tender)
+    tender_doc.bid_denied_by_presales = 1
+    tender_doc.bid_denied_reason = reason
+    tender_doc.save()
     frappe.db.commit()
     return {"success": True, "data": doc.as_dict(), "message": "Bid cancelled"}
 
@@ -763,9 +877,12 @@ def mark_bid_retender(name, reason=None):
     """Retender: reset tender back to BLUE (new evaluation cycle)."""
     _ps_write_access()
     name = _local_require_param(name)
+    reason = cstr(reason or "").strip()
+    if not reason:
+        return {"success": False, "message": "Reason is required to retender a bid"}
     doc = frappe.get_doc("GE Bid", name)
     doc.status = "RETENDER"
-    doc.retender_reason = cstr(reason or "")
+    doc.retender_reason = reason
     doc.is_latest = 0
     doc.save()
     # Full reset of tender for new cycle
@@ -779,7 +896,7 @@ def mark_bid_retender(name, reason=None):
     if hasattr(tender_doc, "bid_denied_by_presales"):
         tender_doc.bid_denied_by_presales = 0
     if hasattr(tender_doc, "bid_denied_reason"):
-        tender_doc.bid_denied_reason = ""
+        tender_doc.bid_denied_reason = reason
     tender_doc.save()
     frappe.db.commit()
     return {"success": True, "data": doc.as_dict(), "message": "Retender initiated — Tender reset to BLUE"}
@@ -788,6 +905,50 @@ def mark_bid_retender(name, reason=None):
 # ─────────────────────────────────────────────────────────────────────────────
 # LOI TRACKER APIs
 # ─────────────────────────────────────────────────────────────────────────────
+
+@frappe.whitelist()
+def decide_won_bid_loi(name, decision=None, reason=None):
+    """Accept or reject a won bid after all required LOIs are received."""
+    _ps_write_access()
+    name = _local_require_param(name)
+    decision = cstr(decision or "").strip().upper()
+    reason = cstr(reason or "").strip()
+    if decision not in ("ACCEPT", "REJECT"):
+        return {"success": False, "message": "Decision must be ACCEPT or REJECT"}
+
+    doc = frappe.get_doc("GE Bid", name)
+    if doc.status != "WON":
+        return {"success": False, "message": "Only won bids can go through LOI decision"}
+
+    loi_summary = get_loi_status(doc.name).get("data") or {}
+    if not loi_summary.get("all_received"):
+        return {"success": False, "message": "All department LOIs must be received before final decision"}
+
+    if decision == "REJECT" and not reason:
+        return {"success": False, "message": "Reason is required when rejecting a won bid"}
+
+    doc.loi_decision_status = "ACCEPTED" if decision == "ACCEPT" else "REJECTED"
+    doc.loi_decision_reason = reason
+    doc.loi_decision_by = frappe.session.user
+    doc.loi_decision_on = now()
+    if decision == "REJECT":
+        doc.status = "CANCEL"
+        doc.cancel_reason = reason
+    doc.save()
+
+    tender_doc = frappe.get_doc("GE Tender", doc.tender)
+    if decision == "REJECT":
+        tender_doc.bid_denied_by_presales = 1
+        tender_doc.bid_denied_reason = reason
+        tender_doc.status = "DROPPED"
+    tender_doc.save()
+    frappe.db.commit()
+    return {
+        "success": True,
+        "data": doc.as_dict(),
+        "message": "Won bid {}".format("accepted for in-process bid tracking" if decision == "ACCEPT" else "rejected and moved to cancel bid"),
+    }
+
 
 @frappe.whitelist()
 def get_loi_status(bid):

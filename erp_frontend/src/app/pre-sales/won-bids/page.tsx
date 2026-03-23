@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Banknote, CheckCircle, XCircle, RefreshCw, ExternalLink } from 'lucide-react';
+import { Banknote, CheckCircle, ExternalLink, RefreshCw, XCircle } from 'lucide-react';
 
 interface WonBidRow {
   tender_id: string;
@@ -16,6 +16,8 @@ interface WonBidRow {
   result_date?: string;
   loi_n_expected?: number;
   loi_n_received?: number;
+  loi_decision_status?: string;
+  loi_decision_reason?: string;
   has_bid: boolean;
 }
 
@@ -40,11 +42,7 @@ export default function WonBidsPage() {
     try {
       const res = await fetch('/api/pre-sales/won-bids', { cache: 'no-store' });
       const json = await res.json();
-      if (json.success) {
-        setRows(json.data || []);
-      } else {
-        setRows([]);
-      }
+      setRows(json.success ? json.data || [] : []);
     } catch {
       setRows([]);
     } finally {
@@ -64,10 +62,10 @@ export default function WonBidsPage() {
         <div>
           <h1 className="text-2xl font-bold text-[var(--text-main)] flex items-center gap-2">
             <Banknote className="w-6 h-6 text-green-600" />
-            Won Bids & LOI Tracker
+            Won Bids & LOI
           </h1>
           <p className="text-xs text-[var(--text-soft)] mt-0.5">
-            {rows.length} won tenders · Total: {formatValue(totalValue)}
+            {rows.length} won bids waiting for LOI completion or final head decision · Total: {formatValue(totalValue)}
           </p>
         </div>
         <button
@@ -82,7 +80,7 @@ export default function WonBidsPage() {
         <table className="w-full text-xs">
           <thead className="bg-[var(--surface)]">
             <tr className="border-b border-[var(--border-subtle)]">
-              {['#', 'Bid ID', 'Tender', 'Bid Date', 'Won Value', 'Result Date', 'LOI Status', 'Actions'].map((heading) => (
+              {['#', 'Bid ID', 'Tender', 'Bid Date', 'Won Value', 'Result Date', 'LOI Status', 'Decision', 'Actions'].map((heading) => (
                 <th key={heading} className="text-left px-3 py-3 font-semibold text-[var(--text-soft)] uppercase tracking-wide">
                   {heading}
                 </th>
@@ -93,35 +91,33 @@ export default function WonBidsPage() {
             {loading ? (
               Array.from({ length: 4 }).map((_, index) => (
                 <tr key={index}>
-                  <td colSpan={8} className="px-3 py-3">
+                  <td colSpan={9} className="px-3 py-3">
                     <div className="h-4 bg-green-50 rounded animate-pulse" />
                   </td>
                 </tr>
               ))
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-3 py-10 text-center text-[var(--text-soft)]">
-                  No won tenders yet
+                <td colSpan={9} className="px-3 py-10 text-center text-[var(--text-soft)]">
+                  No won bids are pending in the LOI stage
                 </td>
               </tr>
             ) : (
               rows.map((row, idx) => {
-                const allLoi = row.loi_n_expected ? row.loi_n_received === row.loi_n_expected : null;
+                const allLoi = row.loi_n_expected ? row.loi_n_received === row.loi_n_expected : false;
                 return (
                   <tr
-                    key={`${row.tender_id}-${row.bid_id || 'no-bid'}`}
+                    key={`${row.tender_id}-${row.bid_id}`}
                     className="hover:bg-green-50/30 group"
                     style={{ borderLeft: '4px solid #22c55e', backgroundColor: '#22c55e08' }}
                   >
                     <td className="px-3 py-3 text-[var(--text-soft)]">{idx + 1}</td>
                     <td className="px-3 py-3">
-                      <div className="font-mono font-semibold text-green-700">{row.bid_id || 'No linked bid'}</div>
+                      <div className="font-mono font-semibold text-green-700">{row.bid_id}</div>
                       {row.bid_status ? <div className="mt-1 text-[11px] text-[var(--text-soft)]">Status: {row.bid_status}</div> : null}
                     </td>
                     <td className="px-3 py-3">
-                      <Link href={`/pre-sales/${row.tender_id}`} className="text-[var(--accent)] hover:underline">
-                        {row.tender_number}
-                      </Link>
+                      <div className="font-semibold text-[var(--text-main)]">{row.tender_number}</div>
                       <div className="mt-1 text-[11px] text-[var(--text-soft)]">{row.tender_title || '-'}</div>
                     </td>
                     <td className="px-3 py-3">{formatDate(row.bid_date)}</td>
@@ -136,15 +132,16 @@ export default function WonBidsPage() {
                           </span>
                         </div>
                       ) : (
-                        <span className="text-[var(--text-muted)]">{row.has_bid ? 'No LOI rows' : 'Bid not linked yet'}</span>
+                        <span className="text-[var(--text-muted)]">No LOI rows</span>
                       )}
                     </td>
+                    <td className="px-3 py-3 text-[var(--text-soft)]">{row.loi_decision_status || 'PENDING'}</td>
                     <td className="px-3 py-3">
                       <Link
-                        href={`/pre-sales/${row.tender_id}`}
+                        href={`/pre-sales/bids/${row.bid_id}`}
                         className="inline-flex items-center gap-1 px-2 py-1 text-[10px] rounded-lg border border-green-200 text-green-700 opacity-0 group-hover:opacity-100 transition-all hover:bg-green-50"
                       >
-                        Open <ExternalLink className="w-2.5 h-2.5" />
+                        Open Bid <ExternalLink className="w-2.5 h-2.5" />
                       </Link>
                     </td>
                   </tr>

@@ -1,4 +1,4 @@
-# Pre-Sales Funnel Dashboard — Complete Redesign Implementation Plan (v2)
+![1774106279696](image/presales_dashboard_redesign_plan/1774106279696.png)# Pre-Sales Funnel Dashboard — Complete Redesign Implementation Plan (v2)
 
 > **Updated:** 21 March 2026  
 > **New additions in v2:** 12-color system, 6 user-customizable colors, Color Legend sub-tab, 15+ filters, default sort by closing date

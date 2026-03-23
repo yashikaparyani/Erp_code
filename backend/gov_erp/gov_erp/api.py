@@ -105,30 +105,27 @@ def _derive_tender_funnel_status(values):
 	go_no_go_status = cstr(values.get("go_no_go_status") or "PENDING")
 	technical_readiness = cstr(values.get("technical_readiness") or "NOT_STARTED")
 	commercial_readiness = cstr(values.get("commercial_readiness") or "NOT_STARTED")
-	finance_readiness = cstr(values.get("finance_readiness") or "NOT_STARTED")
-	submission_status = cstr(values.get("submission_status") or "NOT_READY")
-	finance_applicable = cint(values.get("emd_required")) or cint(values.get("pbg_required"))
+	bid_denied_by_presales = cint(values.get("bid_denied_by_presales"))
 
-	if status in ("LOST", "NO_GO") or go_no_go_status == "NO_GO":
-		return "Not Qualified Tender"
-
-	if status in ("CANCELLED", "DROPPED"):
+	if status in ("CANCELLED", "DROPPED", "LOST") or bid_denied_by_presales or go_no_go_status == "NO_GO":
 		return "Tender not bided but under observation"
-
-	if status in ("WON", "CONVERTED_TO_PROJECT", "SUBMITTED", "UNDER_EVALUATION"):
-		return "Locked Tender"
 
 	if go_no_go_status != "GO":
 		return "Tender under evaluation for GO-NOGO"
 
-	technical_approved = technical_readiness == "APPROVED"
-	commercial_approved = commercial_readiness == "APPROVED"
-	finance_approved = (not finance_applicable) or finance_readiness == "APPROVED"
+	if commercial_readiness == "REJECTED":
+		return "Not Qualified Tender"
 
-	if technical_approved and commercial_approved and finance_approved and submission_status != "REJECTED":
+	if technical_readiness == "REJECTED":
+		return "Locked Tender"
+
+	if technical_readiness == "APPROVED" or status in ("WON", "CONVERTED_TO_PROJECT"):
 		return "EMD done and technical confirmed"
 
-	return "Working but not confirmed by technical"
+	if commercial_readiness == "APPROVED":
+		return "Working but not confirmed by technical"
+
+	return "Tender under evaluation for GO-NOGO"
 
 
 def _attach_computed_tender_funnel_status(tender_dict):
@@ -963,7 +960,7 @@ TENDER_APPROVAL_TYPE_CONFIG = {
 		"approved_value": "APPROVED",
 		"rejected_value": "REJECTED",
 		"status_on_submit": "TECHNICAL_IN_PROGRESS",
-		"status_on_approve": None,
+		"status_on_approve": "BID_READY",
 		"status_on_reject": "TECHNICAL_IN_PROGRESS",
 	},
 	"COMMERCIAL": {
@@ -1017,8 +1014,11 @@ def _apply_tender_approval_state(tender_doc, approval_type, approved, remarks=No
 	if approval_type == "GO_NO_GO":
 		tender_doc.go_no_go_by = frappe.session.user
 		tender_doc.go_no_go_on = frappe.utils.now()
-		if remarks:
-			tender_doc.go_no_go_remarks = remarks
+		tender_doc.go_no_go_remarks = remarks or ""
+		if not approved:
+			tender_doc.bid_denied_by_presales = 0
+	if approval_type == "TECHNICAL":
+		tender_doc.technical_rejection_reason = "" if approved else (remarks or "")
 	next_status = config["status_on_approve"] if approved else config["status_on_reject"]
 	if next_status:
 		tender_doc.status = next_status
@@ -1069,6 +1069,7 @@ def submit_tender_approval(name, approval_type, remarks=None):
 	tender_doc.approval_status = "PENDING"
 	tender_doc.save()
 
+	approver_role = ROLE_DIRECTOR if approval_type in {"GO_NO_GO", "TECHNICAL"} else ROLE_PRESALES_HEAD
 	approval_doc = frappe.get_doc(
 		{
 			"doctype": "GE Tender Approval",
@@ -1076,7 +1077,7 @@ def submit_tender_approval(name, approval_type, remarks=None):
 			"approval_type": approval_type,
 			"status": "Pending",
 			"requested_by": frappe.session.user,
-			"approver_role": ROLE_PRESALES_HEAD,
+			"approver_role": approver_role,
 			"request_remarks": remarks or "",
 		}
 	)
@@ -1088,9 +1089,12 @@ def submit_tender_approval(name, approval_type, remarks=None):
 @frappe.whitelist()
 def approve_tender_approval(name, remarks=None):
 	"""Approve a tender-specific approval request."""
-	_require_roles(ROLE_PRESALES_HEAD, ROLE_DIRECTOR)
 	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Tender Approval", name)
+	if doc.approver_role == ROLE_DIRECTOR:
+		_require_roles(ROLE_DIRECTOR)
+	else:
+		_require_roles(ROLE_PRESALES_HEAD, ROLE_DIRECTOR)
 	if doc.status != "Pending":
 		return {"success": False, "message": f"Approval is in {doc.status} status, must be Pending to approve"}
 	doc.status = "Approved"
@@ -1109,9 +1113,12 @@ def approve_tender_approval(name, remarks=None):
 @frappe.whitelist()
 def reject_tender_approval(name, remarks=None):
 	"""Reject a tender-specific approval request."""
-	_require_roles(ROLE_PRESALES_HEAD, ROLE_DIRECTOR)
 	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Tender Approval", name)
+	if doc.approver_role == ROLE_DIRECTOR:
+		_require_roles(ROLE_DIRECTOR)
+	else:
+		_require_roles(ROLE_PRESALES_HEAD, ROLE_DIRECTOR)
 	if doc.status != "Pending":
 		return {"success": False, "message": f"Approval is in {doc.status} status, must be Pending to reject"}
 	doc.status = "Rejected"
@@ -8212,14 +8219,18 @@ def get_pending_approvals():
 		order_by="creation desc",
 	):
 		created_on = frappe.utils.get_datetime(row.creation)
+		approval_label = "GO / NO-GO" if row.approval_type == "GO_NO_GO" else row.approval_type.replace("_", " ")
+		action_hint = f"Review {approval_label.lower()} readiness and take approval action"
+		if row.approval_type == "TECHNICAL":
+			action_hint = "Review technical package and decide approve or reject"
 		records.append(
 			{
 				"id": row.name,
 				"tender_id": row.linked_tender or "-",
-				"approval_for": f"{row.approval_type} Tender Approval",
+				"approval_for": f"{approval_label} Tender Approval",
 				"approval_from": row.approver_role or ROLE_PRESALES_HEAD,
 				"action_owner": row.approver_role or ROLE_PRESALES_HEAD,
-				"action_hint": f"Review {row.approval_type.lower()} readiness and take approval action",
+				"action_hint": action_hint,
 				"requester": row.requested_by,
 				"request_date": row.creation,
 				"age_days": max((frappe.utils.now_datetime() - created_on).days, 0),

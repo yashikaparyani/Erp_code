@@ -4,23 +4,19 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
+import ModalFrame from '@/components/ui/ModalFrame';
 import { deriveTenderFunnelStatus, getTenderFunnelMeta } from '@/components/tenderFunnel';
 import { useRole } from '@/context/RoleContext';
 import {
   AlertCircle,
   ArrowLeft,
-  Briefcase,
-  Calendar,
   CheckCircle2,
-  ChevronRight,
-  Clock3,
-  CreditCard,
-  FileCheck,
-  FileSpreadsheet,
+  FilePlus2,
   FileText,
+  FolderPlus,
   Loader2,
-  MapPinned,
-  Trophy,
+  ShieldCheck,
+  WalletCards,
 } from 'lucide-react';
 
 type Tender = {
@@ -30,217 +26,128 @@ type Tender = {
   client?: string;
   organization?: string;
   submission_date?: string;
-  computed_funnel_status?: string;
-  status: string;
   estimated_value?: number;
-  emd_required?: number;
-  emd_amount?: number;
-  pbg_required?: number;
-  pbg_amount?: number;
-  linked_project?: string;
-  tender_owner?: string;
+  status: string;
+  computed_funnel_status?: string;
   go_no_go_status?: string;
-  go_no_go_by?: string;
-  go_no_go_on?: string;
   go_no_go_remarks?: string;
-  technical_readiness?: string;
   commercial_readiness?: string;
-  finance_readiness?: string;
-  approval_status?: string;
-  submission_status?: string;
-};
-
-type SimpleRow = {
-  name: string;
-  status?: string;
-  creation?: string;
-  modified?: string;
-};
-
-type Reminder = SimpleRow & {
-  reminder_date?: string;
-  reminder_time?: string;
-  remind_user?: string;
-  reminder_kind?: string;
-  priority?: string;
-  action_hint?: string;
-  due_in_days?: number;
-  tender_status?: string;
-};
-
-type Survey = SimpleRow & {
-  site_name?: string;
-  survey_date?: string;
-  surveyed_by?: string;
-  summary?: string;
-};
-
-type Boq = SimpleRow & {
-  version?: number;
-  total_amount?: number;
-  total_items?: number;
-  approved_by?: string;
-};
-
-type CostSheet = SimpleRow & {
-  version?: number;
-  base_cost?: number;
-  sell_value?: number;
-  margin_percent?: number;
-  approved_by?: string;
-};
-
-type FinanceRequest = SimpleRow & {
-  instrument_type?: string;
-  amount?: number;
-  instrument_number?: string;
-  bank_name?: string;
-};
-
-type TenderResult = SimpleRow & {
-  result_stage?: string;
-  winner_company?: string;
-  winning_amount?: number;
-  publication_date?: string;
-};
-
-type ChecklistTemplate = {
-  name: string;
-  checklist_name?: string;
-  checklist_type?: string;
-  status?: string;
+  qualification_reason?: string;
+  technical_readiness?: string;
+  technical_rejection_reason?: string;
+  bid_denied_by_presales?: number;
+  bid_denied_reason?: string;
+  tender_document?: string;
+  rfp_document?: string;
 };
 
 type TenderApproval = {
   name: string;
-  linked_tender?: string;
   approval_type?: string;
   status?: string;
   requested_by?: string;
   approver_role?: string;
-  approver_user?: string;
   request_remarks?: string;
   action_remarks?: string;
-  acted_on?: string;
   creation?: string;
+  acted_on?: string;
+};
+
+type Instrument = {
+  name: string;
+  instrument_type?: string;
+  amount?: number;
+  instrument_number?: string;
+  bank_name?: string;
+  issue_date?: string;
+  expiry_date?: string;
+  status?: string;
+  remarks?: string;
+};
+
+type BidRow = {
+  name: string;
+  status?: string;
+  bid_amount?: number;
+  bid_date?: string;
 };
 
 type WorkspaceResponse = {
   tender: Tender | null;
-  results: TenderResult[];
-  reminders: Reminder[];
-  surveys: Survey[];
-  boqs: Boq[];
-  costSheets: CostSheet[];
-  financeRequests: FinanceRequest[];
-  checklistTemplates: ChecklistTemplate[];
   approvals: TenderApproval[];
+  financeRequests: Instrument[];
+  instruments: Instrument[];
+  bids: BidRow[];
 };
 
-type ConversionPayload = {
-  project?: string;
-  conversion_payload?: {
-    tender?: string;
-    tender_number?: string;
-    title?: string;
-    client?: string;
-    organization?: string;
-    estimated_value?: number;
-    linked_project?: string;
-    status?: string;
-    costing_snapshot?: {
-      name?: string;
-      status?: string;
-      sell_value?: number;
-      margin_percent?: number;
-      approved_by?: string;
-    } | null;
-    latest_approval?: {
-      name?: string;
-      approval_type?: string;
-      status?: string;
-      requested_by?: string;
-      approver_role?: string;
-      acted_on?: string;
-    } | null;
-  };
-};
+type ReasonEditor =
+  | { field: 'go_no_go_remarks' | 'qualification_reason' | 'technical_rejection_reason' | 'bid_denied_reason'; title: string; value: string }
+  | null;
 
-const statusTone: Record<string, string> = {
-  DRAFT: 'bg-slate-100 text-slate-700',
-  SUBMITTED: 'bg-blue-100 text-blue-700',
-  UNDER_EVALUATION: 'bg-amber-100 text-amber-700',
-  WON: 'bg-emerald-100 text-emerald-700',
-  LOST: 'bg-rose-100 text-rose-700',
-  DROPPED: 'bg-slate-100 text-slate-600',
-  CANCELLED: 'bg-slate-100 text-slate-600',
-  PENDING_APPROVAL: 'bg-amber-100 text-amber-700',
-  APPROVED: 'bg-emerald-100 text-emerald-700',
-  REJECTED: 'bg-rose-100 text-rose-700',
-  Pending: 'bg-amber-100 text-amber-700',
-  Approved: 'bg-emerald-100 text-emerald-700',
-  Denied: 'bg-rose-100 text-rose-700',
-  Completed: 'bg-emerald-100 text-emerald-700',
-};
+type ReasonTrailItem = NonNullable<ReasonEditor>;
+
+const presalesRoles = new Set(['Presales Tendering Head', 'Presales Executive']);
 
 function formatDate(value?: string) {
   if (!value) return '-';
-  return new Date(value).toLocaleDateString('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
+  return new Date(value).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 function formatCurrency(value?: number) {
-  if (!value) return 'Rs 0';
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(value || 0);
 }
 
-function formatStatusLabel(status?: string) {
-  if (!status) return '-';
-  return status.replace(/_/g, ' ');
+function labelize(value?: string) {
+  return value ? value.replace(/_/g, ' ') : '-';
 }
 
-function SectionCard({
-  title,
-  icon: Icon,
-  subtitle,
-  action,
+function ActionButton({
+  onClick,
+  disabled,
   children,
+  tone = 'dark',
 }: {
-  title: string;
-  icon: any;
-  subtitle: string;
-  action?: ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
   children: ReactNode;
+  tone?: 'dark' | 'light' | 'ghost';
 }) {
+  const className =
+    tone === 'light'
+      ? 'bg-white text-[#0f5164] hover:bg-[#eef6f8]'
+      : tone === 'ghost'
+        ? 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+        : 'bg-[#0f5164] text-white hover:bg-[#0a4251]';
   return (
-    <section className="rounded-3xl border border-gray-200 bg-white shadow-sm">
-      <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-5 py-4">
-        <div className="flex items-start gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#eef6f8] text-[#1e6b87]">
-            <Icon className="h-5 w-5" />
-          </div>
-          <div>
-            <h2 className="text-base font-semibold text-gray-900">{title}</h2>
-            <p className="mt-1 text-sm text-gray-500">{subtitle}</p>
-          </div>
-        </div>
-        {action}
-      </div>
-      <div className="p-5">{children}</div>
-    </section>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`rounded-full px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
+    >
+      {children}
+    </button>
   );
 }
 
-function EmptyBlock({ message }: { message: string }) {
-  return <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-sm text-gray-500">{message}</div>;
-}
+type StageCardAction = {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  tone?: 'dark' | 'light' | 'ghost';
+};
+
+type StageCard = {
+  title: string;
+  state: string;
+  tone: string;
+  help: string;
+  cta: StageCardAction | null;
+};
 
 export default function TenderWorkspacePage() {
   const { currentRole } = useRole();
@@ -250,9 +157,23 @@ export default function TenderWorkspacePage() {
   const [workspace, setWorkspace] = useState<WorkspaceResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [actionLoading, setActionLoading] = useState('');
-  const [approvalBusy, setApprovalBusy] = useState('');
-  const [conversionSummary, setConversionSummary] = useState<ConversionPayload | null>(null);
+  const [busy, setBusy] = useState('');
+  const [reasonEditor, setReasonEditor] = useState<ReasonEditor>(null);
+  const [rejectMode, setRejectMode] = useState<'qualification' | 'technical' | 'observation' | 'nogo' | null>(null);
+  const [reasonInput, setReasonInput] = useState('');
+  const [instrumentForm, setInstrumentForm] = useState({
+    instrument_type: 'EMD',
+    amount: '',
+    instrument_number: '',
+    bank_name: '',
+    issue_date: '',
+    expiry_date: '',
+    remarks: '',
+  });
+  const [showInstrumentModal, setShowInstrumentModal] = useState(false);
+  const [showDocumentModal, setShowDocumentModal] = useState(false);
+  const [documentType, setDocumentType] = useState<'tender' | 'rfp'>('tender');
+  const [documentFile, setDocumentFile] = useState<File | null>(null);
 
   const loadWorkspace = async () => {
     try {
@@ -260,9 +181,7 @@ export default function TenderWorkspacePage() {
       setError('');
       const response = await fetch(`/api/tender-workspace/${encodeURIComponent(tenderId)}`);
       const json = await response.json();
-      if (!json.success) {
-        throw new Error(json.message || 'Failed to load tender workspace');
-      }
+      if (!json.success) throw new Error(json.message || 'Failed to load tender workspace');
       setWorkspace(json.data);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Failed to load tender workspace');
@@ -276,566 +195,541 @@ export default function TenderWorkspacePage() {
   }, [tenderId]);
 
   const tender = workspace?.tender ?? null;
-  const latestResult = useMemo(() => workspace?.results?.[0] ?? null, [workspace?.results]);
-  const latestBoq = useMemo(() => workspace?.boqs?.[0] ?? null, [workspace?.boqs]);
-  const latestCostSheet = useMemo(() => workspace?.costSheets?.[0] ?? null, [workspace?.costSheets]);
-  const derivedFunnel = tender ? (tender.computed_funnel_status || deriveTenderFunnelStatus(tender)) : null;
-  const derivedFunnelMeta = getTenderFunnelMeta(derivedFunnel || undefined);
+  const latestBid = workspace?.bids?.[0] ?? null;
+  const derivedFunnel = tender ? (tender.computed_funnel_status || deriveTenderFunnelStatus(tender)) : '';
+  const funnelMeta = getTenderFunnelMeta(derivedFunnel);
+  const isDirector = currentRole === 'Director';
+  const isPresales = presalesRoles.has(currentRole);
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[420px] items-center justify-center gap-3">
-        <Loader2 className="h-7 w-7 animate-spin text-[#1e6b87]" />
-        <span className="text-sm text-gray-500">Loading tender workspace...</span>
-      </div>
-    );
-  }
+  const goNoGoApproval = useMemo(
+    () => workspace?.approvals.find((row) => row.approval_type === 'GO_NO_GO' && row.status === 'Pending') || null,
+    [workspace?.approvals],
+  );
+  const technicalApproval = useMemo(
+    () => workspace?.approvals.find((row) => row.approval_type === 'TECHNICAL' && row.status === 'Pending') || null,
+    [workspace?.approvals],
+  );
 
-  if (error || !tender) {
-    return (
-      <div className="rounded-3xl border border-red-200 bg-red-50 p-6">
-        <div className="flex items-start gap-3">
-          <AlertCircle className="mt-0.5 h-5 w-5 text-red-600" />
-          <div>
-            <h1 className="text-base font-semibold text-red-800">Tender workspace unavailable</h1>
-            <p className="mt-1 text-sm text-red-700">{error || 'Tender not found.'}</p>
-            <Link href="/pre-sales/tender" className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-red-700">
-              <ArrowLeft className="h-4 w-4" />
-              Back to tender list
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const canObserve = derivedFunnel === 'Not Qualified Tender' || derivedFunnel === 'Locked Tender';
 
-  const daysLeft = tender.submission_date
-    ? Math.ceil((new Date(tender.submission_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-    : null;
+  const reasonTrail: ReasonTrailItem[] = tender ? [
+    tender.go_no_go_status === 'NO_GO' ? { field: 'go_no_go_remarks' as const, title: 'No-Go Reason', value: tender.go_no_go_remarks || '' } : null,
+    tender.commercial_readiness === 'REJECTED' ? { field: 'qualification_reason' as const, title: 'Qualification Reason', value: tender.qualification_reason || '' } : null,
+    tender.technical_readiness === 'REJECTED' ? { field: 'technical_rejection_reason' as const, title: 'Technical Rejection Reason', value: tender.technical_rejection_reason || '' } : null,
+    tender.bid_denied_by_presales ? { field: 'bid_denied_reason' as const, title: 'Observation Reason', value: tender.bid_denied_reason || '' } : null,
+  ].filter((value): value is ReasonTrailItem => Boolean(value)) : [];
 
-  const updateTenderStatus = async (status: string) => {
+  const updateTender = async (payload: Record<string, unknown>) => {
     try {
-      setActionLoading(status);
+      setBusy('UPDATE');
       setError('');
-      const response = await fetch(`/api/tenders/${encodeURIComponent(tenderId)}/status`, {
-        method: 'POST',
+      const response = await fetch(`/api/tenders/${encodeURIComponent(tenderId)}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ target_status: status }),
+        body: JSON.stringify(payload),
       });
       const json = await response.json();
-      if (!json.success) {
-        throw new Error(json.message || 'Failed to update tender status');
-      }
+      if (!json.success) throw new Error(json.message || 'Failed to update tender');
       await loadWorkspace();
     } catch (actionError) {
-      setError(actionError instanceof Error ? actionError.message : 'Failed to update tender status');
+      setError(actionError instanceof Error ? actionError.message : 'Failed to update tender');
     } finally {
-      setActionLoading('');
+      setBusy('');
     }
   };
 
-  const convertToProject = async () => {
+  const runWorkflow = async (action: string, reason?: string) => {
     try {
-      setActionLoading('CONVERT');
+      setBusy(action);
       setError('');
-      const response = await fetch('/api/tender-convert', {
+      const response = await fetch(`/api/tenders/${encodeURIComponent(tenderId)}/workflow`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tender_name: tenderId }),
+        body: JSON.stringify({ action, reason }),
       });
       const json = await response.json();
-      if (!json.success) {
-        throw new Error(json.message || 'Failed to convert tender');
-      }
-      setConversionSummary(json.data || null);
+      if (!json.success) throw new Error(json.message || `Failed to ${action}`);
+      setRejectMode(null);
+      setReasonInput('');
       await loadWorkspace();
     } catch (actionError) {
-      setError(actionError instanceof Error ? actionError.message : 'Failed to convert tender');
+      setError(actionError instanceof Error ? actionError.message : `Failed to ${action}`);
     } finally {
-      setActionLoading('');
+      setBusy('');
     }
   };
 
-  const submitApproval = async (approvalType: string) => {
+  const submitApproval = async (approvalType: 'GO_NO_GO' | 'TECHNICAL', remarks = '') => {
     try {
-      setApprovalBusy(approvalType);
+      setBusy(`submit-${approvalType}`);
       setError('');
       const response = await fetch('/api/tender-approvals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: tenderId, approval_type: approvalType }),
+        body: JSON.stringify({ name: tenderId, approval_type: approvalType, remarks }),
       });
       const json = await response.json();
-      if (!json.success) {
-        throw new Error(json.message || 'Failed to submit tender approval');
-      }
+      if (!json.success) throw new Error(json.message || 'Failed to submit approval');
       await loadWorkspace();
     } catch (actionError) {
-      setError(actionError instanceof Error ? actionError.message : 'Failed to submit tender approval');
+      setError(actionError instanceof Error ? actionError.message : 'Failed to submit approval');
     } finally {
-      setApprovalBusy('');
+      setBusy('');
     }
   };
 
+  const actOnApproval = async (approvalName: string, action: 'approve' | 'reject', remarks = '') => {
+    try {
+      setBusy(`${action}-${approvalName}`);
+      setError('');
+      const response = await fetch(`/api/tender-approvals/${encodeURIComponent(approvalName)}/actions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, remarks }),
+      });
+      const json = await response.json();
+      if (!json.success) throw new Error(json.message || `Failed to ${action} approval`);
+      setRejectMode(null);
+      setReasonInput('');
+      await loadWorkspace();
+    } catch (actionError) {
+      setError(actionError instanceof Error ? actionError.message : `Failed to ${action} approval`);
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const createInstrument = async () => {
+    try {
+      setBusy('instrument');
+      setError('');
+      const response = await fetch('/api/emd-pbg', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          linked_tender: tenderId,
+          instrument_type: instrumentForm.instrument_type,
+          amount: Number(instrumentForm.amount || 0),
+          instrument_number: instrumentForm.instrument_number,
+          bank_name: instrumentForm.bank_name,
+          issue_date: instrumentForm.issue_date,
+          expiry_date: instrumentForm.expiry_date,
+          remarks: instrumentForm.remarks,
+        }),
+      });
+      const json = await response.json();
+      if (!json.success) throw new Error(json.message || 'Failed to create instrument');
+      setShowInstrumentModal(false);
+      setInstrumentForm({
+        instrument_type: 'EMD',
+        amount: '',
+        instrument_number: '',
+        bank_name: '',
+        issue_date: '',
+        expiry_date: '',
+        remarks: '',
+      });
+      await loadWorkspace();
+    } catch (actionError) {
+      setError(actionError instanceof Error ? actionError.message : 'Failed to create instrument');
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const uploadDocument = async () => {
+    if (!documentFile) {
+      setError('Please choose a file before uploading');
+      return;
+    }
+    try {
+      setBusy('document');
+      setError('');
+      const form = new FormData();
+      form.append('file', documentFile);
+      const route = documentType === 'rfp' ? 'rfp-document' : 'tender-document';
+      const response = await fetch(`/api/tenders/${encodeURIComponent(tenderId)}/${route}`, {
+        method: 'POST',
+        body: form,
+      });
+      const json = await response.json();
+      if (!json.success) throw new Error(json.message || 'Failed to upload document');
+      setShowDocumentModal(false);
+      setDocumentFile(null);
+      await loadWorkspace();
+    } catch (actionError) {
+      setError(actionError instanceof Error ? actionError.message : 'Failed to upload document');
+    } finally {
+      setBusy('');
+    }
+  };
+
+  if (loading) {
+    return <div className="flex min-h-[420px] items-center justify-center gap-3 text-sm text-gray-500"><Loader2 className="h-5 w-5 animate-spin" />Loading tender workspace...</div>;
+  }
+
+  if (!tender) {
+    return (
+      <div className="rounded-3xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
+        {error || 'Tender not found.'}
+      </div>
+    );
+  }
+
+  const stageCards: StageCard[] = [
+    {
+      title: '1. GO / NO-GO',
+      state: tender.go_no_go_status === 'GO' ? 'GO approved' : tender.go_no_go_status === 'NO_GO' ? 'NO-GO' : goNoGoApproval ? 'Pending with Director' : 'Pending',
+      tone: derivedFunnel === 'Tender under evaluation for GO-NOGO' ? 'border-blue-200 bg-blue-50' : 'border-gray-200 bg-white',
+      help: goNoGoApproval
+        ? 'The request has already been sent to the Director.'
+        : isDirector
+          ? 'This request is raised by Presales. You will act after it is submitted.'
+          : 'Send the request from here so the Director can decide Go or No-Go.',
+      cta: !goNoGoApproval && tender.go_no_go_status === 'PENDING'
+        ? isPresales
+          ? { label: busy === 'submit-GO_NO_GO' ? 'Sending...' : 'Send GO / NO-GO Request', onClick: () => void submitApproval('GO_NO_GO') }
+          : { label: 'Waiting For Presales Request', onClick: () => {}, disabled: true, tone: 'ghost' }
+        : null,
+    },
+    {
+      title: '2. Qualification',
+      state: tender.commercial_readiness === 'APPROVED' ? 'Qualified' : tender.commercial_readiness === 'REJECTED' ? 'Not qualified' : 'Awaiting',
+      tone: derivedFunnel === 'Working but not confirmed by technical' ? 'border-yellow-200 bg-yellow-50' : derivedFunnel === 'Not Qualified Tender' ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-white',
+      help: 'After the Director marks Go, Presales updates qualification here.',
+      cta: null,
+    },
+    {
+      title: '3. Technical Director Review',
+      state: tender.technical_readiness === 'APPROVED' ? 'Approved' : tender.technical_readiness === 'REJECTED' ? 'Rejected' : technicalApproval ? 'Pending with Director' : 'Awaiting request',
+      tone: derivedFunnel === 'EMD done and technical confirmed' ? 'border-green-200 bg-green-50' : derivedFunnel === 'Locked Tender' ? 'border-orange-200 bg-orange-50' : 'border-gray-200 bg-white',
+      help: technicalApproval
+        ? 'The technical request is pending with the Director.'
+        : isDirector
+          ? 'Presales sends this request after qualification is completed.'
+          : 'After qualification, send the technical approval request from here.',
+      cta: !technicalApproval && derivedFunnel === 'Working but not confirmed by technical'
+        ? isPresales
+          ? { label: busy === 'submit-TECHNICAL' ? 'Sending...' : 'Send Technical Request', onClick: () => void submitApproval('TECHNICAL') }
+          : { label: 'Waiting For Presales Request', onClick: () => {}, disabled: true, tone: 'ghost' }
+        : null,
+    },
+    {
+      title: '4. Bid Conversion',
+      state: latestBid ? `Bid created: ${latestBid.name}` : 'Not converted',
+      tone: latestBid ? 'border-emerald-200 bg-emerald-50' : 'border-gray-200 bg-white',
+      help: 'After technical approval, the bid is created from here.',
+      cta: null,
+    },
+  ];
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 rounded-[2rem] bg-gradient-to-br from-[#0f5164] via-[#1e6b87] to-[#5ca0b8] px-6 py-6 text-white shadow-lg">
-        <div className="flex items-center justify-between gap-4">
+      <div className="rounded-[2rem] bg-gradient-to-br from-[#0f5164] via-[#1d708c] to-[#7bb7c6] px-6 py-6 text-white shadow-lg">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <Link href="/pre-sales/tender" className="inline-flex items-center gap-2 text-sm font-medium text-white/90 hover:text-white">
             <ArrowLeft className="h-4 w-4" />
             Back to tender list
           </Link>
-          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusTone[tender.status] || 'bg-white/15 text-white'}`}>
-            {formatStatusLabel(tender.status)}
+          <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${funnelMeta.toneClass}`}>
+            <span className={`h-2.5 w-2.5 rounded-full ${funnelMeta.dotClass}`} />
+            {derivedFunnel}
           </span>
         </div>
 
-        <div className="space-y-2">
-          <div className="text-xs uppercase tracking-[0.22em] text-white/70">Tender Workspace</div>
-          <h1 className="text-2xl font-semibold">{tender.title}</h1>
-          <div>
-            <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${derivedFunnelMeta.toneClass}`}>
-              <span className={`h-2.5 w-2.5 rounded-full ${derivedFunnelMeta.dotClass}`} />
-              Funnel: {derivedFunnel}
-            </span>
-          </div>
-          <p className="text-sm text-white/80">
-            {tender.tender_number} • {tender.client || 'Client not mapped'} • {tender.organization || 'Organization pending'}
-          </p>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-2xl border border-white/15 bg-white/10 p-4">
-            <div className="text-xs uppercase tracking-wide text-white/65">Submission Date</div>
-            <div className="mt-2 text-lg font-semibold">{formatDate(tender.submission_date)}</div>
-            <div className="mt-1 text-sm text-white/75">{daysLeft === null ? 'Deadline not set' : `${daysLeft} day(s) left`}</div>
-          </div>
-          <div className="rounded-2xl border border-white/15 bg-white/10 p-4">
-            <div className="text-xs uppercase tracking-wide text-white/65">Estimated Value</div>
-            <div className="mt-2 text-lg font-semibold">{formatCurrency(tender.estimated_value)}</div>
-            <div className="mt-1 text-sm text-white/75">Internal reference value</div>
-          </div>
-          <div className="rounded-2xl border border-white/15 bg-white/10 p-4">
-            <div className="text-xs uppercase tracking-wide text-white/65">EMD / PBG</div>
-            <div className="mt-2 text-lg font-semibold">
-              {tender.emd_required ? formatCurrency(tender.emd_amount) : 'No EMD'}
-            </div>
-            <div className="mt-1 text-sm text-white/75">
-              {tender.pbg_required ? `PBG ${formatCurrency(tender.pbg_amount)}` : 'No PBG'}
+        <div className="mt-5 grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+          <div className="space-y-3">
+            <div className="text-xs uppercase tracking-[0.24em] text-white/65">Tender Workspace</div>
+            <h1 className="text-2xl font-semibold">{tender.title}</h1>
+            <p className="text-sm text-white/80">{tender.tender_number} • {tender.client || 'Client pending'} • {tender.organization || 'Organization pending'}</p>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-4">
+                <div className="text-xs uppercase tracking-wide text-white/65">Submission</div>
+                <div className="mt-2 text-lg font-semibold">{formatDate(tender.submission_date)}</div>
+              </div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-4">
+                <div className="text-xs uppercase tracking-wide text-white/65">Estimated Value</div>
+                <div className="mt-2 text-lg font-semibold">{formatCurrency(tender.estimated_value)}</div>
+              </div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-4">
+                <div className="text-xs uppercase tracking-wide text-white/65">Latest Bid</div>
+                <div className="mt-2 text-lg font-semibold">{latestBid?.name || 'Not created'}</div>
+              </div>
             </div>
           </div>
-          <div className="rounded-2xl border border-white/15 bg-white/10 p-4">
-            <div className="text-xs uppercase tracking-wide text-white/65">Project Link</div>
-            <div className="mt-2 text-lg font-semibold">{tender.linked_project || 'Not converted'}</div>
-            <div className="mt-1 text-sm text-white/75">{tender.linked_project ? 'Ready for project handoff with explicit payload snapshot' : 'Still in pre-sales flow'}</div>
-          </div>
-        </div>
 
-        <div className="flex flex-wrap gap-2">
-          {[
-            ['SUBMITTED', 'Mark Submitted'],
-            ['UNDER_EVALUATION', 'Mark Under Evaluation'],
-            ['WON', 'Mark Won'],
-            ['LOST', 'Mark Lost'],
-            ['DROPPED', 'Mark Dropped'],
-          ].map(([status, label]) => (
-            <button
-              key={status}
-              type="button"
-              onClick={() => void updateTenderStatus(status)}
-              disabled={actionLoading.length > 0 || tender.status === status}
-              className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {actionLoading === status ? 'Updating...' : label}
-            </button>
-          ))}
-          {tender.status === 'WON' && !tender.linked_project ? (
-            <button
-              type="button"
-              onClick={() => void convertToProject()}
-              disabled={actionLoading.length > 0}
-              className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#0f5164] hover:bg-[#eef6f8] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {actionLoading === 'CONVERT' ? 'Converting...' : 'Convert To Project'}
-            </button>
-          ) : null}
+          <div className="rounded-3xl border border-white/15 bg-white/10 p-5">
+            <div className="text-sm font-semibold text-white">Workspace Actions</div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <ActionButton tone="light" onClick={() => setShowInstrumentModal(true)} disabled={busy.length > 0}>
+                Add Instrument
+              </ActionButton>
+              <ActionButton tone="light" onClick={() => setShowDocumentModal(true)} disabled={busy.length > 0}>
+                Add Document
+              </ActionButton>
+              {isPresales && !goNoGoApproval && tender.go_no_go_status === 'PENDING' ? (
+                <ActionButton onClick={() => void submitApproval('GO_NO_GO')} disabled={busy.length > 0}>
+                  Send GO / NO-GO To Director
+                </ActionButton>
+              ) : null}
+              {isPresales && tender.go_no_go_status === 'GO' && tender.commercial_readiness !== 'APPROVED' && tender.commercial_readiness !== 'REJECTED' ? (
+                <>
+                  <ActionButton onClick={() => void runWorkflow('qualify')} disabled={busy.length > 0}>Mark Qualified</ActionButton>
+                  <ActionButton tone="ghost" onClick={() => { setRejectMode('qualification'); setReasonInput(tender.qualification_reason || ''); }} disabled={busy.length > 0}>Mark Not Qualified</ActionButton>
+                </>
+              ) : null}
+              {isPresales && derivedFunnel === 'Working but not confirmed by technical' && !technicalApproval ? (
+                <ActionButton onClick={() => void submitApproval('TECHNICAL')} disabled={busy.length > 0}>Send Technical To Director</ActionButton>
+              ) : null}
+              {isPresales && canObserve ? (
+                <ActionButton tone="ghost" onClick={() => { setRejectMode('observation'); setReasonInput(tender.bid_denied_reason || ''); }} disabled={busy.length > 0}>Keep Under Observation</ActionButton>
+              ) : null}
+              {isPresales && derivedFunnel === 'EMD done and technical confirmed' && !latestBid ? (
+                <ActionButton onClick={() => void runWorkflow('convert_to_bid')} disabled={busy.length > 0}>
+                  Convert To Bid
+                </ActionButton>
+              ) : null}
+            </div>
+
+            {isDirector && goNoGoApproval ? (
+              <div className="mt-4 rounded-2xl border border-white/20 bg-white/10 p-4">
+                <div className="text-sm font-semibold">Director Decision: GO / NO-GO</div>
+                <div className="mt-1 text-sm text-white/75">Requested by {goNoGoApproval.requested_by || '-'} on {formatDate(goNoGoApproval.creation)}</div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <ActionButton tone="light" onClick={() => void actOnApproval(goNoGoApproval.name, 'approve')} disabled={busy.length > 0}>Go</ActionButton>
+                  <ActionButton tone="ghost" onClick={() => { setRejectMode('nogo'); setReasonInput(goNoGoApproval.request_remarks || tender.go_no_go_remarks || ''); }} disabled={busy.length > 0}>No Go</ActionButton>
+                  <Link href={`/pre-sales/${encodeURIComponent(tenderId)}`} className="inline-flex items-center rounded-full border border-white/20 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10">View Detail</Link>
+                </div>
+              </div>
+            ) : null}
+
+            {isDirector && technicalApproval ? (
+              <div className="mt-4 rounded-2xl border border-white/20 bg-white/10 p-4">
+                <div className="text-sm font-semibold">Director Decision: Technical Review</div>
+                <div className="mt-1 text-sm text-white/75">Requested by {technicalApproval.requested_by || '-'} on {formatDate(technicalApproval.creation)}</div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <ActionButton tone="light" onClick={() => void actOnApproval(technicalApproval.name, 'approve')} disabled={busy.length > 0}>Approve Technical</ActionButton>
+                  <ActionButton tone="ghost" onClick={() => { setRejectMode('technical'); setReasonInput(tender.technical_rejection_reason || technicalApproval.request_remarks || ''); }} disabled={busy.length > 0}>Reject Technical</ActionButton>
+                </div>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
 
-      {conversionSummary?.conversion_payload ? (
-        <div className="rounded-3xl border border-white/15 bg-white/10 p-5 text-sm text-white/85">
-          <div className="text-xs uppercase tracking-[0.18em] text-white/60">Latest Conversion Payload</div>
-          <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-2xl bg-white/10 p-3">Project: {conversionSummary.conversion_payload.linked_project || '-'}</div>
-            <div className="rounded-2xl bg-white/10 p-3">Client: {conversionSummary.conversion_payload.client || '-'}</div>
-            <div className="rounded-2xl bg-white/10 p-3">Organization: {conversionSummary.conversion_payload.organization || '-'}</div>
-            <div className="rounded-2xl bg-white/10 p-3">Estimated Value: {formatCurrency(conversionSummary.conversion_payload.estimated_value)}</div>
-          </div>
-        </div>
+      {error ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
       ) : null}
 
-      <div className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
-        <div className="space-y-6">
-          <SectionCard
-            title="Bid Flow"
-            icon={CheckCircle2}
-            subtitle="Simple single-page view of what is ready and what still needs attention."
-          >
-            <div className="grid gap-3 md:grid-cols-2">
-              {[
-                {
-                  label: '1. Tender identified',
-                  state: tender.tender_number ? 'Done' : 'Pending',
-                  note: 'Basic tender master is created.',
-                },
-                {
-                  label: '2. Checklist ready',
-                  state: workspace.checklistTemplates.length ? 'Ready' : 'Pending',
-                  note: `${workspace.checklistTemplates.length} checklist template(s) available for pre-sales use.`,
-                },
-                {
-                  label: '3. Survey / assumptions',
-                  state: workspace.surveys.length ? 'In progress' : 'Pending',
-                  note: workspace.surveys.length ? `${workspace.surveys.length} survey record(s) linked.` : 'No survey linked yet.',
-                },
-                {
-                  label: '4. BOQ preparation',
-                  state: latestBoq?.status ? formatStatusLabel(latestBoq.status) : 'Pending',
-                  note: latestBoq ? `Latest BOQ ${latestBoq.name} • version ${latestBoq.version || 1}` : 'No BOQ linked yet.',
-                },
-                {
-                  label: '5. Costing and margin',
-                  state: latestCostSheet?.status ? formatStatusLabel(latestCostSheet.status) : 'Pending',
-                  note: latestCostSheet ? `Latest cost sheet ${latestCostSheet.name}` : 'No cost sheet linked yet.',
-                },
-                {
-                  label: '6. Finance readiness',
-                  state: workspace.financeRequests.length ? 'Tracked' : 'Pending',
-                  note: workspace.financeRequests.length ? `${workspace.financeRequests.length} finance request(s) raised.` : 'No finance request raised yet.',
-                },
-                {
-                  label: '7. Submission tracking',
-                  state: tender.status === 'SUBMITTED' || tender.status === 'UNDER_EVALUATION' || tender.status === 'WON' || tender.status === 'LOST' ? 'Tracked' : 'Pending',
-                  note: `Current tender status is ${formatStatusLabel(tender.status)}.`,
-                },
-                {
-                  label: '8. Result and closure',
-                  state: latestResult ? 'Tracked' : 'Pending',
-                  note: latestResult ? `Latest result stage: ${latestResult.result_stage || '-'}` : 'No tender result linked yet.',
-                },
-              ].map((item) => (
-                <div key={item.label} className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="text-sm font-semibold text-gray-900">{item.label}</div>
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
-                      {item.state}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-sm text-gray-500">{item.note}</p>
-                </div>
-              ))}
-            </div>
-          </SectionCard>
-
-          <SectionCard
-            title="Survey, BOQ, and Costing"
-            icon={FileSpreadsheet}
-            subtitle="Technical preparation and commercial readiness in one place."
-          >
-            <div className="grid gap-4 lg:grid-cols-3">
-              <div className="rounded-2xl border border-gray-200 p-4">
-                <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
-                  <MapPinned className="h-4 w-4 text-[#1e6b87]" />
-                  Survey
-                </div>
-                <div className="mt-3 text-2xl font-semibold text-gray-900">{workspace.surveys.length}</div>
-                <p className="mt-1 text-sm text-gray-500">
-                  {workspace.surveys[0]?.site_name ? `Latest site: ${workspace.surveys[0].site_name}` : 'No survey linked yet.'}
-                </p>
-              </div>
-              <div className="rounded-2xl border border-gray-200 p-4">
-                <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
-                  <FileCheck className="h-4 w-4 text-[#1e6b87]" />
-                  BOQ
-                </div>
-                <div className="mt-3 text-2xl font-semibold text-gray-900">{workspace.boqs.length}</div>
-                <p className="mt-1 text-sm text-gray-500">
-                  {latestBoq ? `${formatStatusLabel(latestBoq.status)} • ${formatCurrency(latestBoq.total_amount)}` : 'No BOQ prepared yet.'}
-                </p>
-              </div>
-              <div className="rounded-2xl border border-gray-200 p-4">
-                <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
-                  <Briefcase className="h-4 w-4 text-[#1e6b87]" />
-                  Cost Sheet
-                </div>
-                <div className="mt-3 text-2xl font-semibold text-gray-900">{workspace.costSheets.length}</div>
-                <p className="mt-1 text-sm text-gray-500">
-                  {latestCostSheet ? `${formatStatusLabel(latestCostSheet.status)} • sell ${formatCurrency(latestCostSheet.sell_value)}` : 'No cost sheet prepared yet.'}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-5 space-y-3">
-              {workspace.surveys.slice(0, 2).map((survey) => (
-                <div key={survey.name} className="flex items-start justify-between gap-4 rounded-2xl border border-gray-100 px-4 py-3">
-                  <div>
-                    <div className="text-sm font-medium text-gray-900">{survey.site_name || survey.name}</div>
-                    <div className="mt-1 text-xs text-gray-500">
-                      Survey date {formatDate(survey.survey_date)} • {survey.surveyed_by || 'Owner not mapped'}
-                    </div>
-                    {survey.summary ? <div className="mt-2 text-sm text-gray-600">{survey.summary}</div> : null}
-                  </div>
-                  <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusTone[survey.status || ''] || 'bg-slate-100 text-slate-700'}`}>
-                    {formatStatusLabel(survey.status)}
-                  </span>
-                </div>
-              ))}
-              {!workspace.surveys.length ? <EmptyBlock message="No survey records are linked yet. A survey snapshot will appear here as soon as one is created for this tender." /> : null}
-            </div>
-          </SectionCard>
-
-          <SectionCard
-            title="Ownership and Approval State"
-            icon={CheckCircle2}
-            subtitle="Tender owner, go/no-go, readiness signals, and approval trail in one place."
-          >
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="rounded-2xl border border-gray-200 p-4">
-                <div className="text-xs uppercase tracking-wide text-gray-400">Tender Owner</div>
-                <div className="mt-2 text-base font-semibold text-gray-900">{tender.tender_owner || '-'}</div>
-                <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <div className="text-gray-400">Go / No-Go</div>
-                    <div className="mt-1 font-medium text-gray-800">{formatStatusLabel(tender.go_no_go_status)}</div>
-                  </div>
-                  <div>
-                    <div className="text-gray-400">Approval Status</div>
-                    <div className="mt-1 font-medium text-gray-800">{formatStatusLabel(tender.approval_status)}</div>
-                  </div>
-                  <div>
-                    <div className="text-gray-400">Technical</div>
-                    <div className="mt-1 font-medium text-gray-800">{formatStatusLabel(tender.technical_readiness)}</div>
-                  </div>
-                  <div>
-                    <div className="text-gray-400">Commercial</div>
-                    <div className="mt-1 font-medium text-gray-800">{formatStatusLabel(tender.commercial_readiness)}</div>
-                  </div>
-                  <div>
-                    <div className="text-gray-400">Finance</div>
-                    <div className="mt-1 font-medium text-gray-800">{formatStatusLabel(tender.finance_readiness)}</div>
-                  </div>
-                  <div>
-                    <div className="text-gray-400">Submission</div>
-                    <div className="mt-1 font-medium text-gray-800">{formatStatusLabel(tender.submission_status)}</div>
-                  </div>
-                </div>
-                {(tender.go_no_go_by || tender.go_no_go_on || tender.go_no_go_remarks) ? (
-                  <div className="mt-4 rounded-2xl bg-gray-50 p-3 text-sm text-gray-600">
-                    <div>Decision by: {tender.go_no_go_by || '-'}</div>
-                    <div>Decision on: {formatDate(tender.go_no_go_on)}</div>
-                    {tender.go_no_go_remarks ? <div className="mt-1">Remarks: {tender.go_no_go_remarks}</div> : null}
+      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-[#0f5164]" />
+            <h2 className="text-base font-semibold text-gray-900">Tender Flow</h2>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {stageCards.map((card) => (
+              <div key={card.title} className={`rounded-2xl border p-4 ${card.tone}`}>
+                <div className="text-sm font-semibold text-gray-900">{card.title}</div>
+                <div className="mt-2 text-sm text-gray-600">{card.state}</div>
+                <div className="mt-2 text-xs leading-5 text-gray-500">{card.help}</div>
+                {card.cta ? (
+                  <div className="mt-4">
+                    <ActionButton onClick={card.cta.onClick} disabled={card.cta.disabled || busy.length > 0} tone={card.cta.tone || 'dark'}>
+                      {card.cta.label}
+                    </ActionButton>
                   </div>
                 ) : null}
               </div>
+            ))}
+          </div>
+        </section>
 
-              <div className="rounded-2xl border border-gray-200 p-4">
-                <div className="text-sm font-semibold text-gray-900">Raise approval request</div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {[
-                    ['GO_NO_GO', 'Go / No-Go'],
-                    ['TECHNICAL', 'Technical'],
-                    ['COMMERCIAL', 'Commercial'],
-                    ['FINANCE', 'Finance'],
-                    ['SUBMISSION', 'Submission'],
-                  ].map(([value, label]) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => void submitApproval(value)}
-                      disabled={approvalBusy.length > 0}
-                      className="rounded-full border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:border-[#1e6b87] hover:text-[#1e6b87] disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {approvalBusy === value ? 'Submitting...' : label}
-                    </button>
-                  ))}
-                </div>
-                <p className="mt-3 text-sm text-gray-500">
-                  These requests will appear in the `Approvals` inbox with a clear action owner, aging, and next-action hint so no tender gets stuck silently.
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-5 space-y-3">
-              {workspace.approvals.slice(0, 5).map((approval) => (
-                <div key={approval.name} className="rounded-2xl border border-gray-200 px-4 py-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-sm font-semibold text-gray-900">{approval.approval_type || approval.name}</div>
-                      <div className="mt-1 text-xs text-gray-500">
-                        Requested by {approval.requested_by || '-'} • {formatDate(approval.creation)}
-                      </div>
-                      <div className="mt-1 text-xs text-gray-500">
-                        Action owner: {approval.approver_role || approval.approver_user || 'Pending assignment'}
-                      </div>
-                      {approval.request_remarks ? <div className="mt-2 text-sm text-gray-600">Request: {approval.request_remarks}</div> : null}
-                      {approval.action_remarks ? <div className="mt-1 text-sm text-gray-600">Action: {approval.action_remarks}</div> : null}
-                      {approval.acted_on ? <div className="mt-1 text-xs text-gray-500">Acted on {formatDate(approval.acted_on)}</div> : null}
-                    </div>
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusTone[approval.status || ''] || 'bg-slate-100 text-slate-700'}`}>
-                      {formatStatusLabel(approval.status)}
-                    </span>
+        <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-[#0f5164]" />
+            <h2 className="text-base font-semibold text-gray-900">Reason Trail</h2>
+          </div>
+          <div className="mt-4 space-y-3">
+            {reasonTrail.length ? reasonTrail.map((item) => (
+              <div key={item.field} className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-gray-900">{item.title}</div>
+                    <p className="mt-2 text-sm text-gray-600">{item.value || 'Reason not available yet.'}</p>
                   </div>
-                </div>
-              ))}
-              {!workspace.approvals.length ? <EmptyBlock message="No tender-specific approval history is available yet. The approval trail will appear here once a request is submitted." /> : null}
-            </div>
-          </SectionCard>
-
-          <SectionCard
-            title="Result Tracking"
-            icon={Trophy}
-            subtitle="Track tender results and competitive outcomes from this section after submission."
-          >
-            {latestResult ? (
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <div className="rounded-2xl border border-gray-200 p-4">
-                  <div className="text-xs uppercase tracking-wide text-gray-400">Stage</div>
-                  <div className="mt-2 text-base font-semibold text-gray-900">{latestResult.result_stage || '-'}</div>
-                </div>
-                <div className="rounded-2xl border border-gray-200 p-4">
-                  <div className="text-xs uppercase tracking-wide text-gray-400">Winner</div>
-                  <div className="mt-2 text-base font-semibold text-gray-900">{latestResult.winner_company || '-'}</div>
-                </div>
-                <div className="rounded-2xl border border-gray-200 p-4">
-                  <div className="text-xs uppercase tracking-wide text-gray-400">Winning Amount</div>
-                  <div className="mt-2 text-base font-semibold text-gray-900">{formatCurrency(latestResult.winning_amount)}</div>
-                </div>
-                <div className="rounded-2xl border border-gray-200 p-4">
-                  <div className="text-xs uppercase tracking-wide text-gray-400">Published</div>
-                  <div className="mt-2 text-base font-semibold text-gray-900">{formatDate(latestResult.publication_date)}</div>
-                </div>
-              </div>
-            ) : (
-              <EmptyBlock message="No tender result is linked yet. The latest outcome will appear here once a result is published." />
-            )}
-          </SectionCard>
-        </div>
-
-        <div className="space-y-6">
-          <SectionCard
-            title="Checklist and Reminders"
-            icon={Calendar}
-            subtitle="Execution se pehle internal readiness aur deadline control."
-            action={<Link href="/pre-sales/approvals" className="text-sm font-medium text-[#1e6b87]">Open approvals</Link>}
-          >
-            <div className="space-y-4">
-              <div className="rounded-2xl border border-gray-200 p-4">
-                <div className="text-sm font-semibold text-gray-900">Checklist templates</div>
-                <div className="mt-2 text-2xl font-semibold text-gray-900">{workspace.checklistTemplates.length}</div>
-                <p className="mt-1 text-sm text-gray-500">Existing reusable checklists are being reused instead of creating a new tender-only document layer.</p>
-              </div>
-              <div className="rounded-2xl border border-gray-200 p-4">
-                <div className="text-sm font-semibold text-gray-900">Upcoming reminders</div>
-                <div className="mt-3 space-y-3">
-                  {workspace.reminders.slice(0, 3).map((reminder) => (
-                    <div key={reminder.name} className="rounded-2xl bg-gray-50 px-3 py-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="text-sm font-medium text-gray-900">{reminder.remind_user || reminder.name}</div>
-                        <span className={`rounded-full px-2 py-1 text-[11px] font-medium ${statusTone[reminder.status || ''] || 'bg-slate-100 text-slate-700'}`}>
-                          {formatStatusLabel(reminder.status)}
-                        </span>
-                      </div>
-                      <div className="mt-1 text-xs text-gray-500">
-                        {formatDate(reminder.reminder_date)} {reminder.reminder_time || ''}
-                      </div>
-                      <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
-                        <span className="rounded-full bg-white px-2 py-1 text-gray-600">{reminder.reminder_kind || 'Reminder'}</span>
-                        <span className="rounded-full bg-white px-2 py-1 text-gray-600">{reminder.priority || 'Normal'} priority</span>
-                        <span className="rounded-full bg-white px-2 py-1 text-gray-600">
-                          {reminder.due_in_days !== undefined && reminder.due_in_days !== null ? `${reminder.due_in_days}d to go` : 'Date not mapped'}
-                        </span>
-                      </div>
-                      {reminder.action_hint ? <div className="mt-2 text-xs text-gray-600">{reminder.action_hint}</div> : null}
+                  {isPresales ? (
+                    <div className="flex gap-2">
+                      <button type="button" className="text-xs font-semibold text-[#0f5164]" onClick={() => setReasonEditor(item)}>Edit</button>
+                      <button type="button" className="text-xs font-semibold text-rose-600" onClick={() => void updateTender({ [item.field]: '' })}>Clear</button>
                     </div>
-                  ))}
-                  {!workspace.reminders.length ? <EmptyBlock message="No reminders linked to this tender yet." /> : null}
+                  ) : null}
                 </div>
               </div>
-            </div>
-          </SectionCard>
+            )) : <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-sm text-gray-500">Red, orange, and pink stages will capture reasons here.</div>}
+          </div>
+        </section>
 
-          <SectionCard
-            title="Finance Snapshot"
-            icon={CreditCard}
-            subtitle="EMD/PBG and finance request visibility for pre-sales head."
-          >
-            <div className="space-y-3">
-              {workspace.financeRequests.slice(0, 4).map((request) => (
-                <div key={request.name} className="rounded-2xl border border-gray-200 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="text-sm font-semibold text-gray-900">
-                        {request.instrument_type || 'Finance Request'} • {request.instrument_number || request.name}
-                      </div>
-                      <div className="mt-1 text-xs text-gray-500">{request.bank_name || 'Bank not mapped'}</div>
-                    </div>
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusTone[request.status || ''] || 'bg-slate-100 text-slate-700'}`}>
-                      {formatStatusLabel(request.status)}
-                    </span>
-                  </div>
-                  <div className="mt-3 text-sm text-gray-600">{formatCurrency(request.amount)}</div>
+        <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-2">
+            <WalletCards className="h-5 w-5 text-[#0f5164]" />
+            <h2 className="text-base font-semibold text-gray-900">Instruments</h2>
+          </div>
+          <div className="mt-4 space-y-3">
+            {(workspace?.instruments || workspace?.financeRequests || []).length ? (workspace?.instruments || workspace?.financeRequests || []).map((instrument) => (
+              <div key={instrument.name} className="rounded-2xl border border-gray-200 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm font-semibold text-gray-900">{instrument.instrument_type || 'Instrument'} • {formatCurrency(instrument.amount)}</div>
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">{instrument.status || 'Pending'}</span>
                 </div>
-              ))}
-              {!workspace.financeRequests.length ? <EmptyBlock message="No finance request is linked yet. Any EMD or PBG requirement will appear here once it is raised." /> : null}
-            </div>
-          </SectionCard>
+                <div className="mt-2 text-sm text-gray-600">{instrument.instrument_number || 'Number pending'} • {instrument.bank_name || 'Bank pending'}</div>
+              </div>
+            )) : <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-sm text-gray-500">No EMD/PBG instrument added yet.</div>}
+          </div>
+        </section>
 
-          <SectionCard
-            title="Quick Links"
-            icon={Clock3}
-            subtitle="Direct links to the main pre-sales work areas using the same workspace structure."
-          >
-            <div className="space-y-2">
-              {[
-                ['Tender list', '/pre-sales/tender'],
-                ['Bids', '/pre-sales/bids'],
-                ['Won bids & LOI', '/pre-sales/won-bids'],
-                ['EMD tracking', '/pre-sales/emd-tracking'],
-                ...(currentRole === 'Director' ? [['Approvals', '/pre-sales/approvals'] as const] : []),
-              ].map(([label, href]) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className="flex items-center justify-between rounded-2xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 hover:border-[#1e6b87] hover:text-[#1e6b87]"
-                >
-                  <span>{label}</span>
-                  <ChevronRight className="h-4 w-4" />
-                </Link>
-              ))}
+        <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-2">
+            <FileText className="h-5 w-5 text-[#0f5164]" />
+            <h2 className="text-base font-semibold text-gray-900">Tender Documents</h2>
+          </div>
+          <div className="mt-4 grid gap-3">
+            <div className="rounded-2xl border border-gray-200 p-4">
+              <div className="text-sm font-semibold text-gray-900">Tender Document</div>
+              <div className="mt-2 text-sm text-gray-600">
+                {tender.tender_document ? <a href={tender.tender_document} target="_blank" rel="noreferrer" className="text-[#0f5164] underline">Open uploaded document</a> : 'No tender document uploaded'}
+              </div>
             </div>
-          </SectionCard>
-
-          <SectionCard
-            title="Submission Signal"
-            icon={FileText}
-            subtitle="A simple summary of the current bid position."
-          >
-            <div className="rounded-2xl bg-[#f5fbfd] p-4 text-sm leading-6 text-gray-700">
-              {tender.status === 'DRAFT' && 'The tender has been identified and is currently in the bid preparation stage. Complete the survey, BOQ, costing, and finance readiness steps before seeking approval.'}
-              {tender.status === 'SUBMITTED' && 'The bid has been submitted. The team should now focus on reminders, clarifications, and result tracking.'}
-              {tender.status === 'UNDER_EVALUATION' && 'The bid is under evaluation. Clarifications, pricing responses, and result monitoring are the top priorities at this stage.'}
-              {tender.status === 'WON' && 'The tender has been won. The next step is to convert it into a project and hand it over for execution.'}
-              {tender.status === 'LOST' && 'The tender is closed with a lost result. Capture competitor outcomes and pricing lessons for future bids.'}
-              {tender.status !== 'DRAFT' &&
-                tender.status !== 'SUBMITTED' &&
-                tender.status !== 'UNDER_EVALUATION' &&
-                tender.status !== 'WON' &&
-                tender.status !== 'LOST' &&
-                `The current status is ${formatStatusLabel(tender.status)}. The next operational step should be planned accordingly.`}
+            <div className="rounded-2xl border border-gray-200 p-4">
+              <div className="text-sm font-semibold text-gray-900">RFP Document</div>
+              <div className="mt-2 text-sm text-gray-600">
+                {tender.rfp_document ? <a href={tender.rfp_document} target="_blank" rel="noreferrer" className="text-[#0f5164] underline">Open uploaded RFP</a> : 'No RFP uploaded'}
+              </div>
             </div>
-          </SectionCard>
-        </div>
+          </div>
+        </section>
       </div>
+
+      <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="flex items-center gap-2">
+          <CheckCircle2 className="h-5 w-5 text-[#0f5164]" />
+          <h2 className="text-base font-semibold text-gray-900">Approval Trail</h2>
+        </div>
+        <div className="mt-4 space-y-3">
+          {workspace?.approvals?.length ? workspace.approvals.map((approval) => (
+            <div key={approval.name} className="rounded-2xl border border-gray-200 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm font-semibold text-gray-900">{labelize(approval.approval_type)} • {approval.approver_role || '-'}</div>
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">{approval.status || '-'}</span>
+              </div>
+              <div className="mt-2 text-sm text-gray-600">Requested by {approval.requested_by || '-'} on {formatDate(approval.creation)}</div>
+              {approval.request_remarks ? <div className="mt-2 text-sm text-gray-500">Request: {approval.request_remarks}</div> : null}
+              {approval.action_remarks ? <div className="mt-1 text-sm text-gray-500">Action: {approval.action_remarks}</div> : null}
+            </div>
+          )) : <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-sm text-gray-500">No approval request created yet.</div>}
+        </div>
+      </section>
+
+      <ModalFrame open={Boolean(rejectMode)} onClose={() => { setRejectMode(null); setReasonInput(''); }} title="Reason Required">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">This color change needs a reason. It will be saved in the tender workspace and shown in the funnel trail.</p>
+          <textarea
+            value={reasonInput}
+            onChange={(event) => setReasonInput(event.target.value)}
+            rows={5}
+            className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#0f5164]"
+            placeholder="Write the reason here"
+          />
+          <div className="flex justify-end gap-2">
+            <ActionButton tone="ghost" onClick={() => { setRejectMode(null); setReasonInput(''); }}>Cancel</ActionButton>
+            {rejectMode === 'qualification' ? <ActionButton onClick={() => void runWorkflow('reject_qualification', reasonInput)} disabled={!reasonInput.trim() || busy.length > 0}>Save Reason</ActionButton> : null}
+            {rejectMode === 'observation' ? <ActionButton onClick={() => void runWorkflow('observe', reasonInput)} disabled={!reasonInput.trim() || busy.length > 0}>Save Reason</ActionButton> : null}
+            {rejectMode === 'nogo' && goNoGoApproval ? <ActionButton onClick={() => void actOnApproval(goNoGoApproval.name, 'reject', reasonInput)} disabled={!reasonInput.trim() || busy.length > 0}>Save Reason</ActionButton> : null}
+            {rejectMode === 'technical' && technicalApproval ? <ActionButton onClick={() => void actOnApproval(technicalApproval.name, 'reject', reasonInput)} disabled={!reasonInput.trim() || busy.length > 0}>Save Reason</ActionButton> : null}
+          </div>
+        </div>
+      </ModalFrame>
+
+      <ModalFrame open={Boolean(reasonEditor)} onClose={() => setReasonEditor(null)} title={reasonEditor?.title || 'Edit Reason'}>
+        <div className="space-y-4">
+          <textarea
+            value={reasonEditor?.value || ''}
+            onChange={(event) => setReasonEditor((prev) => prev ? { ...prev, value: event.target.value } : prev)}
+            rows={5}
+            className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#0f5164]"
+          />
+          <div className="flex justify-end gap-2">
+            <ActionButton tone="ghost" onClick={() => setReasonEditor(null)}>Cancel</ActionButton>
+            <ActionButton
+              onClick={() => {
+                if (!reasonEditor) return;
+                void updateTender({ [reasonEditor.field]: reasonEditor.value });
+                setReasonEditor(null);
+              }}
+              disabled={busy.length > 0}
+            >
+              Update Reason
+            </ActionButton>
+          </div>
+        </div>
+      </ModalFrame>
+
+      <ModalFrame open={showInstrumentModal} onClose={() => setShowInstrumentModal(false)} title="Add Instrument">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="text-sm text-gray-600">Type
+            <select className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm" value={instrumentForm.instrument_type} onChange={(event) => setInstrumentForm((prev) => ({ ...prev, instrument_type: event.target.value }))}>
+              <option value="EMD">EMD</option>
+              <option value="PBG">PBG</option>
+            </select>
+          </label>
+          <label className="text-sm text-gray-600">Amount
+            <input className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm" value={instrumentForm.amount} onChange={(event) => setInstrumentForm((prev) => ({ ...prev, amount: event.target.value }))} />
+          </label>
+          <label className="text-sm text-gray-600">Instrument Number
+            <input className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm" value={instrumentForm.instrument_number} onChange={(event) => setInstrumentForm((prev) => ({ ...prev, instrument_number: event.target.value }))} />
+          </label>
+          <label className="text-sm text-gray-600">Bank Name
+            <input className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm" value={instrumentForm.bank_name} onChange={(event) => setInstrumentForm((prev) => ({ ...prev, bank_name: event.target.value }))} />
+          </label>
+          <label className="text-sm text-gray-600">Issue Date
+            <input type="date" className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm" value={instrumentForm.issue_date} onChange={(event) => setInstrumentForm((prev) => ({ ...prev, issue_date: event.target.value }))} />
+          </label>
+          <label className="text-sm text-gray-600">Expiry Date
+            <input type="date" className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm" value={instrumentForm.expiry_date} onChange={(event) => setInstrumentForm((prev) => ({ ...prev, expiry_date: event.target.value }))} />
+          </label>
+          <label className="sm:col-span-2 text-sm text-gray-600">Remarks
+            <textarea rows={4} className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm" value={instrumentForm.remarks} onChange={(event) => setInstrumentForm((prev) => ({ ...prev, remarks: event.target.value }))} />
+          </label>
+        </div>
+        <div className="mt-4 flex justify-end gap-2">
+          <ActionButton tone="ghost" onClick={() => setShowInstrumentModal(false)}>Cancel</ActionButton>
+          <ActionButton onClick={() => void createInstrument()} disabled={busy.length > 0}>
+            <FolderPlus className="mr-2 inline h-4 w-4" />
+            Save Instrument
+          </ActionButton>
+        </div>
+      </ModalFrame>
+
+      <ModalFrame open={showDocumentModal} onClose={() => setShowDocumentModal(false)} title="Add Document">
+        <div className="space-y-4">
+          <label className="text-sm text-gray-600">Document Type
+            <select className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm" value={documentType} onChange={(event) => setDocumentType(event.target.value as 'tender' | 'rfp')}>
+              <option value="tender">Tender Document</option>
+              <option value="rfp">RFP Document</option>
+            </select>
+          </label>
+          <label className="text-sm text-gray-600">Choose File
+            <input type="file" className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm" onChange={(event) => setDocumentFile(event.target.files?.[0] || null)} />
+          </label>
+        </div>
+        <div className="mt-4 flex justify-end gap-2">
+          <ActionButton tone="ghost" onClick={() => setShowDocumentModal(false)}>Cancel</ActionButton>
+          <ActionButton onClick={() => void uploadDocument()} disabled={busy.length > 0 || !documentFile}>
+            <FilePlus2 className="mr-2 inline h-4 w-4" />
+            Upload Document
+          </ActionButton>
+        </div>
+      </ModalFrame>
     </div>
   );
 }
