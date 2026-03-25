@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, FolderTree, Loader2, Search, AlertCircle } from 'lucide-react';
+import { ArrowRight, Loader2, Search, AlertCircle } from 'lucide-react';
 import { formatPercent } from '../dashboards/shared';
 
 /* ─── types ──────────────────────────────────────────────── */

@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
 import { Plus, Wrench, Camera, Activity, CheckCircle2, Eye, X, ClipboardCheck, FileCheck2, GitBranch, ArrowRight, AlertTriangle } from 'lucide-react';
 
 interface Site {
@@ -43,6 +44,7 @@ interface CommissioningSummary {
 }
 
 export default function ExecutionPage() {
+  const { currentUser } = useAuth();
   const [sites, setSites] = useState<Site[]>([]);
   const [dprs, setDprs] = useState<DPR[]>([]);
   const [dprStats, setDprStats] = useState<DPRStats>({});
@@ -155,6 +157,12 @@ export default function ExecutionPage() {
     acc[st] = (acc[st] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
+  const topExecutionSignals = [
+    commSummary?.blocked_count ? `${commSummary.blocked_count} site blockers are active in the execution lane.` : null,
+    commSummary && commSummary.ready_for_commissioning > 0 ? `${commSummary.ready_for_commissioning} site${commSummary.ready_for_commissioning > 1 ? 's are' : ' is'} ready to push into commissioning.` : null,
+    (dprStats.total_reports || 0) === 0 ? 'No DPRs are visible yet. Field reporting should start before the lane drifts out of sync.' : null,
+  ].filter(Boolean) as string[];
+  const roleFocus = currentUser?.role || currentUser?.roles?.[0] || 'Execution User';
 
   return (
     <div>
@@ -173,6 +181,33 @@ export default function ExecutionPage() {
             <Plus className="w-4 h-4" />
             New Site
           </button>
+        </div>
+      </div>
+
+      <div className="mb-6 rounded-[28px] border border-slate-200 bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(239,246,255,0.9))] p-5 shadow-sm">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+          <div className="max-w-3xl">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-blue-700">Execution Control Lane</div>
+            <h2 className="mt-2 text-xl font-semibold tracking-tight text-gray-900">{roleFocus} lane for installation, commissioning, and field closure</h2>
+            <p className="mt-2 text-sm leading-6 text-gray-600">
+              Use this lane to move from site progress to commissioning readiness without losing DPR visibility, dependency control, or governed document context.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <MetricChip label="Sites" value={sites.length} tone="blue" />
+            <MetricChip label="Blocked" value={commSummary?.blocked_count || 0} tone={(commSummary?.blocked_count || 0) > 0 ? 'rose' : 'emerald'} />
+            <MetricChip label="Ready for I&C" value={commSummary?.ready_for_commissioning || 0} tone="emerald" />
+            <MetricChip label="DPRs" value={dprStats.total_reports || 0} tone="amber" />
+          </div>
+        </div>
+
+        <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-3">
+          {(topExecutionSignals.length ? topExecutionSignals : ['Execution lane is broadly clear. Use the quick actions below to push the next operational move.']).map((signal) => (
+            <div key={signal} className="rounded-2xl border border-slate-200 bg-white/85 px-4 py-3">
+              <div className="text-sm font-semibold text-gray-900">Operational signal</div>
+              <div className="mt-1 text-xs leading-5 text-gray-600">{signal}</div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -248,7 +283,19 @@ export default function ExecutionPage() {
       )}
 
       {/* Quick Links */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-6">
+        <Link href="/execution/projects" className="card p-4 hover:border-slate-300 hover:bg-slate-50/50 transition group">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center group-hover:bg-slate-200">
+              <Wrench className="w-5 h-5 text-slate-700" />
+            </div>
+            <div className="flex-1">
+              <div className="font-medium text-gray-900">Execution Workspace</div>
+              <div className="text-xs text-gray-500">Project-level PM and field delivery cockpit</div>
+            </div>
+            <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-slate-700" />
+          </div>
+        </Link>
         <Link href="/execution/commissioning" className="card p-4 hover:border-blue-300 hover:bg-blue-50/30 transition group">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200">
@@ -283,6 +330,18 @@ export default function ExecutionPage() {
               <div className="text-xs text-gray-500">Blockers, overrides, rules</div>
             </div>
             <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-amber-600" />
+          </div>
+        </Link>
+        <Link href="/documents?category=Execution" className="card p-4 hover:border-violet-300 hover:bg-violet-50/30 transition group">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-violet-100 rounded-lg flex items-center justify-center group-hover:bg-violet-200">
+              <FileCheck2 className="w-5 h-5 text-violet-600" />
+            </div>
+            <div className="flex-1">
+              <div className="font-medium text-gray-900">Execution DMS</div>
+              <div className="text-xs text-gray-500">Controlled files, latest versions, and expiry risk</div>
+            </div>
+            <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-violet-600" />
           </div>
         </Link>
       </div>
@@ -400,6 +459,41 @@ export default function ExecutionPage() {
         </div>
       </div>
 
+      <div className="card mb-6">
+        <div className="card-header flex items-center justify-between">
+          <h3 className="font-semibold text-gray-900">Next Actions Across The Lane</h3>
+          <Link href="/notifications?filter=alerts" className="text-xs font-medium text-blue-600 hover:underline">
+            Open alerts
+          </Link>
+        </div>
+        <div className="card-body grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <LaneActionCard
+            title="Capture field progress"
+            detail="Keep DPRs current before moving into checklists or signoffs."
+            href="/execution"
+            tone="blue"
+          />
+          <LaneActionCard
+            title="Clear dependencies"
+            detail="Remove stage blocks and pending overrides before commissioning stalls."
+            href="/execution/dependencies"
+            tone="amber"
+          />
+          <LaneActionCard
+            title="Drive commissioning"
+            detail="Push test reports, checklist closure, and signoffs from one lane."
+            href="/execution/commissioning"
+            tone="emerald"
+          />
+          <LaneActionCard
+            title="Check governed docs"
+            detail="Verify drawings, reports, and signoff files in controlled context."
+            href="/documents?category=Execution"
+            tone="violet"
+          />
+        </div>
+      </div>
+
       {/* Site Table */}
       <div className="card mb-6">
         <div className="card-header">
@@ -449,13 +543,13 @@ export default function ExecutionPage() {
                     </span>
                   </td>
                   <td>
-                    <button
+                    <Link
+                      href={site.linked_project ? `/projects/${encodeURIComponent(site.linked_project)}?tab=sites` : '/projects'}
                       className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1"
-                      onClick={() => alert(`Site: ${site.name}\nStatus: ${site.status || '-'}\nProject: ${site.linked_project || '-'}`)}
                     >
                       <Eye className="w-4 h-4" />
-                      View Details
-                    </button>
+                      Open Project
+                    </Link>
                   </td>
                 </tr>
               ))}
@@ -492,5 +586,40 @@ export default function ExecutionPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function MetricChip({ label, value, tone }: { label: string; value: number; tone: 'blue' | 'emerald' | 'amber' | 'rose' }) {
+  const styles = {
+    blue: 'border-blue-200 bg-blue-50 text-blue-700',
+    emerald: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    amber: 'border-amber-200 bg-amber-50 text-amber-700',
+    rose: 'border-rose-200 bg-rose-50 text-rose-700',
+  }[tone];
+
+  return (
+    <div className={`rounded-2xl border px-4 py-3 ${styles}`}>
+      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] opacity-80">{label}</div>
+      <div className="mt-1 text-lg font-semibold">{value}</div>
+    </div>
+  );
+}
+
+function LaneActionCard({ title, detail, href, tone }: { title: string; detail: string; href: string; tone: 'blue' | 'emerald' | 'amber' | 'violet' }) {
+  const styles = {
+    blue: 'border-blue-200 bg-blue-50/60 text-blue-700',
+    emerald: 'border-emerald-200 bg-emerald-50/60 text-emerald-700',
+    amber: 'border-amber-200 bg-amber-50/60 text-amber-700',
+    violet: 'border-violet-200 bg-violet-50/60 text-violet-700',
+  }[tone];
+
+  return (
+    <Link href={href} className={`rounded-2xl border px-4 py-3 transition hover:shadow-sm ${styles}`}>
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-sm font-semibold">{title}</div>
+        <ArrowRight className="h-4 w-4" />
+      </div>
+      <div className="mt-2 text-xs leading-5 text-gray-600">{detail}</div>
+    </Link>
   );
 }

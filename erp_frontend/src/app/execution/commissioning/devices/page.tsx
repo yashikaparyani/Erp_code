@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Activity, Cpu, Network, Plus, Server, Wifi, X } from 'lucide-react';
+import { Activity, Cpu, Network, Plus, Wifi, X } from 'lucide-react';
 
 interface DeviceRegister {
   name: string;

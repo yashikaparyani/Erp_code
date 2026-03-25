@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import { Search, ChevronDown, ChevronUp, ChevronsLeft, ChevronsRight, Eye, Edit2, Trash2, Download, Loader2 } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, ChevronsLeft, ChevronsRight, Eye, Edit2, Trash2, Loader2 } from 'lucide-react';
 
 interface DocumentData {
   name: string;

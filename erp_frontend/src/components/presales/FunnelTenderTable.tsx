@@ -3,8 +3,7 @@ import React from 'react';
 import Link from 'next/link';
 import {
   ArrowUpDown, ArrowUp, ArrowDown, ExternalLink,
-  Calendar, DollarSign, User, AlertCircle, CheckCircle,
-  Clock, TrendingUp, FileText,
+  User, AlertCircle, FileText,
 } from 'lucide-react';
 import { FunnelColorKey, PresalesColorConfig, getFunnelDisplayMeta } from '../tenderFunnel';
 import { DashboardFilters } from './FunnelFilterStrip';

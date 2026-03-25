@@ -20,6 +20,14 @@
   "loi_decision_reason",
   "loi_decision_by",
   "loi_decision_on",
+  "section_break_loc",
+  "loc_request_status",
+  "loc_requested_on",
+  "loc_requested_by",
+  "column_break_loc",
+  "loc_submitted_on",
+  "loc_submitted_by",
+  "loc_submission_remarks",
   "section_break_retender",
   "retender_reason",
   "cancel_reason"
@@ -111,6 +119,49 @@
    "label": "LOI Decision On"
   },
   {
+   "fieldname": "section_break_loc",
+   "fieldtype": "Section Break",
+   "label": "Letter Of Completion"
+  },
+  {
+   "default": "NOT_REQUESTED",
+   "fieldname": "loc_request_status",
+   "fieldtype": "Select",
+   "label": "LOC Request Status",
+   "options": "NOT_REQUESTED\nREQUESTED\nSUBMITTED"
+  },
+  {
+   "fieldname": "loc_requested_on",
+   "fieldtype": "Datetime",
+   "label": "LOC Requested On"
+  },
+  {
+   "fieldname": "loc_requested_by",
+   "fieldtype": "Link",
+   "label": "LOC Requested By",
+   "options": "User"
+  },
+  {
+   "fieldname": "column_break_loc",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "loc_submitted_on",
+   "fieldtype": "Date",
+   "label": "LOC Submitted On"
+  },
+  {
+   "fieldname": "loc_submitted_by",
+   "fieldtype": "Link",
+   "label": "LOC Submitted By",
+   "options": "User"
+  },
+  {
+   "fieldname": "loc_submission_remarks",
+   "fieldtype": "Small Text",
+   "label": "LOC Submission Remarks"
+  },
+  {
    "fieldname": "section_break_retender",
    "fieldtype": "Section Break",
    "label": "Cancel / Retender Details"
@@ -155,6 +206,10 @@
   {
    "create": 1, "read": 1, "report": 1,
    "role": "Director", "write": 1
+  },
+  {
+   "read": 1, "report": 1,
+   "role": "Project Head", "write": 1
   }
  ],
  "sort_field": "creation",

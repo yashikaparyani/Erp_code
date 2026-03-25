@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Download,
   FileSpreadsheet,
-  FileText,
   Filter,
   Loader2,
   Printer,

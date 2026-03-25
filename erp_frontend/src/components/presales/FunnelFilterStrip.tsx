@@ -3,7 +3,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Search, X, ChevronDown, SlidersHorizontal, Calendar, DollarSign } from 'lucide-react';
 import {
   SYSTEM_FUNNEL_META,
-  USER_SLOT_DEFAULTS,
   SystemFunnelKey,
   PresalesColorConfig,
 } from '../tenderFunnel';
@@ -152,16 +151,16 @@ function MultiSelectPill({
   };
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative max-w-full">
       <button
         onClick={() => setOpen(!open)}
-        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-medium transition-all ${
+        className={`flex max-w-full items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-medium transition-all ${
           selected.length > 0
             ? 'bg-[var(--accent-soft)] border-[var(--accent)] text-[var(--accent-strong)]'
             : 'bg-white border-[var(--border-subtle)] text-[var(--text-muted)] hover:border-[var(--accent)]'
         }`}
       >
-        {label}
+        <span className="truncate">{label}</span>
         {selected.length > 0 && (
           <span className="bg-[var(--accent)] text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px]">
             {selected.length}
@@ -170,7 +169,7 @@ function MultiSelectPill({
         <ChevronDown className={`w-3 h-3 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className="absolute top-full left-0 mt-1 z-50 bg-white rounded-xl shadow-lg border border-[var(--border-subtle)] min-w-[180px] max-h-60 overflow-y-auto">
+        <div className="absolute top-full left-0 mt-1 z-50 w-[min(18rem,calc(100vw-2rem))] bg-white rounded-xl shadow-lg border border-[var(--border-subtle)] max-h-60 overflow-y-auto">
           {options.map((opt) => (
             <button
               key={opt.value}
@@ -195,9 +194,7 @@ export default function FunnelFilterStrip({
   onClearAll,
   resultCount,
   totalCount,
-  colorConfig,
   assigneeOptions = [],
-  clientOptions = [],
 }: Props) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
@@ -224,7 +221,7 @@ export default function FunnelFilterStrip({
       {/* ── Primary filter strip ── */}
       <div className="flex flex-wrap items-center gap-2 p-3 bg-white/80 rounded-2xl border border-[var(--border-subtle)] shadow-sm">
         {/* Search */}
-        <div className="relative flex-1 min-w-[180px]">
+        <div className="relative basis-full min-w-0 sm:min-w-[180px] sm:flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-soft)]" />
           <input
             type="text"
@@ -236,7 +233,7 @@ export default function FunnelFilterStrip({
         </div>
 
         {/* Funnel Color quick filter */}
-        <div className="flex items-center gap-1">
+        <div className="flex max-w-full flex-wrap items-center gap-1">
           {systemColors.map((key) => {
             const meta = SYSTEM_FUNNEL_META[key];
             const isActive = filters.funnelColor === key;
@@ -306,7 +303,7 @@ export default function FunnelFilterStrip({
 
         {/* Result count */}
         {totalCount !== undefined && (
-          <span className="ml-auto text-xs text-[var(--text-soft)]">
+          <span className="text-xs text-[var(--text-soft)] sm:ml-auto">
             Showing <strong>{resultCount ?? totalCount}</strong> of <strong>{totalCount}</strong>
           </span>
         )}
@@ -314,7 +311,7 @@ export default function FunnelFilterStrip({
 
       {/* ── Advanced filter drawer ── */}
       {advancedOpen && (
-        <div className="p-4 bg-white/90 rounded-2xl border border-[var(--border-subtle)] shadow-md grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 gap-4 p-4 bg-white/90 rounded-2xl border border-[var(--border-subtle)] shadow-md sm:grid-cols-2 lg:grid-cols-4">
           {/* GO/NO-GO */}
           <div className="space-y-1">
             <label className="text-[11px] font-semibold text-[var(--text-soft)] uppercase tracking-wide">GO/NO-GO</label>
@@ -410,7 +407,7 @@ export default function FunnelFilterStrip({
           {/* Submission Date Range */}
           <div className="space-y-1 col-span-2">
             <label className="text-[11px] font-semibold text-[var(--text-soft)] uppercase tracking-wide flex items-center gap-1"><Calendar className="w-3 h-3" />Submission Date</label>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <input type="date" value={filters.submissionDateFrom} onChange={(e) => onChange({ submissionDateFrom: e.target.value })} className="flex-1 text-xs rounded-xl border border-[var(--border-subtle)] px-2 py-1.5 bg-white" />
               <input type="date" value={filters.submissionDateTo} onChange={(e) => onChange({ submissionDateTo: e.target.value })} className="flex-1 text-xs rounded-xl border border-[var(--border-subtle)] px-2 py-1.5 bg-white" />
             </div>
@@ -419,7 +416,7 @@ export default function FunnelFilterStrip({
           {/* Bid Opening Date */}
           <div className="space-y-1 col-span-2">
             <label className="text-[11px] font-semibold text-[var(--text-soft)] uppercase tracking-wide flex items-center gap-1"><Calendar className="w-3 h-3" />Bid Opening Date</label>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <input type="date" value={filters.bidOpeningFrom} onChange={(e) => onChange({ bidOpeningFrom: e.target.value })} className="flex-1 text-xs rounded-xl border border-[var(--border-subtle)] px-2 py-1.5 bg-white" />
               <input type="date" value={filters.bidOpeningTo} onChange={(e) => onChange({ bidOpeningTo: e.target.value })} className="flex-1 text-xs rounded-xl border border-[var(--border-subtle)] px-2 py-1.5 bg-white" />
             </div>
@@ -428,7 +425,7 @@ export default function FunnelFilterStrip({
           {/* Value Range */}
           <div className="space-y-1 col-span-2">
             <label className="text-[11px] font-semibold text-[var(--text-soft)] uppercase tracking-wide flex items-center gap-1"><DollarSign className="w-3 h-3" />Est. Value (₹)</label>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <input type="number" placeholder="Min" value={filters.valueMin} onChange={(e) => onChange({ valueMin: e.target.value })} className="flex-1 text-xs rounded-xl border border-[var(--border-subtle)] px-2 py-1.5 bg-white" />
               <input type="number" placeholder="Max" value={filters.valueMax} onChange={(e) => onChange({ valueMax: e.target.value })} className="flex-1 text-xs rounded-xl border border-[var(--border-subtle)] px-2 py-1.5 bg-white" />
             </div>
@@ -437,7 +434,7 @@ export default function FunnelFilterStrip({
           {/* Pre-bid Meeting */}
           <div className="space-y-1 col-span-2">
             <label className="text-[11px] font-semibold text-[var(--text-soft)] uppercase tracking-wide flex items-center gap-1"><Calendar className="w-3 h-3" />Pre-Bid Meeting</label>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <input type="date" value={filters.preBidMeetingFrom} onChange={(e) => onChange({ preBidMeetingFrom: e.target.value })} className="flex-1 text-xs rounded-xl border border-[var(--border-subtle)] px-2 py-1.5 bg-white" />
               <input type="date" value={filters.preBidMeetingTo} onChange={(e) => onChange({ preBidMeetingTo: e.target.value })} className="flex-1 text-xs rounded-xl border border-[var(--border-subtle)] px-2 py-1.5 bg-white" />
             </div>
@@ -446,7 +443,7 @@ export default function FunnelFilterStrip({
           {/* Corrigendum Date */}
           <div className="space-y-1 col-span-2">
             <label className="text-[11px] font-semibold text-[var(--text-soft)] uppercase tracking-wide flex items-center gap-1"><Calendar className="w-3 h-3" />Corrigendum Date</label>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <input type="date" value={filters.corrigendumDateFrom} onChange={(e) => onChange({ corrigendumDateFrom: e.target.value })} className="flex-1 text-xs rounded-xl border border-[var(--border-subtle)] px-2 py-1.5 bg-white" />
               <input type="date" value={filters.corrigendumDateTo} onChange={(e) => onChange({ corrigendumDateTo: e.target.value })} className="flex-1 text-xs rounded-xl border border-[var(--border-subtle)] px-2 py-1.5 bg-white" />
             </div>
@@ -455,7 +452,7 @@ export default function FunnelFilterStrip({
           {/* EMD Amount Range */}
           <div className="space-y-1 col-span-2">
             <label className="text-[11px] font-semibold text-[var(--text-soft)] uppercase tracking-wide">EMD Amount (₹)</label>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <input type="number" placeholder="Min" value={filters.emdMin} onChange={(e) => onChange({ emdMin: e.target.value })} className="flex-1 text-xs rounded-xl border border-[var(--border-subtle)] px-2 py-1.5 bg-white" />
               <input type="number" placeholder="Max" value={filters.emdMax} onChange={(e) => onChange({ emdMax: e.target.value })} className="flex-1 text-xs rounded-xl border border-[var(--border-subtle)] px-2 py-1.5 bg-white" />
             </div>
@@ -464,14 +461,14 @@ export default function FunnelFilterStrip({
           {/* PBG % Range */}
           <div className="space-y-1 col-span-2">
             <label className="text-[11px] font-semibold text-[var(--text-soft)] uppercase tracking-wide">PBG % Range</label>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <input type="number" placeholder="Min %" value={filters.pbgPercentMin} onChange={(e) => onChange({ pbgPercentMin: e.target.value })} className="flex-1 text-xs rounded-xl border border-[var(--border-subtle)] px-2 py-1.5 bg-white" />
               <input type="number" placeholder="Max %" value={filters.pbgPercentMax} onChange={(e) => onChange({ pbgPercentMax: e.target.value })} className="flex-1 text-xs rounded-xl border border-[var(--border-subtle)] px-2 py-1.5 bg-white" />
             </div>
           </div>
 
           {/* Reset button */}
-          <div className="col-span-full flex justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
+          <div className="col-span-full flex flex-col-reverse gap-2 pt-2 border-t border-[var(--border-subtle)] sm:flex-row sm:justify-end">
             <button
               onClick={onClearAll}
               className="px-4 py-2 text-xs rounded-xl border border-[var(--border-subtle)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]"

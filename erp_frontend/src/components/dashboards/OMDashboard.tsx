@@ -42,13 +42,21 @@ const initialData: OMDashboardData = {
 	rma: { total: 0, pending: 0, approved: 0, in_transit: 0, under_repair: 0, repaired: 0, replaced: 0, rejected: 0, awaiting_approval: 0 },
 };
 
-export default function OMDashboard() {
+type OMDashboardProps = {
+	title?: string;
+	subtitle?: string;
+};
+
+export default function OMDashboard({
+	title = 'O&M Dashboard',
+	subtitle = 'Ticket management, SLA tracking, and RMA execution from live backend aggregates',
+}: OMDashboardProps) {
 	const { data, loading, error, lastUpdated, refresh } = useApiData<OMDashboardData>('/api/dashboards/om', initialData);
 
 	return (
 		<DashboardShell
-			title="O&M Dashboard"
-			subtitle="Ticket management, SLA tracking, and RMA execution from live backend aggregates"
+			title={title}
+			subtitle={subtitle}
 			loading={loading}
 			error={error}
 			lastUpdated={lastUpdated}

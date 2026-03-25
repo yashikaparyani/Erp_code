@@ -890,7 +890,7 @@ After `WON`:
 3. when all LOIs are received, `Presales Tendering Head` reviews the bid
 4. head can `Accept` or `Reject`
 5. on `Accept`, move bid into `In Process Bid`
-6. on `Reject`, keep it in won-bid handling state until explicit next action is defined
+6. on `Reject`, move bid into `Cancel Bid` with a mandatory reason
 
 ### New `In Process Bid` operating model
 
@@ -910,6 +910,9 @@ When tenure is near completion:
 
 - bid workspace should show a new action for `Project Completion Certificate`
 - this certificate will be submitted by `Project Head`
+- presales should raise `Send Request to Project Head for LOC` from bid workspace
+- this should create an alert/notification for `Project Head`
+- `Project Head` should act from a dedicated `Letter of Submission` tab
 
 ### Project Head sidebar addition
 

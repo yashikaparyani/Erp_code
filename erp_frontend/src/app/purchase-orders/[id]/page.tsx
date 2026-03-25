@@ -122,7 +122,7 @@ function approvalBadge(status?: string) {
 export default function PurchaseOrderDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const poName = params.id as string;
+  const poName = (params?.id as string | undefined) || '';
 
   const [po, setPo] = useState<PurchaseOrderDetail | null>(null);
   const [terms, setTerms] = useState<PaymentTermsData | null>(null);

@@ -1,4 +1,5 @@
 'use client';
+import Image from 'next/image';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, LogIn, Shield } from 'lucide-react';
@@ -42,7 +43,7 @@ export default function LoginPage() {
         {/* Logo & Brand */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-24 h-24 mb-4 bg-white/50 rounded-2xl shadow-xl shadow-black/5 p-2">
-            <img src="/logo.png" alt="Technosys Logo" className="object-contain w-full h-full" />
+            <Image src="/logo.png" alt="Technosys Logo" width={96} height={96} className="object-contain w-full h-full" />
           </div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
             Technosys ERP
@@ -89,6 +90,7 @@ export default function LoginPage() {
                 />
                 <button
                   type="button"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                 >

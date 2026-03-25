@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { action, name, ...rest } = body;
+    const { action, name } = body;
 
     if (action === 'approve') {
       const result = await callFrappeMethod('approve_dependency_override', { name }, request);

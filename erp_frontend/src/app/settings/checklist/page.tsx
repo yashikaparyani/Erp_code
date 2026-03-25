@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Plus, Search, Edit2, Trash2, ChevronsLeft, ChevronsRight, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, ChevronsLeft, ChevronsRight, X } from 'lucide-react';
 
 interface CheckListData {
   id: string;

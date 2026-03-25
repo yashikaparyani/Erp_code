@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import {
   AlertCircle,
   ChevronDown,
@@ -125,6 +126,7 @@ export default function DocumentsPage() {
   const expiringSoon = documents.filter((doc) => typeof doc.days_until_expiry === 'number' && doc.days_until_expiry >= 0 && doc.days_until_expiry <= 30);
   const expired = documents.filter((doc) => typeof doc.days_until_expiry === 'number' && doc.days_until_expiry < 0);
   const versionedDocs = documents.filter((doc) => Number(doc.version_count || 1) > 1 && doc.is_latest_version !== false);
+  const attentionDocs = [...expired, ...expiringSoon].slice(0, 6);
 
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
@@ -301,6 +303,54 @@ export default function DocumentsPage() {
           <div className="stat-label">Controlled Docs</div>
           <div className="stat-value mt-1">{documents.filter((doc) => !!doc.expiry_date).length}</div>
           <div className="mt-2 text-xs text-gray-500">Documents already tracked with expiry metadata</div>
+        </div>
+      </div>
+
+      <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-3">
+        <div className="rounded-2xl border border-violet-200 bg-violet-50/70 p-4">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-violet-700">Controlled Delivery Docs</div>
+          <h3 className="mt-2 text-base font-semibold text-gray-900">Bring governed files back into operations</h3>
+          <p className="mt-2 text-sm leading-6 text-gray-600">
+            Use the DMS together with project and execution workspaces so signoffs, reports, and controlled deliverables are visible where decisions happen.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link href="/projects" className="rounded-full border border-violet-200 bg-white px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-100">
+              Project workspace
+            </Link>
+            <Link href="/execution/commissioning" className="rounded-full border border-violet-200 bg-white px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-100">
+              Commissioning lane
+            </Link>
+            <Link href="/notifications?filter=documents" className="rounded-full border border-violet-200 bg-white px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-100">
+              Document alerts
+            </Link>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-amber-700">Attention Queue</div>
+          <h3 className="mt-2 text-base font-semibold text-gray-900">{attentionDocs.length} document signal{attentionDocs.length !== 1 ? 's' : ''} need follow-up</h3>
+          <p className="mt-2 text-sm leading-6 text-gray-600">
+            Expiry risk and missing governance should be cleared before field delivery and signoff get blocked.
+          </p>
+          <div className="mt-4 text-xs text-gray-600">
+            Expired: <span className="font-semibold text-rose-600">{expired.length}</span> • Expiring soon: <span className="font-semibold text-amber-700">{expiringSoon.length}</span>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-4">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-blue-700">Execution Context</div>
+          <h3 className="mt-2 text-base font-semibold text-gray-900">Keep site and stage linkage visible</h3>
+          <p className="mt-2 text-sm leading-6 text-gray-600">
+            Filter by project and site when checking controlled reports so execution teams see only the live slice they need.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link href="/execution" className="rounded-full border border-blue-200 bg-white px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100">
+              Execution home
+            </Link>
+            <Link href="/execution/projects" className="rounded-full border border-blue-200 bg-white px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100">
+              Execution workspace
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -525,6 +575,43 @@ export default function DocumentsPage() {
         </SectionCard>
       </div>
 
+      {attentionDocs.length > 0 && (
+        <div className="mt-6">
+          <SectionCard title="Documents Needing Immediate Attention" subtitle="Top expiry-driven records to clear from the frontend">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {attentionDocs.map((doc) => (
+                <div key={doc.name} className="rounded-2xl border border-amber-200 bg-amber-50/60 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900">{doc.document_name || doc.file_name || doc.name}</div>
+                      <div className="mt-1 text-xs text-gray-600">
+                        {doc.linked_project || 'No project'} • {doc.linked_site || 'Project-level'}
+                      </div>
+                    </div>
+                    <ExpiryBadge expiryDate={doc.expiry_date} daysUntilExpiry={doc.days_until_expiry} />
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {(doc.file_url || doc.file) && isPreviewable(doc.file_url || doc.file) ? (
+                      <button
+                        onClick={() => setPreviewDoc(doc)}
+                        className="rounded-full border border-amber-200 bg-white px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100"
+                      >
+                        Preview
+                      </button>
+                    ) : null}
+                    {doc.linked_project ? (
+                      <Link href={`/projects/${encodeURIComponent(doc.linked_project)}?tab=files`} className="rounded-full border border-amber-200 bg-white px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100">
+                        Open project files
+                      </Link>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+        </div>
+      )}
+
       {showFolderModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
@@ -743,11 +830,15 @@ export default function DocumentsPage() {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="h-[75vh] bg-gray-100">
+            <div className="relative h-[75vh] bg-gray-100">
               {getFileExtension(previewDoc.file_url || previewDoc.file) === 'pdf' ? (
                 <iframe title={previewDoc.document_name || previewDoc.name} src={previewDoc.file_url || previewDoc.file} className="h-full w-full" />
               ) : (
-                <img src={previewDoc.file_url || previewDoc.file} alt={previewDoc.document_name || previewDoc.name} className="h-full w-full object-contain" />
+                <img
+                  src={previewDoc.file_url || previewDoc.file || ''}
+                  alt={previewDoc.document_name || previewDoc.name}
+                  className="h-full w-full object-contain"
+                />
               )}
             </div>
           </div>

@@ -5,10 +5,10 @@ import AccountsDashboard from '../components/dashboards/AccountsDashboard';
 import EngineeringHeadDashboard from '../components/dashboards/EngineeringHeadDashboard';
 import ExecutiveDashboard from '../components/dashboards/ExecutiveDashboard';
 import ExecutionDashboard from '../components/dashboards/ExecutionDashboard';
-import HRDashboard from '../components/dashboards/HRDashboard';
 import HROverviewDashboard from '../components/dashboards/HROverviewDashboard';
 import OMDashboard from '../components/dashboards/OMDashboard';
 import PresalesDashboard from '../components/dashboards/PresalesDashboard';
+import PresalesExecutiveDashboard from '../components/dashboards/PresalesExecutiveDashboard';
 import ProcurementDashboard from '../components/dashboards/ProcurementDashboard';
 import ProcurementOverviewDashboard from '../components/dashboards/ProcurementOverviewDashboard';
 import ProjectHeadDashboard from '../components/dashboards/ProjectHeadDashboard';
@@ -23,6 +23,8 @@ export default function Home() {
 			return <ProjectHeadDashboard />;
 		case 'Presales Tendering Head':
 			return <PresalesDashboard />;
+		case 'Presales Executive':
+			return <PresalesExecutiveDashboard />;
 		case 'Engineering Head':
 			return <EngineeringHeadDashboard />;
 		case 'Engineer':
@@ -31,6 +33,7 @@ export default function Home() {
 			return <ProcurementOverviewDashboard />;
 		case 'Purchase':
 			return <ProcurementDashboard />;
+		case 'Store Manager':
 		case 'Stores Logistics Head':
 			return <StoresDashboard />;
 		case 'Field Technician':
@@ -41,6 +44,13 @@ export default function Home() {
 			return <HROverviewDashboard />;
 		case 'OM Operator':
 			return <OMDashboard />;
+		case 'RMA Manager':
+			return (
+				<OMDashboard
+					title="RMA Dashboard"
+					subtitle="Faulty device recovery, SLA-sensitive escalations, and repair pipeline visibility from live service data"
+				/>
+			);
 		default:
 			return <ExecutiveDashboard />;
 	}

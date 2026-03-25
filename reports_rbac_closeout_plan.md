@@ -8,7 +8,7 @@ This document isolates the remaining work for the `Reports` surface so it can be
 
 Use this after:
 
-- `srs_gap_closure_execution_plan.md`
+- `frontend_100_percent_closure_log.md`
 - the Phase 5 audit notes
 
 ## Current Reality

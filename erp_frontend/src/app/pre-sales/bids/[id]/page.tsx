@@ -29,6 +29,12 @@ type BidDetail = {
   loi_decision_reason?: string;
   loi_decision_by?: string;
   loi_decision_on?: string;
+  loc_request_status?: string;
+  loc_requested_on?: string;
+  loc_requested_by?: string;
+  loc_submitted_on?: string;
+  loc_submitted_by?: string;
+  loc_submission_remarks?: string;
   loi_tracker?: LoiRow[];
   loi_n_expected?: number;
   loi_n_received?: number;
@@ -131,6 +137,13 @@ export default function BidWorkspacePage() {
   const daysLeft = getDaysLeft(bid?.tender_detail?.tenure_end_date);
   const canDecideLoi = currentRole === 'Presales Tendering Head' && bid?.status === 'WON' && loiSummary.allReceived && bid?.loi_decision_status !== 'ACCEPTED';
   const isLegacyBid = bid?.status === 'DRAFT' || bid?.status === 'SUBMITTED';
+  const locRequestStatus = bid?.loc_request_status || 'NOT_REQUESTED';
+  const canSendLocRequest =
+    currentRole === 'Presales Tendering Head'
+    && inProcess
+    && daysLeft !== null
+    && daysLeft <= 90
+    && locRequestStatus === 'NOT_REQUESTED';
 
   const runAction = async (actionKey: string, runner: () => Promise<void>) => {
     setBusyAction(actionKey);
@@ -241,6 +254,10 @@ export default function BidWorkspacePage() {
               <div className="text-[var(--text-soft)]">LOI Decision</div>
               <div className="mt-1 font-semibold text-[var(--text-main)]">{bid.loi_decision_status || 'PENDING'}</div>
             </div>
+            <div>
+              <div className="text-[var(--text-soft)]">LOC Status</div>
+              <div className="mt-1 font-semibold text-[var(--text-main)]">{locRequestStatus}</div>
+            </div>
           </div>
         </div>
 
@@ -285,6 +302,16 @@ export default function BidWorkspacePage() {
             {inProcess && daysLeft !== null && daysLeft <= 90 ? (
               <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-amber-700">
                 Project completion certificate window is active for this bid.
+              </div>
+            ) : null}
+            {locRequestStatus === 'REQUESTED' ? (
+              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-3 text-blue-700">
+                LOC request was sent on {formatDate(bid.loc_requested_on)}. Waiting for Project Head submission.
+              </div>
+            ) : null}
+            {locRequestStatus === 'SUBMITTED' ? (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-emerald-700">
+                Project Head submitted LOC on {formatDate(bid.loc_submitted_on)}.
               </div>
             ) : null}
           </div>
@@ -399,6 +426,19 @@ export default function BidWorkspacePage() {
             </>
           ) : null}
 
+          {canSendLocRequest ? (
+            <button
+              disabled={busyAction === 'loc-request'}
+              onClick={() => void runAction('loc-request', async () => {
+                const json = await postJson(`/api/bids/${bid.name}/loc-request`);
+                if (!json.success) throw new Error(json.message || 'Failed to send LOC request');
+              })}
+              className="inline-flex items-center gap-2 rounded-xl bg-amber-600 px-3 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-60"
+            >
+              <BadgeCheck className="w-4 h-4" /> Send Request to Project Head for LOC
+            </button>
+          ) : null}
+
           <Link
             href={`/pre-sales/${bid.tender}`}
             className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-white px-3 py-2 text-sm font-medium text-[var(--text-main)] hover:border-[var(--accent)]"
@@ -407,11 +447,11 @@ export default function BidWorkspacePage() {
           </Link>
         </div>
 
-        {bid.cancel_reason || bid.retender_reason || bid.loi_decision_reason ? (
+        {bid.cancel_reason || bid.retender_reason || bid.loi_decision_reason || bid.loc_submission_remarks ? (
           <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-4 text-sm">
             <div className="font-semibold text-[var(--text-main)]">Recorded Reason</div>
             <div className="mt-2 text-[var(--text-soft)]">
-              {bid.cancel_reason || bid.retender_reason || bid.loi_decision_reason}
+              {bid.cancel_reason || bid.retender_reason || bid.loi_decision_reason || bid.loc_submission_remarks}
             </div>
           </div>
         ) : null}

@@ -68,24 +68,6 @@ interface WorkspacePermissionContextType {
   canActInDepartment: (deptKey: string) => boolean;
 }
 
-const EMPTY_WP: WorkspacePermissions = {
-  can_access_workspace: false, can_view_summary: false,
-  can_view_sites: false, can_update_site: false,
-  can_view_board: false, can_view_milestones: false,
-  can_manage_milestones: false, can_manage_members: false,
-  can_view_activity: false,
-  can_submit_stage: false, can_approve_stage: false,
-  can_reject_stage: false, can_override_stage: false,
-  can_override_dependency: false,
-  can_approve: false, can_reject: false,
-  can_override_approval: false, can_revise: false,
-  can_view_files: false, can_upload_files: false,
-  can_replace_files: false, can_delete_files: false,
-  can_view_inventory: false, can_view_stock: false,
-  can_create_grn: false, can_view_dispatch: false,
-  department_access: {}, visible_tabs: [],
-};
-
 // ── Context ────────────────────────────────────────────────────────────────
 
 const WorkspacePermissionContext = createContext<WorkspacePermissionContextType | undefined>(undefined);

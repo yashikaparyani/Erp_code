@@ -13,7 +13,6 @@ import {
   Search,
   ShieldCheck,
   UserCheck,
-  XCircle,
 } from 'lucide-react';
 
 type InboxView = 'pending' | 'completed';

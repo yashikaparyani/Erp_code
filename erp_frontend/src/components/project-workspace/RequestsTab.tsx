@@ -1,11 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import {
   AlertCircle, Plus, RefreshCcw, Loader2, X,
   Clock, CheckCircle2, XCircle, ArrowUpRight, Send,
 } from 'lucide-react';
 import { callOps } from './pm-helpers';
+import { useAccessibleOverlay } from '@/lib/useAccessibleOverlay';
+import { sanitizeRichText } from '@/lib/sanitizeRichText';
 
 /* ── Types ── */
 
@@ -325,10 +327,25 @@ function DetailDrawer({
 }) {
   const [remarks, setRemarks] = useState('');
   const busy = actionLoading === req.name;
+  const titleId = useId();
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const { containerRef } = useAccessibleOverlay({
+    isOpen: true,
+    onClose,
+    initialFocusRef: closeButtonRef,
+  });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-end bg-black/40">
-      <div className="flex h-full w-full max-w-lg flex-col bg-white shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-start justify-end bg-black/40" onMouseDown={onClose}>
+      <div
+        ref={containerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        onMouseDown={(event) => event.stopPropagation()}
+        className="flex h-full w-full max-w-lg flex-col bg-white shadow-xl focus:outline-none"
+      >
         {/* Header */}
         <div className="flex items-center justify-between border-b px-5 py-4">
           <div>
@@ -345,9 +362,9 @@ function DetailDrawer({
                 </span>
               )}
             </div>
-            <h3 className="mt-1 text-base font-semibold text-gray-900">{req.subject}</h3>
+            <h3 id={titleId} className="mt-1 text-base font-semibold text-gray-900">{req.subject}</h3>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <button ref={closeButtonRef} type="button" aria-label="Close request details" onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -355,7 +372,7 @@ function DetailDrawer({
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 text-sm">
           {/* Metadata */}
-          <div className="grid grid-cols-2 gap-3 text-xs text-[var(--text-muted)]">
+          <div className="grid grid-cols-1 gap-3 text-xs text-[var(--text-muted)] sm:grid-cols-2">
             <div><span className="font-medium text-gray-600">Requested By:</span> {req.requested_by || '—'}</div>
             <div><span className="font-medium text-gray-600">Date:</span> {req.requested_date || '—'}</div>
             {req.reviewed_by && <div><span className="font-medium text-gray-600">Reviewed By:</span> {req.reviewed_by}</div>}
@@ -367,7 +384,7 @@ function DetailDrawer({
           {req.request_type === 'Timeline Extension' && (
             <div className="rounded-lg bg-gray-50 p-3 space-y-1 text-xs">
               <h5 className="font-semibold text-gray-700">Timeline Details</h5>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                 <div><span className="text-gray-500">Current:</span> {req.current_deadline || '—'}</div>
                 <div><span className="text-gray-500">Proposed:</span> {req.proposed_deadline || '—'}</div>
                 <div><span className="text-gray-500">Delay:</span> {req.delay_days ? `${req.delay_days} days` : '—'}</div>
@@ -377,7 +394,7 @@ function DetailDrawer({
           {req.request_type === 'Staffing Request' && (
             <div className="rounded-lg bg-gray-50 p-3 space-y-1 text-xs">
               <h5 className="font-semibold text-gray-700">Staffing Details</h5>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                 <div><span className="text-gray-500">Positions:</span> {req.positions_needed || '—'}</div>
                 <div><span className="text-gray-500">Type:</span> {req.position_type || '—'}</div>
                 <div><span className="text-gray-500">Duration:</span> {req.duration_needed || '—'}</div>
@@ -395,7 +412,7 @@ function DetailDrawer({
           {req.description && (
             <div>
               <h5 className="text-xs font-semibold text-gray-600 mb-1">Description</h5>
-              <div className="prose prose-sm max-w-none text-gray-700" dangerouslySetInnerHTML={{ __html: req.description }} />
+              <div className="prose prose-sm max-w-none text-gray-700" dangerouslySetInnerHTML={{ __html: sanitizeRichText(req.description) }} />
             </div>
           )}
 
@@ -403,7 +420,7 @@ function DetailDrawer({
           {req.justification && (
             <div>
               <h5 className="text-xs font-semibold text-gray-600 mb-1">Justification</h5>
-              <div className="prose prose-sm max-w-none text-gray-700" dangerouslySetInnerHTML={{ __html: req.justification }} />
+              <div className="prose prose-sm max-w-none text-gray-700" dangerouslySetInnerHTML={{ __html: sanitizeRichText(req.justification) }} />
             </div>
           )}
 
@@ -431,6 +448,7 @@ function DetailDrawer({
                 {req.status === 'Draft' && (
                   <>
                     <button
+                      type="button"
                       disabled={busy}
                       onClick={() => onAction('submit_pm_request', req.name)}
                       className="btn btn-primary text-xs"
@@ -438,6 +456,7 @@ function DetailDrawer({
                       <Send className="h-3.5 w-3.5" /> Submit for Review
                     </button>
                     <button
+                      type="button"
                       disabled={busy}
                       onClick={() => onAction('withdraw_pm_request', req.name)}
                       className="btn btn-secondary text-xs"
@@ -449,6 +468,7 @@ function DetailDrawer({
                 {req.status === 'Pending' && (
                   <>
                     <button
+                      type="button"
                       disabled={busy}
                       onClick={() => onAction('approve_pm_request', req.name, remarks || undefined)}
                       className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
@@ -456,6 +476,7 @@ function DetailDrawer({
                       <CheckCircle2 className="h-3.5 w-3.5" /> Approve
                     </button>
                     <button
+                      type="button"
                       disabled={busy}
                       onClick={() => onAction('reject_pm_request', req.name, remarks || undefined)}
                       className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-700 disabled:opacity-50"
@@ -463,6 +484,7 @@ function DetailDrawer({
                       <XCircle className="h-3.5 w-3.5" /> Reject
                     </button>
                     <button
+                      type="button"
                       disabled={busy}
                       onClick={() => onAction('withdraw_pm_request', req.name)}
                       className="btn btn-secondary text-xs"
@@ -511,20 +533,35 @@ function CreateModal({
   onClose: () => void;
 }) {
   const set = (key: keyof FormState, val: string) => setForm((p) => ({ ...p, [key]: val }));
+  const titleId = useId();
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const { containerRef } = useAccessibleOverlay({
+    isOpen: true,
+    onClose,
+    initialFocusRef: closeButtonRef,
+  });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onMouseDown={onClose}>
+      <div
+        ref={containerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        onMouseDown={(event) => event.stopPropagation()}
+        className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-xl bg-white p-4 shadow-xl focus:outline-none sm:p-6"
+      >
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">New PM Request</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <h3 id={titleId} className="text-lg font-semibold text-gray-900">New PM Request</h3>
+          <button ref={closeButtonRef} type="button" aria-label="Close new request form" onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <div className="space-y-3">
           {/* Type + Priority */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Request Type *</label>
               <select className="input" value={form.request_type} onChange={(e) => set('request_type', e.target.value)}>
@@ -549,7 +586,7 @@ function CreateModal({
 
           {/* Type-specific fields */}
           {form.request_type === 'Timeline Extension' && (
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Current Deadline *</label>
                 <input className="input" type="date" value={form.current_deadline} onChange={(e) => set('current_deadline', e.target.value)} />
@@ -566,7 +603,7 @@ function CreateModal({
           )}
 
           {form.request_type === 'Staffing Request' && (
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Positions Needed *</label>
                 <input className="input" type="number" min="1" value={form.positions_needed} onChange={(e) => set('positions_needed', e.target.value)} />
@@ -604,8 +641,9 @@ function CreateModal({
 
         {/* Actions */}
         <div className="mt-5 flex justify-end gap-2">
-          <button onClick={onClose} className="btn btn-secondary">Cancel</button>
+          <button type="button" onClick={onClose} className="btn btn-secondary">Cancel</button>
           <button
+            type="button"
             onClick={onSaveDraft}
             disabled={creating || !form.subject.trim()}
             className="btn btn-secondary"
@@ -613,6 +651,7 @@ function CreateModal({
             <Clock className="h-3.5 w-3.5" /> {creating ? 'Saving...' : 'Save Draft'}
           </button>
           <button
+            type="button"
             onClick={onSubmit}
             disabled={creating || !canSubmit}
             className="btn btn-primary"

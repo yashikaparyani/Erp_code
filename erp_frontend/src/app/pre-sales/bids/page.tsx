@@ -1,19 +1,20 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ExternalLink, Filter, ListChecks, RefreshCw } from 'lucide-react';
 
-interface BidRow {
+type BidRow = {
   name: string;
   tender: string;
-  bid_date: string;
-  status: string;
-  bid_amount: number;
+  bid_date?: string;
+  status?: string;
+  bid_amount?: number;
   result_date?: string;
   result_remarks?: string;
-  is_latest: number;
+  is_latest?: number;
   loi_decision_status?: string;
-}
+};
 
 const BID_STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   UNDER_EVALUATION: { bg: '#e0e7ff', text: '#4338ca' },
@@ -23,16 +24,20 @@ const BID_STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   RETENDER: { bg: '#fce7f3', text: '#9d174d' },
 };
 
-function formatDate(d?: string) {
-  if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+function formatDate(value?: string) {
+  if (!value) return '-';
+  return new Date(value).toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
 }
 
-function formatValue(v?: number) {
-  if (!v) return '—';
-  if (v >= 1e7) return `Rs ${(v / 1e7).toFixed(1)} Cr`;
-  if (v >= 1e5) return `Rs ${(v / 1e5).toFixed(1)} L`;
-  return `Rs ${v.toLocaleString('en-IN')}`;
+function formatValue(value?: number) {
+  if (!value) return '-';
+  if (value >= 1e7) return `Rs ${(value / 1e7).toFixed(1)} Cr`;
+  if (value >= 1e5) return `Rs ${(value / 1e5).toFixed(1)} L`;
+  return `Rs ${value.toLocaleString('en-IN')}`;
 }
 
 export default function BidsPage() {
@@ -41,28 +46,34 @@ export default function BidsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [latestOnly, setLatestOnly] = useState(true);
 
-  const fetchBids = async () => {
+  async function fetchBids() {
     setLoading(true);
     try {
       const params = new URLSearchParams();
       if (statusFilter) params.set('status', statusFilter);
       if (latestOnly) params.set('is_latest', '1');
-      const res = await fetch(`/api/bids?${params.toString()}`, { cache: 'no-store' });
-      const json = await res.json();
-      setBids(json.success ? json.data || [] : []);
+
+      const response = await fetch(`/api/bids?${params.toString()}`, { cache: 'no-store' });
+      const payload = await response.json().catch(() => ({}));
+
+      if (payload?.success) {
+        setBids(Array.isArray(payload.data) ? payload.data : []);
+      } else {
+        setBids([]);
+      }
     } catch {
       setBids([]);
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   useEffect(() => {
     void fetchBids();
   }, [statusFilter, latestOnly]);
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] p-6 space-y-5">
+    <div className="min-h-screen bg-[var(--bg)] p-3 sm:p-4 lg:p-6 space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-[var(--text-main)] flex items-center gap-2">
@@ -73,19 +84,23 @@ export default function BidsPage() {
             Review converted bids, outcomes, cancellations, and retender cases
           </p>
         </div>
+
         <button
+          type="button"
           onClick={() => void fetchBids()}
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-white border border-[var(--border-subtle)] hover:border-[var(--accent)] transition-all"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
         </button>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 p-3 bg-white/80 rounded-2xl border border-[var(--border-subtle)]">
         <Filter className="w-3.5 h-3.5 text-[var(--text-soft)]" />
+
         <select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(event) => setStatusFilter(event.target.value)}
           className="text-xs rounded-xl border border-[var(--border-subtle)] px-2 py-1.5 bg-white"
         >
           <option value="">All Statuses</option>
@@ -95,29 +110,35 @@ export default function BidsPage() {
             </option>
           ))}
         </select>
+
         <label className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] cursor-pointer">
           <input
             type="checkbox"
             checked={latestOnly}
-            onChange={(e) => setLatestOnly(e.target.checked)}
+            onChange={(event) => setLatestOnly(event.target.checked)}
             className="rounded"
           />
           Latest bids only
         </label>
-        <span className="ml-auto text-xs text-[var(--text-soft)]">{bids.length} bids</span>
+
+        <span className="text-xs text-[var(--text-soft)] sm:ml-auto">{bids.length} bids</span>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-[var(--border-subtle)] shadow-sm">
-        <table className="w-full text-xs">
+      <div className="table-scroll rounded-2xl border border-[var(--border-subtle)] shadow-sm">
+        <table className="w-full min-w-[820px] text-xs">
           <thead className="bg-[var(--surface)]">
             <tr className="border-b border-[var(--border-subtle)]">
               {['#', 'Bid ID', 'Tender', 'Bid Date', 'Bid Amount', 'Status', 'LOI Decision', 'Result Date', 'Remarks', 'Actions'].map((heading) => (
-                <th key={heading} className="text-left px-3 py-3 font-semibold text-[var(--text-soft)] uppercase tracking-wide">
+                <th
+                  key={heading}
+                  className="text-left px-3 py-3 font-semibold text-[var(--text-soft)] uppercase tracking-wide"
+                >
                   {heading}
                 </th>
               ))}
             </tr>
           </thead>
+
           <tbody className="divide-y divide-[var(--border-subtle)]">
             {loading ? (
               Array.from({ length: 5 }).map((_, index) => (
@@ -135,7 +156,11 @@ export default function BidsPage() {
               </tr>
             ) : (
               bids.map((bid, index) => {
-                const statusColors = BID_STATUS_COLORS[bid.status] || { bg: '#f3f4f6', text: '#374151' };
+                const statusColors = BID_STATUS_COLORS[bid.status || ''] || {
+                  bg: '#f3f4f6',
+                  text: '#374151',
+                };
+
                 return (
                   <tr key={bid.name} className="hover:bg-[var(--surface-hover)] group">
                     <td className="px-3 py-3 text-[var(--text-soft)]">{index + 1}</td>
@@ -148,23 +173,27 @@ export default function BidsPage() {
                     <td className="px-3 py-3">{formatDate(bid.bid_date)}</td>
                     <td className="px-3 py-3 font-semibold">{formatValue(bid.bid_amount)}</td>
                     <td className="px-3 py-3">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold" style={{ backgroundColor: statusColors.bg, color: statusColors.text }}>
-                        {bid.status}
+                      <span
+                        className="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                        style={{ backgroundColor: statusColors.bg, color: statusColors.text }}
+                      >
+                        {bid.status || '-'}
                       </span>
                     </td>
                     <td className="px-3 py-3 text-[var(--text-muted)]">
-                      {bid.loi_decision_status || (bid.status === 'WON' ? 'PENDING' : '—')}
+                      {bid.loi_decision_status || (bid.status === 'WON' ? 'PENDING' : '-')}
                     </td>
                     <td className="px-3 py-3">{formatDate(bid.result_date)}</td>
                     <td className="px-3 py-3 max-w-[160px] truncate text-[var(--text-muted)]">
-                      {bid.result_remarks || '—'}
+                      {bid.result_remarks || '-'}
                     </td>
                     <td className="px-3 py-3">
                       <Link
                         href={`/pre-sales/bids/${bid.name}`}
                         className="inline-flex items-center gap-1 px-2 py-1 text-[10px] rounded-lg border border-[var(--border-subtle)] opacity-0 group-hover:opacity-100 transition-all hover:border-[var(--accent)]"
                       >
-                        Open Bid <ExternalLink className="w-2.5 h-2.5" />
+                        Open Bid
+                        <ExternalLink className="w-2.5 h-2.5" />
                       </Link>
                     </td>
                   </tr>

@@ -8,11 +8,8 @@ import {
   Clock,
   FileWarning,
   Calendar,
-  CheckCircle,
   AlertTriangle,
-  MessageSquare,
   ClipboardCheck,
-  Filter,
   RefreshCw,
   ExternalLink,
   CheckCheck,
@@ -138,7 +135,7 @@ export default function NotificationsPage() {
   }, [loadData]);
 
   useEffect(() => {
-    const requested = searchParams.get('filter');
+    const requested = searchParams ? searchParams.get('filter') : null;
     if (requested && FILTER_OPTIONS.some(opt => opt.key === requested)) {
       setFilter(requested as FilterType);
     }
@@ -194,6 +191,13 @@ export default function NotificationsPage() {
 
   const totalActionable = summary.unread_alerts + summary.due_reminders + summary.unread_mentions + 
     summary.pending_approvals + summary.expiring_documents + summary.tender_deadlines;
+  const criticalFeed = filteredFeed.filter((item) =>
+    item.type === 'approval' || item.type === 'document' || (item.type === 'reminder' && item.subtype === 'overdue') || !item.is_read,
+  );
+  const collaborationFeed = filteredFeed.filter((item) => item.type === 'mention' || item.type === 'alert');
+  const executionFeed = filteredFeed.filter((item) =>
+    item.project || item.route?.startsWith('/projects/') || item.route?.startsWith('/execution'),
+  );
 
   return (
     <div>
@@ -273,14 +277,51 @@ export default function NotificationsPage() {
       {/* Quick Action Banner */}
       {totalActionable > 0 && (
         <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-amber-600" />
-            <span className="font-medium text-amber-800">
-              {totalActionable} item{totalActionable > 1 ? 's' : ''} require your attention
-            </span>
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-amber-600" />
+              <span className="font-medium text-amber-800">
+                {totalActionable} item{totalActionable > 1 ? 's' : ''} require your attention
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Link href="/notifications?filter=approvals" className="rounded-full border border-amber-200 bg-white px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100">
+                Clear approvals
+              </Link>
+              <Link href="/notifications?filter=documents" className="rounded-full border border-amber-200 bg-white px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100">
+                Review documents
+              </Link>
+              <Link href="/notifications?filter=mentions" className="rounded-full border border-amber-200 bg-white px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100">
+                Handle mentions
+              </Link>
+            </div>
           </div>
         </div>
       )}
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3 mb-6">
+        <TriageCard
+          title="Critical Queue"
+          count={criticalFeed.length}
+          tone="rose"
+          detail="Unread alerts, approvals, overdue reminders, and document governance signals."
+          href="/notifications?filter=approvals"
+        />
+        <TriageCard
+          title="Collaboration Queue"
+          count={collaborationFeed.length}
+          tone="violet"
+          detail="Mentions and project-side alert traffic that needs a human response."
+          href="/notifications?filter=mentions"
+        />
+        <TriageCard
+          title="Execution-Linked Signals"
+          count={executionFeed.length}
+          tone="blue"
+          detail="Signals already tied to projects and execution routes so teams can act without context switching."
+          href="/execution"
+        />
+      </div>
 
       {/* Filter Tabs */}
       <div className="flex gap-2 mb-4 flex-wrap">
@@ -448,5 +489,35 @@ function FeedItemRow({ item }: { item: FeedItem }) {
         <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 mt-2" />
       )}
     </div>
+  );
+}
+
+function TriageCard({
+  title,
+  count,
+  detail,
+  tone,
+  href,
+}: {
+  title: string;
+  count: number;
+  detail: string;
+  tone: 'rose' | 'violet' | 'blue';
+  href: string;
+}) {
+  const styles = {
+    rose: 'border-rose-200 bg-rose-50/70 text-rose-700',
+    violet: 'border-violet-200 bg-violet-50/70 text-violet-700',
+    blue: 'border-blue-200 bg-blue-50/70 text-blue-700',
+  }[tone];
+
+  return (
+    <Link href={href} className={`rounded-2xl border px-4 py-4 transition hover:shadow-sm ${styles}`}>
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-sm font-semibold">{title}</div>
+        <div className="text-xl font-semibold">{count}</div>
+      </div>
+      <div className="mt-2 text-xs leading-5 text-gray-600">{detail}</div>
+    </Link>
   );
 }

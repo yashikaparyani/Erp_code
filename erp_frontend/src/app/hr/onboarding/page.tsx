@@ -1,12 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { ChangeEvent, useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, useEffect, useState } from 'react';
 import {
   ArrowRightLeft,
   Briefcase,
   Building2,
-  Calendar,
   CheckCircle2,
   ChevronRight,
   FileCheck2,
@@ -434,11 +433,6 @@ export default function HrOnboardingPage() {
   const [error, setError] = useState('');
   const [flash, setFlash] = useState<Flash | null>(null);
 
-  const selectedSummary = useMemo(
-    () => items.find((item) => item.name === selectedId) || null,
-    [items, selectedId],
-  );
-
   useEffect(() => {
     const timer = setTimeout(() => setSearch(searchInput.trim()), 350);
     return () => clearTimeout(timer);
@@ -744,7 +738,8 @@ export default function HrOnboardingPage() {
     }
   }
 
-  const mandatoryDocuments = (mode === 'edit' ? form.documents : detail?.documents || [])
+  const documentRows = mode === 'edit' ? form?.documents ?? [] : detail?.documents ?? [];
+  const mandatoryDocuments = documentRows
     .filter((row) => Boolean(row.is_mandatory));
   const uploadedMandatoryDocuments = mandatoryDocuments.filter((row) => row.file).length;
 

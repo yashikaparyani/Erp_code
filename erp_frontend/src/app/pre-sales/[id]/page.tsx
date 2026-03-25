@@ -72,11 +72,63 @@ type BidRow = {
   bid_date?: string;
 };
 
+type TenderResultRow = {
+  name: string;
+  result_stage?: string;
+  winning_bidder?: string;
+  winning_amount?: number;
+  result_date?: string;
+  remarks?: string;
+};
+
+type TenderReminderRow = {
+  name: string;
+  title?: string;
+  reminder_date?: string;
+  reminder_time?: string;
+  reminder_kind?: string;
+  status?: string;
+};
+
+type SurveyRow = {
+  name: string;
+  status?: string;
+  site_name?: string;
+  linked_site?: string;
+  survey_date?: string;
+};
+
+type BoqRow = {
+  name: string;
+  status?: string;
+  boq_name?: string;
+  total_amount?: number;
+};
+
+type CostSheetRow = {
+  name: string;
+  status?: string;
+  sheet_name?: string;
+  sell_value?: number;
+};
+
+type TenderChecklistRow = {
+  name: string;
+  checklist_name?: string;
+  completion_pct?: number;
+};
+
 type WorkspaceResponse = {
   tender: Tender | null;
+  results: TenderResultRow[];
+  reminders: TenderReminderRow[];
+  surveys: SurveyRow[];
+  boqs: BoqRow[];
+  costSheets: CostSheetRow[];
   approvals: TenderApproval[];
   financeRequests: Instrument[];
   instruments: Instrument[];
+  checklistTemplates: TenderChecklistRow[];
   bids: BidRow[];
 };
 
@@ -103,6 +155,16 @@ function formatCurrency(value?: number) {
 
 function labelize(value?: string) {
   return value ? value.replace(/_/g, ' ') : '-';
+}
+
+function formatDateTime(date?: string, time?: string) {
+  if (!date && !time) return '-';
+  const raw = [date, time].filter(Boolean).join(' ');
+  const parsed = new Date(raw);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+  return raw;
 }
 
 function ActionButton({
@@ -152,7 +214,7 @@ type StageCard = {
 export default function TenderWorkspacePage() {
   const { currentRole } = useRole();
   const params = useParams();
-  const tenderId = decodeURIComponent(params.id as string);
+  const tenderId = decodeURIComponent((params?.id as string | undefined) || '');
 
   const [workspace, setWorkspace] = useState<WorkspaceResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -211,6 +273,13 @@ export default function TenderWorkspacePage() {
   );
 
   const canObserve = derivedFunnel === 'Not Qualified Tender' || derivedFunnel === 'Locked Tender';
+  const surveyCount = workspace?.surveys?.length || 0;
+  const boqCount = workspace?.boqs?.length || 0;
+  const costSheetCount = workspace?.costSheets?.length || 0;
+  const reminderCount = workspace?.reminders?.length || 0;
+  const checklistAvg = workspace?.checklistTemplates?.length
+    ? Math.round(workspace.checklistTemplates.reduce((sum, row) => sum + Number(row.completion_pct || 0), 0) / workspace.checklistTemplates.length)
+    : 0;
 
   const reasonTrail: ReasonTrailItem[] = tender ? [
     tender.go_no_go_status === 'NO_GO' ? { field: 'go_no_go_remarks' as const, title: 'No-Go Reason', value: tender.go_no_go_remarks || '' } : null,
@@ -572,6 +641,43 @@ export default function TenderWorkspacePage() {
 
         <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-[#0f5164]" />
+            <h2 className="text-base font-semibold text-gray-900">Bid Readiness Signals</h2>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl border border-gray-200 p-4">
+              <div className="text-xs uppercase tracking-wide text-gray-500">Surveys</div>
+              <div className="mt-2 text-lg font-semibold text-gray-900">{surveyCount}</div>
+              <div className="mt-2 text-sm text-gray-600">
+                {surveyCount ? `${workspace?.surveys?.filter((row) => row.status === 'Completed').length || 0} completed` : 'No survey records linked yet'}
+              </div>
+            </div>
+            <div className="rounded-2xl border border-gray-200 p-4">
+              <div className="text-xs uppercase tracking-wide text-gray-500">BOQs</div>
+              <div className="mt-2 text-lg font-semibold text-gray-900">{boqCount}</div>
+              <div className="mt-2 text-sm text-gray-600">
+                {boqCount ? `${workspace?.boqs?.filter((row) => row.status === 'APPROVED').length || 0} approved` : 'No BOQ prepared yet'}
+              </div>
+            </div>
+            <div className="rounded-2xl border border-gray-200 p-4">
+              <div className="text-xs uppercase tracking-wide text-gray-500">Cost Sheets</div>
+              <div className="mt-2 text-lg font-semibold text-gray-900">{costSheetCount}</div>
+              <div className="mt-2 text-sm text-gray-600">
+                {costSheetCount ? `${workspace?.costSheets?.filter((row) => row.status === 'APPROVED').length || 0} approved` : 'No cost sheet prepared yet'}
+              </div>
+            </div>
+            <div className="rounded-2xl border border-gray-200 p-4">
+              <div className="text-xs uppercase tracking-wide text-gray-500">Checklist Readiness</div>
+              <div className="mt-2 text-lg font-semibold text-gray-900">{checklistAvg}%</div>
+              <div className="mt-2 text-sm text-gray-600">
+                {workspace?.checklistTemplates?.length ? `${workspace.checklistTemplates.length} checklist template rows available` : 'No checklist templates linked yet'}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-2">
             <WalletCards className="h-5 w-5 text-[#0f5164]" />
             <h2 className="text-base font-semibold text-gray-900">Instruments</h2>
           </div>
@@ -604,6 +710,79 @@ export default function TenderWorkspacePage() {
               <div className="text-sm font-semibold text-gray-900">RFP Document</div>
               <div className="mt-2 text-sm text-gray-600">
                 {tender.rfp_document ? <a href={tender.rfp_document} target="_blank" rel="noreferrer" className="text-[#0f5164] underline">Open uploaded RFP</a> : 'No RFP uploaded'}
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+        <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-[#0f5164]" />
+            <h2 className="text-base font-semibold text-gray-900">Tender Results</h2>
+          </div>
+          <div className="mt-4 space-y-3">
+            {workspace?.results?.length ? workspace.results.map((result) => (
+              <div key={result.name} className="rounded-2xl border border-gray-200 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm font-semibold text-gray-900">{labelize(result.result_stage) || 'Result Stage'}</div>
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">{formatDate(result.result_date)}</span>
+                </div>
+                <div className="mt-2 text-sm text-gray-600">
+                  {result.winning_bidder ? `Winning bidder: ${result.winning_bidder}` : 'Bidder decision not recorded yet'}
+                </div>
+                {result.winning_amount ? <div className="mt-1 text-sm text-gray-500">Winning amount: {formatCurrency(result.winning_amount)}</div> : null}
+                {result.remarks ? <div className="mt-1 text-sm text-gray-500">Remarks: {result.remarks}</div> : null}
+              </div>
+            )) : <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-sm text-gray-500">No tender result rows recorded yet.</div>}
+          </div>
+        </section>
+
+        <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-2">
+            <FilePlus2 className="h-5 w-5 text-[#0f5164]" />
+            <h2 className="text-base font-semibold text-gray-900">Reminders And Inputs</h2>
+          </div>
+          <div className="mt-4 space-y-4">
+            <div>
+              <div className="text-sm font-semibold text-gray-900">Tender Reminders</div>
+              <div className="mt-2 space-y-2">
+                {reminderCount ? workspace?.reminders?.slice(0, 4).map((reminder) => (
+                  <div key={reminder.name} className="rounded-2xl border border-gray-200 bg-gray-50 p-3">
+                    <div className="text-sm font-medium text-gray-900">{reminder.title || reminder.reminder_kind || 'Reminder'}</div>
+                    <div className="mt-1 text-xs text-gray-500">{formatDateTime(reminder.reminder_date, reminder.reminder_time)} • {reminder.status || 'Active'}</div>
+                  </div>
+                )) : <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-500">No tender reminders yet.</div>}
+              </div>
+            </div>
+
+            <div>
+              <div className="text-sm font-semibold text-gray-900">Latest Delivery Inputs</div>
+              <div className="mt-2 space-y-2">
+                {workspace?.surveys?.slice(0, 2).map((row) => (
+                  <div key={row.name} className="rounded-2xl border border-gray-200 p-3">
+                    <div className="text-sm font-medium text-gray-900">Survey • {row.site_name || row.linked_site || row.name}</div>
+                    <div className="mt-1 text-xs text-gray-500">{row.status || 'Draft'} {row.survey_date ? `• ${formatDate(row.survey_date)}` : ''}</div>
+                  </div>
+                ))}
+                {workspace?.boqs?.slice(0, 1).map((row) => (
+                  <div key={row.name} className="rounded-2xl border border-gray-200 p-3">
+                    <div className="text-sm font-medium text-gray-900">BOQ • {row.boq_name || row.name}</div>
+                    <div className="mt-1 text-xs text-gray-500">{row.status || 'Draft'} {row.total_amount ? `• ${formatCurrency(row.total_amount)}` : ''}</div>
+                  </div>
+                ))}
+                {workspace?.costSheets?.slice(0, 1).map((row) => (
+                  <div key={row.name} className="rounded-2xl border border-gray-200 p-3">
+                    <div className="text-sm font-medium text-gray-900">Cost Sheet • {row.sheet_name || row.name}</div>
+                    <div className="mt-1 text-xs text-gray-500">{row.status || 'Draft'} {row.sell_value ? `• ${formatCurrency(row.sell_value)}` : ''}</div>
+                  </div>
+                ))}
+                {!surveyCount && !boqCount && !costSheetCount ? (
+                  <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-500">
+                    No survey, BOQ, or cost sheet records are linked yet.
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>

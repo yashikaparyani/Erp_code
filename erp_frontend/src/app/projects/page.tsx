@@ -149,7 +149,7 @@ export default function ProjectsDashboardPage() {
               Project Manager and Project Head start here. Open any project to see overview, site list, site board, files, and activity in one workspace.
             </p>
           </div>
-          <div className="flex items-center gap-2 rounded-2xl border border-[var(--border-subtle)] bg-white px-3 py-2 shadow-sm">
+          <div className="flex max-w-full items-center gap-2 rounded-2xl border border-[var(--border-subtle)] bg-white px-3 py-2 shadow-sm">
             <Sparkles className="h-4 w-4 text-[var(--accent-strong)]" />
             <span className="text-xs font-medium text-[var(--text-muted)]">RISE-style list → overview → site list flow</span>
           </div>
@@ -189,8 +189,8 @@ export default function ProjectsDashboardPage() {
             No projects match the current search.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
+          <div className="table-scroll">
+            <table className="w-full min-w-[920px] text-left text-sm">
               <thead className="bg-[var(--surface-raised)] text-[var(--text-muted)]">
                 <tr>
                   <th className="px-6 py-4 font-medium">Project</th>

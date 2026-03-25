@@ -8,7 +8,7 @@ This document isolates the remaining work for the `Master Data` surface so it ca
 
 Use this after:
 
-- `srs_gap_closure_execution_plan.md`
+- `frontend_100_percent_closure_log.md`
 - `reports_rbac_closeout_plan.md`
 
 ## Current Reality

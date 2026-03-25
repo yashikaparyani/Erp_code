@@ -6,7 +6,7 @@ import FunnelFilterStrip, { DashboardFilters, DEFAULT_FILTERS, loadSavedFilters,
 import ActiveFilterChips from '../../../components/presales/ActiveFilterChips';
 import FunnelTenderTable from '../../../components/presales/FunnelTenderTable';
 import ColorLegendPage from '../../../components/presales/ColorLegendPage';
-import { FunnelColorKey, SYSTEM_FUNNEL_META, USER_SLOT_DEFAULTS, PresalesColorConfig, getFunnelDisplayMeta } from '../../../components/tenderFunnel';
+import { FunnelColorKey, SYSTEM_FUNNEL_META, USER_SLOT_DEFAULTS, PresalesColorConfig } from '../../../components/tenderFunnel';
 
 // ─────────────────────────────────────────────────── Types
 
@@ -231,7 +231,7 @@ export default function PresalesDashboard() {
   const userSlotKeys = Array.from({ length: 6 }, (_, i) => `USER_SLOT_${i + 1}` as FunnelColorKey);
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] space-y-5 p-6">
+    <div className="min-h-screen bg-[var(--bg)] space-y-5 p-3 sm:p-4 lg:p-6">
       {/* ─── Header ─── */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
@@ -265,7 +265,8 @@ export default function PresalesDashboard() {
       )}
 
       {/* ─── Tabs ─── */}
-      <div className="flex gap-1 p-1 bg-white/70 rounded-2xl border border-[var(--border-subtle)] w-fit">
+      <div className="overflow-x-auto">
+        <div className="flex min-w-max gap-1 p-1 bg-white/70 rounded-2xl border border-[var(--border-subtle)]">
         {[
           { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
           { key: 'color-legend', label: 'Color Legend & Customization', icon: Palette },
@@ -283,6 +284,7 @@ export default function PresalesDashboard() {
             {label}
           </button>
         ))}
+        </div>
       </div>
 
       {/* ─── DASHBOARD TAB ─── */}
@@ -290,7 +292,7 @@ export default function PresalesDashboard() {
         <div className="space-y-5">
           {/* Quick Stats Row */}
           {stats?.quick_stats && (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
               <QuickStat icon={DollarSign} label="Total Pipeline" value={formatCrore(stats.quick_stats.total_pipeline)} accent="#6366f1" />
               <QuickStat icon={TrendingUp} label="Active Bids" value={stats.quick_stats.active_bids} accent="#3b82f6" />
               <QuickStat icon={CheckCircle} label="Won This Year" value={stats.quick_stats.won_this_year} accent="#22c55e" />
@@ -328,9 +330,9 @@ export default function PresalesDashboard() {
                   const cfgKey = `slot_${i + 1}`;
                   const cfgSlot = colorConfig?.[cfgKey];
                   // Import USER_SLOT_DEFAULTS inline to compare default label
-                  const defaultLabel = require('../../../components/tenderFunnel').USER_SLOT_DEFAULTS[key]?.label;
+                  const defaultLabel = USER_SLOT_DEFAULTS[key]?.label;
                   // Show only if label is NOT default or count > 0
-                  return ((cfgSlot?.label && cfgSlot.label.trim() !== '' && cfgSlot.label !== defaultLabel) || (bucketData?.count > 0));
+                  return ((cfgSlot?.label && cfgSlot.label.trim() !== '' && cfgSlot.label !== defaultLabel) || ((bucketData?.count ?? 0) > 0));
                 })
                 .map((key, i) => {
                   const bucketData = stats?.user?.[key];

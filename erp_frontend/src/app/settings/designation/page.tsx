@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Search, Edit2, CheckCircle, ChevronsLeft, ChevronsRight, X, Loader2 } from 'lucide-react';
+import { Plus, Edit2, CheckCircle, ChevronsLeft, ChevronsRight, X, Loader2 } from 'lucide-react';
 
 interface DesignationData {
   name: string;

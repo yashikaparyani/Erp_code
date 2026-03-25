@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, BriefcaseBusiness, Building2, Clock3, FolderKanban, IndianRupee, ListTodo, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, BriefcaseBusiness, Building2, IndianRupee, ListTodo, ShieldCheck } from 'lucide-react';
 import { DashboardShell, EmptyState, MetricList, SectionCard, StatCard, formatCurrency, formatPercent, formatDateTime, useApiData } from './shared';
 
 type ExecutiveDashboardData = {

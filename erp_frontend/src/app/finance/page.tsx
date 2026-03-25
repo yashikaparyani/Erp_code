@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Plus, IndianRupee, TrendingUp, Clock, CheckCircle2, Eye } from 'lucide-react';
+import { Plus, IndianRupee, TrendingUp, Clock } from 'lucide-react';
 
 interface Invoice {
   name: string;

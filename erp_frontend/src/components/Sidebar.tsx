@@ -1,7 +1,8 @@
 'use client';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   LayoutDashboard,
   FileText,
@@ -60,6 +61,9 @@ interface NavLink {
   icon: LucideIcon;
   children?: SubMenuItem[];
 }
+
+const SIDEBAR_EXPANDED_STORAGE_KEY = 'erp.sidebar.expanded.v1';
+const SIDEBAR_SCROLL_STORAGE_KEY = 'erp.sidebar.scroll.v1';
 
 const matchesPath = (pathname: string, href: string) => pathname === href || pathname.startsWith(href + '/');
 
@@ -144,6 +148,7 @@ const navLinks: NavLink[] = [
       { name: 'Survey', href: '/survey', icon: MapPin },
       { name: 'BOQ', href: '/engineering/boq', icon: FileText },
       { name: 'Drawings', href: '/engineering/drawings', icon: FileText },
+      { name: 'Letter of Submission', href: '/engineering/letter-of-submission', icon: ScrollText },
       { name: 'Change Requests', href: '/engineering/change-requests', icon: RefreshCcw },
       { name: 'Technical Deviations', href: '/engineering/deviations', icon: AlertTriangle },
     ],
@@ -226,6 +231,7 @@ const navLinks: NavLink[] = [
     ],
   },
   { name: 'RMA', href: '/rma', icon: RefreshCcw },
+  { name: 'Notifications', href: '/notifications', icon: AlertTriangle },
   {
     name: 'O&M & Helpdesk',
     href: '/om-helpdesk',
@@ -263,19 +269,23 @@ const getSubMenuClasses = (level: number) => ({
   text: level === 0 ? 'text-[13px]' : 'text-[12.5px]',
 });
 
-function SubMenu({ items, level = 0, onNavigate }: { items: SubMenuItem[]; level?: number; onNavigate?: () => void }) {
-  const pathname = usePathname();
+function SubMenu({
+  items,
+  level = 0,
+  onNavigate,
+  expandedItems,
+  onToggle,
+}: {
+  items: SubMenuItem[];
+  level?: number;
+  onNavigate?: () => void;
+  expandedItems: Record<string, boolean | undefined>;
+  onToggle: (href: string, isExpanded: boolean) => void;
+}) {
+  const pathname = usePathname() || '';
   const { hasAccess, currentRole } = useRole();
-  const [expandedItems, setExpandedItems] = useState<Record<string, boolean | undefined>>({});
   const accessibleItems = filterAccessibleItems(items, hasAccess, currentRole);
   const menuClasses = getSubMenuClasses(level);
-
-  const toggleExpand = (href: string, isExpanded: boolean) => {
-    setExpandedItems((prev) => ({
-      ...prev,
-      [href]: !isExpanded,
-    }));
-  };
 
   return (
     <ul className={menuClasses.wrapper}>
@@ -288,7 +298,9 @@ function SubMenu({ items, level = 0, onNavigate }: { items: SubMenuItem[]; level
 
         return (
           <li key={item.href}>
-            <div
+            <button
+              type="button"
+              aria-expanded={hasChildren ? isExpanded : undefined}
               className={`group flex items-center justify-between border transition-all duration-200 cursor-pointer ${menuClasses.item} ${
                 isCurrentRoute && !hasChildren
                   ? 'border-[var(--border-strong)] bg-[var(--accent-soft)] text-[var(--accent-strong)] shadow-[var(--shadow-subtle)]'
@@ -296,7 +308,7 @@ function SubMenu({ items, level = 0, onNavigate }: { items: SubMenuItem[]; level
                     ? 'border-[var(--border-subtle)] bg-[var(--surface-hover)] text-[var(--text-main)]'
                     : 'border-transparent bg-white/70 text-[var(--text-muted)] hover:border-[var(--border-subtle)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-main)]'
               }`}
-              onClick={() => hasChildren ? toggleExpand(item.href, isExpanded) : null}
+              onClick={() => hasChildren ? onToggle(item.href, isExpanded) : null}
             >
               {hasChildren ? (
                 <div className="flex items-center gap-2.5 flex-1 min-w-0">
@@ -314,9 +326,15 @@ function SubMenu({ items, level = 0, onNavigate }: { items: SubMenuItem[]; level
                   ? <ChevronDown className={`w-4 h-4 flex-shrink-0 ${isCurrentRoute || isDescendantActive ? 'text-[var(--accent-strong)]' : 'text-[var(--text-soft)] group-hover:text-[var(--accent)]'}`} />
                   : <ChevronRight className={`w-4 h-4 flex-shrink-0 ${isCurrentRoute || isDescendantActive ? 'text-[var(--accent-strong)]' : 'text-[var(--text-soft)] group-hover:text-[var(--accent)]'}`} />
               ) : null}
-            </div>
+            </button>
             {hasChildren && isExpanded ? (
-              <SubMenu items={item.children!} level={level + 1} onNavigate={onNavigate} />
+              <SubMenu
+                items={item.children!}
+                level={level + 1}
+                onNavigate={onNavigate}
+                expandedItems={expandedItems}
+                onToggle={onToggle}
+              />
             ) : null}
           </li>
         );
@@ -326,30 +344,80 @@ function SubMenu({ items, level = 0, onNavigate }: { items: SubMenuItem[]; level
 }
 
 export default function Sidebar() {
-  const pathname = usePathname();
+  const pathname = usePathname() || '';
   const { hasAccess, currentRole, isPermissionLoaded } = useRole();
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean | undefined>>({});
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const navRef = useRef<HTMLElement | null>(null);
   const accessibleLinks = filterAccessibleNavLinks(
     navLinks.filter((link) => shouldShowNavLinkForRole(link, currentRole, isPermissionLoaded)),
     hasAccess,
     currentRole,
   );
 
-  const toggleMenu = (name: string, isExpanded: boolean) => {
+  const persistScrollPosition = () => {
+    if (!navRef.current) return;
+    try {
+      sessionStorage.setItem(SIDEBAR_SCROLL_STORAGE_KEY, String(navRef.current.scrollTop));
+    } catch {}
+  };
+
+  const toggleMenu = (href: string, isExpanded: boolean) => {
     setExpandedMenus((prev) => ({
       ...prev,
-      [name]: !isExpanded,
+      [href]: !isExpanded,
     }));
   };
 
   const handleLinkClick = () => {
+    persistScrollPosition();
     setIsMobileOpen(false);
   };
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(SIDEBAR_EXPANDED_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Record<string, boolean | undefined>;
+        if (parsed && typeof parsed === 'object') {
+          setExpandedMenus(parsed);
+        }
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(SIDEBAR_EXPANDED_STORAGE_KEY, JSON.stringify(expandedMenus));
+    } catch {}
+  }, [expandedMenus]);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      if (!navRef.current) return;
+      try {
+        const saved = sessionStorage.getItem(SIDEBAR_SCROLL_STORAGE_KEY);
+        if (!saved) return;
+        const scrollTop = Number(saved);
+        if (!Number.isNaN(scrollTop)) {
+          navRef.current.scrollTop = scrollTop;
+        }
+      } catch {}
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [pathname, expandedMenus]);
+
+  useEffect(() => {
+    setIsMobileOpen(false);
+  }, [pathname]);
 
   return (
     <>
       <button
+        type="button"
+        aria-label={isMobileOpen ? 'Close navigation menu' : 'Open navigation menu'}
+        aria-expanded={isMobileOpen}
+        aria-controls="app-sidebar-navigation"
         onClick={() => setIsMobileOpen(!isMobileOpen)}
         className="lg:hidden fixed bottom-4 right-4 z-50 p-3 text-white rounded-full shadow-lg transition-colors bg-[var(--brand-orange)]"
       >
@@ -372,18 +440,20 @@ export default function Sidebar() {
       ) : null}
 
       <aside
+        id="app-sidebar-navigation"
         className={`
-          w-80 min-w-[320px] flex-shrink-0 min-h-screen flex flex-col overflow-visible
+          w-[min(86vw,20rem)] h-screen flex-shrink-0 flex-col overflow-hidden
           fixed lg:static inset-y-0 left-0 z-50 border-r border-[var(--border-subtle)]
           transform transition-transform duration-300 ease-in-out
-          ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          lg:w-80 lg:min-w-[320px]
+          ${isMobileOpen ? 'translate-x-0 flex' : '-translate-x-full lg:translate-x-0 lg:flex'}
         `}
       >
         <div className="p-4 lg:p-5 border-b border-[var(--border-subtle)] bg-transparent">
           <div className="shell-panel px-4 py-4">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-2xl bg-[var(--accent-tint)] flex items-center justify-center shrink-0 border border-[var(--border-subtle)]">
-                <img src="/logo.png" alt="Technosys Logo" className="object-contain w-full h-full drop-shadow-sm" />
+                <Image src="/logo.png" alt="Technosys Logo" width={48} height={48} className="object-contain w-full h-full drop-shadow-sm" />
               </div>
               <div className="min-w-0">
                 <h1 className="text-sm lg:text-base font-bold text-[var(--text-main)] leading-tight truncate">
@@ -397,14 +467,18 @@ export default function Sidebar() {
           </div>
         </div>
 
-        <nav className="flex-1 px-4 pb-4">
+        <nav
+          ref={navRef}
+          onScroll={persistScrollPosition}
+          className="sidebar-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 pb-24 lg:pb-4"
+        >
           <div className="shell-section-title mb-3 px-2 pt-4">Navigation</div>
           <ul className="space-y-2">
             {accessibleLinks.map((link) => {
               const isActive = matchesPath(pathname, link.href);
               const isInSection = link.children?.some((child) => isItemActive(pathname, child)) ?? false;
               const hasChildren = link.children && link.children.length > 0;
-              const isExpanded = hasChildren ? expandedMenus[link.name] ?? (isActive || isInSection) : false;
+              const isExpanded = hasChildren ? expandedMenus[link.href] ?? (isActive || isInSection) : false;
               const canAccessLink = hasAccess(link.href);
               const Icon = link.icon;
 
@@ -425,7 +499,7 @@ export default function Sidebar() {
                         className="flex items-center gap-3 flex-1 min-w-0"
                         onClick={() => {
                           if (hasChildren && !isExpanded) {
-                            toggleMenu(link.name, isExpanded);
+                            toggleMenu(link.href, isExpanded);
                           }
                           handleLinkClick();
                         }}
@@ -452,7 +526,7 @@ export default function Sidebar() {
                       <button
                         type="button"
                         className="flex items-center gap-3 flex-1 text-left min-w-0"
-                        onClick={() => hasChildren ? toggleMenu(link.name, isExpanded) : null}
+                        onClick={() => hasChildren ? toggleMenu(link.href, isExpanded) : null}
                       >
                         <div className={`flex h-10 w-10 items-center justify-center rounded-2xl border ${
                           isInSection
@@ -469,10 +543,13 @@ export default function Sidebar() {
                     )}
                     {hasChildren ? (
                       <button
+                        type="button"
+                        aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${link.name}`}
+                        aria-expanded={isExpanded}
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          toggleMenu(link.name, isExpanded);
+                          toggleMenu(link.href, isExpanded);
                         }}
                         className={`p-2 rounded-xl ${isActive ? 'hover:bg-white/65' : 'hover:bg-[var(--surface-hover)]'}`}
                       >
@@ -481,7 +558,12 @@ export default function Sidebar() {
                     ) : null}
                   </div>
                   {hasChildren && isExpanded ? (
-                    <SubMenu items={link.children!} onNavigate={handleLinkClick} />
+                    <SubMenu
+                      items={link.children!}
+                      onNavigate={handleLinkClick}
+                      expandedItems={expandedMenus}
+                      onToggle={toggleMenu}
+                    />
                   ) : null}
                 </li>
               );

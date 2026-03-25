@@ -1,7 +1,7 @@
 'use client';
 import React from 'react';
 import { X } from 'lucide-react';
-import { DashboardFilters, DEFAULT_FILTERS } from './FunnelFilterStrip';
+import { DashboardFilters } from './FunnelFilterStrip';
 import { SYSTEM_FUNNEL_META, PresalesColorConfig, USER_SLOT_DEFAULTS, UserSlotKey } from '../tenderFunnel';
 
 interface Props {
@@ -78,14 +78,14 @@ export default function ActiveFilterChips({ filters, onChange, onClearAll, color
       {chips.map((chip, i) => (
         <span
           key={i}
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all"
+          className="inline-flex max-w-full items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all"
           style={
             chip.hex
               ? { backgroundColor: `${chip.hex}15`, borderColor: `${chip.hex}50`, color: chip.hex }
               : { backgroundColor: 'var(--accent-soft)', borderColor: 'var(--accent)', color: 'var(--accent-strong)' }
           }
         >
-          {chip.label}
+          <span className="truncate">{chip.label}</span>
           <button onClick={chip.onRemove} className="hover:opacity-70 transition-opacity">
             <X className="w-3 h-3" />
           </button>

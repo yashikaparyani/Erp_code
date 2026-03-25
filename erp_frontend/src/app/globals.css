@@ -55,6 +55,8 @@
 html,
 body.windows-erp-theme {
   height: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 body.windows-erp-theme {
@@ -66,6 +68,19 @@ body.windows-erp-theme {
   color: var(--text-main);
   font-family: 'DM Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+.windows-erp-theme img,
+.windows-erp-theme svg,
+.windows-erp-theme video,
+.windows-erp-theme canvas {
+  max-width: 100%;
+}
+
+.windows-erp-theme main,
+.windows-erp-theme main > * {
+  min-width: 0;
 }
 
 .windows-erp-theme ::-webkit-scrollbar {
@@ -442,6 +457,42 @@ body.windows-erp-theme {
   border-color: rgba(160, 175, 214, 0.92);
   background: linear-gradient(180deg, rgba(241, 242, 255, 0.95) 0%, rgba(250, 250, 255, 0.98) 100%);
   box-shadow: 0 16px 30px rgba(143, 141, 247, 0.12);
+}
+
+.windows-erp-theme .table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 1024px) {
+  .windows-erp-theme .workspace-hero,
+  .windows-erp-theme .workspace-toolbar,
+  .windows-erp-theme .card-body {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .windows-erp-theme .card,
+  .windows-erp-theme .shell-panel,
+  .windows-erp-theme .workspace-hero,
+  .windows-erp-theme .workspace-toolbar {
+    border-radius: 20px;
+  }
+
+  .windows-erp-theme .card-header {
+    padding: 0.9rem 1rem;
+  }
+
+  .windows-erp-theme .stat-card {
+    padding: 1rem;
+  }
+
+  .windows-erp-theme .data-table th,
+  .windows-erp-theme .data-table td {
+    padding: 0.72rem 0.8rem;
+  }
 }
 
 .windows-erp-theme .sidebar-scroll {

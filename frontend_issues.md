@@ -1,5 +1,0 @@
--icons drift at 100% zoom of dashboard page .
-- tender subsection inside presales needs to go cause its a dead page 
--activity tab inside project details in project section returns a error page
--drawing subsection in engineering must also support pdf upload wehn a drawing is created and must be stored with it and there must must be a drawing view support 
--every create new entry must support multiple file attachments acroos the erp

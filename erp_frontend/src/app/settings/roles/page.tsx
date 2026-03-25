@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Shield, ChevronDown, ChevronRight, Search, Loader2, Info,
-  Package, Check, X, AlertTriangle, Eye, Edit3, CheckSquare,
+  Check, X, AlertTriangle, Eye, Edit3, CheckSquare,
 } from 'lucide-react';
 
 interface PackMapping {

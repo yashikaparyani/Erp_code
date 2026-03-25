@@ -24,6 +24,7 @@ from gov_erp.role_utils import (
     ROLE_PRESALES_EXECUTIVE,
     ROLE_DIRECTOR,
     ROLE_DEPARTMENT_HEAD,
+    ROLE_PROJECT_HEAD,
     ROLE_SYSTEM_MANAGER,
 )
 
@@ -48,6 +49,56 @@ def _ps_write_access():
         ROLE_PRESALES_HEAD,
         ROLE_PRESALES_EXECUTIVE,
     )
+
+
+def _project_head_access():
+    """Require project-head level access."""
+    _require_roles(
+        ROLE_PROJECT_HEAD,
+        ROLE_DIRECTOR,
+        ROLE_SYSTEM_MANAGER,
+    )
+
+
+def _project_head_submission_access():
+    """Require project-head submission or presales leadership visibility."""
+    _require_roles(
+        ROLE_PROJECT_HEAD,
+        ROLE_DIRECTOR,
+        ROLE_SYSTEM_MANAGER,
+        ROLE_PRESALES_HEAD,
+    )
+
+
+def _get_users_for_role(role_name):
+    """Return enabled user ids that hold the supplied role."""
+    users = frappe.get_all(
+        "Has Role",
+        filters={
+            "role": role_name,
+            "parenttype": "User",
+        },
+        pluck="parent",
+    ) or []
+    if not users:
+        return []
+    enabled_users = frappe.get_all(
+        "User",
+        filters={
+            "name": ["in", users],
+            "enabled": 1,
+        },
+        pluck="name",
+    ) or []
+    return [user for user in enabled_users if user != "Administrator"]
+
+
+def _is_loc_window_active(tender_doc):
+    """LOC request can be raised once the tenure is nearing completion."""
+    tenure_end_date = cstr(tender_doc.get("tenure_end_date") or "").strip()
+    if not tenure_end_date:
+        return False
+    return cint(add_days(today(), 90) >= tenure_end_date)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -604,6 +655,8 @@ def get_bids(tender=None, status=None, is_latest=None, loi_decision_status=None)
             "result_date", "result_remarks", "is_latest",
             "retender_reason", "cancel_reason", "creation",
             "loi_decision_status", "loi_decision_reason", "loi_decision_by", "loi_decision_on",
+            "loc_request_status", "loc_requested_on", "loc_requested_by",
+            "loc_submitted_on", "loc_submitted_by", "loc_submission_remarks",
         ],
         order_by="creation desc",
     )
@@ -1032,6 +1085,130 @@ def record_om_completion_letter(tender_name, completion_date=None):
     doc.save()
     frappe.db.commit()
     return {"success": True, "message": "O&M Completion Letter recorded"}
+
+
+@frappe.whitelist()
+def send_loc_request_to_project_head(name):
+    """Raise LOC request for Project Head once an in-process bid nears completion."""
+    _ps_write_access()
+    name = _local_require_param(name)
+    doc = frappe.get_doc("GE Bid", name)
+    if doc.status != "WON" or cstr(doc.loi_decision_status or "") != "ACCEPTED":
+        return {"success": False, "message": "LOC request is only available for accepted in-process bids"}
+    if cstr(doc.loc_request_status or "NOT_REQUESTED") == "SUBMITTED":
+        return {"success": False, "message": "LOC has already been submitted by Project Head"}
+
+    tender_doc = frappe.get_doc("GE Tender", doc.tender)
+    if not _is_loc_window_active(tender_doc):
+        return {"success": False, "message": "LOC request can only be raised when tenure is nearing completion"}
+
+    doc.loc_request_status = "REQUESTED"
+    doc.loc_requested_on = now()
+    doc.loc_requested_by = frappe.session.user
+    doc.save()
+
+    route_path = "/engineering/letter-of-submission"
+    from gov_erp.gov_erp.doctype.ge_alert.ge_alert import create_alert
+
+    for user in _get_users_for_role(ROLE_PROJECT_HEAD):
+        create_alert(
+            event_type="general",
+            recipient_user=user,
+            summary="LOC request received for bid {}".format(doc.name),
+            actor=frappe.session.user,
+            reference_doctype="GE Bid",
+            reference_name=doc.name,
+            detail="Submit the Letter of Completion for tender {} in the Project Head workspace.".format(doc.tender),
+            route_path=route_path,
+        )
+
+    frappe.db.commit()
+    return {"success": True, "data": doc.as_dict(), "message": "LOC request sent to Project Head"}
+
+
+@frappe.whitelist()
+def get_project_head_loc_requests(status=None):
+    """Return in-process bids that are in the LOC request/submission cycle."""
+    _project_head_submission_access()
+    requested_statuses = [s.strip().upper() for s in cstr(status or "REQUESTED,SUBMITTED").split(",") if s.strip()]
+    bids = frappe.get_all(
+        "GE Bid",
+        filters={
+            "status": "WON",
+            "is_latest": 1,
+            "loi_decision_status": "ACCEPTED",
+            "loc_request_status": ["in", requested_statuses],
+        },
+        fields=[
+            "name", "tender", "loc_request_status", "loc_requested_on", "loc_requested_by",
+            "loc_submitted_on", "loc_submitted_by", "loc_submission_remarks",
+        ],
+        order_by="modified desc",
+    ) or []
+    rows = []
+    for row in bids:
+        tender_detail = frappe.db.get_value(
+            "GE Tender",
+            row.get("tender"),
+            ["name", "tender_number", "title", "client", "organization", "tenure_years", "tenure_end_date"],
+            as_dict=1,
+        ) or {}
+        rows.append({
+            "bid_id": row.get("name"),
+            "tender_id": tender_detail.get("name") or row.get("tender"),
+            "tender_number": tender_detail.get("tender_number") or row.get("tender"),
+            "tender_title": tender_detail.get("title") or "",
+            "client": tender_detail.get("client") or "",
+            "organization": tender_detail.get("organization") or "",
+            "tenure_years": tender_detail.get("tenure_years") or 0,
+            "tenure_end_date": tender_detail.get("tenure_end_date") or "",
+            "loc_request_status": cstr(row.get("loc_request_status") or "NOT_REQUESTED").upper(),
+            "loc_requested_on": row.get("loc_requested_on"),
+            "loc_requested_by": row.get("loc_requested_by"),
+            "loc_submitted_on": row.get("loc_submitted_on"),
+            "loc_submitted_by": row.get("loc_submitted_by"),
+            "loc_submission_remarks": row.get("loc_submission_remarks") or "",
+        })
+    return {"success": True, "data": rows}
+
+
+@frappe.whitelist()
+def submit_loc_by_project_head(name, submission_date=None, remarks=None):
+    """Project Head submits LOC against a requested in-process bid."""
+    _project_head_access()
+    name = _local_require_param(name)
+    doc = frappe.get_doc("GE Bid", name)
+    if cstr(doc.loc_request_status or "NOT_REQUESTED") != "REQUESTED":
+        return {"success": False, "message": "LOC submission is only available after a presales request"}
+
+    doc.loc_request_status = "SUBMITTED"
+    doc.loc_submitted_on = submission_date or today()
+    doc.loc_submitted_by = frappe.session.user
+    doc.loc_submission_remarks = cstr(remarks or "")
+    doc.save()
+
+    tender_doc = frappe.get_doc("GE Tender", doc.tender)
+    tender_doc.closure_letter_received = 1
+    if submission_date and hasattr(tender_doc, "tenure_end_date"):
+        tender_doc.tenure_end_date = submission_date
+    tender_doc.save()
+
+    from gov_erp.gov_erp.doctype.ge_alert.ge_alert import create_alert
+
+    for user in _get_users_for_role(ROLE_PRESALES_HEAD):
+        create_alert(
+            event_type="general",
+            recipient_user=user,
+            summary="Project Head submitted LOC for bid {}".format(doc.name),
+            actor=frappe.session.user,
+            reference_doctype="GE Bid",
+            reference_name=doc.name,
+            detail="LOC submission is available for review in the bid workspace.",
+            route_path="/pre-sales/bids/{}".format(doc.name),
+        )
+
+    frappe.db.commit()
+    return {"success": True, "data": doc.as_dict(), "message": "LOC submitted successfully"}
 
 
 @frappe.whitelist()

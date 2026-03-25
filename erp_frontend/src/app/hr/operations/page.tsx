@@ -3,17 +3,12 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import {
-  BarChart3,
   Briefcase,
-  Clock3,
-  FileWarning,
-  HardHat,
   Loader2,
   MapPinned,
   RefreshCcw,
   ShieldCheck,
   Users,
-  Wrench,
 } from 'lucide-react';
 
 type Filters = {

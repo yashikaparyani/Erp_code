@@ -230,13 +230,13 @@ export default function CommissioningDashboardPage() {
                     }`}>{r.status || '-'}</span>
                   </td>
                   <td>
-                    <ProgressCell pct={r.checklist_pct} count={r.checklist_count} label="checklists" />
+                    <ProgressCell pct={r.checklist_pct} count={r.checklist_count} />
                   </td>
                   <td>
-                    <ProgressCell pct={r.test_pct} count={r.test_count} label="reports" />
+                    <ProgressCell pct={r.test_pct} count={r.test_count} />
                   </td>
                   <td>
-                    <ProgressCell pct={r.signoff_pct} count={r.signoff_count} label="signoffs" />
+                    <ProgressCell pct={r.signoff_pct} count={r.signoff_count} />
                   </td>
                   <td>
                     <div className="flex items-center gap-2">
@@ -342,7 +342,7 @@ function StatCard({
   );
 }
 
-function ProgressCell({ pct, count, label }: { pct: number; count: number; label: string }) {
+function ProgressCell({ pct, count }: { pct: number; count: number }) {
   if (count === 0) {
     return <span className="text-xs text-gray-400">—</span>;
   }

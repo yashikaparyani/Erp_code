@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   ScrollText, Search, ChevronLeft, ChevronRight, Loader2,
-  Download, Camera, Filter, X,
+  Camera, Filter, X,
 } from 'lucide-react';
 
 /* ── Types ─────────────────────────────────────────────────────────────── */
@@ -25,11 +25,6 @@ interface AuditLogEntry {
   valid_to: string;
   remarks: string;
   creation: string;
-}
-
-interface AuditResponse {
-  logs: AuditLogEntry[];
-  total: number;
 }
 
 interface AuditEventType {

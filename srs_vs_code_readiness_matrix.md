@@ -18,11 +18,11 @@ Primary SRS / scope baseline:
 
 Current implementation and tracker references:
 
-- `remaining_execution_todo.md`
 - `anda_exhaustive_compliance_list.md`
 - `hr_hybrid_strategy_for_client_acceptance.md`
 - `hr_uat_results_2026-03-22.md`
 - `team_ownership_and_todo.md`
+- `frontend_100_percent_closure_log.md` (latest frontend closure record)
 
 Implementation surface reviewed:
 

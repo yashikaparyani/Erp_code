@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useRole, PROJECT_SIDE_ROLES } from '../context/RoleContext';
 import { usePermissions } from '../context/PermissionContext';
@@ -7,7 +8,7 @@ import { ShieldAlert } from 'lucide-react';
 const PUBLIC_PATHS = ['/', '/login', '/profile'];
 
 export default function RouteGuard({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+  const pathname = usePathname() || '';
   const { currentRole, hasAccess, isPermissionLoaded } = useRole();
   const { permissions } = usePermissions();
 
@@ -51,12 +52,12 @@ function AccessDenied({ role, path }: { role: string; path: string }) {
         <p className="text-xs text-gray-400 mt-3">
           If you believe this is a mistake, contact your system administrator.
         </p>
-        <a
+        <Link
           href="/"
           className="mt-6 inline-block px-5 py-2 bg-[#1e6b87] text-white text-sm font-medium rounded-lg hover:bg-[#185a72] transition-colors"
         >
           Go to Dashboard
-        </a>
+        </Link>
       </div>
     </div>
   );

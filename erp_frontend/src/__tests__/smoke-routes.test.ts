@@ -138,13 +138,13 @@ describe('Dashboard Coverage', () => {
   const DASHBOARD_ROLES = [
     'Project Head', 'Project Manager', 'Presales Tendering Head',
     'Engineering Head', 'Engineer', 'Procurement Manager', 'Purchase',
-    'Stores Logistics Head', 'Field Technician', 'Accounts',
-    'HR Manager', 'OM Operator',
+    'Store Manager', 'Stores Logistics Head', 'Field Technician', 'Accounts',
+    'HR Manager', 'OM Operator', 'RMA Manager',
   ];
 
   test('every role falls into a dashboard case', () => {
     // Roles NOT in DASHBOARD_ROLES get the default ExecutiveDashboard
-    // This is acceptable for: Director, Department Head, Presales Executive, Store Manager, RMA Manager
+    // This is acceptable for: Director, Department Head, Presales Executive
     const defaultRoles = roles.filter(r => !DASHBOARD_ROLES.includes(r));
     expect(defaultRoles.length).toBeGreaterThan(0); // at least one falls to default
     expect(defaultRoles.length).toBeLessThanOrEqual(5); // not too many

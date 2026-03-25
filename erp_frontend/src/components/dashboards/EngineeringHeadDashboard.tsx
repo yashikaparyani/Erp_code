@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, ClipboardCheck, Compass, DraftingCompass, FileCheck2, GitBranchPlus, MapPinned, Wrench } from 'lucide-react';
+import { AlertTriangle, ClipboardCheck, Compass, DraftingCompass, GitBranchPlus, MapPinned } from 'lucide-react';
 import { DashboardShell, MetricList, SectionCard, StatCard, formatPercent, useApiData } from './shared';
 
 type EngineeringHeadDashboardData = {

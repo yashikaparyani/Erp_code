@@ -12,7 +12,6 @@ import {
   GraduationCap,
   Heart,
   Loader2,
-  Mail,
   MapPin,
   Pencil,
   Phone,

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -32,6 +32,7 @@ import {
   Send,
 } from 'lucide-react';
 import { formatPercent } from '../dashboards/shared';
+import { useAuth } from '../../context/AuthContext';
 import { usePermissions } from '../../context/PermissionContext';
 import { useWorkspacePermissions, WorkspacePermissions } from '../../context/WorkspacePermissionContext';
 import ReminderDrawer from '../reminders/ReminderDrawer';
@@ -143,6 +144,51 @@ export type ActivityEntry = {
   stage?: string;
   action?: string;
   detail?: string[];
+};
+
+type WorkflowRequirement = {
+  label: string;
+  satisfied: boolean;
+  detail: string;
+};
+
+type WorkflowHistoryEntry = {
+  action?: string;
+  stage?: string;
+  next_stage?: string;
+  actor?: string;
+  timestamp?: string;
+  remarks?: string;
+};
+
+type WorkflowState = {
+  stage: string;
+  stage_label: string;
+  stage_status: string;
+  owner_department?: string;
+  owner_roles?: string[];
+  description?: string;
+  next_stage?: string | null;
+  next_stage_label?: string | null;
+  submitted_by?: string | null;
+  submitted_at?: string | null;
+  last_action?: string | null;
+  last_actor?: string | null;
+  last_action_at?: string | null;
+  readiness: {
+    ready: boolean;
+    mode?: string;
+    summary?: string;
+    requirements: WorkflowRequirement[];
+  };
+  actions: {
+    can_submit: boolean;
+    can_approve: boolean;
+    can_reject: boolean;
+    can_restart: boolean;
+    can_override: boolean;
+  };
+  history: WorkflowHistoryEntry[];
 };
 
 /* PM Cockpit Types */
@@ -272,6 +318,20 @@ export type DepartmentConfig = {
   tabs: TabKey[];
 };
 
+type WorkspaceShortcut = {
+  label: string;
+  href?: string;
+  tab?: TabKey;
+  tone: 'blue' | 'emerald' | 'amber' | 'violet' | 'rose';
+  detail: string;
+};
+
+type WorkspacePriority = {
+  title: string;
+  detail: string;
+  tone: 'rose' | 'amber' | 'emerald' | 'blue';
+};
+
 /* ═══════════════════════════════════════════════════════════
    API helper
    ═══════════════════════════════════════════════════════════ */
@@ -370,11 +430,259 @@ function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }
   );
 }
 
+function formatWorkflowText(value?: string | null) {
+  return value ? value.replaceAll('_', ' ') : '-';
+}
+
+function WorkflowControlPanel({
+  projectId,
+  wp,
+}: {
+  projectId: string;
+  wp: WorkspacePermissions | null;
+}) {
+  const [state, setState] = useState<WorkflowState | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [busyAction, setBusyAction] = useState('');
+  const [remarks, setRemarks] = useState('');
+  const [overrideStage, setOverrideStage] = useState('');
+
+  const loadState = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await callOps<WorkflowState>('get_project_workflow_state', { project: projectId });
+      setState(data);
+      setOverrideStage(data.next_stage || data.stage || '');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load workflow state');
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId]);
+
+  useEffect(() => {
+    void loadState();
+  }, [loadState]);
+
+  const runAction = async (method: string, successFallback: string) => {
+    setBusyAction(method);
+    setError('');
+    try {
+      const args: Record<string, unknown> = {
+        project: projectId,
+        remarks: remarks.trim() || undefined,
+      };
+      if (method === 'override_project_stage') {
+        args.new_stage = overrideStage;
+      }
+      const data = await callOps<WorkflowState>(method, args);
+      setState(data);
+      setRemarks('');
+      if (data.next_stage) {
+        setOverrideStage(data.next_stage);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : successFallback);
+    } finally {
+      setBusyAction('');
+    }
+  };
+
+  return (
+    <div className="card">
+      <div className="card-header">
+        <h4 className="font-semibold text-[var(--text-main)]">Workflow Control</h4>
+      </div>
+      <div className="card-body space-y-4">
+        {loading ? (
+          <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading workflow state...
+          </div>
+        ) : null}
+
+        {!loading && state ? (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <StatPill label="Stage" value={state.stage_label || formatWorkflowText(state.stage)} />
+              <StatPill
+                label="Status"
+                value={formatWorkflowText(state.stage_status)}
+                tone={state.stage_status === 'REJECTED' ? 'error' : state.stage_status === 'PENDING_APPROVAL' ? 'warning' : 'success'}
+              />
+            </div>
+
+            <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-4 py-3 text-sm">
+              <div className="font-medium text-[var(--text-main)]">{state.description || 'Workflow stage details are available from backend state.'}</div>
+              <div className="mt-1 text-[var(--text-muted)]">
+                Next stage: {state.next_stage_label || 'Final stage'}
+              </div>
+              {state.submitted_by || state.submitted_at ? (
+                <div className="mt-1 text-xs text-[var(--text-muted)]">
+                  Submitted by {state.submitted_by || '-'} {state.submitted_at ? `on ${new Date(state.submitted_at).toLocaleString('en-IN')}` : ''}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="rounded-2xl border border-[var(--border-subtle)] bg-white px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold text-[var(--text-main)]">Readiness</div>
+                  <div className="text-xs text-[var(--text-muted)]">{state.readiness.summary || 'Backend readiness rules apply here.'}</div>
+                </div>
+                <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${state.readiness.ready ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                  {state.readiness.ready ? 'Ready' : 'Blocked'}
+                </span>
+              </div>
+              <div className="mt-3 space-y-2">
+                {state.readiness.requirements.map((item) => (
+                  <div key={item.label} className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-3 py-2">
+                    <div className="flex items-start gap-2">
+                      {item.satisfied ? (
+                        <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-600" />
+                      ) : (
+                        <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
+                      )}
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-[var(--text-main)]">{item.label}</div>
+                        <div className="text-xs text-[var(--text-muted)]">{item.detail}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {error ? (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>
+            ) : null}
+
+            <div className="space-y-3 rounded-2xl border border-[var(--border-subtle)] bg-white px-4 py-3">
+              <div className="text-sm font-semibold text-[var(--text-main)]">Action Remarks</div>
+              <textarea
+                value={remarks}
+                onChange={(event) => setRemarks(event.target.value)}
+                rows={3}
+                className="w-full rounded-2xl border border-[var(--border-subtle)] px-4 py-3 text-sm outline-none focus:border-[var(--accent)]"
+                placeholder="Optional remarks for submit, approve, reject, restart, or override"
+              />
+
+              {state.actions.can_override || wp?.can_override_stage ? (
+                <label className="block text-sm text-[var(--text-muted)]">
+                  Override Stage
+                  <select
+                    value={overrideStage}
+                    onChange={(event) => setOverrideStage(event.target.value)}
+                    className="mt-1 w-full rounded-2xl border border-[var(--border-subtle)] px-4 py-3 text-sm text-[var(--text-main)] outline-none focus:border-[var(--accent)]"
+                  >
+                    {SPINE_STAGES.map((stage) => (
+                      <option key={stage} value={stage}>
+                        {STAGE_LABELS[stage] || formatWorkflowText(stage)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+
+              <div className="flex flex-wrap gap-2">
+                {state.actions.can_submit ? (
+                  <button
+                    type="button"
+                    onClick={() => void runAction('submit_project_stage_for_approval', 'Failed to submit stage')}
+                    disabled={busyAction.length > 0}
+                    className="inline-flex items-center rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                  >
+                    {busyAction === 'submit_project_stage_for_approval' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                    Submit Stage
+                  </button>
+                ) : null}
+                {state.actions.can_approve ? (
+                  <button
+                    type="button"
+                    onClick={() => void runAction('approve_project_stage', 'Failed to approve stage')}
+                    disabled={busyAction.length > 0}
+                    className="inline-flex items-center rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                  >
+                    {busyAction === 'approve_project_stage' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+                    Approve Stage
+                  </button>
+                ) : null}
+                {state.actions.can_reject ? (
+                  <button
+                    type="button"
+                    onClick={() => void runAction('reject_project_stage', 'Failed to reject stage')}
+                    disabled={busyAction.length > 0}
+                    className="inline-flex items-center rounded-full bg-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                  >
+                    {busyAction === 'reject_project_stage' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <X className="mr-2 h-4 w-4" />}
+                    Reject Stage
+                  </button>
+                ) : null}
+                {state.actions.can_restart ? (
+                  <button
+                    type="button"
+                    onClick={() => void runAction('restart_project_stage', 'Failed to restart stage')}
+                    disabled={busyAction.length > 0}
+                    className="inline-flex items-center rounded-full border border-[var(--border-subtle)] bg-white px-4 py-2 text-sm font-semibold text-[var(--text-main)] disabled:opacity-60"
+                  >
+                    {busyAction === 'restart_project_stage' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ClipboardCheck className="mr-2 h-4 w-4" />}
+                    Restart Stage
+                  </button>
+                ) : null}
+                {state.actions.can_override ? (
+                  <button
+                    type="button"
+                    onClick={() => void runAction('override_project_stage', 'Failed to override stage')}
+                    disabled={busyAction.length > 0 || !overrideStage}
+                    className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700 disabled:opacity-60"
+                  >
+                    {busyAction === 'override_project_stage' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileWarning className="mr-2 h-4 w-4" />}
+                    Override Stage
+                  </button>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-[var(--border-subtle)] bg-white px-4 py-3">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="text-sm font-semibold text-[var(--text-main)]">Workflow History</div>
+                <button type="button" onClick={() => void loadState()} className="text-xs font-medium text-[var(--accent-strong)] hover:underline">
+                  Refresh
+                </button>
+              </div>
+              {state.history.length === 0 ? (
+                <p className="text-sm text-[var(--text-muted)]">No workflow history recorded yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {state.history.slice(0, 5).map((entry, index) => (
+                    <div key={`${entry.timestamp || 'entry'}-${index}`} className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-3 py-2">
+                      <div className="text-sm font-medium text-[var(--text-main)]">
+                        {formatWorkflowText(entry.action)} {entry.stage ? `• ${STAGE_LABELS[entry.stage] || formatWorkflowText(entry.stage)}` : ''}
+                      </div>
+                      <div className="text-xs text-[var(--text-muted)]">
+                        {entry.actor || 'System'} {entry.timestamp ? `• ${new Date(entry.timestamp).toLocaleString('en-IN')}` : ''}
+                        {entry.next_stage ? ` • Next: ${STAGE_LABELS[entry.next_stage] || formatWorkflowText(entry.next_stage)}` : ''}
+                      </div>
+                      {entry.remarks ? <div className="mt-1 text-xs text-[var(--text-muted)]">{entry.remarks}</div> : null}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════════════════════
    Overview Tab
    ═══════════════════════════════════════════════════════════ */
 
 function OverviewTab({ detail, config, deptSites, projectId, onTabChange, wp }: { detail: ProjectDetail; config: DepartmentConfig; deptSites: SiteRow[]; projectId: string; onTabChange: (tab: TabKey) => void; wp: WorkspacePermissions | null }) {
+  const { currentUser } = useAuth();
   const ps = detail.project_summary;
   const aq = detail.action_queue;
   const allLanes = Object.values(detail.department_lanes || {});
@@ -417,8 +725,164 @@ function OverviewTab({ detail, config, deptSites, projectId, onTabChange, wp }: 
     return filtered;
   }, [detail.stage_coverage, config.allowedStages]);
 
+  const roleFocus = currentUser?.role || currentUser?.roles?.[0] || 'Project User';
+
+  const priorities = useMemo<WorkspacePriority[]>(() => {
+    const items: WorkspacePriority[] = [];
+    if (blockedCount > 0) {
+      items.push({
+        title: `${blockedCount} blocked site${blockedCount > 1 ? 's' : ''} need decisions`,
+        detail: 'Start with the site blockers below and move the blocked records before opening new work.',
+        tone: 'rose',
+      });
+    }
+    if (aq.pending_count > 0) {
+      items.push({
+        title: `${aq.pending_count} pending workflow item${aq.pending_count > 1 ? 's' : ''}`,
+        detail: 'Use the operations tab to clear approvals, submissions, and workflow actions waiting on this project.',
+        tone: 'amber',
+      });
+    }
+    if (aq.overdue_count > 0 || overdueSites.length > 0) {
+      items.push({
+        title: `${aq.overdue_count + overdueSites.length} overdue execution signal${aq.overdue_count + overdueSites.length > 1 ? 's' : ''}`,
+        detail: 'Review overdue sites and milestones before continuing with new commissioning or billing steps.',
+        tone: 'amber',
+      });
+    }
+    if (!items.length) {
+      items.push({
+        title: 'Project is operationally clear',
+        detail: 'Use the shortcuts below to drive the next stage, verify controlled documents, and monitor signals.',
+        tone: 'emerald',
+      });
+    }
+    return items.slice(0, 3);
+  }, [aq.overdue_count, aq.pending_count, blockedCount, overdueSites.length]);
+
+  const shortcuts = useMemo<WorkspaceShortcut[]>(() => {
+    const items: WorkspaceShortcut[] = [
+      {
+        label: 'Open Operations Queue',
+        tab: 'ops',
+        tone: 'amber',
+        detail: 'Dependencies, commissioning readiness, document expiry, and live signals',
+      },
+      {
+        label: 'Review Project Files',
+        tab: 'files',
+        tone: 'violet',
+        detail: 'Latest documents, version history, expiry, and uploads in project context',
+      },
+      {
+        label: 'Check Site Board',
+        tab: 'board',
+        tone: 'blue',
+        detail: 'See site distribution by lifecycle stage and move toward the next action',
+      },
+      {
+        label: 'Execution Workspace',
+        href: `/execution/projects/${encodeURIComponent(projectId)}`,
+        tone: 'emerald',
+        detail: 'Open the execution-focused lane for DPR, commissioning, and site delivery',
+      },
+    ];
+
+    if ((currentUser?.roles || []).some((role) => role === 'Director' || role === 'Project Head' || role === 'Project Manager')) {
+      items.unshift({
+        label: 'Project Activity',
+        tab: 'activity',
+        tone: 'rose',
+        detail: 'Trace recent comments, workflow changes, and team coordination on this project',
+      });
+    }
+
+    return items.slice(0, 4);
+  }, [currentUser?.roles, projectId]);
+
   return (
     <div className="space-y-8">
+      <div className="rounded-[28px] border border-[var(--border-subtle)] bg-[linear-gradient(135deg,rgba(255,255,255,0.95),rgba(237,244,255,0.92))] p-5 shadow-[var(--shadow-subtle)]">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+          <div className="max-w-3xl">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--accent-strong)]">Mission Control</div>
+            <h3 className="mt-2 text-xl font-semibold tracking-tight text-[var(--text-main)]">
+              {roleFocus} daily operating view for {ps.project_name || projectId}
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">
+              This workspace should answer what is blocked, what is due now, which records need governance, and which lane should move next.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <StatPill label="Action Queue" value={aq.pending_count + aq.overdue_count + blockedCount} tone={aq.pending_count + aq.overdue_count + blockedCount ? 'warning' : 'success'} />
+            <StatPill label="Blocked" value={blockedCount} tone={blockedCount ? 'error' : 'success'} />
+            <StatPill label="Visible Sites" value={isDept ? deptSites.length : detail.site_count} tone="default" />
+            <StatPill label="Progress" value={formatPercent(progressAvg)} tone="success" />
+          </div>
+        </div>
+
+        <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-3">
+          {priorities.map((priority) => (
+            <div
+              key={priority.title}
+              className={`rounded-2xl border px-4 py-3 ${
+                priority.tone === 'rose'
+                  ? 'border-rose-200 bg-rose-50/70'
+                  : priority.tone === 'amber'
+                    ? 'border-amber-200 bg-amber-50/70'
+                    : priority.tone === 'emerald'
+                      ? 'border-emerald-200 bg-emerald-50/70'
+                      : 'border-blue-200 bg-blue-50/70'
+              }`}
+            >
+              <div className="text-sm font-semibold text-[var(--text-main)]">{priority.title}</div>
+              <div className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{priority.detail}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {shortcuts.map((shortcut) => {
+            const toneClasses = {
+              blue: 'border-blue-200 bg-blue-50/50 text-blue-700',
+              emerald: 'border-emerald-200 bg-emerald-50/50 text-emerald-700',
+              amber: 'border-amber-200 bg-amber-50/50 text-amber-700',
+              violet: 'border-violet-200 bg-violet-50/50 text-violet-700',
+              rose: 'border-rose-200 bg-rose-50/50 text-rose-700',
+            }[shortcut.tone];
+
+            const content = (
+              <>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm font-semibold">{shortcut.label}</div>
+                  <ExternalLink className="h-4 w-4" />
+                </div>
+                <div className="mt-2 text-xs leading-5 text-[var(--text-muted)]">{shortcut.detail}</div>
+              </>
+            );
+
+            if (shortcut.href) {
+              return (
+                <Link key={shortcut.label} href={shortcut.href} className={`rounded-2xl border px-4 py-3 transition hover:shadow-[var(--shadow-subtle)] ${toneClasses}`}>
+                  {content}
+                </Link>
+              );
+            }
+
+            return (
+              <button
+                key={shortcut.label}
+                type="button"
+                onClick={() => shortcut.tab && onTabChange(shortcut.tab)}
+                className={`rounded-2xl border px-4 py-3 text-left transition hover:shadow-[var(--shadow-subtle)] ${toneClasses}`}
+              >
+                {content}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <button onClick={() => onTabChange('sites')} className="text-left">
@@ -460,6 +924,8 @@ function OverviewTab({ detail, config, deptSites, projectId, onTabChange, wp }: 
         </div>
 
         <div className="space-y-6">
+          <WorkflowControlPanel projectId={projectId} wp={wp} />
+
           <div className="card">
             <div className="card-header"><h4 className="font-semibold text-[var(--text-main)]">Team</h4></div>
             <div className="card-body">
@@ -734,7 +1200,7 @@ function RecentActivityPreview({ projectId, onViewAll }: { projectId: string; on
    Sites Tab
    ═══════════════════════════════════════════════════════════ */
 
-function SitesTab({ sites, config, wp }: { sites: SiteRow[]; config: DepartmentConfig; wp: WorkspacePermissions | null }) {
+function SitesTab({ sites, config }: { sites: SiteRow[]; config: DepartmentConfig; wp: WorkspacePermissions | null }) {
   const [search, setSearch] = useState('');
   const [stageFilter, setStageFilter] = useState('');
   const [blockedOnly, setBlockedOnly] = useState(false);
@@ -1353,11 +1819,15 @@ function FilesTab({ projectId, wp }: { projectId: string; wp: WorkspacePermissio
               </div>
               <button onClick={() => setPreviewDoc(null)} className="rounded-lg p-1 hover:bg-[var(--surface-raised)]"><X className="h-4 w-4" /></button>
             </div>
-            <div className="h-[75vh] bg-[var(--surface-raised)]">
+            <div className="relative h-[75vh] bg-[var(--surface-raised)]">
               {getDocumentExtension(previewDoc.file_url || previewDoc.file) === 'pdf' ? (
                 <iframe title={previewDoc.document_name || previewDoc.name} src={previewDoc.file_url || previewDoc.file} className="h-full w-full" />
               ) : (
-                <img src={previewDoc.file_url || previewDoc.file} alt={previewDoc.document_name || previewDoc.name} className="h-full w-full object-contain" />
+                <img
+                  src={previewDoc.file_url || previewDoc.file || ''}
+                  alt={previewDoc.document_name || previewDoc.name}
+                  className="h-full w-full object-contain"
+                />
               )}
             </div>
           </div>
@@ -1539,7 +2009,7 @@ const STAGE_COLUMN_COLORS: Record<string, string> = {
   CLOSED: 'border-t-gray-400',
 };
 
-function SiteBoardTab({ sites, config, wp }: { sites: SiteRow[]; config: DepartmentConfig; wp: WorkspacePermissions | null }) {
+function SiteBoardTab({ sites, config }: { sites: SiteRow[]; config: DepartmentConfig; wp: WorkspacePermissions | null }) {
   const visibleStages = config.allowedStages || SPINE_STAGES;
 
   const columns = useMemo(() => {
@@ -2297,7 +2767,7 @@ function OpsTab({ projectId, config }: { projectId: string; config: DepartmentCo
 
 export default function WorkspaceShell({ projectId, config }: { projectId: string; config: DepartmentConfig }) {
   const { permissions, isLoaded: isPermissionLoaded } = usePermissions();
-  const { wp, isLoaded: isWpLoaded, loadForProject, canViewDepartment } = useWorkspacePermissions();
+  const { wp, isLoaded: isWpLoaded, loadForProject } = useWorkspacePermissions();
 
   // Load workspace permissions for this project
   useEffect(() => {
