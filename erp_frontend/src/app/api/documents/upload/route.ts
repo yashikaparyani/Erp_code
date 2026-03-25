@@ -28,6 +28,15 @@ export async function POST(request: NextRequest) {
     const folder = incomingForm.get('folder')?.toString() || '';
     const category = incomingForm.get('category')?.toString() || '';
     const expiryDate = incomingForm.get('expiry_date')?.toString() || '';
+    const sourceDocument = incomingForm.get('source_document')?.toString() || '';
+    const status = incomingForm.get('status')?.toString() || '';
+    const assignedTo = incomingForm.get('assigned_to')?.toString() || '';
+    const acceptedBy = incomingForm.get('accepted_by')?.toString() || '';
+    const dueDate = incomingForm.get('due_date')?.toString() || '';
+    const blockerReason = incomingForm.get('blocker_reason')?.toString() || '';
+    const escalatedTo = incomingForm.get('escalated_to')?.toString() || '';
+    const approvedRejectedBy = incomingForm.get('approved_rejected_by')?.toString() || '';
+    const closureNote = incomingForm.get('closure_note')?.toString() || '';
     const remarks = incomingForm.get('remarks')?.toString() || '';
     const extension = getExtension(file.name);
 
@@ -92,6 +101,15 @@ export async function POST(request: NextRequest) {
     if (folder) docData.folder = folder;
     if (category) docData.category = category;
     if (expiryDate) docData.expiry_date = expiryDate;
+    if (sourceDocument) docData.source_document = sourceDocument;
+    if (status) docData.status = status;
+    if (assignedTo) docData.assigned_to = assignedTo;
+    if (acceptedBy) docData.accepted_by = acceptedBy;
+    if (dueDate) docData.due_date = dueDate;
+    if (blockerReason) docData.blocker_reason = blockerReason;
+    if (escalatedTo) docData.escalated_to = escalatedTo;
+    if (approvedRejectedBy) docData.approved_rejected_by = approvedRejectedBy;
+    if (closureNote) docData.closure_note = closureNote;
     if (remarks) docData.remarks = remarks;
 
     let result;

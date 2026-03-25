@@ -11,6 +11,7 @@
   "cb_top",
   "linked_project",
   "linked_site",
+  "source_document",
   "category",
   "sb_file",
   "file",
@@ -18,7 +19,18 @@
   "cb_file",
   "uploaded_by",
   "uploaded_on",
+  "submitted_by",
+  "submitted_on",
   "expiry_date",
+  "sb_workflow",
+  "status",
+  "assigned_to",
+  "accepted_by",
+  "due_date",
+  "blocker_reason",
+  "escalated_to",
+  "approved_rejected_by",
+  "closure_note",
   "sb_remarks",
   "remarks"
  ],
@@ -66,6 +78,11 @@
    "options": "GE Site"
   },
   {
+   "fieldname": "source_document",
+   "fieldtype": "Data",
+   "label": "Source Document"
+  },
+  {
    "fieldname": "category",
    "fieldtype": "Select",
    "in_list_view": 1,
@@ -109,9 +126,75 @@
    "read_only": 1
   },
   {
+   "fieldname": "submitted_by",
+   "fieldtype": "Link",
+   "label": "Submitted By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "submitted_on",
+   "fieldtype": "Datetime",
+   "label": "Submitted On",
+   "read_only": 1
+  },
+  {
    "fieldname": "expiry_date",
    "fieldtype": "Date",
    "label": "Expiry Date"
+  },
+  {
+   "fieldname": "sb_workflow",
+   "fieldtype": "Section Break",
+   "label": "Workflow Control"
+  },
+  {
+   "default": "Submitted",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Draft\nSubmitted\nAssigned\nAccepted\nIn Review\nBlocked\nEscalated\nApproved\nRejected\nClosed"
+  },
+  {
+   "fieldname": "assigned_to",
+   "fieldtype": "Link",
+   "label": "Assigned To",
+   "options": "User"
+  },
+  {
+   "fieldname": "accepted_by",
+   "fieldtype": "Link",
+   "label": "Accepted By",
+   "options": "User"
+  },
+  {
+   "fieldname": "due_date",
+   "fieldtype": "Date",
+   "label": "Due Date"
+  },
+  {
+   "fieldname": "blocker_reason",
+   "fieldtype": "Small Text",
+   "label": "Blocker Reason"
+  },
+  {
+   "fieldname": "escalated_to",
+   "fieldtype": "Link",
+   "label": "Escalated To",
+   "options": "User"
+  },
+  {
+   "fieldname": "approved_rejected_by",
+   "fieldtype": "Link",
+   "label": "Approved/Rejected By",
+   "options": "User"
+  },
+  {
+   "fieldname": "closure_note",
+   "fieldtype": "Small Text",
+   "label": "Closure Note"
   },
   {
    "fieldname": "sb_remarks",

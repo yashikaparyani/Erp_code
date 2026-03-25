@@ -4,6 +4,18 @@ from frappe.model.document import Document
 
 ALLOWED_DMS_EXTENSIONS = {"pdf", "doc", "docx", "xls", "xlsx", "jpg", "jpeg"}
 ALLOWED_DMS_CATEGORIES = {"Survey", "Engineering", "Procurement", "Execution", "O&M", "Finance", "HR", "Other"}
+ALLOWED_DMS_STATUSES = {
+	"Draft",
+	"Submitted",
+	"Assigned",
+	"Accepted",
+	"In Review",
+	"Blocked",
+	"Escalated",
+	"Approved",
+	"Rejected",
+	"Closed",
+}
 
 
 def _get_file_extension(file_url):
@@ -34,16 +46,24 @@ class GEProjectDocument(Document):
 		self._validate_required_fields()
 		self._validate_linked_project()
 		self._validate_category()
+		self._validate_status()
 		self._validate_file_reference()
 		self._validate_linked_site_scope()
 		self._validate_folder_scope()
 		self._validate_supported_extension()
+		self._apply_workflow_defaults()
 
 	def before_insert(self):
 		if not self.uploaded_by:
 			self.uploaded_by = frappe.session.user
 		if not self.uploaded_on:
 			self.uploaded_on = frappe.utils.now_datetime()
+		if not self.submitted_by:
+			self.submitted_by = frappe.session.user
+		if not self.submitted_on:
+			self.submitted_on = frappe.utils.now_datetime()
+		if not self.status:
+			self.status = "Submitted"
 		# Auto-increment version for the same logical document within the same
 		# project/site context so similarly named docs across sites do not collide.
 		if not self.version:
@@ -73,6 +93,21 @@ class GEProjectDocument(Document):
 		if self.category not in ALLOWED_DMS_CATEGORIES:
 			allowed = ", ".join(sorted(ALLOWED_DMS_CATEGORIES))
 			frappe.throw(f"Category must be one of: {allowed}")
+
+	def _validate_status(self):
+		if not self.status:
+			self.status = "Submitted"
+		if self.status not in ALLOWED_DMS_STATUSES:
+			allowed = ", ".join(sorted(ALLOWED_DMS_STATUSES))
+			frappe.throw(f"Status must be one of: {allowed}")
+		if self.status == "Blocked" and not self.blocker_reason:
+			frappe.throw("Blocker reason is required when status is Blocked")
+		if self.status == "Closed" and not self.closure_note:
+			frappe.throw("Closure note is required when status is Closed")
+
+	def _apply_workflow_defaults(self):
+		if self.status in {"Approved", "Rejected"} and not self.approved_rejected_by:
+			self.approved_rejected_by = frappe.session.user
 
 	def _validate_file_reference(self):
 		if self.file and not frappe.db.exists("File", {"file_url": self.file}):

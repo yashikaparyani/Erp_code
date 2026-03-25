@@ -7767,12 +7767,23 @@ def get_project_documents(folder=None, project=None, category=None, site=None, l
 			"folder",
 			"linked_project",
 			"linked_site",
+			"source_document",
 			"category",
 			"file",
 			"version",
 			"uploaded_by",
 			"uploaded_on",
+			"submitted_by",
+			"submitted_on",
 			"expiry_date",
+			"status",
+			"assigned_to",
+			"accepted_by",
+			"due_date",
+			"blocker_reason",
+			"escalated_to",
+			"approved_rejected_by",
+			"closure_note",
 			"remarks",
 			"creation",
 			"modified",
@@ -7871,6 +7882,9 @@ def upload_project_document(data):
 	values = _parse_payload(data)
 	values.setdefault("uploaded_by", frappe.session.user)
 	values.setdefault("uploaded_on", frappe.utils.now_datetime())
+	values.setdefault("submitted_by", frappe.session.user)
+	values.setdefault("submitted_on", frappe.utils.now_datetime())
+	values.setdefault("status", "Submitted")
 	values["file"] = _require_param(values.get("file"), "file")
 	if not values.get("version"):
 		latest_version = (
@@ -8816,7 +8830,7 @@ def update_project_document(name, data):
 	"""Update a custom project document."""
 	_require_document_write_access()
 	values = _parse_payload(data)
-	for forbidden in ["file", "version", "uploaded_by", "uploaded_on", "linked_project"]:
+	for forbidden in ["file", "version", "uploaded_by", "uploaded_on", "submitted_by", "submitted_on", "linked_project"]:
 		if forbidden in values:
 			frappe.throw(f"{forbidden} cannot be edited directly on an existing document")
 	doc = _update_generic_doc("GE Project Document", name, values)

@@ -36,6 +36,7 @@ type DocumentRecord = {
   folder?: string;
   linked_project?: string;
   linked_site?: string;
+  source_document?: string;
   category?: string;
   file?: string;
   file_url?: string;
@@ -44,16 +45,27 @@ type DocumentRecord = {
   is_latest_version?: boolean;
   uploaded_by?: string;
   uploaded_on?: string;
+  submitted_by?: string;
+  submitted_on?: string;
   modified?: string;
   creation?: string;
   expiry_date?: string;
   days_until_expiry?: number | null;
+  status?: string;
+  assigned_to?: string;
+  accepted_by?: string;
+  due_date?: string;
+  blocker_reason?: string;
+  escalated_to?: string;
+  approved_rejected_by?: string;
+  closure_note?: string;
   remarks?: string;
 };
 
 const initialFolders: FolderRecord[] = [];
 const initialDocuments: DocumentRecord[] = [];
 const DOC_CATEGORIES = ['All', 'Survey', 'Engineering', 'Procurement', 'Execution', 'O&M', 'Finance', 'HR', 'Other'] as const;
+const DOC_STATUSES = ['Draft', 'Submitted', 'Assigned', 'Accepted', 'In Review', 'Blocked', 'Escalated', 'Approved', 'Rejected', 'Closed'] as const;
 
 function getFileExtension(fileUrl?: string) {
   const cleaned = (fileUrl || '').split('?', 1)[0].trim().toLowerCase();
@@ -73,6 +85,24 @@ function getFolderAccent(label: string) {
   if (normalized.includes('om') || normalized.includes('rma')) return 'bg-red-100 text-red-700';
   if (normalized.includes('account') || normalized.includes('finance')) return 'bg-cyan-100 text-cyan-700';
   return 'bg-slate-100 text-slate-700';
+}
+
+function StatusBadge({ status }: { status?: string }) {
+  const normalized = (status || 'Submitted').toLowerCase();
+  const tone =
+    normalized === 'approved'
+      ? 'bg-emerald-100 text-emerald-700'
+      : normalized === 'rejected'
+        ? 'bg-rose-100 text-rose-700'
+        : normalized === 'blocked'
+          ? 'bg-amber-100 text-amber-700'
+          : normalized === 'escalated'
+            ? 'bg-orange-100 text-orange-700'
+            : normalized === 'closed'
+              ? 'bg-slate-200 text-slate-700'
+              : 'bg-blue-100 text-blue-700';
+
+  return <span className={`inline-flex rounded-lg px-2 py-0.5 text-[10px] font-semibold ${tone}`}>{status || 'Submitted'}</span>;
 }
 
 function ExpiryBadge({ expiryDate, daysUntilExpiry }: { expiryDate?: string; daysUntilExpiry?: number | null }) {
@@ -137,7 +167,16 @@ export default function DocumentsPage() {
     linked_site: selectedSite,
     folder: '',
     category: selectedCategory === 'All' ? '' : selectedCategory,
+    source_document: '',
     expiry_date: '',
+    status: 'Submitted',
+    assigned_to: '',
+    accepted_by: '',
+    due_date: '',
+    blocker_reason: '',
+    escalated_to: '',
+    approved_rejected_by: '',
+    closure_note: '',
     remarks: '',
   });
   const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -178,7 +217,16 @@ export default function DocumentsPage() {
       if (uploadForm.linked_site.trim()) formData.append('linked_site', uploadForm.linked_site.trim());
       if (uploadForm.folder) formData.append('folder', uploadForm.folder);
       if (uploadForm.category) formData.append('category', uploadForm.category);
+      if (uploadForm.source_document.trim()) formData.append('source_document', uploadForm.source_document.trim());
       if (uploadForm.expiry_date) formData.append('expiry_date', uploadForm.expiry_date);
+      if (uploadForm.status) formData.append('status', uploadForm.status);
+      if (uploadForm.assigned_to.trim()) formData.append('assigned_to', uploadForm.assigned_to.trim());
+      if (uploadForm.accepted_by.trim()) formData.append('accepted_by', uploadForm.accepted_by.trim());
+      if (uploadForm.due_date) formData.append('due_date', uploadForm.due_date);
+      if (uploadForm.blocker_reason.trim()) formData.append('blocker_reason', uploadForm.blocker_reason.trim());
+      if (uploadForm.escalated_to.trim()) formData.append('escalated_to', uploadForm.escalated_to.trim());
+      if (uploadForm.approved_rejected_by.trim()) formData.append('approved_rejected_by', uploadForm.approved_rejected_by.trim());
+      if (uploadForm.closure_note.trim()) formData.append('closure_note', uploadForm.closure_note.trim());
       if (uploadForm.remarks.trim()) formData.append('remarks', uploadForm.remarks.trim());
       const res = await fetch('/api/documents/upload', { method: 'POST', body: formData });
       const payload = await res.json();
@@ -191,7 +239,16 @@ export default function DocumentsPage() {
           linked_site: selectedSite,
           folder: '',
           category: selectedCategory === 'All' ? '' : selectedCategory,
+          source_document: '',
           expiry_date: '',
+          status: 'Submitted',
+          assigned_to: '',
+          accepted_by: '',
+          due_date: '',
+          blocker_reason: '',
+          escalated_to: '',
+          approved_rejected_by: '',
+          closure_note: '',
           remarks: '',
         });
         setUploadFile(null);
@@ -496,6 +553,7 @@ export default function DocumentsPage() {
                     <th className="px-4 py-3 font-medium">Document</th>
                     <th className="px-4 py-3 font-medium">Context</th>
                     <th className="px-4 py-3 font-medium">Version</th>
+                    <th className="px-4 py-3 font-medium">Workflow</th>
                     <th className="px-4 py-3 font-medium">Expiry</th>
                     <th className="px-4 py-3 font-medium">Uploaded</th>
                     <th className="px-4 py-3 font-medium text-right">Actions</th>
@@ -514,6 +572,7 @@ export default function DocumentsPage() {
                             {doc.folder ? ` • ${doc.folder}` : ''}
                             {!doc.is_latest_version ? ' • superseded revision' : ''}
                           </div>
+                          {doc.source_document ? <div className="mt-1 text-xs text-gray-500">Source: {doc.source_document}</div> : null}
                           {doc.remarks ? <div className="mt-1 text-xs italic text-gray-500">{doc.remarks}</div> : null}
                         </td>
                         <td className="px-4 py-3 align-top text-xs text-gray-600">
@@ -535,12 +594,24 @@ export default function DocumentsPage() {
                             ) : null}
                           </button>
                         </td>
+                        <td className="px-4 py-3 align-top text-xs text-gray-600">
+                          <div><StatusBadge status={doc.status} /></div>
+                          {doc.assigned_to ? <div className="mt-1">Assigned: {doc.assigned_to}</div> : null}
+                          {doc.accepted_by ? <div className="mt-1">Accepted: {doc.accepted_by}</div> : null}
+                          {doc.due_date ? <div className="mt-1">Due: {new Date(doc.due_date).toLocaleDateString('en-IN')}</div> : null}
+                          {doc.blocker_reason ? <div className="mt-1 text-rose-600">Blocker: {doc.blocker_reason}</div> : null}
+                          {doc.escalated_to ? <div className="mt-1">Escalated: {doc.escalated_to}</div> : null}
+                          {doc.approved_rejected_by ? <div className="mt-1">Decision: {doc.approved_rejected_by}</div> : null}
+                          {doc.closure_note ? <div className="mt-1 italic text-gray-500">{doc.closure_note}</div> : null}
+                        </td>
                         <td className="px-4 py-3 align-top">
                           <ExpiryBadge expiryDate={doc.expiry_date} daysUntilExpiry={doc.days_until_expiry} />
                         </td>
                         <td className="px-4 py-3 align-top text-xs text-gray-600">
-                          <div>{doc.uploaded_by || 'Unknown'}</div>
+                          <div>Uploaded: {doc.uploaded_by || 'Unknown'}</div>
                           <div className="mt-1">{formatDateTime(doc.modified || doc.uploaded_on || doc.creation)}</div>
+                          <div className="mt-1">Submitted: {doc.submitted_by || doc.uploaded_by || 'Unknown'}</div>
+                          <div className="mt-1">{formatDateTime(doc.submitted_on || doc.uploaded_on || doc.creation)}</div>
                         </td>
                         <td className="px-4 py-3 align-top">
                           <div className="flex justify-end gap-3">
@@ -640,15 +711,17 @@ export default function DocumentsPage() {
       )}
 
       {showUploadModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-2xl rounded-lg bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b px-4 py-3">
-              <h3 className="text-lg font-semibold">Upload Document</h3>
-              <button onClick={() => { setShowUploadModal(false); setUploadError(''); }} className="rounded p-1 hover:bg-gray-100">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="grid grid-cols-1 gap-4 p-4 md:grid-cols-2">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 p-4">
+          <div className="flex min-h-full items-start justify-center py-6">
+            <div className="w-full max-w-2xl overflow-hidden rounded-lg bg-white shadow-xl">
+              <div className="flex items-center justify-between border-b px-4 py-3">
+                <h3 className="text-lg font-semibold">Upload Document</h3>
+                <button onClick={() => { setShowUploadModal(false); setUploadError(''); }} className="rounded p-1 hover:bg-gray-100">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="max-h-[calc(100vh-8rem)] overflow-y-auto">
+                <div className="grid grid-cols-1 gap-4 p-4 md:grid-cols-2">
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Document Name *</label>
                 <input
@@ -712,6 +785,16 @@ export default function DocumentsPage() {
                 </select>
               </div>
               <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Source Document</label>
+                <input
+                  type="text"
+                  value={uploadForm.source_document}
+                  onChange={(e) => setUploadForm((current) => ({ ...current, source_document: e.target.value }))}
+                  placeholder="Reference no. / parent doc"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Category *</label>
                 <select
                   value={uploadForm.category}
@@ -725,11 +808,90 @@ export default function DocumentsPage() {
                 </select>
               </div>
               <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Status</label>
+                <select
+                  value={uploadForm.status}
+                  onChange={(e) => setUploadForm((current) => ({ ...current, status: e.target.value }))}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {DOC_STATUSES.map((status) => (
+                    <option key={status} value={status}>{status}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Expiry Date</label>
                 <input
                   type="date"
                   value={uploadForm.expiry_date}
                   onChange={(e) => setUploadForm((current) => ({ ...current, expiry_date: e.target.value }))}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Assigned To</label>
+                <input
+                  type="text"
+                  value={uploadForm.assigned_to}
+                  onChange={(e) => setUploadForm((current) => ({ ...current, assigned_to: e.target.value }))}
+                  placeholder="User email / ID"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Accepted By</label>
+                <input
+                  type="text"
+                  value={uploadForm.accepted_by}
+                  onChange={(e) => setUploadForm((current) => ({ ...current, accepted_by: e.target.value }))}
+                  placeholder="User email / ID"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Due Date</label>
+                <input
+                  type="date"
+                  value={uploadForm.due_date}
+                  onChange={(e) => setUploadForm((current) => ({ ...current, due_date: e.target.value }))}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Escalated To</label>
+                <input
+                  type="text"
+                  value={uploadForm.escalated_to}
+                  onChange={(e) => setUploadForm((current) => ({ ...current, escalated_to: e.target.value }))}
+                  placeholder="User email / ID"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="mb-1 block text-sm font-medium text-gray-700">Blocker Reason</label>
+                <textarea
+                  value={uploadForm.blocker_reason}
+                  onChange={(e) => setUploadForm((current) => ({ ...current, blocker_reason: e.target.value }))}
+                  rows={2}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Approved/Rejected By</label>
+                <input
+                  type="text"
+                  value={uploadForm.approved_rejected_by}
+                  onChange={(e) => setUploadForm((current) => ({ ...current, approved_rejected_by: e.target.value }))}
+                  placeholder="User email / ID"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="mb-1 block text-sm font-medium text-gray-700">Closure Note</label>
+                <textarea
+                  value={uploadForm.closure_note}
+                  onChange={(e) => setUploadForm((current) => ({ ...current, closure_note: e.target.value }))}
+                  rows={2}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -742,17 +904,19 @@ export default function DocumentsPage() {
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-              {uploadError ? <p className="md:col-span-2 text-sm text-red-600">{uploadError}</p> : null}
-            </div>
-            <div className="flex justify-end gap-3 border-t px-4 py-3">
-              <button onClick={() => { setShowUploadModal(false); setUploadError(''); }} className="rounded-lg bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700">Cancel</button>
-              <button
-                onClick={handleUpload}
-                disabled={busy || !uploadForm.document_name.trim() || !uploadForm.linked_project.trim() || !uploadForm.category.trim() || !uploadFile}
-                className="rounded-lg bg-[#1e6b87] px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-              >
-                {busy ? 'Uploading...' : 'Upload'}
-              </button>
+                  {uploadError ? <p className="md:col-span-2 text-sm text-red-600">{uploadError}</p> : null}
+                </div>
+                <div className="flex justify-end gap-3 border-t px-4 py-3">
+                  <button onClick={() => { setShowUploadModal(false); setUploadError(''); }} className="rounded-lg bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700">Cancel</button>
+                  <button
+                    onClick={handleUpload}
+                    disabled={busy || !uploadForm.document_name.trim() || !uploadForm.linked_project.trim() || !uploadForm.category.trim() || !uploadFile}
+                    className="rounded-lg bg-[#1e6b87] px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+                  >
+                    {busy ? 'Uploading...' : 'Upload'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -802,8 +966,19 @@ export default function DocumentsPage() {
                           ) : null}
                         </div>
                         <div className="mt-2 space-y-1 text-xs text-gray-500">
+                          {doc.source_document ? <div>Source: {doc.source_document}</div> : null}
+                          <div>Status: {doc.status || 'Submitted'}</div>
+                          {doc.assigned_to ? <div>Assigned to: {doc.assigned_to}</div> : null}
+                          {doc.accepted_by ? <div>Accepted by: {doc.accepted_by}</div> : null}
+                          {doc.due_date ? <div>Due date: {new Date(doc.due_date).toLocaleDateString('en-IN')}</div> : null}
+                          {doc.blocker_reason ? <div className="text-rose-600">Blocker: {doc.blocker_reason}</div> : null}
+                          {doc.escalated_to ? <div>Escalated to: {doc.escalated_to}</div> : null}
+                          {doc.approved_rejected_by ? <div>Decision by: {doc.approved_rejected_by}</div> : null}
+                          {doc.closure_note ? <div className="italic">Closure: {doc.closure_note}</div> : null}
                           <div>Uploaded by: {doc.uploaded_by || '-'}</div>
                           <div>{formatDateTime(doc.uploaded_on || doc.creation)}</div>
+                          <div>Submitted by: {doc.submitted_by || doc.uploaded_by || '-'}</div>
+                          <div>{formatDateTime(doc.submitted_on || doc.uploaded_on || doc.creation)}</div>
                           <div>Site: {doc.linked_site || 'Project-level'}</div>
                           {doc.remarks ? <div className="italic">{doc.remarks}</div> : null}
                           <div><ExpiryBadge expiryDate={doc.expiry_date} daysUntilExpiry={doc.days_until_expiry} /></div>
