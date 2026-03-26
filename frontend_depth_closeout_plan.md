@@ -724,21 +724,13 @@ Required closeout:
 
 ### 2. SLA / RMA / O&M
 
-Current depth: `1-2`
+Current depth: `4` ✅ DONE
 
-Current truth:
+Completed:
 
-- routes exist
-- some data is live
-
-Main gaps:
-
-- weak second-click object-depth consistency
-- insufficient dossier/accountability/document drilldown
-
-Required closeout:
-
-- ticket / SLA / RMA detail pages with linked docs, service trail, approvals, timers, closure evidence
+- API routes: `api/tickets/[id]` GET, `api/tickets/[id]/actions` POST (assign/start/pause/resume/resolve/close/escalate/comment), `api/rma-trackers/[id]` GET, `api/rma-trackers/[id]/actions` POST (approve/reject/close/update_status), `api/sla-profiles/[id]` GET
+- Detail pages: `om-helpdesk/[id]` (full ticket lifecycle with priority/status badges, assign/start/pause/resume/resolve/close/escalate/comment/convert-to-RMA actions, comments section, linked RMA records, documents, accountability trail), `rma/[id]` (RMA tracker with warranty/status badges, approve/reject/close/update-status actions, failure & RCA section, linked source ticket, documents, accountability trail), `sla-profiles/[id]` (read-only profile detail with response/resolution time KPI cards, working hours type, escalation setting, linked tickets using profile, documents, accountability trail)
+- List page updates: `om-helpdesk/page.tsx` (ticket name → Link to detail), `rma/page.tsx` (RMA ID → Link to detail), `sla-profiles/page.tsx` (profile ID → Link to detail), `sla/page.tsx` (OpsWorkspace name column → Link to detail)
 
 ## Priority Ladder
 
@@ -1061,12 +1053,15 @@ Pages not listed here are usually one of these:
 
 ## H. O&M / SLA / RMA
 
-- `/om-helpdesk` — `Depth 1-2` — ticket queue exists, but lifecycle drilldown is still not deep enough.
+- `/om-helpdesk` — `Depth 4` — list page with Link to detail; detail page (`om-helpdesk/[id]`) with full ticket lifecycle (assign/start/pause/resume/resolve/close/escalate/comment/convert-to-RMA), priority & status badges, comments thread, linked RMA records, documents, accountability trail.
+- `/om-helpdesk/[id]` — `Depth 4` — full ticket detail with workflow actions and linked records.
 - `/om-helpdesk/projects` — `Depth 1` — department project list only.
 - `/om-helpdesk/projects/[id]` — `Depth 3` — workspace exists, but service/ticket/SLA object depth still needs strengthening.
-- `/sla` — `Depth 1` — generic workspace wrapper, still shallow.
-- `/sla-profiles` — `Depth 1-2` — basic surface exists, but not a rich SLA operating cockpit.
-- `/rma` — `Depth 1-2` — RMA route exists, but still needs stronger record drilldown, document linkage, and closure depth.
+- `/sla` — `Depth 4` — OpsWorkspace wrapper with Link column to sla-profiles detail page.
+- `/sla-profiles` — `Depth 4` — list page with Link to detail; detail page (`sla-profiles/[id]`) with response/resolution time KPIs, working hours type, escalation settings, linked tickets, documents, accountability trail.
+- `/sla-profiles/[id]` — `Depth 4` — read-only SLA profile detail with KPI cards and linked tickets.
+- `/rma` — `Depth 4` — list page with Link to detail; detail page (`rma/[id]`) with approve/reject/close/update-status workflow, warranty & RMA status badges, failure/RCA section, linked source ticket, documents, accountability trail.
+- `/rma/[id]` — `Depth 4` — full RMA tracker detail with workflow actions and linked records.
 
 ## I. Pre-Sales
 

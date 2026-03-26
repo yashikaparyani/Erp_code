@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Shield, Plus, X } from 'lucide-react';
 
 interface SLAProfile {
@@ -67,7 +68,7 @@ export default function SLAProfilesPage() {
             <tbody>
               {items.length === 0 ? <tr><td colSpan={8} className="text-center py-8 text-gray-500">No SLA profiles found</td></tr> : items.map(item => (
                 <tr key={item.name}>
-                  <td><div className="font-medium text-gray-900">{item.name}</div></td>
+                  <td><Link href={`/sla-profiles/${encodeURIComponent(item.name)}`} className="font-medium text-blue-700 hover:text-blue-900 hover:underline">{item.name}</Link></td>
                   <td><div className="text-sm text-gray-900">{item.profile_name || '-'}</div></td>
                   <td><div className="text-sm text-gray-700">{item.linked_project || '-'}</div></td>
                   <td><div className="text-sm text-gray-700">{item.response_minutes ?? '-'}</div></td>

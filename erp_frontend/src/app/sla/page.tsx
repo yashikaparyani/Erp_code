@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { Clock3 } from 'lucide-react';
 import OpsWorkspace from '../../components/ops/OpsWorkspace';
 
@@ -24,7 +25,7 @@ export default function SlaProfilesPage() {
         { label: 'Profiles', path: 'length', hint: 'Configured SLA profiles', icon: Clock3, tone: 'blue' },
       ]}
       columns={[
-        { key: 'name', label: 'Profile', render: (row) => row.name || '-' },
+        { key: 'name', label: 'Profile', render: (row) => <Link href={`/sla-profiles/${encodeURIComponent(row.name)}`} className="text-blue-700 hover:text-blue-900 hover:underline font-medium">{row.name || '-'}</Link> },
         { key: 'project', label: 'Project', render: (row) => row.project || '-' },
         { key: 'profile_name', label: 'Name', render: (row) => row.profile_name || row.title || '-' },
         { key: 'active', label: 'Active', render: (row) => String(row.active ?? '-') },

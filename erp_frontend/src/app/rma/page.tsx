@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { AlertTriangle, FileCheck2, Plus, RefreshCcw, ShieldCheck, Truck, Wrench, X } from 'lucide-react';
 import ActionModal from '@/components/ui/ActionModal';
 
@@ -233,7 +234,7 @@ export default function RMAPage() {
               ) : items.map((item) => (
                 <tr key={item.name}>
                   <td>
-                    <div className="font-medium text-gray-900">{item.name}</div>
+                    <Link href={`/rma/${encodeURIComponent(item.name)}`} className="font-medium text-blue-700 hover:text-blue-900 hover:underline">{item.name}</Link>
                     <div className="text-xs text-gray-500">{item.rma_reference_no || '-'}</div>
                   </td>
                   <td>

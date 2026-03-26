@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Plus, HeadphonesIcon, Building2, AlertTriangle, Clock, CheckCircle2, X } from 'lucide-react';
 
 interface Ticket {
@@ -360,7 +361,7 @@ export default function OMHelpdeskPage() {
               ) : tickets.map(ticket => (
                 <tr key={ticket.name}>
                   <td>
-                    <div className="font-medium text-gray-900">{ticket.name}</div>
+                    <Link href={`/om-helpdesk/${encodeURIComponent(ticket.name)}`} className="font-medium text-blue-700 hover:text-blue-900 hover:underline">{ticket.name}</Link>
                   </td>
                   <td>
                     <div className="font-medium text-gray-900 max-w-xs">{ticket.title || '-'}</div>
