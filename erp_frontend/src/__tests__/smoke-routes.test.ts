@@ -11,13 +11,13 @@ import { describe, test, expect } from 'vitest';
 import { roles, roleAccess, PROJECT_SIDE_ROLES, SETTINGS_ROLES } from '../context/RoleContext';
 
 // Universal pages every authenticated role should access
-const UNIVERSAL_ROUTES = ['/', '/notifications', '/documents'];
+const UNIVERSAL_ROUTES = ['/', '/notifications'];
 
 // Role → pages that MUST be accessible
 const ROLE_CRITICAL_ROUTES: Record<string, string[]> = {
-  'Director': ['/projects', '/settings', '/hr', '/pre-sales', '/engineering', '/procurement', '/execution', '/finance', '/reports', '/om-helpdesk', '/rma', '/documents', '/master-data'],
-  'Department Head': ['/settings', '/hr', '/pre-sales', '/engineering', '/procurement', '/inventory', '/execution', '/finance', '/reports', '/documents', '/master-data'],
-  'Project Head': ['/projects', '/engineering', '/procurement', '/execution', '/finance', '/reports', '/documents', '/master-data'],
+  'Director': ['/projects', '/settings', '/hr', '/pre-sales', '/engineering', '/procurement', '/execution', '/finance', '/reports', '/accountability', '/om-helpdesk', '/rma', '/documents', '/master-data'],
+  'Department Head': ['/settings', '/hr', '/pre-sales', '/engineering', '/procurement', '/inventory', '/execution', '/finance', '/reports', '/accountability', '/documents', '/master-data'],
+  'Project Head': ['/projects', '/engineering', '/procurement', '/execution', '/finance', '/reports', '/accountability', '/documents', '/master-data'],
   'HR Manager': ['/hr', '/reports', '/documents'],
   'Presales Tendering Head': ['/pre-sales', '/survey', '/reports', '/documents'],
   'Presales Executive': ['/pre-sales', '/survey', '/documents'],
@@ -27,7 +27,7 @@ const ROLE_CRITICAL_ROUTES: Record<string, string[]> = {
   'Purchase': ['/procurement', '/purchase-orders', '/indents', '/grns', '/inventory', '/documents'],
   'Store Manager': ['/grns', '/stock-position', '/stock-aging', '/procurement', '/inventory', '/documents', '/purchase-orders'],
   'Stores Logistics Head': ['/grns', '/stock-position', '/stock-aging', '/procurement', '/inventory', '/documents', '/purchase-orders'],
-  'Project Manager': ['/projects', '/engineering', '/procurement', '/execution', '/reports', '/documents'],
+  'Project Manager': ['/survey', '/project-manager/dpr', '/project-manager/inventory', '/project-manager/petty-cash'],
   'Accounts': ['/finance', '/payment-receipts', '/retention', '/penalties', '/reports', '/documents'],
   'Field Technician': ['/execution', '/manpower', '/om-helpdesk', '/rma', '/documents', '/sla'],
   'RMA Manager': ['/rma', '/om-helpdesk', '/sla', '/documents', '/reports'],
@@ -43,6 +43,7 @@ const ROLE_DENIED_ROUTES: Record<string, string[]> = {
   'Purchase': ['/reports', '/master-data'],
   'Stores Logistics Head': ['/reports', '/master-data'],
   'Engineer': ['/reports', '/master-data'],
+  'Project Manager': ['/projects', '/procurement', '/inventory', '/grns', '/petty-cash', '/documents', '/reports', '/execution', '/engineering', '/milestones', '/manpower', '/purchase-orders', '/indents', '/stock-position', '/stock-aging', '/drawings', '/change-requests', '/technician-visits'],
 };
 
 describe('Role Access Matrix', () => {
@@ -170,7 +171,9 @@ describe('Page File Coverage', () => {
       '/stock-position', '/stock-aging', '/milestones', '/manpower',
       '/petty-cash', '/comm-logs', '/payment-receipts', '/retention',
       '/penalties', '/drawings', '/change-requests', '/technician-visits',
-      '/sla-profiles', '/device-uptime', '/login', '/profile',
+      '/project-manager/dpr', '/project-manager/inventory', '/project-manager/petty-cash',
+      '/project-manager/requests',
+      '/sla-profiles', '/device-uptime', '/accountability', '/login', '/profile',
     ]);
 
     for (const route of allRoutes) {

@@ -37,7 +37,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Event Type",
-   "options": "project_created\nproject_stage_submitted\nproject_stage_approved\nproject_stage_rejected\nproject_stage_overridden\ndependency_override_raised\ndependency_override_acted\nsite_stage_changed\nsite_blocked\nsite_unblocked\nmilestone_overdue\nmilestone_completed\ndocument_uploaded\ndocument_replaced\ndocument_expiring\napproval_assigned\napproval_acted\ndispatch_event\ngrn_event\ninvoice_event\nretention_event\npenalty_event\nrma_event\nticket_escalation\nuser_mentioned\ngeneral",
+   "options": "project_created\nproject_stage_submitted\nproject_stage_approved\nproject_stage_rejected\nproject_stage_overridden\ndependency_override_raised\ndependency_override_acted\nsite_stage_changed\nsite_status_changed\nsite_installation_stage_changed\nsite_blocked\nsite_unblocked\nmilestone_overdue\nmilestone_completed\ndocument_uploaded\ndocument_replaced\ndocument_expiring\napproval_assigned\napproval_acted\ndispatch_event\ngrn_event\ninvoice_event\nretention_event\npenalty_event\nrma_event\nticket_escalation\nindent_submitted\nindent_acknowledged\nindent_accepted\nindent_rejected\nindent_returned\nindent_escalated\nuser_mentioned\ngeneral",
    "reqd": 1
   },
   {

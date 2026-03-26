@@ -11,8 +11,15 @@
   "cb_top",
   "linked_project",
   "linked_site",
+  "linked_stage",
   "source_document",
   "category",
+  "document_subcategory",
+  "sb_traceability",
+  "reference_doctype",
+  "reference_name",
+  "supersedes_document",
+  "is_mandatory",
   "sb_file",
   "file",
   "version",
@@ -21,6 +28,8 @@
   "uploaded_on",
   "submitted_by",
   "submitted_on",
+  "valid_from",
+  "valid_till",
   "expiry_date",
   "sb_workflow",
   "status",
@@ -29,6 +38,8 @@
   "due_date",
   "blocker_reason",
   "escalated_to",
+  "reviewed_by",
+  "approved_by",
   "approved_rejected_by",
   "closure_note",
   "sb_remarks",
@@ -78,6 +89,13 @@
    "options": "GE Site"
   },
   {
+   "fieldname": "linked_stage",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Linked Stage",
+   "options": "\nSurvey\nBOM_BOQ\nDrawing\nIndent\nQuotation_Vendor_Comparison\nPO\nDispatch\nGRN_Inventory\nExecution\nCommissioning\nO_M\nSLA\nRMA\nCommercial\nClosure"
+  },
+  {
    "fieldname": "source_document",
    "fieldtype": "Data",
    "label": "Source Document"
@@ -88,8 +106,41 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Category",
-   "options": "Survey\nEngineering\nProcurement\nExecution\nO&M\nFinance\nHR\nOther",
+   "options": "Survey\nEngineering\nProcurement\nExecution\nCommissioning\nO&M\nFinance\nHR\nDispatch\nGRN_Inventory\nSLA\nRMA\nCommercial\nApprovals\nOther",
    "reqd": 1
+  },
+  {
+   "fieldname": "document_subcategory",
+   "fieldtype": "Select",
+   "label": "Subcategory",
+   "options": "\nsurvey_form\nsite_photos\nmeasurements\ncoordinates\nsurvey_notes\nbom_draft\nboq_draft\nboq_approved\ncalculation_sheet\nsite_drawing\nlayout_drawing\nissued_for_review\nissued_for_execution\nrevised_drawing\nindent_support\nitem_requirement\nvendor_quotation\ncomparison_sheet\npurchase_order\napproval_note\ndispatch_challan\nlr_proof\npacking_list\ngrn\nreceipt_proof\ndpr\ninstallation_checklist\ntest_report\ncommissioning_report\nsignoff\nsla_profile\nmaintenance_report\nrma_proof\nother"
+  },
+  {
+   "fieldname": "sb_traceability",
+   "fieldtype": "Section Break",
+   "label": "Traceability"
+  },
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Data",
+   "label": "Reference DocType"
+  },
+  {
+   "fieldname": "reference_name",
+   "fieldtype": "Data",
+   "label": "Reference Name"
+  },
+  {
+   "fieldname": "supersedes_document",
+   "fieldtype": "Link",
+   "label": "Supersedes Document",
+   "options": "GE Project Document"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_mandatory",
+   "fieldtype": "Check",
+   "label": "Is Mandatory"
   },
   {
    "fieldname": "sb_file",
@@ -139,6 +190,16 @@
    "read_only": 1
   },
   {
+   "fieldname": "valid_from",
+   "fieldtype": "Date",
+   "label": "Valid From"
+  },
+  {
+   "fieldname": "valid_till",
+   "fieldtype": "Date",
+   "label": "Valid Till"
+  },
+  {
    "fieldname": "expiry_date",
    "fieldtype": "Date",
    "label": "Expiry Date"
@@ -183,6 +244,18 @@
    "fieldname": "escalated_to",
    "fieldtype": "Link",
    "label": "Escalated To",
+   "options": "User"
+  },
+  {
+   "fieldname": "reviewed_by",
+   "fieldtype": "Link",
+   "label": "Reviewed By",
+   "options": "User"
+  },
+  {
+   "fieldname": "approved_by",
+   "fieldtype": "Link",
+   "label": "Approved By",
    "options": "User"
   },
   {

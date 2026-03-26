@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { CreditCard, Eye, Plus, Receipt, TimerReset, WalletCards, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import ActionModal from '@/components/ui/ActionModal';
 
 type Invoice = {
   name: string;
@@ -108,6 +110,7 @@ export default function FinanceBillingPage() {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
   const [actionLoadingName, setActionLoadingName] = useState<string | null>(null);
+  const [reasonTarget, setReasonTarget] = useState<{ name: string; action: 'reject' | 'cancel' } | null>(null);
   const [createForm, setCreateForm] = useState(initialCreateForm);
 
   const computedAmount = useMemo(
@@ -263,13 +266,13 @@ export default function FinanceBillingPage() {
     }
   };
 
-  const runAction = async (name: string, action: 'submit' | 'approve' | 'reject' | 'mark_paid' | 'cancel') => {
+  const runAction = async (name: string, action: 'submit' | 'approve' | 'reject' | 'mark_paid' | 'cancel', extra?: Record<string, string>) => {
     setError('');
     setActionLoadingName(name);
     try {
       const payload: Record<string, unknown> = { action };
       if (action === 'reject' || action === 'cancel') {
-        payload.reason = prompt(`${action === 'reject' ? 'Reject' : 'Cancel'} reason`) || '';
+        payload.reason = extra?.reason || '';
       }
 
       const response = await fetch(`/api/invoices/${encodeURIComponent(name)}/actions`, {
@@ -494,7 +497,7 @@ export default function FinanceBillingPage() {
                 {invoices.map((invoice) => (
                   <tr key={invoice.name}>
                     <td>
-                      <div className="font-medium text-gray-900">{invoice.name}</div>
+                      <Link href={`/finance/billing/${encodeURIComponent(invoice.name)}`} className="font-medium text-blue-600 hover:underline">{invoice.name}</Link>
                       <div className="text-xs text-gray-500">{invoice.approved_by || 'Not approved yet'}</div>
                     </td>
                     <td>
@@ -544,14 +547,14 @@ export default function FinanceBillingPage() {
                         {invoice.status === 'SUBMITTED' && canApproveReject ? (
                           <>
                             <button className="text-green-600 hover:text-green-800 text-sm font-medium" disabled={actionLoadingName === invoice.name} onClick={() => runAction(invoice.name, 'approve')}>Approve</button>
-                            <button className="text-red-600 hover:text-red-800 text-sm font-medium" disabled={actionLoadingName === invoice.name} onClick={() => runAction(invoice.name, 'reject')}>Reject</button>
+                            <button className="text-red-600 hover:text-red-800 text-sm font-medium" disabled={actionLoadingName === invoice.name} onClick={() => setReasonTarget({ name: invoice.name, action: 'reject' })}>Reject</button>
                           </>
                         ) : null}
                         {invoice.status === 'APPROVED' && canCreateOrSubmit ? (
                           <button className="text-orange-600 hover:text-orange-800 text-sm font-medium" disabled={actionLoadingName === invoice.name} onClick={() => runAction(invoice.name, 'mark_paid')}>Mark Paid</button>
                         ) : null}
                         {(invoice.status === 'DRAFT' || invoice.status === 'SUBMITTED' || invoice.status === 'APPROVED') && canApproveReject ? (
-                          <button className="text-rose-600 hover:text-rose-800 text-sm font-medium" disabled={actionLoadingName === invoice.name} onClick={() => runAction(invoice.name, 'cancel')}>Cancel</button>
+                          <button className="text-rose-600 hover:text-rose-800 text-sm font-medium" disabled={actionLoadingName === invoice.name} onClick={() => setReasonTarget({ name: invoice.name, action: 'cancel' })}>Cancel</button>
                         ) : null}
                       </div>
                     </td>
@@ -562,6 +565,19 @@ export default function FinanceBillingPage() {
           )}
         </div>
       </div>
+      <ActionModal
+        open={reasonTarget !== null}
+        title={reasonTarget?.action === 'reject' ? 'Reject Invoice' : 'Cancel Invoice'}
+        description={`${reasonTarget?.action === 'reject' ? 'Reject' : 'Cancel'} ${reasonTarget?.name}?`}
+        confirmLabel={reasonTarget?.action === 'reject' ? 'Reject' : 'Cancel'}
+        variant="danger"
+        fields={[{ name: 'reason', label: 'Reason', type: 'textarea' }]}
+        onCancel={() => setReasonTarget(null)}
+        onConfirm={async (values) => {
+          if (reasonTarget) await runAction(reasonTarget.name, reasonTarget.action, { reason: values.reason || '' });
+          setReasonTarget(null);
+        }}
+      />
     </div>
   );
 }

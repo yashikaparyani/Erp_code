@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { RefreshCcw } from 'lucide-react';
 import OpsWorkspace from '../../../components/ops/OpsWorkspace';
 
@@ -26,7 +27,9 @@ export default function ChangeRequestsPage() {
         { label: 'Change Requests', path: 'length', hint: 'Loaded change requests', icon: RefreshCcw, tone: 'amber' },
       ]}
       columns={[
-        { key: 'name', label: 'CR', render: (row) => row.name || '-' },
+        { key: 'name', label: 'CR', render: (row) => (
+          <Link href={`/engineering/change-requests/${encodeURIComponent(row.name)}`} className="text-blue-600 hover:text-blue-800 font-medium">{row.name || '-'}</Link>
+        ) },
         { key: 'title', label: 'Title', render: (row) => row.title || '-' },
         { key: 'project', label: 'Project', render: (row) => row.project || '-' },
         { key: 'status', label: 'Status', render: (row) => row.status || '-' },

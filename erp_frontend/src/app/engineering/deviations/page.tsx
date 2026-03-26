@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { AlertTriangle, CheckCircle2, Clock, Plus, X, XCircle } from 'lucide-react';
 
 interface TechnicalDeviation {
@@ -150,7 +151,7 @@ export default function TechnicalDeviationsPage() {
                 <tr><td colSpan={8} className="text-center py-8 text-gray-500">No technical deviations found</td></tr>
               ) : items.map(item => (
                 <tr key={item.name}>
-                  <td><div className="font-medium text-gray-900">{item.deviation_id || item.name}</div></td>
+                  <td><Link href={`/engineering/deviations/${encodeURIComponent(item.name)}`} className="font-medium text-blue-600 hover:text-blue-800">{item.deviation_id || item.name}</Link></td>
                   <td>
                     <div className="text-sm text-gray-900">{item.linked_project || '-'}</div>
                     <div className="text-xs text-gray-500">{item.linked_site || '-'}</div>

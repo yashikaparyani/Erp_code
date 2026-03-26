@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
+  BookOpen,
   Columns3,
   FileText,
   Flag,
@@ -30,6 +31,19 @@ import {
   Wrench,
   ExternalLink,
   Send,
+  Star,
+  Settings,
+  StickyNote,
+  MoreVertical,
+  Plus,
+  Edit3,
+  Eye,
+  EyeOff,
+  Save,
+  ListFilter,
+  GripVertical,
+  Copy,
+  Users,
 } from 'lucide-react';
 import { formatPercent } from '../dashboards/shared';
 import { useAuth } from '../../context/AuthContext';
@@ -118,12 +132,18 @@ export type ProjectDocument = {
   name: string;
   document_name?: string;
   category?: string;
+  document_subcategory?: string;
   status?: string;
   linked_project?: string;
   linked_site?: string;
+  linked_stage?: string;
   file?: string;
   file_url?: string;
   version?: number | string;
+  reference_doctype?: string;
+  reference_name?: string;
+  supersedes_document?: string;
+  is_mandatory?: 0 | 1;
   expiry_date?: string;
   uploaded_by?: string;
   uploaded_on?: string;
@@ -305,7 +325,7 @@ export type PMCockpitSummary = {
   action_items: ActionItem[];
 };
 
-export type TabKey = 'overview' | 'sites' | 'board' | 'milestones' | 'ops' | 'files' | 'activity' | 'issues' | 'staff' | 'petty_cash' | 'comms' | 'central_status' | 'requests';
+export type TabKey = 'overview' | 'sites' | 'board' | 'milestones' | 'ops' | 'files' | 'activity' | 'issues' | 'staff' | 'petty_cash' | 'comms' | 'central_status' | 'requests' | 'notes' | 'tasks' | 'timesheets';
 
 export type DepartmentConfig = {
   departmentKey: string;
@@ -374,6 +394,9 @@ const TAB_META: Record<TabKey, { label: string; icon: typeof LayoutDashboard }> 
   comms:          { label: 'Communications', icon: MessageSquare },
   central_status: { label: 'Central Status', icon: Building2 },
   requests:       { label: 'Requests',       icon: Send },
+  notes:          { label: 'Notes',          icon: StickyNote },
+  tasks:          { label: 'Tasks',          icon: CheckCircle2 },
+  timesheets:     { label: 'Timesheets',     icon: Clock },
   files:          { label: 'Files',          icon: FileText },
   activity:       { label: 'Activity',       icon: History },
 };
@@ -400,6 +423,54 @@ const STAGE_LABELS: Record<string, string> = {
   BILLING_PAYMENT: 'Billing / Payment',
   OM_RMA: 'O&M / RMA',
   CLOSED: 'Closed',
+};
+
+const DOCUMENT_TRACE_STAGES = [
+  'Survey',
+  'BOM_BOQ',
+  'Drawing',
+  'Indent',
+  'Quotation_Vendor_Comparison',
+  'PO',
+  'Dispatch',
+  'GRN_Inventory',
+  'Execution',
+  'Commissioning',
+  'O_M',
+  'SLA',
+  'RMA',
+  'Commercial',
+  'Closure',
+] as const;
+
+const DOCUMENT_TRACE_STAGE_LABELS: Record<string, string> = {
+  Survey: 'Survey',
+  BOM_BOQ: 'BOM / BOQ',
+  Drawing: 'Drawing',
+  Indent: 'Indent',
+  Quotation_Vendor_Comparison: 'Quotation / Vendor Comparison',
+  PO: 'Purchase Order',
+  Dispatch: 'Dispatch',
+  GRN_Inventory: 'GRN / Inventory',
+  Execution: 'Execution / I&C',
+  Commissioning: 'Commissioning',
+  O_M: 'O&M',
+  SLA: 'SLA',
+  RMA: 'RMA',
+  Commercial: 'Commercial',
+  Closure: 'Closure',
+};
+
+const PROJECT_TO_DOCUMENT_STAGE: Record<string, string> = {
+  SURVEY: 'Survey',
+  BOQ_DESIGN: 'BOM_BOQ',
+  COSTING: 'Commercial',
+  PROCUREMENT: 'Quotation_Vendor_Comparison',
+  STORES_DISPATCH: 'GRN_Inventory',
+  EXECUTION: 'Execution',
+  BILLING_PAYMENT: 'Commercial',
+  OM_RMA: 'SLA',
+  CLOSED: 'Closure',
 };
 
 /* ═══════════════════════════════════════════════════════════
@@ -790,14 +861,26 @@ function OverviewTab({ detail, config, deptSites, projectId, onTabChange, wp }: 
 
     if ((currentUser?.roles || []).some((role) => role === 'Director' || role === 'Project Head' || role === 'Project Manager')) {
       items.unshift({
+        label: 'Project Dossier',
+        href: `/projects/${encodeURIComponent(projectId)}/dossier`,
+        tone: 'violet',
+        detail: 'Open the full project document dossier with stage-wise completeness signals',
+      });
+      items.unshift({
         label: 'Project Activity',
         tab: 'activity',
         tone: 'rose',
         detail: 'Trace recent comments, workflow changes, and team coordination on this project',
       });
+      items.unshift({
+        label: 'Accountability & RCA',
+        href: `/projects/${encodeURIComponent(projectId)}/accountability`,
+        tone: 'rose',
+        detail: 'Blocked items, escalations, rejections, and full audit trail for this project',
+      });
     }
 
-    return items.slice(0, 4);
+    return items.slice(0, 5);
   }, [currentUser?.roles, projectId]);
 
   return (
@@ -1200,7 +1283,7 @@ function RecentActivityPreview({ projectId, onViewAll }: { projectId: string; on
    Sites Tab
    ═══════════════════════════════════════════════════════════ */
 
-function SitesTab({ sites, config }: { sites: SiteRow[]; config: DepartmentConfig; wp: WorkspacePermissions | null }) {
+function SitesTab({ sites, config }: { sites: SiteRow[]; config: DepartmentConfig; projectId: string; wp: WorkspacePermissions | null }) {
   const [search, setSearch] = useState('');
   const [stageFilter, setStageFilter] = useState('');
   const [blockedOnly, setBlockedOnly] = useState(false);
@@ -1311,6 +1394,12 @@ function SitesTab({ sites, config }: { sites: SiteRow[]; config: DepartmentConfi
                   <td className="px-4 py-3">
                     <div className="font-medium text-[var(--text-main)]">{site.site_name || site.site_code || site.name}</div>
                     {site.site_code && site.site_name && <div className="text-xs text-[var(--text-muted)]">{site.site_code}</div>}
+                    <Link
+                      href={`/sites/${encodeURIComponent(site.name)}/dossier`}
+                      className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-violet-600 hover:text-violet-700"
+                    >
+                      <BookOpen className="h-3 w-3" /> Site dossier
+                    </Link>
                   </td>
                   <td className="px-4 py-3">
                     <span className="inline-block rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
@@ -1401,7 +1490,30 @@ function ExpiryBadge({ expiryDate }: { expiryDate?: string }) {
   return <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">{new Date(expiryDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>;
 }
 
-function FilesTab({ projectId, wp }: { projectId: string; wp: WorkspacePermissions | null }) {
+type StageCompleteness = {
+  requirements: Array<{
+    requirement: string;
+    stage: string;
+    category: string;
+    subcategory?: string;
+    mandatory: boolean;
+    satisfied: boolean;
+  }>;
+  all_mandatory_satisfied: boolean;
+  total: number;
+  satisfied_count: number;
+  missing_mandatory_count: number;
+};
+
+type ProgressionGate = {
+  target_stage: string;
+  can_proceed: boolean;
+  missing_mandatory: Array<{ stage: string; category: string; subcategory?: string }>;
+  missing_count: number;
+  message: string;
+};
+
+function FilesTab({ projectId, currentStage, wp }: { projectId: string; currentStage?: string; wp: WorkspacePermissions | null }) {
   const canUpload = wp?.can_upload_files ?? true;
   const canDelete = wp?.can_delete_files ?? false;
   const [docs, setDocs] = useState<ProjectDocument[]>([]);
@@ -1418,6 +1530,13 @@ function FilesTab({ projectId, wp }: { projectId: string; wp: WorkspacePermissio
   const [versionDoc, setVersionDoc] = useState<ProjectDocument | null>(null);
   const [versions, setVersions] = useState<ProjectDocument[]>([]);
   const [versionsLoading, setVersionsLoading] = useState(false);
+  const [selectedTraceStage, setSelectedTraceStage] = useState<string>(PROJECT_TO_DOCUMENT_STAGE[currentStage || ''] || 'Survey');
+  const [stageCompleteness, setStageCompleteness] = useState<StageCompleteness | null>(null);
+  const [progressionGate, setProgressionGate] = useState<ProgressionGate | null>(null);
+  const [traceLoading, setTraceLoading] = useState(false);
+  const [selectedRecordKey, setSelectedRecordKey] = useState('');
+  const [recordDocsLoading, setRecordDocsLoading] = useState(false);
+  const [recordDocs, setRecordDocs] = useState<ProjectDocument[]>([]);
 
   const loadDocs = async () => {
     setLoading(true);
@@ -1432,6 +1551,9 @@ function FilesTab({ projectId, wp }: { projectId: string; wp: WorkspacePermissio
   };
 
   useEffect(() => { loadDocs(); }, [projectId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    setSelectedTraceStage(PROJECT_TO_DOCUMENT_STAGE[currentStage || ''] || 'Survey');
+  }, [currentStage, projectId]);
 
   const filtered = activeCategory === 'All' ? docs : docs.filter(d => d.category === activeCategory);
 
@@ -1509,6 +1631,93 @@ function FilesTab({ projectId, wp }: { projectId: string; wp: WorkspacePermissio
   });
   const versionedDocCount = Object.values(versionCounts).filter(c => c > 1).length;
   const controlledDocs = docs.filter(d => d.expiry_date);
+  const linkedRecordBundles = useMemo(() => {
+    const map = new Map<string, { key: string; reference_doctype: string; reference_name: string; count: number }>();
+    for (const doc of docs) {
+      if (!doc.reference_doctype || !doc.reference_name) continue;
+      const key = `${doc.reference_doctype}::${doc.reference_name}`;
+      const existing = map.get(key);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        map.set(key, {
+          key,
+          reference_doctype: doc.reference_doctype,
+          reference_name: doc.reference_name,
+          count: 1,
+        });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.reference_doctype.localeCompare(b.reference_doctype) || a.reference_name.localeCompare(b.reference_name));
+  }, [docs]);
+
+  useEffect(() => {
+    if (!linkedRecordBundles.length) {
+      setSelectedRecordKey('');
+      return;
+    }
+    if (!selectedRecordKey || !linkedRecordBundles.some((bundle) => bundle.key === selectedRecordKey)) {
+      setSelectedRecordKey(linkedRecordBundles[0].key);
+    }
+  }, [linkedRecordBundles, selectedRecordKey]);
+
+  const selectedRecordBundle = useMemo(
+    () => linkedRecordBundles.find((bundle) => bundle.key === selectedRecordKey) || null,
+    [linkedRecordBundles, selectedRecordKey],
+  );
+
+  useEffect(() => {
+    let active = true;
+    const loadTrace = async () => {
+      if (!selectedTraceStage) return;
+      setTraceLoading(true);
+      try {
+        const [completeness, gate] = await Promise.all([
+          callOps<StageCompleteness>('check_stage_document_completeness', { project: projectId, stage: selectedTraceStage }),
+          callOps<ProgressionGate>('check_progression_gate', { project: projectId, target_stage: selectedTraceStage }),
+        ]);
+        if (!active) return;
+        setStageCompleteness(completeness);
+        setProgressionGate(gate);
+      } catch (err) {
+        if (!active) return;
+        setStageCompleteness(null);
+        setProgressionGate(null);
+        setError(err instanceof Error ? err.message : 'Failed to load document readiness');
+      } finally {
+        if (active) setTraceLoading(false);
+      }
+    };
+    void loadTrace();
+    return () => { active = false; };
+  }, [projectId, selectedTraceStage]);
+
+  useEffect(() => {
+    let active = true;
+    const loadRecordDocs = async () => {
+      if (!selectedRecordBundle) {
+        setRecordDocs([]);
+        return;
+      }
+      setRecordDocsLoading(true);
+      try {
+        const data = await callOps<ProjectDocument[]>('get_record_documents', {
+          reference_doctype: selectedRecordBundle.reference_doctype,
+          reference_name: selectedRecordBundle.reference_name,
+        });
+        if (!active) return;
+        setRecordDocs(data);
+      } catch (err) {
+        if (!active) return;
+        setRecordDocs([]);
+        setError(err instanceof Error ? err.message : 'Failed to load record-linked documents');
+      } finally {
+        if (active) setRecordDocsLoading(false);
+      }
+    };
+    void loadRecordDocs();
+    return () => { active = false; };
+  }, [selectedRecordBundle]);
 
   return (
     <div className="space-y-4">
@@ -1542,6 +1751,165 @@ function FilesTab({ projectId, wp }: { projectId: string; wp: WorkspacePermissio
           <div className="text-xs text-[var(--text-muted)]">Controlled</div>
           <div className="mt-1 text-xl font-bold text-emerald-600">{controlledDocs.length}</div>
           <div className="mt-0.5 text-[10px] text-[var(--text-muted)]">with expiry tracking</div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+        <div className="rounded-xl border border-[var(--border-subtle)] bg-white p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="text-sm font-semibold text-[var(--text-main)]">Stage Readiness</div>
+              <div className="mt-1 text-xs text-[var(--text-muted)]">
+                Document completeness and progression gate for the selected lifecycle stage.
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <select
+                value={selectedTraceStage}
+                onChange={(e) => setSelectedTraceStage(e.target.value)}
+                className="rounded-lg border border-[var(--border-subtle)] bg-white px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+              >
+                {DOCUMENT_TRACE_STAGES.map((stage) => (
+                  <option key={stage} value={stage}>
+                    {DOCUMENT_TRACE_STAGE_LABELS[stage] || stage}
+                  </option>
+                ))}
+              </select>
+              <Link
+                href={`/projects/${encodeURIComponent(projectId)}/dossier`}
+                className="inline-flex items-center gap-1 rounded-lg border border-[var(--border-subtle)] px-3 py-2 text-xs font-medium text-violet-700 hover:bg-violet-50"
+              >
+                <BookOpen className="h-3.5 w-3.5" /> Open dossier
+              </Link>
+            </div>
+          </div>
+
+          {traceLoading ? (
+            <div className="mt-4 flex items-center gap-2 text-xs text-[var(--text-muted)]">
+              <Loader2 className="h-4 w-4 animate-spin" /> Checking stage readiness...
+            </div>
+          ) : (
+            <div className="mt-4 space-y-3">
+              <div className={`rounded-xl border px-3 py-3 ${
+                progressionGate?.can_proceed
+                  ? 'border-emerald-200 bg-emerald-50'
+                  : 'border-rose-200 bg-rose-50'
+              }`}>
+                <div className="text-xs font-semibold text-[var(--text-main)]">
+                  {progressionGate?.can_proceed ? 'Progression gate is clear' : 'Progression gate is blocked'}
+                </div>
+                <div className="mt-1 text-xs text-[var(--text-muted)]">
+                  {progressionGate?.message || 'No progression summary available yet.'}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-3">
+                  <div className="text-[11px] text-[var(--text-muted)]">Requirements</div>
+                  <div className="mt-1 text-lg font-semibold text-[var(--text-main)]">{stageCompleteness?.total || 0}</div>
+                </div>
+                <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-3">
+                  <div className="text-[11px] text-[var(--text-muted)]">Satisfied</div>
+                  <div className="mt-1 text-lg font-semibold text-emerald-600">{stageCompleteness?.satisfied_count || 0}</div>
+                </div>
+                <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-3">
+                  <div className="text-[11px] text-[var(--text-muted)]">Missing Mandatory</div>
+                  <div className="mt-1 text-lg font-semibold text-rose-600">{stageCompleteness?.missing_mandatory_count || 0}</div>
+                </div>
+                <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-3">
+                  <div className="text-[11px] text-[var(--text-muted)]">Target Stage</div>
+                  <div className="mt-1 text-sm font-semibold text-[var(--text-main)]">{DOCUMENT_TRACE_STAGE_LABELS[selectedTraceStage] || selectedTraceStage}</div>
+                </div>
+              </div>
+
+              {progressionGate?.missing_mandatory?.length ? (
+                <div className="rounded-xl border border-rose-200 bg-rose-50 p-3">
+                  <div className="text-xs font-semibold text-rose-700">Missing before stage entry</div>
+                  <div className="mt-2 space-y-1">
+                    {progressionGate.missing_mandatory.slice(0, 6).map((item, index) => (
+                      <div key={`${item.stage}-${item.category}-${item.subcategory || index}`} className="text-[11px] text-rose-700">
+                        {DOCUMENT_TRACE_STAGE_LABELS[item.stage] || item.stage}: {item.category}{item.subcategory ? ` / ${item.subcategory}` : ''}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-[var(--border-subtle)] bg-white p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="text-sm font-semibold text-[var(--text-main)]">Record-linked Documents</div>
+              <div className="mt-1 text-xs text-[var(--text-muted)]">
+                Pull the document bundle for a specific BOQ, PO, drawing, GRN, or other linked record.
+              </div>
+            </div>
+            <div className="rounded-full bg-[var(--surface-raised)] px-2.5 py-1 text-[11px] text-[var(--text-muted)]">
+              {linkedRecordBundles.length} linked bundle{linkedRecordBundles.length !== 1 ? 's' : ''}
+            </div>
+          </div>
+
+          {!linkedRecordBundles.length ? (
+            <div className="mt-4 rounded-xl border border-dashed border-[var(--border-subtle)] px-4 py-6 text-center text-xs text-[var(--text-muted)]">
+              No record-linked document bundle exists yet for this project.
+            </div>
+          ) : (
+            <div className="mt-4 space-y-3">
+              <div className="flex flex-wrap gap-2">
+                {linkedRecordBundles.map((bundle) => (
+                  <button
+                    key={bundle.key}
+                    onClick={() => setSelectedRecordKey(bundle.key)}
+                    className={`rounded-full px-3 py-1 text-[11px] font-medium transition-colors ${
+                      selectedRecordKey === bundle.key
+                        ? 'bg-violet-100 text-violet-700'
+                        : 'bg-[var(--surface-raised)] text-[var(--text-muted)] hover:bg-[var(--border-subtle)]'
+                    }`}
+                  >
+                    {bundle.reference_doctype}: {bundle.reference_name} ({bundle.count})
+                  </button>
+                ))}
+              </div>
+
+              {recordDocsLoading ? (
+                <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Loading linked documents...
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {recordDocs.slice(0, 5).map((doc) => (
+                    <div key={doc.name} className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-3 py-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="truncate text-xs font-medium text-[var(--text-main)]">{doc.document_name || doc.name}</div>
+                          <div className="mt-1 flex flex-wrap gap-2 text-[10px] text-[var(--text-muted)]">
+                            {doc.category && <span>{doc.category}</span>}
+                            {doc.document_subcategory && <span>/ {doc.document_subcategory}</span>}
+                            {doc.linked_stage && <span>Stage: {doc.linked_stage}</span>}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {doc.file && (
+                            <a href={doc.file} target="_blank" rel="noreferrer" className="text-violet-600 hover:text-violet-700">
+                              <ExternalLink className="h-4 w-4" />
+                            </a>
+                          )}
+                          <span className="text-[10px] text-[var(--text-muted)]">v{doc.version || 1}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {selectedRecordBundle && !recordDocs.length ? (
+                    <div className="rounded-xl border border-dashed border-[var(--border-subtle)] px-4 py-4 text-xs text-[var(--text-muted)]">
+                      No documents returned for {selectedRecordBundle.reference_doctype}: {selectedRecordBundle.reference_name}.
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -2762,6 +3130,645 @@ function OpsTab({ projectId, config }: { projectId: string; config: DepartmentCo
 }
 
 /* ═══════════════════════════════════════════════════════════
+   Tasks Tab (RISE-ported: list + kanban toggle)
+   ═══════════════════════════════════════════════════════════ */
+
+type ProjectTask = {
+  name: string;
+  linked_project: string;
+  linked_site?: string;
+  title: string;
+  status: string;
+  priority: string;
+  assigned_to?: string;
+  collaborators?: string;
+  start_date?: string;
+  deadline?: string;
+  description?: string;
+  parent_task?: string;
+  milestone_id?: string;
+  points?: number;
+  labels?: string;
+  sort_order?: number;
+  owner?: string;
+  creation?: string;
+  modified?: string;
+};
+
+type TaskSummary = {
+  'To Do': { count: number; points: number };
+  'In Progress': { count: number; points: number };
+  'Review': { count: number; points: number };
+  'Done': { count: number; points: number };
+  total: number;
+  total_points: number;
+};
+
+const TASK_STATUSES = ['To Do', 'In Progress', 'Review', 'Done'] as const;
+const TASK_STATUS_COLORS: Record<string, string> = {
+  'To Do': 'bg-gray-100 text-gray-700 border-gray-200',
+  'In Progress': 'bg-blue-50 text-blue-700 border-blue-200',
+  'Review': 'bg-amber-50 text-amber-700 border-amber-200',
+  'Done': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+};
+const TASK_PRIORITY_COLORS: Record<string, string> = {
+  Low: 'text-gray-400',
+  Normal: 'text-blue-500',
+  High: 'text-amber-500',
+  Urgent: 'text-rose-500',
+};
+
+function TasksTab({ projectId }: { projectId: string }) {
+  const [tasks, setTasks] = useState<ProjectTask[]>([]);
+  const [summary, setSummary] = useState<TaskSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [view, setView] = useState<'list' | 'kanban'>('list');
+  const [showCreate, setShowCreate] = useState(false);
+  const [editingTask, setEditingTask] = useState<ProjectTask | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [formTitle, setFormTitle] = useState('');
+  const [formStatus, setFormStatus] = useState('To Do');
+  const [formPriority, setFormPriority] = useState('Normal');
+  const [formAssigned, setFormAssigned] = useState('');
+  const [formDeadline, setFormDeadline] = useState('');
+  const [formDescription, setFormDescription] = useState('');
+  const [formPoints, setFormPoints] = useState('0');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [t, s] = await Promise.all([
+        callOps<ProjectTask[]>('get_project_tasks', { project: projectId }),
+        callOps<TaskSummary>('get_task_summary', { project: projectId }),
+      ]);
+      setTasks(Array.isArray(t) ? t : []);
+      setSummary(s);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load tasks');
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  const resetForm = () => {
+    setFormTitle(''); setFormStatus('To Do'); setFormPriority('Normal');
+    setFormAssigned(''); setFormDeadline(''); setFormDescription(''); setFormPoints('0');
+    setShowCreate(false); setEditingTask(null);
+  };
+
+  const openEdit = (t: ProjectTask) => {
+    setEditingTask(t); setFormTitle(t.title); setFormStatus(t.status);
+    setFormPriority(t.priority); setFormAssigned(t.assigned_to || '');
+    setFormDeadline(t.deadline || ''); setFormDescription(t.description || '');
+    setFormPoints(String(t.points || 0)); setShowCreate(true);
+  };
+
+  const handleSave = async () => {
+    if (!formTitle.trim()) return;
+    setSaving(true);
+    try {
+      const payload: Record<string, unknown> = {
+        title: formTitle, status: formStatus, priority: formPriority,
+        assigned_to: formAssigned || undefined, deadline: formDeadline || undefined,
+        description: formDescription || undefined, points: parseInt(formPoints) || 0,
+      };
+      if (editingTask) {
+        await callOps('update_project_task', { name: editingTask.name, data: payload });
+      } else {
+        payload.linked_project = projectId;
+        await callOps('create_project_task', { data: payload });
+      }
+      resetForm(); void load();
+    } catch (err) { setError(err instanceof Error ? err.message : 'Failed to save task'); }
+    finally { setSaving(false); }
+  };
+
+  const handleDelete = async (name: string) => {
+    try { await callOps('delete_project_task', { name }); void load(); }
+    catch (err) { setError(err instanceof Error ? err.message : 'Failed to delete task'); }
+  };
+
+  const handleStatusChange = async (name: string, status: string) => {
+    try { await callOps('update_task_status', { name, status }); void load(); }
+    catch (err) { setError(err instanceof Error ? err.message : 'Failed to update status'); }
+  };
+
+  const filtered = statusFilter === 'all' ? tasks : tasks.filter((t) => t.status === statusFilter);
+
+  if (loading) return <div className="flex items-center justify-center py-16 text-[var(--text-muted)]"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading tasks...</div>;
+
+  return (
+    <div className="space-y-6">
+      {/* Summary cards */}
+      {summary && (
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+          <div className="rounded-xl border border-[var(--border-subtle)] bg-white px-4 py-3 text-center">
+            <div className="text-lg font-bold text-[var(--text-main)]">{summary.total}</div>
+            <div className="text-[11px] text-[var(--text-muted)]">Total</div>
+          </div>
+          {TASK_STATUSES.map((s) => (
+            <div key={s} className="rounded-xl border border-[var(--border-subtle)] bg-white px-4 py-3 text-center">
+              <div className="text-lg font-bold text-[var(--text-main)]">{summary[s].count}</div>
+              <div className="text-[11px] text-[var(--text-muted)]">{s}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Controls */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap gap-2">
+          {['all', ...TASK_STATUSES].map((s) => (
+            <button key={s} onClick={() => setStatusFilter(s)}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${statusFilter === s ? 'bg-[var(--accent)] text-white' : 'bg-[var(--surface-raised)] text-[var(--text-muted)] hover:bg-gray-200'}`}>
+              {s === 'all' ? 'All' : s}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => setView(view === 'list' ? 'kanban' : 'list')}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] px-3 py-1.5 text-xs font-medium text-[var(--text-main)] hover:bg-[var(--surface-raised)]">
+            {view === 'list' ? <><Columns3 className="h-3.5 w-3.5" /> Kanban</> : <><ListFilter className="h-3.5 w-3.5" /> List</>}
+          </button>
+          <button onClick={() => { resetForm(); setShowCreate(true); }}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--brand-orange)] px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:opacity-90">
+            <Plus className="h-3.5 w-3.5" /> New Task
+          </button>
+        </div>
+      </div>
+
+      {error && <p className="rounded-lg bg-rose-50 px-4 py-2 text-sm text-rose-600">{error}</p>}
+
+      {/* Create / Edit form */}
+      {showCreate && (
+        <div className="rounded-xl border border-[var(--border-subtle)] bg-white p-4 shadow-sm">
+          <h4 className="mb-3 text-sm font-semibold text-[var(--text-main)]">{editingTask ? 'Edit Task' : 'New Task'}</h4>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-xs font-medium text-[var(--text-muted)]">Title *</label>
+              <input type="text" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} placeholder="Task title..." className="w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-[var(--text-muted)]">Status</label>
+              <select value={formStatus} onChange={(e) => setFormStatus(e.target.value)} className="w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-3 py-2 text-sm">
+                {TASK_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-[var(--text-muted)]">Priority</label>
+              <select value={formPriority} onChange={(e) => setFormPriority(e.target.value)} className="w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-3 py-2 text-sm">
+                {['Low', 'Normal', 'High', 'Urgent'].map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-[var(--text-muted)]">Assigned To</label>
+              <input type="text" value={formAssigned} onChange={(e) => setFormAssigned(e.target.value)} placeholder="user@example.com" className="w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-[var(--text-muted)]">Deadline</label>
+              <input type="date" value={formDeadline} onChange={(e) => setFormDeadline(e.target.value)} className="w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-[var(--text-muted)]">Points</label>
+              <input type="number" min="0" value={formPoints} onChange={(e) => setFormPoints(e.target.value)} className="w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-3 py-2 text-sm" />
+            </div>
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-xs font-medium text-[var(--text-muted)]">Description</label>
+              <textarea value={formDescription} onChange={(e) => setFormDescription(e.target.value)} rows={3} placeholder="Details..." className="w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-3 py-2 text-sm" />
+            </div>
+            <div className="flex gap-2 md:col-span-2">
+              <button onClick={handleSave} disabled={!formTitle.trim() || saving} className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--brand-orange)] px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:opacity-90 disabled:opacity-50">
+                {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} {editingTask ? 'Update' : 'Save'}
+              </button>
+              <button onClick={resetForm} className="rounded-lg border border-[var(--border-subtle)] px-3 py-1.5 text-xs font-medium text-[var(--text-muted)] hover:bg-[var(--surface-raised)]">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* List view */}
+      {view === 'list' && (
+        <div className="space-y-2">
+          {filtered.length === 0 && !showCreate && (
+            <div className="py-12 text-center">
+              <CheckCircle2 className="mx-auto h-10 w-10 text-[var(--text-muted)] opacity-40" />
+              <p className="mt-3 text-sm text-[var(--text-muted)]">No tasks yet. Create your first task to get started.</p>
+            </div>
+          )}
+          {filtered.map((task) => (
+            <div key={task.name} className="flex items-center gap-3 rounded-xl border border-[var(--border-subtle)] bg-white px-4 py-3 shadow-sm">
+              <button onClick={() => handleStatusChange(task.name, task.status === 'Done' ? 'To Do' : 'Done')}
+                className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border-2 transition-colors ${task.status === 'Done' ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-gray-300 hover:border-emerald-400'}`}>
+                {task.status === 'Done' && <CheckCircle2 className="h-3 w-3" />}
+              </button>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className={`text-sm font-medium ${task.status === 'Done' ? 'text-[var(--text-muted)] line-through' : 'text-[var(--text-main)]'}`}>{task.title}</span>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${TASK_STATUS_COLORS[task.status] || ''}`}>{task.status}</span>
+                  {task.priority !== 'Normal' && <span className={`text-[10px] font-semibold ${TASK_PRIORITY_COLORS[task.priority] || ''}`}>{task.priority}</span>}
+                  {(task.points ?? 0) > 0 && <span className="rounded bg-violet-50 px-1.5 py-0.5 text-[10px] font-medium text-violet-600">{task.points}pt</span>}
+                </div>
+                <div className="mt-1 flex gap-3 text-[10px] text-[var(--text-muted)]">
+                  {task.assigned_to && <span>{task.assigned_to}</span>}
+                  {task.deadline && <span>Due: {task.deadline}</span>}
+                </div>
+              </div>
+              <div className="flex gap-1">
+                <button onClick={() => openEdit(task)} className="rounded-lg p-1.5 text-[var(--text-muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-main)]"><Edit3 className="h-3.5 w-3.5" /></button>
+                <button onClick={() => handleDelete(task.name)} className="rounded-lg p-1.5 text-[var(--text-muted)] hover:bg-rose-50 hover:text-rose-600"><Trash2 className="h-3.5 w-3.5" /></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Kanban view */}
+      {view === 'kanban' && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+          {TASK_STATUSES.map((col) => {
+            const colTasks = tasks.filter((t) => t.status === col);
+            return (
+              <div key={col} className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-3">
+                <div className="mb-3 flex items-center justify-between">
+                  <h4 className="text-xs font-semibold text-[var(--text-main)]">{col}</h4>
+                  <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-medium text-[var(--text-muted)]">{colTasks.length}</span>
+                </div>
+                <div className="space-y-2">
+                  {colTasks.map((task) => (
+                    <div key={task.name} className="rounded-lg border border-[var(--border-subtle)] bg-white p-3 shadow-sm">
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="text-xs font-medium text-[var(--text-main)]">{task.title}</span>
+                        <div className="flex gap-0.5">
+                          <button onClick={() => openEdit(task)} className="rounded p-0.5 text-[var(--text-muted)] hover:text-[var(--text-main)]"><Edit3 className="h-3 w-3" /></button>
+                        </div>
+                      </div>
+                      {task.priority !== 'Normal' && <span className={`mt-1 inline-block text-[10px] font-semibold ${TASK_PRIORITY_COLORS[task.priority] || ''}`}>{task.priority}</span>}
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {TASK_STATUSES.filter((s) => s !== col).map((s) => (
+                          <button key={s} onClick={() => handleStatusChange(task.name, s)}
+                            className="rounded px-1.5 py-0.5 text-[9px] font-medium text-[var(--text-muted)] hover:bg-[var(--surface-raised)]">{s}</button>
+                        ))}
+                      </div>
+                      <div className="mt-2 flex gap-2 text-[10px] text-[var(--text-muted)]">
+                        {task.assigned_to && <span><Users className="mr-0.5 inline h-2.5 w-2.5" />{task.assigned_to.split('@')[0]}</span>}
+                        {task.deadline && <span>{task.deadline}</span>}
+                        {(task.points ?? 0) > 0 && <span className="text-violet-500">{task.points}pt</span>}
+                      </div>
+                    </div>
+                  ))}
+                  {colTasks.length === 0 && <p className="py-4 text-center text-[10px] text-[var(--text-muted)]">No tasks</p>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Timesheets Tab (RISE-ported: aggregation shell)
+   ═══════════════════════════════════════════════════════════ */
+
+type TimesheetSummary = {
+  dpr_count: number;
+  dpr_rows: Array<{ name: string; linked_site?: string; report_date?: string; summary?: string; manpower_on_site?: number; equipment_count?: number; owner?: string }>;
+  manpower_total_persons: number;
+  manpower_rows: Array<{ name: string; linked_site?: string; log_date?: string; num_persons?: number; trade?: string; remarks?: string; owner?: string }>;
+  overtime_total_hours: number;
+  overtime_rows: Array<{ name: string; linked_site?: string; entry_date?: string; hours?: number; employee_name?: string; reason?: string; status?: string; owner?: string }>;
+};
+
+function TimesheetsTab({ projectId }: { projectId: string }) {
+  const [data, setData] = useState<TimesheetSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [section, setSection] = useState<'dpr' | 'manpower' | 'overtime'>('dpr');
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const d = await callOps<TimesheetSummary>('get_project_timesheet_summary', { project: projectId });
+      setData(d);
+    } catch (err) { setError(err instanceof Error ? err.message : 'Failed to load timesheet data'); }
+    finally { setLoading(false); }
+  }, [projectId]);
+
+  useEffect(() => { void loadData(); }, [loadData]);
+
+  if (loading) return <div className="flex items-center justify-center py-16 text-[var(--text-muted)]"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading timesheets...</div>;
+  if (error) return <p className="rounded-lg bg-rose-50 px-4 py-2 text-sm text-rose-600">{error}</p>;
+  if (!data) return null;
+
+  return (
+    <div className="space-y-6">
+      {/* Summary cards */}
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <button onClick={() => setSection('dpr')} className={`rounded-xl border px-4 py-3 text-left transition-colors ${section === 'dpr' ? 'border-[var(--accent)] bg-blue-50' : 'border-[var(--border-subtle)] bg-white'}`}>
+          <div className="text-lg font-bold text-[var(--text-main)]">{data.dpr_count}</div>
+          <div className="text-xs text-[var(--text-muted)]">DPR Reports</div>
+        </button>
+        <button onClick={() => setSection('manpower')} className={`rounded-xl border px-4 py-3 text-left transition-colors ${section === 'manpower' ? 'border-[var(--accent)] bg-blue-50' : 'border-[var(--border-subtle)] bg-white'}`}>
+          <div className="text-lg font-bold text-[var(--text-main)]">{data.manpower_total_persons}</div>
+          <div className="text-xs text-[var(--text-muted)]">Total Manpower Logged</div>
+        </button>
+        <button onClick={() => setSection('overtime')} className={`rounded-xl border px-4 py-3 text-left transition-colors ${section === 'overtime' ? 'border-[var(--accent)] bg-blue-50' : 'border-[var(--border-subtle)] bg-white'}`}>
+          <div className="text-lg font-bold text-[var(--text-main)]">{data.overtime_total_hours.toFixed(1)}h</div>
+          <div className="text-xs text-[var(--text-muted)]">Overtime Hours</div>
+        </button>
+      </div>
+
+      {/* DPR section */}
+      {section === 'dpr' && (
+        <div className="rounded-xl border border-[var(--border-subtle)] bg-white shadow-sm">
+          <div className="border-b border-[var(--border-subtle)] px-5 py-3">
+            <h4 className="text-sm font-semibold text-[var(--text-main)]">Daily Progress Reports</h4>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead><tr className="border-b border-[var(--border-subtle)] text-[11px] uppercase text-[var(--text-muted)]"><th className="px-4 py-2">Date</th><th className="px-4 py-2">Site</th><th className="px-4 py-2">Summary</th><th className="px-4 py-2">Manpower</th><th className="px-4 py-2">Equipment</th></tr></thead>
+              <tbody>
+                {data.dpr_rows.length === 0 ? (
+                  <tr><td colSpan={5} className="px-4 py-8 text-center text-[var(--text-muted)]">No DPR entries yet.</td></tr>
+                ) : data.dpr_rows.map((r) => (
+                  <tr key={r.name} className="border-b border-[var(--border-subtle)] last:border-0">
+                    <td className="px-4 py-2 font-medium">{r.report_date || '—'}</td>
+                    <td className="px-4 py-2">{r.linked_site || '—'}</td>
+                    <td className="max-w-xs truncate px-4 py-2">{r.summary || '—'}</td>
+                    <td className="px-4 py-2">{r.manpower_on_site ?? 0}</td>
+                    <td className="px-4 py-2">{r.equipment_count ?? 0}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Manpower section */}
+      {section === 'manpower' && (
+        <div className="rounded-xl border border-[var(--border-subtle)] bg-white shadow-sm">
+          <div className="border-b border-[var(--border-subtle)] px-5 py-3">
+            <h4 className="text-sm font-semibold text-[var(--text-main)]">Manpower Logs</h4>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead><tr className="border-b border-[var(--border-subtle)] text-[11px] uppercase text-[var(--text-muted)]"><th className="px-4 py-2">Date</th><th className="px-4 py-2">Site</th><th className="px-4 py-2">Trade</th><th className="px-4 py-2">Persons</th><th className="px-4 py-2">Remarks</th></tr></thead>
+              <tbody>
+                {data.manpower_rows.length === 0 ? (
+                  <tr><td colSpan={5} className="px-4 py-8 text-center text-[var(--text-muted)]">No manpower logs yet.</td></tr>
+                ) : data.manpower_rows.map((r) => (
+                  <tr key={r.name} className="border-b border-[var(--border-subtle)] last:border-0">
+                    <td className="px-4 py-2 font-medium">{r.log_date || '—'}</td>
+                    <td className="px-4 py-2">{r.linked_site || '—'}</td>
+                    <td className="px-4 py-2">{r.trade || '—'}</td>
+                    <td className="px-4 py-2">{r.num_persons ?? 0}</td>
+                    <td className="max-w-xs truncate px-4 py-2">{r.remarks || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Overtime section */}
+      {section === 'overtime' && (
+        <div className="rounded-xl border border-[var(--border-subtle)] bg-white shadow-sm">
+          <div className="border-b border-[var(--border-subtle)] px-5 py-3">
+            <h4 className="text-sm font-semibold text-[var(--text-main)]">Overtime Entries</h4>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead><tr className="border-b border-[var(--border-subtle)] text-[11px] uppercase text-[var(--text-muted)]"><th className="px-4 py-2">Date</th><th className="px-4 py-2">Employee</th><th className="px-4 py-2">Hours</th><th className="px-4 py-2">Reason</th><th className="px-4 py-2">Status</th></tr></thead>
+              <tbody>
+                {data.overtime_rows.length === 0 ? (
+                  <tr><td colSpan={5} className="px-4 py-8 text-center text-[var(--text-muted)]">No overtime entries yet.</td></tr>
+                ) : data.overtime_rows.map((r) => (
+                  <tr key={r.name} className="border-b border-[var(--border-subtle)] last:border-0">
+                    <td className="px-4 py-2 font-medium">{r.entry_date || '—'}</td>
+                    <td className="px-4 py-2">{r.employee_name || '—'}</td>
+                    <td className="px-4 py-2">{r.hours ?? 0}h</td>
+                    <td className="max-w-xs truncate px-4 py-2">{r.reason || '—'}</td>
+                    <td className="px-4 py-2">{r.status || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Notes Tab (RISE-style private notes)
+   ═══════════════════════════════════════════════════════════ */
+
+type ProjectNote = {
+  name: string;
+  linked_project: string;
+  title: string;
+  content?: string;
+  is_private?: number;
+  owner?: string;
+  creation?: string;
+  modified?: string;
+};
+
+function NotesTab({ projectId }: { projectId: string }) {
+  const [notes, setNotes] = useState<ProjectNote[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [showCreate, setShowCreate] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [formTitle, setFormTitle] = useState('');
+  const [formContent, setFormContent] = useState('');
+  const [formPrivate, setFormPrivate] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const loadNotes = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await callOps<ProjectNote[]>('get_project_notes', { project: projectId });
+      setNotes(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load notes');
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId]);
+
+  useEffect(() => { void loadNotes(); }, [loadNotes]);
+
+  const resetForm = () => {
+    setFormTitle('');
+    setFormContent('');
+    setFormPrivate(true);
+    setShowCreate(false);
+    setEditingId(null);
+  };
+
+  const handleSave = async () => {
+    if (!formTitle.trim()) return;
+    setSaving(true);
+    try {
+      if (editingId) {
+        await callOps('update_project_note', { name: editingId, data: { title: formTitle, content: formContent, is_private: formPrivate ? 1 : 0 } });
+      } else {
+        await callOps('create_project_note', { data: { linked_project: projectId, title: formTitle, content: formContent, is_private: formPrivate ? 1 : 0 } });
+      }
+      resetForm();
+      void loadNotes();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save note');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEdit = (note: ProjectNote) => {
+    setEditingId(note.name);
+    setFormTitle(note.title);
+    setFormContent(note.content || '');
+    setFormPrivate(!!note.is_private);
+    setShowCreate(true);
+  };
+
+  const handleDelete = async (name: string) => {
+    try {
+      await callOps('delete_project_note', { name });
+      void loadNotes();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete note');
+    }
+  };
+
+  if (loading) return <div className="flex items-center justify-center py-16 text-[var(--text-muted)]"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading notes...</div>;
+
+  return (
+    <div className="space-y-6">
+      {/* Header row */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-base font-semibold text-[var(--text-main)]">Project Notes</h3>
+          <p className="mt-0.5 text-xs text-[var(--text-muted)]">Private notes are only visible to their creator</p>
+        </div>
+        {!showCreate && (
+          <button
+            onClick={() => { resetForm(); setShowCreate(true); }}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--brand-orange)] px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:opacity-90"
+          >
+            <Plus className="h-3.5 w-3.5" /> New Note
+          </button>
+        )}
+      </div>
+
+      {error && <p className="rounded-lg bg-rose-50 px-4 py-2 text-sm text-rose-600">{error}</p>}
+
+      {/* Create / Edit form */}
+      {showCreate && (
+        <div className="rounded-xl border border-[var(--border-subtle)] bg-white p-4 shadow-sm">
+          <h4 className="mb-3 text-sm font-semibold text-[var(--text-main)]">{editingId ? 'Edit Note' : 'New Note'}</h4>
+          <div className="space-y-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-[var(--text-muted)]">Title *</label>
+              <input
+                type="text"
+                value={formTitle}
+                onChange={(e) => setFormTitle(e.target.value)}
+                placeholder="Note title..."
+                className="w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-[var(--text-muted)]">Content</label>
+              <textarea
+                value={formContent}
+                onChange={(e) => setFormContent(e.target.value)}
+                placeholder="Write your note here..."
+                rows={5}
+                className="w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-3 py-2 text-sm"
+              />
+            </div>
+            <label className="inline-flex items-center gap-2 text-xs text-[var(--text-muted)]">
+              <input type="checkbox" checked={formPrivate} onChange={(e) => setFormPrivate(e.target.checked)} className="rounded" />
+              {formPrivate ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+              Private (only visible to you)
+            </label>
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={handleSave}
+                disabled={!formTitle.trim() || saving}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--brand-orange)] px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:opacity-90 disabled:opacity-50"
+              >
+                {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                {editingId ? 'Update' : 'Save'}
+              </button>
+              <button onClick={resetForm} className="rounded-lg border border-[var(--border-subtle)] px-3 py-1.5 text-xs font-medium text-[var(--text-muted)] hover:bg-[var(--surface-raised)]">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Notes list */}
+      {notes.length === 0 && !showCreate && (
+        <div className="py-12 text-center">
+          <StickyNote className="mx-auto h-10 w-10 text-[var(--text-muted)] opacity-40" />
+          <p className="mt-3 text-sm text-[var(--text-muted)]">No notes yet. Create your first note to get started.</p>
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {notes.map((note) => (
+          <div key={note.name} className="rounded-xl border border-[var(--border-subtle)] bg-white px-5 py-4 shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-semibold text-[var(--text-main)]">{note.title}</h4>
+                  {note.is_private ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-600">
+                      <EyeOff className="h-2.5 w-2.5" /> Private
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-600">
+                      <Eye className="h-2.5 w-2.5" /> Shared
+                    </span>
+                  )}
+                </div>
+                {note.content && (
+                  <div className="mt-2 text-sm text-[var(--text-main)] whitespace-pre-wrap leading-relaxed">{note.content}</div>
+                )}
+                <div className="mt-2 flex gap-4 text-[11px] text-[var(--text-muted)]">
+                  <span>{note.owner}</span>
+                  <span>{note.modified ? new Date(note.modified).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                </div>
+              </div>
+              <div className="flex gap-1">
+                <button onClick={() => handleEdit(note)} className="rounded-lg p-1.5 text-[var(--text-muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-main)]" title="Edit">
+                  <Edit3 className="h-3.5 w-3.5" />
+                </button>
+                <button onClick={() => handleDelete(note.name)} className="rounded-lg p-1.5 text-[var(--text-muted)] hover:bg-rose-50 hover:text-rose-600" title="Delete">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
    Main Shell
    ═══════════════════════════════════════════════════════════ */
 
@@ -2778,6 +3785,26 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [activeTab, setActiveTab] = useState<TabKey>(config.tabs[0] || 'overview');
+
+  /* ── Favorite state ── */
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
+  useEffect(() => {
+    callOps<string[]>('get_project_favorites').then((favs) => {
+      if (Array.isArray(favs) && favs.includes(projectId)) setIsFavorite(true);
+    }).catch(() => {});
+  }, [projectId]);
+  const toggleFavorite = useCallback(async () => {
+    setFavoriteLoading(true);
+    try {
+      const res = await callOps<{ is_favorite: boolean }>('toggle_project_favorite', { project: projectId });
+      setIsFavorite(res.is_favorite);
+    } catch { /* ignore */ }
+    setFavoriteLoading(false);
+  }, [projectId]);
+
+  /* ── Actions dropdown ── */
+  const [actionsOpen, setActionsOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -2871,15 +3898,24 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
               <ArrowLeft className="h-3.5 w-3.5" /> {config.backLabel}
             </Link>
             <div className="workspace-kicker">{config.kickerLabel}</div>
-            <h1 className="mt-2 text-[clamp(1.5rem,2.2vw,2.2rem)] font-semibold tracking-tight text-[var(--text-main)]">
+            <h1 className="mt-2 flex items-center gap-3 text-[clamp(1.5rem,2.2vw,2.2rem)] font-semibold tracking-tight text-[var(--text-main)]">
               {ps?.project_name || projectId}
+              {/* Star / Favourite */}
+              <button
+                onClick={toggleFavorite}
+                disabled={favoriteLoading}
+                title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                className="inline-flex items-center justify-center rounded-lg p-1 transition-colors hover:bg-[var(--surface-raised)]"
+              >
+                <Star className={`h-5 w-5 ${isFavorite ? 'fill-amber-400 text-amber-400' : 'text-[var(--text-muted)]'}`} />
+              </button>
             </h1>
             <p className="mt-2 text-sm text-[var(--text-muted)]">
               {ps?.customer || 'No customer'} &middot; {((ps?.current_project_stage) || 'SURVEY').replaceAll('_', ' ')} &middot; {formatPercent(ps?.spine_progress_pct || 0)} complete
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2 lg:pt-6">
+          <div className="flex flex-wrap items-center gap-2 lg:pt-6">
             {config.departmentKey !== 'all' && (
               <div className="workspace-chip !border-blue-200 !bg-blue-50 !text-blue-700">{config.departmentLabel}</div>
             )}
@@ -2888,7 +3924,61 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
             {detail.action_queue.blocked_count > 0 && (
               <div className="workspace-chip !border-rose-200 !bg-rose-50 !text-rose-600">{detail.action_queue.blocked_count} blocked</div>
             )}
-            <ReminderDrawer projectId={projectId} projectName={ps?.project_name || projectId} />
+
+            {/* ── RISE-style action cluster ── */}
+            <div className="flex items-center gap-1.5 ml-1">
+              <ReminderDrawer projectId={projectId} projectName={ps?.project_name || projectId} />
+
+              {/* Actions dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setActionsOpen((o) => !o)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-white px-3 py-1.5 text-xs font-medium text-[var(--text-main)] shadow-sm transition-colors hover:bg-[var(--surface-raised)]"
+                >
+                  <Wrench className="h-3.5 w-3.5" />
+                  Actions
+                  <ChevronDown className={`h-3 w-3 transition-transform ${actionsOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {actionsOpen && (
+                  <>
+                    <div className="fixed inset-0 z-30" onClick={() => setActionsOpen(false)} />
+                    <div className="absolute right-0 z-40 mt-1 w-52 rounded-xl border border-[var(--border-subtle)] bg-white py-1 shadow-lg">
+                      <button
+                        onClick={() => { setActionsOpen(false); setActiveTab('overview'); setReloadKey((k) => k + 1); }}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-xs text-[var(--text-main)] hover:bg-[var(--surface-raised)]"
+                      >
+                        <Activity className="h-3.5 w-3.5" /> Refresh Workspace
+                      </button>
+                      <button
+                        onClick={() => { setActionsOpen(false); setActiveTab('notes'); }}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-xs text-[var(--text-main)] hover:bg-[var(--surface-raised)]"
+                      >
+                        <StickyNote className="h-3.5 w-3.5" /> Add Note
+                      </button>
+                      <button
+                        onClick={() => { setActionsOpen(false); setActiveTab('files'); }}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-xs text-[var(--text-main)] hover:bg-[var(--surface-raised)]"
+                      >
+                        <Upload className="h-3.5 w-3.5" /> Upload File
+                      </button>
+                      <div className="my-1 border-t border-[var(--border-subtle)]" />
+                      <button
+                        onClick={() => { setActionsOpen(false); setActiveTab('staff'); }}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-xs text-[var(--text-main)] hover:bg-[var(--surface-raised)]"
+                      >
+                        <ShieldAlert className="h-3.5 w-3.5" /> Manage Staff
+                      </button>
+                      <button
+                        onClick={() => { setActionsOpen(false); setActiveTab('comms'); }}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-xs text-[var(--text-main)] hover:bg-[var(--surface-raised)]"
+                      >
+                        <MessageSquare className="h-3.5 w-3.5" /> Communications
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -2919,7 +4009,7 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
 
       {/* ── Tab Content ── */}
       {activeTab === 'overview' && <OverviewTab detail={detail} config={config} deptSites={deptSites} projectId={projectId} onTabChange={setActiveTab} wp={wp} />}
-      {activeTab === 'sites' && <SitesTab sites={deptSites} config={config} wp={wp} />}
+      {activeTab === 'sites' && <SitesTab sites={deptSites} config={config} projectId={projectId} wp={wp} />}
       {activeTab === 'board' && <SiteBoardTab sites={deptSites} config={config} wp={wp} />}
       {activeTab === 'milestones' && <MilestonesTab sites={deptSites} projectId={projectId} config={config} />}
       {activeTab === 'ops' && <OpsTab projectId={projectId} config={config} />}
@@ -2929,7 +4019,10 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
       {activeTab === 'comms' && <CommunicationsTab projectId={projectId} />}
       {activeTab === 'central_status' && <CentralStatusTab projectId={projectId} />}
       {activeTab === 'requests' && <RequestsTab projectId={projectId} />}
-      {activeTab === 'files' && <FilesTab projectId={projectId} wp={wp} />}
+      {activeTab === 'tasks' && <TasksTab projectId={projectId} />}
+      {activeTab === 'timesheets' && <TimesheetsTab projectId={projectId} />}
+      {activeTab === 'notes' && <NotesTab projectId={projectId} />}
+      {activeTab === 'files' && <FilesTab projectId={projectId} currentStage={ps?.current_project_stage} wp={wp} />}
       {activeTab === 'activity' && <TabErrorBoundary><ActivityTab projectId={projectId} /></TabErrorBoundary>}
     </div>
   );

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import React, { useEffect, useState } from 'react';
 import { ExternalLink, RefreshCw, ScrollText } from 'lucide-react';
 import { useRole } from '../../../context/RoleContext';
+import ActionModal from '@/components/ui/ActionModal';
 
 type SubmissionRow = {
   bid_id: string;
@@ -44,6 +45,7 @@ export default function LetterOfSubmissionPage() {
   const [loading, setLoading] = useState(true);
   const [busyBid, setBusyBid] = useState('');
   const [error, setError] = useState('');
+  const [locSubmitTarget, setLocSubmitTarget] = useState<string | null>(null);
 
   const fetchRows = async () => {
     setLoading(true);
@@ -67,10 +69,7 @@ export default function LetterOfSubmissionPage() {
     void fetchRows();
   }, []);
 
-  const submitLetter = async (bidId: string) => {
-    const submissionDate = window.prompt('LOC submission date (YYYY-MM-DD)', new Date().toISOString().slice(0, 10));
-    if (submissionDate === null) return;
-    const remarks = window.prompt('Submission remarks', '') || '';
+  const submitLetter = async (bidId: string, submissionDate: string, remarks: string) => {
     setBusyBid(bidId);
     setError('');
     try {
@@ -169,7 +168,7 @@ export default function LetterOfSubmissionPage() {
                     <div className="flex items-center gap-2">
                       {row.loc_request_status === 'REQUESTED' ? (
                         <button
-                          onClick={() => void submitLetter(row.bid_id)}
+                          onClick={() => setLocSubmitTarget(row.bid_id)}
                           disabled={busyBid === row.bid_id}
                           className="inline-flex items-center gap-1 rounded-lg bg-[var(--accent)] px-2.5 py-1.5 text-[10px] font-medium text-white disabled:opacity-60"
                         >
@@ -192,6 +191,22 @@ export default function LetterOfSubmissionPage() {
           </tbody>
         </table>
       </div>
+      <ActionModal
+        open={locSubmitTarget !== null}
+        title="Submit LOC"
+        description={`Submit Letter of Completion for bid ${locSubmitTarget}`}
+        confirmLabel="Submit LOC"
+        variant="default"
+        fields={[
+          { name: 'submission_date', label: 'Submission Date (YYYY-MM-DD)', type: 'text', defaultValue: new Date().toISOString().slice(0, 10) },
+          { name: 'remarks', label: 'Remarks', type: 'textarea' },
+        ]}
+        onCancel={() => setLocSubmitTarget(null)}
+        onConfirm={async (values) => {
+          if (locSubmitTarget) await submitLetter(locSubmitTarget, values.submission_date || '', values.remarks || '');
+          setLocSubmitTarget(null);
+        }}
+      />
     </div>
   );
 }

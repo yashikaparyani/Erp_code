@@ -17,6 +17,10 @@ import {
   AlertCircle,
   Upload,
 } from 'lucide-react';
+import ActionModal from '@/components/ui/ActionModal';
+import { AccountabilityTimeline } from '@/components/accountability/AccountabilityTimeline';
+import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
+import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
 
 /* ── Types ─────────────────────────────────────────────────── */
 
@@ -136,6 +140,8 @@ export default function PurchaseOrderDetailPage() {
   const [editNote, setEditNote] = useState('');
   const [termsEditing, setTermsEditing] = useState(false);
   const [termsSaving, setTermsSaving] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showTermsRejectModal, setShowTermsRejectModal] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -182,7 +188,6 @@ export default function PurchaseOrderDetailPage() {
   };
 
   const handleDelete = async () => {
-    if (!confirm('Delete this Purchase Order? This cannot be undone.')) return;
     setActionBusy('delete');
     try {
       const res = await fetch('/api/purchase-orders', {
@@ -242,16 +247,13 @@ export default function PurchaseOrderDetailPage() {
     }
   };
 
-  const handleTermsApproval = async (action: 'approve' | 'reject') => {
-    const reason = action === 'reject' ? prompt('Rejection reason:') : null;
-    if (action === 'reject' && reason === null) return;
-
+  const handleTermsApproval = async (action: 'approve' | 'reject', reason?: string | null) => {
     setActionBusy(`terms-${action}`);
     try {
       const res = await fetch(`/api/purchase-orders/payment-terms/${action}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ purchase_order: poName, reason }),
+        body: JSON.stringify({ purchase_order: poName, reason: reason || undefined }),
       });
       const result = await res.json();
       if (!result.success) throw new Error(result.message);
@@ -313,7 +315,7 @@ export default function PurchaseOrderDetailPage() {
               <button onClick={() => handleAction('submit')} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50">
                 <Send className="h-3.5 w-3.5" />{actionBusy === 'submit' ? 'Submitting...' : 'Submit'}
               </button>
-              <button onClick={handleDelete} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-100 disabled:opacity-50">
+              <button onClick={() => setShowDeleteConfirm(true)} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-100 disabled:opacity-50">
                 <Trash2 className="h-3.5 w-3.5" />{actionBusy === 'delete' ? 'Deleting...' : 'Delete'}
               </button>
             </>
@@ -432,7 +434,7 @@ export default function PurchaseOrderDetailPage() {
                 <button onClick={() => handleTermsApproval('approve')} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
                   <CheckCircle2 className="h-3.5 w-3.5" />{actionBusy === 'terms-approve' ? 'Approving...' : 'Approve'}
                 </button>
-                <button onClick={() => handleTermsApproval('reject')} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-100 disabled:opacity-50">
+                <button onClick={() => setShowTermsRejectModal(true)} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-100 disabled:opacity-50">
                   <XCircle className="h-3.5 w-3.5" />{actionBusy === 'terms-reject' ? 'Rejecting...' : 'Reject'}
                 </button>
               </>
@@ -594,6 +596,78 @@ export default function PurchaseOrderDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Linked Documents */}
+      <RecordDocumentsPanel
+        referenceDoctype="Purchase Order"
+        referenceName={poName}
+        title="Linked Documents"
+        initialLimit={5}
+      />
+
+      {/* Linked Records */}
+      <LinkedRecordsPanel
+        links={[
+          {
+            label: 'Goods Receipt Notes',
+            doctype: 'Purchase Receipt',
+            method: 'frappe.client.get_list',
+            args: { doctype: 'Purchase Receipt', filters: JSON.stringify({ purchase_order: poName }), fields: JSON.stringify(['name', 'status', 'grand_total', 'posting_date']), limit_page_length: '20' },
+            href: (name) => `/grns/${name}`,
+          },
+          {
+            label: 'Purchase Invoices',
+            doctype: 'Purchase Invoice',
+            method: 'frappe.client.get_list',
+            args: { doctype: 'Purchase Invoice', filters: JSON.stringify({ purchase_order: poName }), fields: JSON.stringify(['name', 'supplier', 'status', 'grand_total', 'posting_date']), limit_page_length: '20' },
+            href: (name) => `/finance/billing/${name}`,
+          },
+        ]}
+      />
+
+      {/* Accountability Trail */}
+      <div className="card">
+        <div className="card-header"><h3 className="font-semibold text-gray-900">Accountability Trail</h3></div>
+        <div className="card-body">
+          <AccountabilityTimeline
+            subjectDoctype="Purchase Order"
+            subjectName={poName}
+            compact={false}
+            initialLimit={10}
+          />
+        </div>
+      </div>
+
+      {/* Delete Confirmation Modal */}
+      <ActionModal
+        open={showDeleteConfirm}
+        title={`Delete ${poName}`}
+        description="This will permanently delete this Purchase Order. This cannot be undone."
+        variant="danger"
+        confirmLabel="Delete"
+        busy={actionBusy === 'delete'}
+        onConfirm={async () => {
+          setShowDeleteConfirm(false);
+          await handleDelete();
+        }}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
+
+      {/* Payment Terms Reject Modal */}
+      <ActionModal
+        open={showTermsRejectModal}
+        title="Reject Payment Terms"
+        description="Provide a reason for rejecting the payment terms."
+        variant="danger"
+        confirmLabel="Reject"
+        fields={[{ name: 'reason', label: 'Rejection Reason', type: 'textarea' as const, required: true, placeholder: 'Reason for rejection…' }]}
+        busy={actionBusy === 'terms-reject'}
+        onConfirm={async (values) => {
+          setShowTermsRejectModal(false);
+          await handleTermsApproval('reject', values.reason?.trim() || null);
+        }}
+        onCancel={() => setShowTermsRejectModal(false)}
+      />
     </div>
   );
 }

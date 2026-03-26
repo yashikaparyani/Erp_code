@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { CreditCard } from 'lucide-react';
 import OpsWorkspace from '../../../components/ops/OpsWorkspace';
 
@@ -57,7 +58,7 @@ export default function PaymentReceiptsPage() {
         { label: 'Adjusted Amount', path: 'adjusted_amount', hint: 'Advance moved into invoices', icon: CreditCard, tone: 'purple' },
       ]}
       columns={[
-        { key: 'name', label: 'Receipt', render: (row) => row.name || '-' },
+        { key: 'name', label: 'Receipt', render: (row) => <Link href={`/finance/payment-receipts/${encodeURIComponent(row.name)}`} className="text-blue-600 hover:underline font-medium">{row.name || '-'}</Link> },
         { key: 'receipt_type', label: 'Type', render: (row) => row.receipt_type || '-' },
         { key: 'customer', label: 'Customer', render: (row) => row.customer || '-' },
         { key: 'linked_invoice', label: 'Invoice', render: (row) => row.linked_invoice || '-' },

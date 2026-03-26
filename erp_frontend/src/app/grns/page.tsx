@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Package, Plus, CheckCircle2, Clock, Truck, X } from 'lucide-react';
 
 interface GRN {
@@ -101,7 +102,7 @@ export default function GRNsPage() {
                 <tr><td colSpan={7} className="text-center py-8 text-gray-500">No GRN records found</td></tr>
               ) : items.map(item => (
                 <tr key={item.name}>
-                  <td><div className="font-medium text-gray-900">{item.name}</div></td>
+                  <td><Link href={`/grns/${encodeURIComponent(item.name)}`} className="font-medium text-blue-700 hover:text-blue-900 hover:underline">{item.name}</Link></td>
                   <td><div className="text-sm text-gray-900">{item.supplier || '-'}</div></td>
                   <td><div className="text-sm text-gray-700">{item.posting_date || '-'}</div></td>
                   <td><div className="text-sm text-gray-700">{item.project || '-'}</div></td>

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { ReceiptText } from 'lucide-react';
 import OpsWorkspace from '@/components/ops/OpsWorkspace';
 
@@ -51,7 +52,7 @@ export default function ProformasPage() {
         { label: 'Value', path: 'total_value', hint: 'Aggregate proforma value', icon: ReceiptText, tone: 'purple' },
       ]}
       columns={[
-        { key: 'name', label: 'Proforma', render: (row) => row.name || '-' },
+        { key: 'name', label: 'Proforma', render: (row) => <Link href={`/finance/proformas/${encodeURIComponent(row.name)}`} className="text-blue-600 hover:underline font-medium">{row.name || '-'}</Link> },
         { key: 'customer', label: 'Customer', render: (row) => row.customer || '-' },
         { key: 'proforma_date', label: 'Date', render: (row) => row.proforma_date || '-' },
         { key: 'due_date', label: 'Due Date', render: (row) => row.due_date || '-' },

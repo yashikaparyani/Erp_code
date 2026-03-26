@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { AlertTriangle } from 'lucide-react';
 import OpsWorkspace from '../../../components/ops/OpsWorkspace';
 
@@ -29,7 +30,7 @@ export default function PenaltiesPage() {
         { label: 'Pending', path: 'pending', hint: 'Pending penalty actions', icon: AlertTriangle, tone: 'amber' },
       ]}
       columns={[
-        { key: 'name', label: 'Penalty', render: (row) => row.name || '-' },
+        { key: 'name', label: 'Penalty', render: (row) => <Link href={`/finance/penalties/${encodeURIComponent(row.name)}`} className="text-blue-600 hover:underline font-medium">{row.name || '-'}</Link> },
         { key: 'project', label: 'Project', render: (row) => row.project || '-' },
         { key: 'source', label: 'Source', render: (row) => row.source || '-' },
         { key: 'penalty_amount', label: 'Amount', render: (row) => row.penalty_amount || '-' },

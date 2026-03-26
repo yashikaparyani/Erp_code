@@ -46,7 +46,7 @@ def test_frontend_smoke_matrix_reflects_phase5_rbac_scope():
     source = _read(ROOT / "erp_frontend" / "src" / "__tests__" / "smoke-routes.test.ts")
     for expected in [
         "'Presales Tendering Head': ['/pre-sales', '/survey', '/reports', '/documents']",
-        "'Project Manager': ['/projects', '/engineering', '/procurement', '/execution', '/reports', '/documents']",
+        "'Project Manager': ['/survey', '/project-manager/dpr', '/project-manager/inventory', '/project-manager/petty-cash']",
         "'Field Technician': ['/execution', '/manpower', '/om-helpdesk', '/rma', '/documents', '/sla']",
     ]:
         assert expected in source

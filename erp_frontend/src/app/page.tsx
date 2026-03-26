@@ -1,5 +1,6 @@
 'use client';
 
+import { useAuth } from '../context/AuthContext';
 import { useRole } from '../context/RoleContext';
 import AccountsDashboard from '../components/dashboards/AccountsDashboard';
 import EngineeringHeadDashboard from '../components/dashboards/EngineeringHeadDashboard';
@@ -12,15 +13,22 @@ import PresalesExecutiveDashboard from '../components/dashboards/PresalesExecuti
 import ProcurementDashboard from '../components/dashboards/ProcurementDashboard';
 import ProcurementOverviewDashboard from '../components/dashboards/ProcurementOverviewDashboard';
 import ProjectHeadDashboard from '../components/dashboards/ProjectHeadDashboard';
+import ProjectManagerDashboard from '../components/dashboards/ProjectManagerDashboard';
 import StoresDashboard from '../components/dashboards/StoresDashboard';
 
 export default function Home() {
+	const { currentUser, isLoading } = useAuth();
 	const { currentRole } = useRole();
+
+	if (isLoading || !currentUser || !currentRole) {
+		return null;
+	}
 
 	switch (currentRole) {
 		case 'Project Head':
-		case 'Project Manager':
 			return <ProjectHeadDashboard />;
+		case 'Project Manager':
+			return <ProjectManagerDashboard />;
 		case 'Presales Tendering Head':
 			return <PresalesDashboard />;
 		case 'Presales Executive':

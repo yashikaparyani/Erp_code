@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, ClipboardList, Clock3, MapPin, Plus, RefreshCw, Search } from 'lucide-react';
+import ActionModal from '@/components/ui/ActionModal';
 
 type Survey = {
   name: string;
@@ -42,6 +43,7 @@ export default function EngineeringSurveyPage() {
   const [completionResult, setCompletionResult] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [error, setError] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [createForm, setCreateForm] = useState({
     linked_tender: '',
     site_name: '',
@@ -144,10 +146,6 @@ export default function EngineeringSurveyPage() {
   };
 
   const handleDeleteSurvey = async (name: string) => {
-    if (!confirm(`Delete survey ${name}?`)) {
-      return;
-    }
-
     try {
       const response = await fetch(`/api/surveys/${encodeURIComponent(name)}`, {
         method: 'DELETE',
@@ -437,7 +435,7 @@ export default function EngineeringSurveyPage() {
                       <td>
                         <button
                           className="text-sm font-medium text-red-600 hover:text-red-700"
-                          onClick={() => handleDeleteSurvey(survey.name)}
+                          onClick={() => setDeleteTarget(survey.name)}
                         >
                           Delete
                         </button>
@@ -450,6 +448,19 @@ export default function EngineeringSurveyPage() {
           </div>
         </div>
       </div>
+      <ActionModal
+        open={deleteTarget !== null}
+        title="Delete Survey"
+        description={`Delete survey ${deleteTarget}?`}
+        confirmLabel="Delete"
+        variant="danger"
+        fields={[]}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={async () => {
+          if (deleteTarget) await handleDeleteSurvey(deleteTarget);
+          setDeleteTarget(null);
+        }}
+      />
     </div>
   );
 }

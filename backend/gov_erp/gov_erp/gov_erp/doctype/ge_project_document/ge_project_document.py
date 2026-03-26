@@ -2,8 +2,30 @@ import frappe
 from frappe.model.document import Document
 
 
-ALLOWED_DMS_EXTENSIONS = {"pdf", "doc", "docx", "xls", "xlsx", "jpg", "jpeg"}
-ALLOWED_DMS_CATEGORIES = {"Survey", "Engineering", "Procurement", "Execution", "O&M", "Finance", "HR", "Other"}
+ALLOWED_DMS_EXTENSIONS = {"pdf", "doc", "docx", "xls", "xlsx", "jpg", "jpeg", "png"}
+ALLOWED_DMS_CATEGORIES = {
+	"Survey", "Engineering", "Procurement", "Execution", "Commissioning",
+	"O&M", "Finance", "HR", "Dispatch", "GRN_Inventory", "SLA", "RMA",
+	"Commercial", "Approvals", "Other",
+}
+ALLOWED_DMS_STAGES = {
+	"", "Survey", "BOM_BOQ", "Drawing", "Indent", "Quotation_Vendor_Comparison",
+	"PO", "Dispatch", "GRN_Inventory", "Execution", "Commissioning",
+	"O_M", "SLA", "RMA", "Commercial", "Closure",
+}
+ALLOWED_DMS_SUBCATEGORIES = {
+	"", "survey_form", "site_photos", "measurements", "coordinates", "survey_notes",
+	"bom_draft", "boq_draft", "boq_approved", "calculation_sheet",
+	"site_drawing", "layout_drawing", "issued_for_review", "issued_for_execution", "revised_drawing",
+	"indent_support", "item_requirement",
+	"vendor_quotation", "comparison_sheet", "purchase_order", "approval_note",
+	"dispatch_challan", "lr_proof", "packing_list",
+	"grn", "receipt_proof",
+	"dpr", "installation_checklist", "test_report",
+	"commissioning_report", "signoff",
+	"sla_profile", "maintenance_report",
+	"rma_proof", "other",
+}
 ALLOWED_DMS_STATUSES = {
 	"Draft",
 	"Submitted",
@@ -51,6 +73,10 @@ class GEProjectDocument(Document):
 		self._validate_linked_site_scope()
 		self._validate_folder_scope()
 		self._validate_supported_extension()
+		self._validate_linked_stage()
+		self._validate_subcategory()
+		self._validate_supersedes_scope()
+		self._validate_date_range()
 		self._apply_workflow_defaults()
 
 	def before_insert(self):
@@ -108,6 +134,10 @@ class GEProjectDocument(Document):
 	def _apply_workflow_defaults(self):
 		if self.status in {"Approved", "Rejected"} and not self.approved_rejected_by:
 			self.approved_rejected_by = frappe.session.user
+		if self.status == "Approved" and not self.approved_by:
+			self.approved_by = frappe.session.user
+		if self.status == "In Review" and not self.reviewed_by:
+			self.reviewed_by = frappe.session.user
 
 	def _validate_file_reference(self):
 		if self.file and not frappe.db.exists("File", {"file_url": self.file}):
@@ -130,3 +160,32 @@ class GEProjectDocument(Document):
 		folder_project = frappe.db.get_value("GE Document Folder", self.folder, "linked_project")
 		if folder_project and folder_project != self.linked_project:
 			frappe.throw("Selected folder belongs to a different project")
+
+	def _validate_linked_stage(self):
+		stage = self.linked_stage or ""
+		if stage and stage not in ALLOWED_DMS_STAGES:
+			allowed = ", ".join(sorted(s for s in ALLOWED_DMS_STAGES if s))
+			frappe.throw(f"Linked stage must be one of: {allowed}")
+
+	def _validate_subcategory(self):
+		sub = self.document_subcategory or ""
+		if sub and sub not in ALLOWED_DMS_SUBCATEGORIES:
+			allowed = ", ".join(sorted(s for s in ALLOWED_DMS_SUBCATEGORIES if s))
+			frappe.throw(f"Document subcategory must be one of: {allowed}")
+
+	def _validate_supersedes_scope(self):
+		if not self.supersedes_document:
+			return
+		if not frappe.db.exists("GE Project Document", self.supersedes_document):
+			frappe.throw("Superseded document does not exist")
+		sup = frappe.db.get_value(
+			"GE Project Document", self.supersedes_document,
+			["document_name", "linked_project"], as_dict=True,
+		)
+		if sup and sup.linked_project != self.linked_project:
+			frappe.throw("Superseded document must belong to the same project")
+
+	def _validate_date_range(self):
+		if self.valid_from and self.valid_till:
+			if frappe.utils.getdate(self.valid_from) > frappe.utils.getdate(self.valid_till):
+				frappe.throw("Valid From date cannot be after Valid Till date")

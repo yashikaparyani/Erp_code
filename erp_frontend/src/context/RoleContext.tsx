@@ -46,7 +46,6 @@ export const roles: Role[] = [
 export const PROJECT_SIDE_ROLES: Role[] = [
   'Director',
   'Project Head',
-  'Project Manager',
 ];
 
 // Settings-capable roles
@@ -84,6 +83,7 @@ export const roleAccess: Record<Role, string[]> = {
     '/rma',
     '/finance',
     '/reports',
+    '/accountability',
     '/documents',
     '/master-data',
     '/comm-logs',
@@ -119,6 +119,7 @@ export const roleAccess: Record<Role, string[]> = {
     '/rma',
     '/finance',
     '/reports',
+    '/accountability',
     '/documents',
     '/master-data',
     '/comm-logs',
@@ -143,6 +144,7 @@ export const roleAccess: Record<Role, string[]> = {
     '/execution',
     '/finance',
     '/reports',
+    '/accountability',
     '/documents',
     '/master-data',
     '/purchase-orders',
@@ -257,22 +259,11 @@ export const roleAccess: Record<Role, string[]> = {
   'Project Manager': [
     '/',
     '/notifications',
-    '/projects',
-    '/milestones',
-    '/manpower',
     '/survey',
-    '/engineering',
-    '/procurement',
-    '/execution',
-    '/reports',
-    '/documents',
-    '/purchase-orders',
-    '/indents',
-    '/comm-logs',
-    '/petty-cash',
-    '/drawings',
-    '/change-requests',
-    '/technician-visits',
+    '/project-manager/dpr',
+    '/project-manager/inventory',
+    '/project-manager/petty-cash',
+    '/project-manager/requests',
   ],
   'Accounts': [
     '/',
@@ -349,7 +340,7 @@ export const getRoleInitials = (role: Role): string => {
 };
 
 interface RoleContextType {
-  currentRole: Role;
+  currentRole: Role | null;
   hasAccess: (path: string) => boolean;
   /** True when backend RBAC permissions have been loaded. */
   isPermissionLoaded: boolean;
@@ -360,9 +351,18 @@ const RoleContext = createContext<RoleContextType | undefined>(undefined);
 export function RoleProvider({ children }: { children: ReactNode }) {
   const { currentUser } = useAuth();
   const { canAccessRoute, isLoaded: isPermissionLoaded, permissions } = usePermissions();
-  const currentRole = (currentUser?.role as Role | undefined) ?? 'Project Manager';
+  const currentRole = (currentUser?.role as Role | undefined) ?? null;
 
   const hasAccess = (path: string): boolean => {
+    if (!currentUser || !currentRole) {
+      return false;
+    }
+
+    if (path.startsWith('/sites/') && path.endsWith('/dossier')) {
+      const allowedPaths = roleAccess[currentRole] ?? [];
+      return allowedPaths.includes('/documents') || currentRole === 'Project Manager' || PROJECT_SIDE_ROLES.includes(currentRole);
+    }
+
     // ── Backend RBAC truth (Phase 5) ──
     // When the permission context is loaded and has valid data, delegate to it.
     if (isPermissionLoaded && permissions) {
@@ -377,7 +377,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       return SETTINGS_ROLES.includes(currentRole);
     }
 
-    const allowedPaths = roleAccess[currentRole] ?? roleAccess['Project Manager'];
+    const allowedPaths = roleAccess[currentRole] ?? [];
 
     return allowedPaths.some(allowedPath => {
       return path === allowedPath || path.startsWith(allowedPath + '/');

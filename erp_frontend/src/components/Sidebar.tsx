@@ -44,8 +44,12 @@ import {
   ListChecks,
   Banknote,
   CheckCircle2,
+  Camera,
+  Send,
+  ShieldAlert,
   type LucideIcon,
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import { useRole, type Role, PROJECT_SIDE_ROLES } from '../context/RoleContext';
 
 interface SubMenuItem {
@@ -244,7 +248,15 @@ const navLinks: NavLink[] = [
   },
   { name: 'SLA Profiles', href: '/sla', icon: Clock },
   { name: 'Reports', href: '/reports', icon: BarChart3 },
-  { name: 'Document Management', href: '/documents', icon: FolderOpen },
+  { name: 'Accountability', href: '/accountability', icon: ShieldAlert },
+  {
+    name: 'Document Management',
+    href: '/documents',
+    icon: FolderOpen,
+    children: [
+      { name: 'Document Register', href: '/documents', icon: FileText },
+    ],
+  },
   { name: 'Master Data', href: '/master-data', icon: Database },
   {
     name: 'Settings',
@@ -261,6 +273,15 @@ const navLinks: NavLink[] = [
       { name: 'Checklist', href: '/settings/checklist', icon: CheckSquare },
     ],
   },
+];
+
+const projectManagerNavLinks: NavLink[] = [
+  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { name: 'Survey Submission', href: '/survey', icon: MapPin },
+  { name: 'Project Inventory', href: '/project-manager/inventory', icon: Package },
+  { name: 'Project Petty Cash', href: '/project-manager/petty-cash', icon: CreditCard },
+  { name: 'DPR & Progress', href: '/project-manager/dpr', icon: Camera },
+  { name: 'Requests to PH', href: '/project-manager/requests', icon: Send },
 ];
 
 const getSubMenuClasses = (level: number) => ({
@@ -284,6 +305,9 @@ function SubMenu({
 }) {
   const pathname = usePathname() || '';
   const { hasAccess, currentRole } = useRole();
+  if (!currentRole) {
+    return null;
+  }
   const accessibleItems = filterAccessibleItems(items, hasAccess, currentRole);
   const menuClasses = getSubMenuClasses(level);
 
@@ -345,12 +369,17 @@ function SubMenu({
 
 export default function Sidebar() {
   const pathname = usePathname() || '';
+  const { currentUser } = useAuth();
   const { hasAccess, currentRole, isPermissionLoaded } = useRole();
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean | undefined>>({});
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const navRef = useRef<HTMLElement | null>(null);
+  if (!currentUser || !currentRole) {
+    return null;
+  }
+  const sourceLinks = currentRole === 'Project Manager' ? projectManagerNavLinks : navLinks;
   const accessibleLinks = filterAccessibleNavLinks(
-    navLinks.filter((link) => shouldShowNavLinkForRole(link, currentRole, isPermissionLoaded)),
+    sourceLinks.filter((link) => shouldShowNavLinkForRole(link, currentRole, isPermissionLoaded)),
     hasAccess,
     currentRole,
   );

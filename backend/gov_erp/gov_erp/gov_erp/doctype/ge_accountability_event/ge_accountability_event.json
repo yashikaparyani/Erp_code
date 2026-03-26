@@ -1,0 +1,263 @@
+{
+ "actions": [],
+ "autoname": "hash",
+ "creation": "2026-03-26 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "accountability_record",
+  "event_type",
+  "column_break_base",
+  "event_time",
+  "section_break_actor",
+  "actor",
+  "actor_role",
+  "column_break_actor",
+  "actor_department",
+  "section_break_transition",
+  "from_status",
+  "to_status",
+  "column_break_transition",
+  "from_owner_user",
+  "to_owner_user",
+  "from_owner_role",
+  "to_owner_role",
+  "section_break_reason",
+  "remarks",
+  "column_break_reason",
+  "reason_code",
+  "section_break_context",
+  "linked_project",
+  "linked_site",
+  "column_break_context",
+  "linked_stage",
+  "reference_doctype",
+  "reference_name",
+  "section_break_meta",
+  "metadata_json"
+ ],
+ "fields": [
+  {
+   "fieldname": "accountability_record",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Accountability Record",
+   "options": "GE Accountability Record",
+   "reqd": 1
+  },
+  {
+   "fieldname": "event_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Event Type",
+   "options": "CREATED\nSUBMITTED\nASSIGNED\nACKNOWLEDGED\nACCEPTED\nRETURNED\nAPPROVED\nREJECTED\nBLOCKED\nUNBLOCKED\nESCALATED\nDUE_DATE_CHANGED\nREOPENED\nCOMPLETED\nCANCELLED\nOVERRIDDEN",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_base",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "event_time",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Event Time",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_actor",
+   "fieldtype": "Section Break",
+   "label": "Actor"
+  },
+  {
+   "fieldname": "actor",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Actor",
+   "options": "User",
+   "reqd": 1
+  },
+  {
+   "fieldname": "actor_role",
+   "fieldtype": "Data",
+   "label": "Actor Role"
+  },
+  {
+   "fieldname": "column_break_actor",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "actor_department",
+   "fieldtype": "Data",
+   "label": "Actor Department"
+  },
+  {
+   "fieldname": "section_break_transition",
+   "fieldtype": "Section Break",
+   "label": "State Transition"
+  },
+  {
+   "fieldname": "from_status",
+   "fieldtype": "Data",
+   "label": "From Status"
+  },
+  {
+   "fieldname": "to_status",
+   "fieldtype": "Data",
+   "label": "To Status"
+  },
+  {
+   "fieldname": "column_break_transition",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "from_owner_user",
+   "fieldtype": "Link",
+   "label": "From Owner",
+   "options": "User"
+  },
+  {
+   "fieldname": "to_owner_user",
+   "fieldtype": "Link",
+   "label": "To Owner",
+   "options": "User"
+  },
+  {
+   "fieldname": "from_owner_role",
+   "fieldtype": "Data",
+   "label": "From Owner Role"
+  },
+  {
+   "fieldname": "to_owner_role",
+   "fieldtype": "Data",
+   "label": "To Owner Role"
+  },
+  {
+   "fieldname": "section_break_reason",
+   "fieldtype": "Section Break",
+   "label": "Reason"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Text",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "column_break_reason",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "reason_code",
+   "fieldtype": "Data",
+   "label": "Reason Code"
+  },
+  {
+   "fieldname": "section_break_context",
+   "fieldtype": "Section Break",
+   "label": "Context"
+  },
+  {
+   "fieldname": "linked_project",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Linked Project",
+   "options": "Project"
+  },
+  {
+   "fieldname": "linked_site",
+   "fieldtype": "Link",
+   "label": "Linked Site",
+   "options": "GE Site"
+  },
+  {
+   "fieldname": "column_break_context",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "linked_stage",
+   "fieldtype": "Data",
+   "label": "Linked Stage"
+  },
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Link",
+   "label": "Reference DocType",
+   "options": "DocType"
+  },
+  {
+   "fieldname": "reference_name",
+   "fieldtype": "Dynamic Link",
+   "label": "Reference Name",
+   "options": "reference_doctype"
+  },
+  {
+   "fieldname": "section_break_meta",
+   "fieldtype": "Section Break",
+   "label": "Metadata"
+  },
+  {
+   "fieldname": "metadata_json",
+   "fieldtype": "Code",
+   "label": "Metadata JSON",
+   "options": "JSON"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-03-26 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE Accountability Event",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "read": 1,
+   "role": "System Manager"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Director"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Project Head"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Department Head"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Project Manager"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Engineering Head"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Procurement Head"
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "report": 1,
+   "role": "All"
+  }
+ ],
+ "sort_field": "event_time",
+ "sort_order": "ASC",
+ "states": [],
+ "track_changes": 0
+}

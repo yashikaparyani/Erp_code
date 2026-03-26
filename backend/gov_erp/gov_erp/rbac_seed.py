@@ -436,13 +436,13 @@ ROLE_PACK_MAPPINGS = [
 	("Project Head",            "approval",         "all",              "approve"),
 
 	# Project Manager
-	("Project Manager",         "project_command",  "assigned_project", "action"),
+	("Project Manager",         "project_command",  "assigned_project", "read"),
 	("Project Manager",         "engineering",      "assigned_project", "read"),
 	("Project Manager",         "procurement",      "assigned_project", "read"),
+	("Project Manager",         "inventory",        "assigned_project", "read"),
 	("Project Manager",         "execution_ic",     "assigned_project", "read"),
 	("Project Manager",         "dms",              "assigned_project", "action"),
 	("Project Manager",         "reports",           "assigned_project", "read"),
-	("Project Manager",         "approval",         "assigned_project", "approve"),
 
 	# Department Head
 	("Department Head",         "presales",         "department",       "read"),

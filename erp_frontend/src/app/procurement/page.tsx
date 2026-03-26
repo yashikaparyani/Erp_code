@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Plus, ShoppingCart, Truck, Clock, CheckCircle2, ArrowRight, FolderTree, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import ActionModal from '@/components/ui/ActionModal';
 
 interface VendorComparison {
   name: string;
@@ -53,6 +54,7 @@ export default function ProcurementPage() {
   const [createError, setCreateError] = useState('');
   const [actionError, setActionError] = useState('');
   const [actionLoadingName, setActionLoadingName] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<{ name: string; action: string } | null>(null);
   const [createForm, setCreateForm] = useState({
     linked_tender: '',
     linked_project: '',
@@ -149,17 +151,11 @@ export default function ProcurementPage() {
     }
   };
 
-  const runAction = async (name: string, action: 'submit' | 'approve' | 'reject' | 'revise' | 'create_po') => {
+  const runAction = async (name: string, action: 'submit' | 'approve' | 'reject' | 'revise' | 'create_po', extraPayload?: Record<string, unknown>) => {
     setActionError('');
     setActionLoadingName(name);
     try {
-      const payload: Record<string, unknown> = { action };
-      if (action === 'reject') {
-        payload.reason = prompt('Reject reason (optional):') || '';
-      }
-      if (action === 'approve') {
-        payload.exception_reason = prompt('Exception reason (optional):') || '';
-      }
+      const payload: Record<string, unknown> = { action, ...extraPayload };
 
       const response = await fetch(`/api/vendor-comparisons/${encodeURIComponent(name)}/actions`, {
         method: 'POST',
@@ -385,7 +381,7 @@ export default function ProcurementPage() {
               ) : items.map(vc => (
                 <tr key={vc.name}>
                   <td>
-                    <div className="font-medium text-gray-900">{vc.name}</div>
+                    <Link href={`/vendor-comparisons/${encodeURIComponent(vc.name)}`} className="font-medium text-blue-700 hover:text-blue-900 hover:underline">{vc.name}</Link>
                   </td>
                   <td>
                     <div className="text-sm text-gray-900">{vc.linked_material_request || '-'}</div>
@@ -444,10 +440,10 @@ export default function ProcurementPage() {
 
                       {vc.status === 'PENDING_APPROVAL' && canApproveReject ? (
                         <>
-                          <button className="text-green-600 hover:text-green-800 text-sm font-medium" disabled={actionLoadingName === vc.name} onClick={() => runAction(vc.name, 'approve')}>
+                          <button className="text-green-600 hover:text-green-800 text-sm font-medium" disabled={actionLoadingName === vc.name} onClick={() => setPendingAction({ name: vc.name, action: 'approve' })}>
                             Approve
                           </button>
-                          <button className="text-red-600 hover:text-red-800 text-sm font-medium" disabled={actionLoadingName === vc.name} onClick={() => runAction(vc.name, 'reject')}>
+                          <button className="text-red-600 hover:text-red-800 text-sm font-medium" disabled={actionLoadingName === vc.name} onClick={() => setPendingAction({ name: vc.name, action: 'reject' })}>
                             Reject
                           </button>
                         </>
@@ -472,6 +468,27 @@ export default function ProcurementPage() {
           </table>
         </div>
       </div>
+
+      {/* Approve / Reject Modal */}
+      <ActionModal
+        open={!!pendingAction}
+        title={pendingAction?.action === 'reject' ? `Reject ${pendingAction?.name}` : `Approve ${pendingAction?.name}`}
+        description={pendingAction?.action === 'reject'
+          ? 'Provide a reason for rejecting this vendor comparison.'
+          : 'Optionally provide an exception reason for this approval.'}
+        variant={pendingAction?.action === 'reject' ? 'danger' : 'success'}
+        confirmLabel={pendingAction?.action === 'reject' ? 'Reject' : 'Approve'}
+        fields={pendingAction?.action === 'reject'
+          ? [{ name: 'reason', label: 'Reject Reason', type: 'textarea' as const, placeholder: 'Reason for rejection…' }]
+          : [{ name: 'exception_reason', label: 'Exception Reason', type: 'textarea' as const, placeholder: 'Exception reason (optional)…' }]}
+        busy={!!actionLoadingName}
+        onConfirm={async (values) => {
+          if (!pendingAction) return;
+          await runAction(pendingAction.name, pendingAction.action as 'approve' | 'reject', values);
+          setPendingAction(null);
+        }}
+        onCancel={() => setPendingAction(null)}
+      />
     </div>
   );
 }

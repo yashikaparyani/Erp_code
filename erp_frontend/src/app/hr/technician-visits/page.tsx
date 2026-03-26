@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { Wrench } from 'lucide-react';
 import OpsWorkspace from '../../../components/ops/OpsWorkspace';
 
@@ -27,7 +28,7 @@ export default function HrTechnicianVisitsPage() {
         { label: 'Completed', path: 'completed', hint: 'Completed visits', icon: Wrench, tone: 'green' },
       ]}
       columns={[
-        { key: 'name', label: 'Visit', render: (row) => row.name || '-' },
+        { key: 'name', label: 'Visit', render: (row) => <Link href={`/hr/technician-visits/${encodeURIComponent(row.name)}`} className="text-blue-600 hover:underline font-medium">{row.name || '-'}</Link> },
         { key: 'employee', label: 'Employee', render: (row) => row.employee || '-' },
         { key: 'visit_date', label: 'Date', render: (row) => row.visit_date || '-' },
         { key: 'site', label: 'Site / Location', render: (row) => row.linked_site || row.customer_location || '-' },

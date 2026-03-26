@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { Plane } from 'lucide-react';
 import OpsWorkspace from '../../../components/ops/OpsWorkspace';
 
@@ -32,7 +33,7 @@ export default function HrTravelLogsPage() {
         { label: 'Approved', path: 'approved', hint: 'Approved travel entries', icon: Plane, tone: 'green' },
       ]}
       columns={[
-        { key: 'name', label: 'Log', render: (row) => row.name || '-' },
+        { key: 'name', label: 'Log', render: (row) => <Link href={`/hr/travel-logs/${encodeURIComponent(row.name)}`} className="text-blue-600 hover:underline font-medium">{row.name || '-'}</Link> },
         { key: 'employee', label: 'Employee', render: (row) => row.employee || '-' },
         { key: 'travel_date', label: 'Date', render: (row) => row.travel_date || '-' },
         { key: 'route', label: 'Route', render: (row) => `${row.from_location || '-'} -> ${row.to_location || '-'}` },

@@ -75,6 +75,14 @@ export async function PATCH(request: NextRequest) {
       const result = await callFrappeMethod('reject_vendor_comparison', { name, reason: reason || '' }, request);
       return NextResponse.json({ success: true, data: result.data, message: result.message || 'Rejected' });
     }
+    if (kind === 'indent' && action === 'approve') {
+      const result = await callFrappeMethod('accept_indent', { name }, request);
+      return NextResponse.json({ success: true, data: result.data, message: result.message || 'Accepted' });
+    }
+    if (kind === 'indent' && action === 'reject') {
+      const result = await callFrappeMethod('reject_indent', { name, reason: reason || '' }, request);
+      return NextResponse.json({ success: true, data: result.data, message: result.message || 'Rejected' });
+    }
 
     return NextResponse.json({ success: false, message: 'Unsupported approval action' }, { status: 400 });
   } catch (error) {

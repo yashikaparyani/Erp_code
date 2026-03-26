@@ -5,6 +5,7 @@ import {
   ShoppingCart, Clock, CheckCircle2, XCircle, TrendingUp, Package,
   Plus, Send, Ban, Trash2, ExternalLink, Loader2,
 } from 'lucide-react';
+import ActionModal from '@/components/ui/ActionModal';
 
 interface PurchaseOrder {
   name: string;
@@ -60,6 +61,7 @@ export default function PurchaseOrdersPage() {
   const [actionBusy, setActionBusy] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   // Create PO modal state
   const [showCreate, setShowCreate] = useState(false);
@@ -84,28 +86,18 @@ export default function PurchaseOrdersPage() {
     setTimeout(() => setSuccessMsg(''), 3000);
   };
 
-  const handleRowAction = async (action: 'submit' | 'cancel' | 'delete', poName: string) => {
-    if (action === 'delete' && !confirm(`Delete PO ${poName}? This cannot be undone.`)) return;
+  const handleRowAction = async (action: 'submit' | 'cancel', poName: string) => {
     setActionBusy(`${action}-${poName}`);
     setErrorMsg('');
     try {
-      let res: Response;
-      if (action === 'delete') {
-        res = await fetch('/api/purchase-orders', {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: poName }),
-        });
-      } else {
-        res = await fetch(`/api/purchase-orders/${action}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: poName }),
-        });
-      }
+      const res = await fetch(`/api/purchase-orders/${action}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: poName }),
+      });
       const result = await res.json();
       if (!result.success) throw new Error(result.message);
-      showSuccess(result.message || `PO ${poName} ${action}${action === 'delete' ? 'd' : action === 'submit' ? 'ted' : 'led'}`);
+      showSuccess(result.message || `PO ${poName} ${action === 'submit' ? 'submitted' : 'cancelled'}`);
       loadData();
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : `Failed to ${action}`);
@@ -257,7 +249,7 @@ export default function PurchaseOrdersPage() {
                             {actionBusy === `submit-${item.name}` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
                           </button>
                           <button
-                            onClick={() => handleRowAction('delete', item.name)}
+                            onClick={() => setDeleteTarget(item.name)}
                             disabled={!!actionBusy}
                             className="rounded p-1 text-rose-600 hover:bg-rose-50"
                             title="Delete"
@@ -284,6 +276,38 @@ export default function PurchaseOrdersPage() {
           </table>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <ActionModal
+        open={!!deleteTarget}
+        title={`Delete ${deleteTarget}`}
+        description="This will permanently delete this Purchase Order. This cannot be undone."
+        variant="danger"
+        confirmLabel="Delete"
+        busy={!!actionBusy}
+        onConfirm={async () => {
+          if (!deleteTarget) return;
+          setActionBusy(`delete-${deleteTarget}`);
+          setErrorMsg('');
+          try {
+            const res = await fetch('/api/purchase-orders', {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: deleteTarget }),
+            });
+            const result = await res.json();
+            if (!result.success) throw new Error(result.message);
+            showSuccess(result.message || `PO ${deleteTarget} deleted`);
+            loadData();
+          } catch (err) {
+            setErrorMsg(err instanceof Error ? err.message : 'Failed to delete');
+          } finally {
+            setActionBusy('');
+            setDeleteTarget(null);
+          }
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

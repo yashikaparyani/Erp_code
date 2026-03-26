@@ -60,11 +60,22 @@ type DocumentRecord = {
   approved_rejected_by?: string;
   closure_note?: string;
   remarks?: string;
+  linked_stage?: string;
+  document_subcategory?: string;
+  reference_doctype?: string;
+  reference_name?: string;
+  supersedes_document?: string;
+  is_mandatory?: 0 | 1;
+  reviewed_by?: string;
+  approved_by?: string;
+  valid_from?: string;
+  valid_till?: string;
 };
 
 const initialFolders: FolderRecord[] = [];
 const initialDocuments: DocumentRecord[] = [];
-const DOC_CATEGORIES = ['All', 'Survey', 'Engineering', 'Procurement', 'Execution', 'O&M', 'Finance', 'HR', 'Other'] as const;
+const DOC_CATEGORIES = ['All', 'Survey', 'Engineering', 'Procurement', 'Execution', 'Commissioning', 'O&M', 'Finance', 'HR', 'Dispatch', 'GRN_Inventory', 'SLA', 'RMA', 'Commercial', 'Approvals', 'Other'] as const;
+const DOC_STAGES = ['All', 'Survey', 'BOM_BOQ', 'Drawing', 'Indent', 'Quotation_Vendor_Comparison', 'PO', 'Dispatch', 'GRN_Inventory', 'Execution', 'Commissioning', 'O_M', 'SLA', 'RMA', 'Commercial', 'Closure'] as const;
 const DOC_STATUSES = ['Draft', 'Submitted', 'Assigned', 'Accepted', 'In Review', 'Blocked', 'Escalated', 'Approved', 'Rejected', 'Closed'] as const;
 
 function getFileExtension(fileUrl?: string) {
@@ -139,9 +150,10 @@ export default function DocumentsPage() {
   const [selectedProject, setSelectedProject] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedSite, setSelectedSite] = useState('');
+  const [selectedStage, setSelectedStage] = useState('All');
   const [latestOnly, setLatestOnly] = useState(true);
 
-  const docsUrl = `/api/documents?source=custom${selectedProject ? `&project=${encodeURIComponent(selectedProject)}` : ''}${selectedCategory !== 'All' ? `&category=${encodeURIComponent(selectedCategory)}` : ''}${selectedSite ? `&site=${encodeURIComponent(selectedSite)}` : ''}${latestOnly ? '&latest_only=1' : ''}`;
+  const docsUrl = `/api/documents?source=custom${selectedProject ? `&project=${encodeURIComponent(selectedProject)}` : ''}${selectedCategory !== 'All' ? `&category=${encodeURIComponent(selectedCategory)}` : ''}${selectedSite ? `&site=${encodeURIComponent(selectedSite)}` : ''}${selectedStage !== 'All' ? `&stage=${encodeURIComponent(selectedStage)}` : ''}${latestOnly ? '&latest_only=1' : ''}`;
   const foldersState = useApiData<FolderRecord[]>('/api/documents/folders?source=custom', initialFolders);
   const docsState = useApiData<DocumentRecord[]>(docsUrl, initialDocuments);
   const folders = foldersState.data;
@@ -167,6 +179,14 @@ export default function DocumentsPage() {
     linked_site: selectedSite,
     folder: '',
     category: selectedCategory === 'All' ? '' : selectedCategory,
+    linked_stage: '',
+    document_subcategory: '',
+    reference_doctype: '',
+    reference_name: '',
+    supersedes_document: '',
+    is_mandatory: false,
+    valid_from: '',
+    valid_till: '',
     source_document: '',
     expiry_date: '',
     status: 'Submitted',
@@ -228,6 +248,14 @@ export default function DocumentsPage() {
       if (uploadForm.approved_rejected_by.trim()) formData.append('approved_rejected_by', uploadForm.approved_rejected_by.trim());
       if (uploadForm.closure_note.trim()) formData.append('closure_note', uploadForm.closure_note.trim());
       if (uploadForm.remarks.trim()) formData.append('remarks', uploadForm.remarks.trim());
+      if (uploadForm.linked_stage) formData.append('linked_stage', uploadForm.linked_stage);
+      if (uploadForm.document_subcategory) formData.append('document_subcategory', uploadForm.document_subcategory);
+      if (uploadForm.reference_doctype.trim()) formData.append('reference_doctype', uploadForm.reference_doctype.trim());
+      if (uploadForm.reference_name.trim()) formData.append('reference_name', uploadForm.reference_name.trim());
+      if (uploadForm.supersedes_document.trim()) formData.append('supersedes_document', uploadForm.supersedes_document.trim());
+      if (uploadForm.is_mandatory) formData.append('is_mandatory', '1');
+      if (uploadForm.valid_from) formData.append('valid_from', uploadForm.valid_from);
+      if (uploadForm.valid_till) formData.append('valid_till', uploadForm.valid_till);
       const res = await fetch('/api/documents/upload', { method: 'POST', body: formData });
       const payload = await res.json();
       if (!res.ok || payload.success === false) {
@@ -239,6 +267,14 @@ export default function DocumentsPage() {
           linked_site: selectedSite,
           folder: '',
           category: selectedCategory === 'All' ? '' : selectedCategory,
+          linked_stage: '',
+          document_subcategory: '',
+          reference_doctype: '',
+          reference_name: '',
+          supersedes_document: '',
+          is_mandatory: false,
+          valid_from: '',
+          valid_till: '',
           source_document: '',
           expiry_date: '',
           status: 'Submitted',
@@ -468,7 +504,7 @@ export default function DocumentsPage() {
       <div className="mt-6">
         <SectionCard title="Document Register" subtitle="Version-aware project documents with expiry and site context">
           <div className="mb-4 flex flex-col gap-3 rounded-xl border border-gray-100 bg-gray-50 p-4 lg:flex-row lg:items-end lg:justify-between">
-            <div className="grid flex-1 grid-cols-1 gap-3 md:grid-cols-3">
+            <div className="grid flex-1 grid-cols-1 gap-3 md:grid-cols-4">
               <div>
                 <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Project</label>
                 <select
@@ -507,6 +543,18 @@ export default function DocumentsPage() {
                   <option value="">All sites</option>
                   {siteOptions.map((site) => (
                     <option key={site} value={site}>{site}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Stage</label>
+                <select
+                  value={selectedStage}
+                  onChange={(e) => setSelectedStage(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1e6b87]"
+                >
+                  {DOC_STAGES.map((stage) => (
+                    <option key={stage} value={stage}>{stage === 'All' ? 'All stages' : stage.replace(/_/g, ' ')}</option>
                   ))}
                 </select>
               </div>
@@ -578,6 +626,10 @@ export default function DocumentsPage() {
                         <td className="px-4 py-3 align-top text-xs text-gray-600">
                           <div>Project: {doc.linked_project || '-'}</div>
                           <div className="mt-1">Site: {doc.linked_site || 'Project-level'}</div>
+                          {doc.linked_stage && <div className="mt-1">Stage: <span className="font-medium">{doc.linked_stage.replace(/_/g, ' ')}</span></div>}
+                          {doc.document_subcategory && <div className="mt-1">Sub: {doc.document_subcategory.replace(/_/g, ' ')}</div>}
+                          {doc.reference_doctype && <div className="mt-1 text-gray-400">Ref: {doc.reference_doctype} / {doc.reference_name}</div>}
+                          {doc.is_mandatory ? <span className="mt-1 inline-block rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-semibold text-rose-700">Mandatory</span> : null}
                         </td>
                         <td className="px-4 py-3 align-top">
                           <button
@@ -806,6 +858,86 @@ export default function DocumentsPage() {
                     <option key={category} value={category}>{category}</option>
                   ))}
                 </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Stage</label>
+                <select
+                  value={uploadForm.linked_stage}
+                  onChange={(e) => setUploadForm((current) => ({ ...current, linked_stage: e.target.value }))}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select stage</option>
+                  {DOC_STAGES.filter((s) => s !== 'All').map((stage) => (
+                    <option key={stage} value={stage}>{stage.replace(/_/g, ' ')}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Subcategory</label>
+                <input
+                  type="text"
+                  value={uploadForm.document_subcategory}
+                  onChange={(e) => setUploadForm((current) => ({ ...current, document_subcategory: e.target.value }))}
+                  placeholder="e.g. BOQ, PO, SLA_Agreement"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Reference DocType</label>
+                <input
+                  type="text"
+                  value={uploadForm.reference_doctype}
+                  onChange={(e) => setUploadForm((current) => ({ ...current, reference_doctype: e.target.value }))}
+                  placeholder="e.g. GE Purchase Order"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Reference Name</label>
+                <input
+                  type="text"
+                  value={uploadForm.reference_name}
+                  onChange={(e) => setUploadForm((current) => ({ ...current, reference_name: e.target.value }))}
+                  placeholder="Record ID"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Supersedes Document</label>
+                <input
+                  type="text"
+                  value={uploadForm.supersedes_document}
+                  onChange={(e) => setUploadForm((current) => ({ ...current, supersedes_document: e.target.value }))}
+                  placeholder="DOC-XXXXX (previous version)"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Valid From</label>
+                <input
+                  type="date"
+                  value={uploadForm.valid_from}
+                  onChange={(e) => setUploadForm((current) => ({ ...current, valid_from: e.target.value }))}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Valid Till</label>
+                <input
+                  type="date"
+                  value={uploadForm.valid_till}
+                  onChange={(e) => setUploadForm((current) => ({ ...current, valid_till: e.target.value }))}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={uploadForm.is_mandatory}
+                  onChange={(e) => setUploadForm((current) => ({ ...current, is_mandatory: e.target.checked }))}
+                  className="rounded border-gray-300 text-[#1e6b87] focus:ring-[#1e6b87]"
+                />
+                <label className="text-sm font-medium text-gray-700">Mandatory Document</label>
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Status</label>

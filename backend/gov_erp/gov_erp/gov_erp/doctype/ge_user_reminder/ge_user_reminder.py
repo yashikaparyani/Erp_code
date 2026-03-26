@@ -75,9 +75,16 @@ class GEUserReminder(Document):
         self.save(ignore_permissions=True)
 
     def snooze(self, minutes: int = 15):
-        """Snooze this reminder by the given number of minutes."""
+        """Snooze this reminder by the given number of minutes.
+
+        Shared recipients (shared_with) cannot snooze — only the owner can.
+        """
+        if self.shared_with and frappe.session.user == self.shared_with:
+            frappe.throw("Shared recipients cannot snooze a reminder", frappe.PermissionError)
+        snooze_until = add_to_date(now_datetime(), minutes=minutes)
         self.status = "Snoozed"
-        self.next_reminder_at = add_to_date(now_datetime(), minutes=minutes)
+        self.snooze_until = snooze_until
+        self.next_reminder_at = snooze_until
         self.is_sent = 0
         self.save(ignore_permissions=True)
 
@@ -85,6 +92,7 @@ class GEUserReminder(Document):
         """Dismiss this reminder."""
         self.status = "Dismissed"
         self.next_reminder_at = None
+        self.snooze_until = None
         self.save(ignore_permissions=True)
 
 
@@ -101,6 +109,7 @@ def create_reminder(
     reference_doctype: str = None,
     reference_name: str = None,
     notes: str = None,
+    shared_with: str = None,
 ) -> str:
     """
     Create a new reminder for a user.
@@ -117,6 +126,7 @@ def create_reminder(
         reference_doctype: DocType of related document
         reference_name: Name of related document
         notes: Additional notes
+        shared_with: Optional user to share view of this reminder with
 
     Returns:
         Name of created reminder document
@@ -138,6 +148,7 @@ def create_reminder(
         "reference_doctype": reference_doctype,
         "reference_name": reference_name,
         "notes": notes,
+        "shared_with": shared_with,
     })
     doc.insert()
     return doc.name
@@ -150,7 +161,7 @@ def get_user_reminders(
     limit: int = 50,
 ) -> list:
     """
-    Get reminders for a user.
+    Get reminders for a user, including reminders shared with the user.
 
     Args:
         user: User to get reminders for (defaults to session user)
@@ -165,36 +176,74 @@ def get_user_reminders(
     if user != frappe.session.user and not _is_reminder_admin():
         frappe.throw("You can only view your own reminders", frappe.PermissionError)
 
-    filters = {"user": user}
-    if active_only:
-        filters["status"] = ["in", ["Active", "Snoozed"]]
-    if project:
-        filters["linked_project"] = project
+    base_fields = [
+        "name",
+        "title",
+        "reminder_datetime",
+        "next_reminder_at",
+        "snooze_until",
+        "repeat_rule",
+        "status",
+        "linked_project",
+        "linked_site",
+        "linked_stage",
+        "linked_department",
+        "reference_doctype",
+        "reference_name",
+        "notes",
+        "is_sent",
+        "sent_at",
+        "shared_with",
+        "user",
+        "creation",
+    ]
 
-    return frappe.get_all(
+    status_filter = ["in", ["Active", "Snoozed"]] if active_only else ["not in", []]
+
+    # Own reminders
+    own_filters: dict = {"user": user}
+    if active_only:
+        own_filters["status"] = status_filter
+    if project:
+        own_filters["linked_project"] = project
+
+    own = frappe.get_all(
         "GE User Reminder",
-        filters=filters,
-        fields=[
-            "name",
-            "title",
-            "reminder_datetime",
-            "next_reminder_at",
-            "repeat_rule",
-            "status",
-            "linked_project",
-            "linked_site",
-            "linked_stage",
-            "linked_department",
-            "reference_doctype",
-            "reference_name",
-            "notes",
-            "is_sent",
-            "sent_at",
-            "creation",
-        ],
+        filters=own_filters,
+        fields=base_fields,
         order_by="next_reminder_at asc",
         limit_page_length=limit,
     )
+    for r in own:
+        r["is_shared_with_me"] = False
+
+    # Reminders shared with this user
+    shared_filters: dict = {"shared_with": user}
+    if active_only:
+        shared_filters["status"] = status_filter
+    if project:
+        shared_filters["linked_project"] = project
+
+    shared = frappe.get_all(
+        "GE User Reminder",
+        filters=shared_filters,
+        fields=base_fields,
+        order_by="next_reminder_at asc",
+        limit_page_length=limit,
+    )
+    for r in shared:
+        r["is_shared_with_me"] = True
+
+    # Merge, deduplicate, sort
+    seen = set()
+    merged = []
+    for r in own + shared:
+        if r["name"] not in seen:
+            seen.add(r["name"])
+            merged.append(r)
+
+    merged.sort(key=lambda r: r.get("next_reminder_at") or r.get("reminder_datetime") or "")
+    return merged[:limit]
 
 
 def get_due_reminders() -> list:

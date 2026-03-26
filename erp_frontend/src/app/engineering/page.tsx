@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, Clock, FileText, IndianRupee, Plus, RefreshCw, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import ActionModal from '@/components/ui/ActionModal';
 
 type Boq = {
   name: string;
@@ -61,6 +62,7 @@ export default function EngineeringPage() {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
   const [actionError, setActionError] = useState('');
+  const [rejectTarget, setRejectTarget] = useState<string | null>(null);
   const [actionLoadingName, setActionLoadingName] = useState<string | null>(null);
   const [createForm, setCreateForm] = useState({
     linked_tender: '',
@@ -170,14 +172,13 @@ export default function EngineeringPage() {
     }
   };
 
-  const runBoqAction = async (boqName: string, action: 'submit' | 'approve' | 'reject' | 'revise') => {
+  const runBoqAction = async (boqName: string, action: 'submit' | 'approve' | 'reject' | 'revise', extra?: Record<string, string>) => {
     setActionError('');
     setActionLoadingName(boqName);
     try {
       let payload: Record<string, unknown> = { action };
       if (action === 'reject') {
-        const reason = prompt('Reject reason (optional):') || '';
-        payload = { action, reason };
+        payload = { action, reason: extra?.reason || '' };
       }
 
       const response = await fetch(`/api/boqs/${encodeURIComponent(boqName)}/actions`, {
@@ -472,7 +473,7 @@ export default function EngineeringPage() {
                             <button
                               className="text-sm font-medium text-red-600 hover:text-red-700"
                               disabled={actionLoadingName === boq.name}
-                              onClick={() => runBoqAction(boq.name, 'reject')}
+                              onClick={() => setRejectTarget(boq.name)}
                             >
                               Reject
                             </button>
@@ -497,6 +498,19 @@ export default function EngineeringPage() {
           )}
         </div>
       </div>
+      <ActionModal
+        open={rejectTarget !== null}
+        title="Reject BOQ"
+        description={`Reject ${rejectTarget}?`}
+        confirmLabel="Reject"
+        variant="danger"
+        fields={[{ name: 'reason', label: 'Reason (optional)', type: 'textarea' }]}
+        onCancel={() => setRejectTarget(null)}
+        onConfirm={async (values) => {
+          if (rejectTarget) await runBoqAction(rejectTarget, 'reject', { reason: values.reason || '' });
+          setRejectTarget(null);
+        }}
+      />
     </div>
   );
 }

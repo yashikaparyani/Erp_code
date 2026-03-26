@@ -40,13 +40,18 @@ def project_on_update(doc, method):
 
 
 def site_on_update(doc, method):
-    """Emit alert when site stage changes or site is blocked/unblocked."""
+    """Emit alert when site lifecycle fields change."""
     project = doc.linked_project
     if not project:
         return
 
     try:
-        from gov_erp.alert_dispatcher import on_site_stage_changed, on_site_blocked
+        from gov_erp.alert_dispatcher import (
+            on_site_blocked,
+            on_site_installation_stage_changed,
+            on_site_stage_changed,
+            on_site_status_changed,
+        )
 
         # Stage change
         if doc.has_value_changed("current_site_stage"):
@@ -54,6 +59,20 @@ def site_on_update(doc, method):
             old_stage = getattr(old, "current_site_stage", None) if old else None
             if old_stage != doc.current_site_stage:
                 on_site_stage_changed(project, doc.name, doc.current_site_stage or "")
+
+        # High-level status change
+        if doc.has_value_changed("status"):
+            old = doc.get_doc_before_save()
+            old_status = getattr(old, "status", None) if old else None
+            if old_status != doc.status and doc.status:
+                on_site_status_changed(project, doc.name, doc.status)
+
+        # Installation stage progression
+        if doc.has_value_changed("installation_stage"):
+            old = doc.get_doc_before_save()
+            old_installation_stage = getattr(old, "installation_stage", None) if old else None
+            if old_installation_stage != doc.installation_stage and doc.installation_stage:
+                on_site_installation_stage_changed(project, doc.name, doc.installation_stage)
 
         # Block/unblock
         if doc.has_value_changed("site_blocked"):

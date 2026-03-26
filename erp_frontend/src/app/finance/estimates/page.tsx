@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { FileText } from 'lucide-react';
 import OpsWorkspace from '@/components/ops/OpsWorkspace';
 
@@ -51,7 +52,7 @@ export default function EstimatesPage() {
         { label: 'Value', path: 'total_value', hint: 'Aggregate estimate value', icon: FileText, tone: 'purple' },
       ]}
       columns={[
-        { key: 'name', label: 'Estimate', render: (row) => row.name || '-' },
+        { key: 'name', label: 'Estimate', render: (row) => <Link href={`/finance/estimates/${encodeURIComponent(row.name)}`} className="text-blue-600 hover:underline font-medium">{row.name || '-'}</Link> },
         { key: 'customer', label: 'Customer', render: (row) => row.customer || '-' },
         { key: 'estimate_date', label: 'Date', render: (row) => row.estimate_date || '-' },
         { key: 'valid_until', label: 'Valid Until', render: (row) => row.valid_until || '-' },

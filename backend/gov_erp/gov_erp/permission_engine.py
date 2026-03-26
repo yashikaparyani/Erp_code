@@ -46,7 +46,7 @@ MODE_HIERARCHY = {
 # Routes not listed here are considered ungated (allowed for all authenticated
 # users).  Add entries whenever a new module-specific route is created.
 MODULE_ROUTE_MAP = {
-    "project":     ["/projects", "/milestones"],
+    "project":     ["/projects", "/milestones", "/project-manager"],
     "presales":    ["/pre-sales", "/survey"],
     "engineering": ["/engineering", "/survey", "/drawings", "/change-requests"],
     "procurement": ["/procurement", "/indents", "/purchase-orders", "/petty-cash"],
@@ -65,6 +65,30 @@ MODULE_ROUTE_MAP = {
 # All module-gated route prefixes (flat set for fast lookup)
 _ALL_GATED_PREFIXES: set[str] | None = None
 
+ROLE_ROUTE_DENY_MAP = {
+    "Project Manager": [
+        "/projects",
+        "/procurement",
+        "/inventory",
+        "/grns",
+        "/petty-cash",
+        "/documents",
+        "/reports",
+        "/execution",
+        "/engineering",
+        "/milestones",
+        "/manpower",
+        "/purchase-orders",
+        "/indents",
+        "/comm-logs",
+        "/drawings",
+        "/change-requests",
+        "/technician-visits",
+        "/stock-position",
+        "/stock-aging",
+    ],
+}
+
 def _get_all_gated_prefixes() -> set[str]:
     global _ALL_GATED_PREFIXES
     if _ALL_GATED_PREFIXES is None:
@@ -74,6 +98,10 @@ def _get_all_gated_prefixes() -> set[str]:
             for prefix in routes
         }
     return _ALL_GATED_PREFIXES
+
+
+def _matches_route_prefix(path: str, prefix: str) -> bool:
+    return path == prefix or path.startswith(prefix + "/")
 
 # ── Module-to-access capability ─────────────────────────────────────────────
 MODULE_ACCESS_CAPABILITIES = {
@@ -404,9 +432,12 @@ class PermissionEngine:
         Args:
             route_path: e.g. "/engineering/projects/PROJ-001"
         """
+        for role, denied_prefixes in ROLE_ROUTE_DENY_MAP.items():
+            if role in self.user_roles and any(_matches_route_prefix(route_path, prefix) for prefix in denied_prefixes):
+                return False
         for module_key, routes in MODULE_ROUTE_MAP.items():
             for prefix in routes:
-                if route_path == prefix or route_path.startswith(prefix + "/"):
+                if _matches_route_prefix(route_path, prefix):
                     return self.can_access_module(module_key)
         # Routes not in the map are allowed by default
         return True
@@ -431,6 +462,12 @@ class PermissionEngine:
         for module_key, routes in MODULE_ROUTE_MAP.items():
             if self.can_access_module(module_key):
                 accessible.extend(routes)
+        for role, denied_prefixes in ROLE_ROUTE_DENY_MAP.items():
+            if role in self.user_roles:
+                accessible = [
+                    route for route in accessible
+                    if not any(_matches_route_prefix(route, prefix) for prefix in denied_prefixes)
+                ]
         return sorted(set(accessible))
 
     # ── Project / Site / Stage checks ────────────────────────────────────

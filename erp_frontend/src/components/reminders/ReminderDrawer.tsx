@@ -18,6 +18,7 @@ type Reminder = {
   reminder_datetime: string;
   repeat_rule: string;
   next_reminder_at?: string;
+  snooze_until?: string;
   linked_project?: string;
   linked_site?: string;
   linked_stage?: string;
@@ -26,6 +27,8 @@ type Reminder = {
   status: 'Active' | 'Snoozed' | 'Dismissed' | 'Completed';
   is_sent: 0 | 1;
   notes?: string;
+  shared_with?: string;
+  is_shared_with_me?: boolean;
   creation: string;
 };
 
@@ -59,6 +62,7 @@ export default function ReminderDrawer({ projectId, projectName }: ReminderDrawe
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [loading, setLoading] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [missedCount, setMissedCount] = useState(0);
   const panelRef = useRef<HTMLDivElement>(null);
 
   /* ── Create form state ── */
@@ -66,7 +70,23 @@ export default function ReminderDrawer({ projectId, projectName }: ReminderDrawe
   const [newDateTime, setNewDateTime] = useState('');
   const [newRepeat, setNewRepeat] = useState('None');
   const [newNotes, setNewNotes] = useState('');
+  const [newSite, setNewSite] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  /* Poll missed count every minute for badge */
+  const fetchMissedCount = useCallback(async () => {
+    try {
+      const res = await fetch('/api/reminders?count_missed=1');
+      const json = await res.json();
+      setMissedCount(json?.data?.count ?? 0);
+    } catch { /* silent */ }
+  }, []);
+
+  useEffect(() => {
+    fetchMissedCount();
+    const id = window.setInterval(fetchMissedCount, 60_000);
+    return () => window.clearInterval(id);
+  }, [fetchMissedCount]);
 
   /* Fetch reminders for this project */
   const fetchReminders = useCallback(async () => {
@@ -104,6 +124,7 @@ export default function ReminderDrawer({ projectId, projectName }: ReminderDrawe
       body: JSON.stringify({ action, ...params }),
     });
     fetchReminders();
+    fetchMissedCount();
   };
 
   const handleSnooze = (name: string, minutes = 15) => postAction('snooze', { reminder_name: name, minutes });
@@ -124,6 +145,7 @@ export default function ReminderDrawer({ projectId, projectName }: ReminderDrawe
           reminder_datetime: newDateTime,
           repeat_rule: newRepeat,
           linked_project: projectId,
+          linked_site: newSite.trim() || undefined,
           notes: newNotes.trim() || undefined,
         }),
       });
@@ -131,8 +153,10 @@ export default function ReminderDrawer({ projectId, projectName }: ReminderDrawe
       setNewDateTime('');
       setNewRepeat('None');
       setNewNotes('');
+      setNewSite('');
       setShowCreate(false);
       fetchReminders();
+      fetchMissedCount();
     } catch { /* silent */ }
     setSubmitting(false);
   };
@@ -142,11 +166,16 @@ export default function ReminderDrawer({ projectId, projectName }: ReminderDrawe
       {/* Trigger button */}
       <button
         onClick={() => setOpen(true)}
-        className="workspace-chip inline-flex items-center gap-1.5 cursor-pointer hover:!bg-[var(--surface-hover)]"
+        className="workspace-chip inline-flex items-center gap-1.5 cursor-pointer hover:!bg-[var(--surface-hover)] relative"
         title="My Reminders"
       >
         <AlarmClock className="w-3.5 h-3.5" />
         Reminders
+        {missedCount > 0 && (
+          <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white leading-none">
+            {missedCount > 99 ? '99+' : missedCount}
+          </span>
+        )}
       </button>
 
       {/* Slide-over drawer */}
@@ -220,6 +249,13 @@ export default function ReminderDrawer({ projectId, projectName }: ReminderDrawe
                   rows={2}
                   className="w-full rounded-xl border border-[var(--border-subtle)] px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30"
                 />
+                <input
+                  type="text"
+                  placeholder="Linked site (optional)"
+                  value={newSite}
+                  onChange={(e) => setNewSite(e.target.value)}
+                  className="w-full rounded-xl border border-[var(--border-subtle)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30"
+                />
                 <div className="flex justify-end gap-2">
                   <button
                     type="button"
@@ -265,7 +301,7 @@ export default function ReminderDrawer({ projectId, projectName }: ReminderDrawe
                       <div className="mt-1 flex items-center gap-2 flex-wrap">
                         <span className="inline-flex items-center gap-1 text-[10px] text-[var(--text-muted)]">
                           <Clock className="w-3 h-3" />
-                          {formatDateTime(r.next_reminder_at || r.reminder_datetime)}
+                          {formatDateTime(r.snooze_until || r.next_reminder_at || r.reminder_datetime)}
                         </span>
                         <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${STATUS_STYLES[r.status] || ''}`}>
                           {r.status}
@@ -273,22 +309,34 @@ export default function ReminderDrawer({ projectId, projectName }: ReminderDrawe
                         {r.repeat_rule && r.repeat_rule !== 'None' && (
                           <span className="text-[10px] text-[var(--text-muted)]">↻ {r.repeat_rule}</span>
                         )}
+                        {r.linked_site && (
+                          <span className="text-[10px] text-[var(--text-muted)] truncate max-w-[100px]" title={r.linked_site}>
+                            📍 {r.linked_site}
+                          </span>
+                        )}
+                        {r.is_shared_with_me && (
+                          <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-600">
+                            Shared
+                          </span>
+                        )}
                       </div>
                       {r.notes && (
                         <p className="mt-1 text-[11px] text-[var(--text-muted)] line-clamp-2">{r.notes}</p>
                       )}
                     </div>
 
-                    {/* Actions */}
+                    {/* Actions – shared recipients cannot snooze */}
                     {r.status === 'Active' || r.status === 'Snoozed' ? (
                       <div className="flex items-center gap-1 flex-shrink-0">
-                        <button
-                          onClick={() => handleSnooze(r.name)}
-                          className="rounded-lg p-1.5 text-amber-600 hover:bg-amber-50"
-                          title="Snooze 15 min"
-                        >
-                          <PauseCircle className="w-3.5 h-3.5" />
-                        </button>
+                        {!r.is_shared_with_me && (
+                          <button
+                            onClick={() => handleSnooze(r.name)}
+                            className="rounded-lg p-1.5 text-amber-600 hover:bg-amber-50"
+                            title="Snooze 15 min"
+                          >
+                            <PauseCircle className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         <button
                           onClick={() => handleDismiss(r.name)}
                           className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100"
@@ -296,22 +344,26 @@ export default function ReminderDrawer({ projectId, projectName }: ReminderDrawe
                         >
                           <XCircle className="w-3.5 h-3.5" />
                         </button>
+                        {!r.is_shared_with_me && (
+                          <button
+                            onClick={() => handleDelete(r.name)}
+                            className="rounded-lg p-1.5 text-rose-400 hover:bg-rose-50"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      !r.is_shared_with_me && (
                         <button
                           onClick={() => handleDelete(r.name)}
-                          className="rounded-lg p-1.5 text-rose-400 hover:bg-rose-50"
+                          className="rounded-lg p-1.5 text-rose-400 hover:bg-rose-50 flex-shrink-0"
                           title="Delete"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => handleDelete(r.name)}
-                        className="rounded-lg p-1.5 text-rose-400 hover:bg-rose-50 flex-shrink-0"
-                        title="Delete"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      )
                     )}
                   </div>
                 </div>

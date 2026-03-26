@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, ArrowLeft, BadgeCheck, FileStack, RefreshCw, Timer, Trophy, XCircle } from 'lucide-react';
 import { useRole } from '../../../../context/RoleContext';
+import ActionModal from '@/components/ui/ActionModal';
 
 type LoiRow = {
   name: string;
@@ -99,6 +100,7 @@ export default function BidWorkspacePage() {
   const [loading, setLoading] = useState(true);
   const [busyAction, setBusyAction] = useState('');
   const [error, setError] = useState('');
+  const [bidModal, setBidModal] = useState<{ action: string; title: string; fields: { name: string; label: string; type: 'text' | 'textarea'; defaultValue?: string }[]; runner: (values: Record<string, string>) => Promise<void> } | null>(null);
 
   const loadBid = async () => {
     if (!bidId) return;
@@ -156,25 +158,6 @@ export default function BidWorkspacePage() {
     } finally {
       setBusyAction('');
     }
-  };
-
-  const requestReason = (label: string) => {
-    const value = window.prompt(`${label} reason`);
-    if (value === null) return null;
-    const trimmed = value.trim();
-    if (!trimmed) {
-      window.alert('Reason is required.');
-      return null;
-    }
-    return trimmed;
-  };
-
-  const requestDate = (label: string) => {
-    const defaultDate = new Date().toISOString().slice(0, 10);
-    const value = window.prompt(`${label} date (YYYY-MM-DD)`, defaultDate);
-    if (value === null) return null;
-    const trimmed = value.trim();
-    return trimmed || defaultDate;
   };
 
   if (loading) {
@@ -347,12 +330,17 @@ export default function BidWorkspacePage() {
             <>
               <button
                 disabled={busyAction === 'won'}
-                onClick={() => void runAction('won', async () => {
-                  const resultDate = requestDate('Result');
-                  if (!resultDate) return;
-                  const remarks = window.prompt('Winning remarks', bid.result_remarks || '') || '';
-                  const json = await postJson(`/api/bids/${bid.name}/won`, { result_date: resultDate, remarks });
-                  if (!json.success) throw new Error(json.message || 'Failed to mark bid won');
+                onClick={() => setBidModal({
+                  action: 'won',
+                  title: 'Mark Bid Won',
+                  fields: [
+                    { name: 'result_date', label: 'Result Date (YYYY-MM-DD)', type: 'text', defaultValue: new Date().toISOString().slice(0, 10) },
+                    { name: 'remarks', label: 'Winning Remarks', type: 'textarea' },
+                  ],
+                  runner: async (values) => {
+                    const json = await postJson(`/api/bids/${bid.name}/won`, { result_date: values.result_date, remarks: values.remarks || '' });
+                    if (!json.success) throw new Error(json.message || 'Failed to mark bid won');
+                  },
                 })}
                 className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
               >
@@ -360,13 +348,18 @@ export default function BidWorkspacePage() {
               </button>
               <button
                 disabled={busyAction === 'lost'}
-                onClick={() => void runAction('lost', async () => {
-                  const resultDate = requestDate('Result');
-                  if (!resultDate) return;
-                  const remarks = requestReason('Lost');
-                  if (!remarks) return;
-                  const json = await postJson(`/api/bids/${bid.name}/lost`, { result_date: resultDate, remarks });
-                  if (!json.success) throw new Error(json.message || 'Failed to mark bid lost');
+                onClick={() => setBidModal({
+                  action: 'lost',
+                  title: 'Mark Bid Lost',
+                  fields: [
+                    { name: 'result_date', label: 'Result Date (YYYY-MM-DD)', type: 'text', defaultValue: new Date().toISOString().slice(0, 10) },
+                    { name: 'remarks', label: 'Lost Reason', type: 'textarea' },
+                  ],
+                  runner: async (values) => {
+                    if (!values.remarks?.trim()) throw new Error('Reason is required');
+                    const json = await postJson(`/api/bids/${bid.name}/lost`, { result_date: values.result_date, remarks: values.remarks });
+                    if (!json.success) throw new Error(json.message || 'Failed to mark bid lost');
+                  },
                 })}
                 className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-3 py-2 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-60"
               >
@@ -374,11 +367,15 @@ export default function BidWorkspacePage() {
               </button>
               <button
                 disabled={busyAction === 'cancel'}
-                onClick={() => void runAction('cancel', async () => {
-                  const reason = requestReason('Cancel');
-                  if (!reason) return;
-                  const json = await postJson(`/api/bids/${bid.name}/cancel`, { reason });
-                  if (!json.success) throw new Error(json.message || 'Failed to cancel bid');
+                onClick={() => setBidModal({
+                  action: 'cancel',
+                  title: 'Cancel Bid',
+                  fields: [{ name: 'reason', label: 'Cancel Reason', type: 'textarea' }],
+                  runner: async (values) => {
+                    if (!values.reason?.trim()) throw new Error('Reason is required');
+                    const json = await postJson(`/api/bids/${bid.name}/cancel`, { reason: values.reason });
+                    if (!json.success) throw new Error(json.message || 'Failed to cancel bid');
+                  },
                 })}
                 className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-400 disabled:opacity-60"
               >
@@ -386,11 +383,15 @@ export default function BidWorkspacePage() {
               </button>
               <button
                 disabled={busyAction === 'retender'}
-                onClick={() => void runAction('retender', async () => {
-                  const reason = requestReason('Retender');
-                  if (!reason) return;
-                  const json = await postJson(`/api/bids/${bid.name}/retender`, { reason });
-                  if (!json.success) throw new Error(json.message || 'Failed to retender bid');
+                onClick={() => setBidModal({
+                  action: 'retender',
+                  title: 'Retender Bid',
+                  fields: [{ name: 'reason', label: 'Retender Reason', type: 'textarea' }],
+                  runner: async (values) => {
+                    if (!values.reason?.trim()) throw new Error('Reason is required');
+                    const json = await postJson(`/api/bids/${bid.name}/retender`, { reason: values.reason });
+                    if (!json.success) throw new Error(json.message || 'Failed to retender bid');
+                  },
                 })}
                 className="inline-flex items-center gap-2 rounded-xl border border-pink-300 bg-pink-50 px-3 py-2 text-sm font-medium text-pink-700 hover:border-pink-400 disabled:opacity-60"
               >
@@ -413,11 +414,15 @@ export default function BidWorkspacePage() {
               </button>
               <button
                 disabled={busyAction === 'reject'}
-                onClick={() => void runAction('reject', async () => {
-                  const reason = requestReason('LOI rejection');
-                  if (!reason) return;
-                  const json = await postJson(`/api/bids/${bid.name}/loi-decision`, { decision: 'REJECT', reason });
-                  if (!json.success) throw new Error(json.message || 'Failed to reject won bid');
+                onClick={() => setBidModal({
+                  action: 'reject',
+                  title: 'Reject LOI',
+                  fields: [{ name: 'reason', label: 'LOI Rejection Reason', type: 'textarea' }],
+                  runner: async (values) => {
+                    if (!values.reason?.trim()) throw new Error('Reason is required');
+                    const json = await postJson(`/api/bids/${bid.name}/loi-decision`, { decision: 'REJECT', reason: values.reason });
+                    if (!json.success) throw new Error(json.message || 'Failed to reject won bid');
+                  },
                 })}
                 className="inline-flex items-center gap-2 rounded-xl bg-slate-700 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
               >
@@ -505,6 +510,21 @@ export default function BidWorkspacePage() {
           </table>
         </div>
       </section>
+
+      <ActionModal
+        open={bidModal !== null}
+        title={bidModal?.title || ''}
+        confirmLabel="Confirm"
+        variant={bidModal?.action === 'lost' || bidModal?.action === 'cancel' || bidModal?.action === 'reject' ? 'danger' : 'default'}
+        fields={bidModal?.fields || []}
+        onCancel={() => setBidModal(null)}
+        onConfirm={async (values) => {
+          if (bidModal) {
+            await runAction(bidModal.action, () => bidModal.runner(values));
+          }
+          setBidModal(null);
+        }}
+      />
     </div>
   );
 }

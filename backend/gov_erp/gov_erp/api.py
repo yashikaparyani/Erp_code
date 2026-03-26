@@ -67,6 +67,25 @@ def _require_authenticated_user():
 		frappe.throw("Authentication required", frappe.PermissionError)
 
 
+def _detect_primary_role(user: str = None) -> str:
+	"""Return the highest-priority role held by the user (for accountability events)."""
+	user = user or frappe.session.user
+	held = set(frappe.get_roles(user))
+	priority = [
+		ROLE_DIRECTOR, ROLE_PROJECT_HEAD, ROLE_DEPARTMENT_HEAD, ROLE_ENGINEERING_HEAD,
+		ROLE_PROCUREMENT_HEAD, ROLE_STORE_MANAGER, ROLE_STORES_LOGISTICS_HEAD,
+		ROLE_HR_HEAD, ROLE_HR_MANAGER, ROLE_ACCOUNTS_HEAD, ROLE_ACCOUNTS,
+		ROLE_PROJECT_MANAGER, ROLE_PROCUREMENT_MANAGER, ROLE_ENGINEER,
+		ROLE_FIELD_TECHNICIAN, ROLE_RMA_HEAD, ROLE_RMA_MANAGER,
+		ROLE_OM_OPERATOR, ROLE_PRESALES_HEAD, ROLE_PRESALES_EXECUTIVE,
+		ROLE_SYSTEM_MANAGER,
+	]
+	for role in priority:
+		if role in held:
+			return role
+	return next(iter(held), "Unknown")
+
+
 def _require_roles(*roles):
 	_require_authenticated_user()
 	user_roles = set(frappe.get_roles(frappe.session.user))
@@ -723,6 +742,85 @@ def _parse_payload(data):
 	return data or {}
 
 
+def _get_project_manager_assigned_projects():
+	roles = set(frappe.get_roles(frappe.session.user))
+	if ROLE_PROJECT_MANAGER not in roles:
+		return None
+	engine = PermissionEngine(user=frappe.session.user)
+	assigned = sorted(engine.assigned_projects)
+	if not assigned:
+		frappe.throw("Project Manager has no assigned projects configured", frappe.PermissionError)
+	return assigned
+
+
+def _apply_project_manager_project_filter(filters, project=None, project_field="linked_project"):
+	assigned = _get_project_manager_assigned_projects()
+	if not assigned:
+		if project:
+			filters[project_field] = project
+		return
+	if project:
+		if project not in assigned:
+			frappe.throw(f"Project Manager cannot access project {project}", frappe.PermissionError)
+		filters[project_field] = project
+		return
+	filters[project_field] = ["in", assigned]
+
+
+def _ensure_project_manager_project_scope(project):
+	assigned = _get_project_manager_assigned_projects()
+	if not assigned:
+		return _require_param(project, "project")
+	project = _require_param(project, "project")
+	if project not in assigned:
+		frappe.throw(f"Project Manager cannot access project {project}", frappe.PermissionError)
+	return project
+
+
+def _enforce_accountability_project_scope(project=None, require_project_for_pm=False):
+	"""Enforce PM assigned-project scope for accountability APIs."""
+	assigned = _get_project_manager_assigned_projects()
+	if not assigned:
+		return project
+	if project:
+		return _ensure_project_manager_project_scope(project)
+	if require_project_for_pm:
+		frappe.throw(
+			"Project Managers must supply a project for accountability queries.",
+			frappe.PermissionError,
+		)
+	return project
+
+
+def _enforce_accountability_subject_scope(subject_doctype, subject_name):
+	"""Ensure PMs can only inspect accountability records for assigned projects."""
+	assigned = _get_project_manager_assigned_projects()
+	if not assigned:
+		return None
+
+	record = frappe.db.get_value(
+		"GE Accountability Record",
+		{"subject_doctype": subject_doctype, "subject_name": subject_name},
+		["name", "linked_project"],
+		as_dict=True,
+	)
+	if not record:
+		return None
+
+	linked_project = record.get("linked_project")
+	if not linked_project:
+		frappe.throw(
+			"Project Managers can only inspect project-linked accountability records.",
+			frappe.PermissionError,
+		)
+	if linked_project not in assigned:
+		frappe.throw(
+			f"Project Manager cannot access accountability for project {linked_project}",
+			frappe.PermissionError,
+		)
+	return record
+
+
 def _get_indent_names_for_project(project):
 	"""Get Material Request names that have items with specified project."""
 	rows = frappe.get_all(
@@ -766,6 +864,101 @@ def _attach_indent_project_summary(rows):
 		row["project"] = projects[0] if len(projects) == 1 else None
 
 	return rows
+
+
+def _prepare_indent_doc_values(values, project=None):
+	"""Normalize payload for Material Request creation."""
+	company = values.get("company") or _get_default_company()
+	default_warehouse = values.get("set_warehouse") or _get_default_warehouse(company)
+	prepared_items = []
+	for item in values.get("items") or []:
+		row = dict(item)
+		if project and not row.get("project"):
+			row["project"] = project
+		if not row.get("schedule_date"):
+			row["schedule_date"] = values.get("schedule_date") or frappe.utils.add_days(frappe.utils.nowdate(), 7)
+		if default_warehouse and not row.get("warehouse"):
+			row["warehouse"] = default_warehouse
+		prepared_items.append(row)
+
+	doc_values = {"doctype": "Material Request", **values}
+	doc_values["material_request_type"] = values.get("material_request_type") or "Purchase"
+	if company:
+		doc_values["company"] = company
+	if default_warehouse and not doc_values.get("set_warehouse"):
+		doc_values["set_warehouse"] = default_warehouse
+	doc_values["items"] = prepared_items
+	return doc_values
+
+
+def _create_indent_document(values, project=None):
+	"""Create and persist a Material Request indent document."""
+	doc_values = _prepare_indent_doc_values(values, project=project)
+	doc = frappe.get_doc(doc_values)
+	doc.insert()
+	frappe.db.commit()
+	return doc
+
+
+def _attach_indent_accountability_summary(rows):
+	"""Attach accountability snapshot fields to indent rows."""
+	if not rows:
+		return rows
+
+	indent_names = [row.name for row in rows]
+	accountability_rows = frappe.get_all(
+		"GE Accountability Record",
+		filters={
+			"subject_doctype": "Material Request",
+			"subject_name": ["in", indent_names],
+		},
+		fields=[
+			"subject_name",
+			"current_status",
+			"current_owner_role",
+			"current_owner_user",
+			"latest_event_type",
+			"assigned_to_role",
+			"assigned_to_user",
+			"is_blocked",
+			"blocking_reason",
+			"escalated_to_role",
+			"escalated_to_user",
+			"submitted_by",
+		],
+	)
+	accountability_map = {row.subject_name: row for row in accountability_rows}
+
+	for row in rows:
+		snapshot = accountability_map.get(row.name)
+		if not snapshot:
+			continue
+		row["accountability_status"] = snapshot.current_status
+		row["accountability_owner_role"] = snapshot.current_owner_role
+		row["accountability_owner_user"] = snapshot.current_owner_user
+		row["accountability_latest_event"] = snapshot.latest_event_type
+		row["accountability_assigned_to_role"] = snapshot.assigned_to_role
+		row["accountability_assigned_to_user"] = snapshot.assigned_to_user
+		row["accountability_is_blocked"] = snapshot.is_blocked
+		row["accountability_blocking_reason"] = snapshot.blocking_reason
+		row["accountability_escalated_to_role"] = snapshot.escalated_to_role
+		row["accountability_escalated_to_user"] = snapshot.escalated_to_user
+		row["accountability_submitted_by"] = snapshot.submitted_by
+
+	return rows
+
+
+def _get_indent_requester_user(doc):
+	"""Return the best-effort requester user for an indent."""
+	record = frappe.db.get_value(
+		"GE Accountability Record",
+		{"subject_doctype": "Material Request", "subject_name": doc.name},
+		["submitted_by", "current_owner_user"],
+		as_dict=True,
+	)
+	if record:
+		return record.get("submitted_by") or record.get("current_owner_user")
+	return doc.owner
 
 
 def _get_stock_age_bucket(age_days):
@@ -2041,6 +2234,26 @@ def submit_boq_for_approval(name):
 	doc.status = "PENDING_APPROVAL"
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE BOQ",
+			subject_name=name,
+			event_type=EventType.SUBMITTED,
+			linked_project=doc.get("linked_project"),
+			from_status="DRAFT",
+			to_status="PENDING_APPROVAL",
+			current_status="PENDING_APPROVAL",
+			submitted_by=frappe.session.user,
+			submitted_on=now_datetime(),
+			current_owner_role=_detect_primary_role(),
+			source_route=f"/projects/{doc.get('linked_project')}/boq" if doc.get("linked_project") else "/boq",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: submit_boq_for_approval")
+
 	return {"success": True, "data": doc.as_dict(), "message": "BOQ submitted for approval"}
 
 
@@ -2054,6 +2267,26 @@ def approve_boq(name):
 	doc.status = "APPROVED"
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE BOQ",
+			subject_name=name,
+			event_type=EventType.APPROVED,
+			linked_project=doc.get("linked_project"),
+			from_status="PENDING_APPROVAL",
+			to_status="APPROVED",
+			current_status="APPROVED",
+			approved_by=frappe.session.user,
+			approved_on=now_datetime(),
+			current_owner_role=_detect_primary_role(),
+			source_route=f"/projects/{doc.get('linked_project')}/boq" if doc.get("linked_project") else "/boq",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: approve_boq")
+
 	return {"success": True, "data": doc.as_dict(), "message": "BOQ approved"}
 
 
@@ -2061,15 +2294,35 @@ def approve_boq(name):
 def reject_boq(name, reason=None):
 	"""Reject a BOQ that is PENDING_APPROVAL."""
 	_require_boq_approval_access()
+	if not (reason or "").strip():
+		frappe.throw("A rejection reason is required. Please provide remarks.")
 	doc = frappe.get_doc("GE BOQ", name)
 	if doc.status != "PENDING_APPROVAL":
 		return {"success": False, "message": f"BOQ is in {doc.status} status, must be PENDING_APPROVAL to reject"}
 	doc.status = "REJECTED"
 	doc.rejected_by = frappe.session.user
-	if reason:
-		doc.rejection_reason = reason
+	doc.rejection_reason = reason
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE BOQ",
+			subject_name=name,
+			event_type=EventType.REJECTED,
+			linked_project=doc.get("linked_project"),
+			from_status="PENDING_APPROVAL",
+			to_status="REJECTED",
+			current_status="REJECTED",
+			current_owner_role=_detect_primary_role(),
+			remarks=reason,
+			source_route=f"/projects/{doc.get('linked_project')}/boq" if doc.get("linked_project") else "/boq",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: reject_boq")
+
 	return {"success": True, "data": doc.as_dict(), "message": "BOQ rejected"}
 
 
@@ -2196,6 +2449,24 @@ def submit_cost_sheet_for_approval(name):
 	doc.status = "PENDING_APPROVAL"
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Cost Sheet",
+			subject_name=name,
+			event_type=EventType.SUBMITTED,
+			linked_project=doc.get("linked_project"),
+			from_status="DRAFT",
+			to_status="PENDING_APPROVAL",
+			current_status="PENDING_APPROVAL",
+			current_owner_role=_detect_primary_role(),
+			source_route=f"/projects/{doc.get('linked_project')}/cost-sheet" if doc.get("linked_project") else "/cost-sheets",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: submit_cost_sheet_for_approval")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Cost Sheet submitted for approval"}
 
 
@@ -2209,6 +2480,26 @@ def approve_cost_sheet(name):
 	doc.status = "APPROVED"
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Cost Sheet",
+			subject_name=name,
+			event_type=EventType.APPROVED,
+			linked_project=doc.get("linked_project"),
+			from_status="PENDING_APPROVAL",
+			to_status="APPROVED",
+			current_status="APPROVED",
+			approved_by=frappe.session.user,
+			approved_on=now_datetime(),
+			current_owner_role=_detect_primary_role(),
+			source_route=f"/projects/{doc.get('linked_project')}/cost-sheet" if doc.get("linked_project") else "/cost-sheets",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: approve_cost_sheet")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Cost Sheet approved"}
 
 
@@ -2216,15 +2507,35 @@ def approve_cost_sheet(name):
 def reject_cost_sheet(name, reason=None):
 	"""Reject a cost sheet that is pending approval."""
 	_require_cost_sheet_approval_access()
+	if not (reason or "").strip():
+		frappe.throw("A rejection reason is required. Please provide remarks.")
 	doc = frappe.get_doc("GE Cost Sheet", name)
 	if doc.status != "PENDING_APPROVAL":
 		return {"success": False, "message": f"Cost Sheet is in {doc.status} status, must be PENDING_APPROVAL to reject"}
 	doc.status = "REJECTED"
 	doc.rejected_by = frappe.session.user
-	if reason:
-		doc.rejection_reason = reason
+	doc.rejection_reason = reason
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Cost Sheet",
+			subject_name=name,
+			event_type=EventType.REJECTED,
+			linked_project=doc.get("linked_project"),
+			from_status="PENDING_APPROVAL",
+			to_status="REJECTED",
+			current_status="REJECTED",
+			current_owner_role=_detect_primary_role(),
+			remarks=reason,
+			source_route=f"/projects/{doc.get('linked_project')}/cost-sheet" if doc.get("linked_project") else "/cost-sheets",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: reject_cost_sheet")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Cost Sheet rejected"}
 
 
@@ -2389,6 +2700,26 @@ def submit_vendor_comparison_for_approval(name):
 	doc.status = "PENDING_APPROVAL"
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Vendor Comparison",
+			subject_name=name,
+			event_type=EventType.SUBMITTED,
+			linked_project=doc.get("linked_project"),
+			from_status="DRAFT",
+			to_status="PENDING_APPROVAL",
+			current_status="PENDING_APPROVAL",
+			submitted_by=frappe.session.user,
+			submitted_on=now_datetime(),
+			current_owner_role=_detect_primary_role(),
+			source_route="/procurement/vendor-comparisons",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: submit_vendor_comparison_for_approval")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Vendor comparison submitted for approval"}
 
 
@@ -2408,6 +2739,27 @@ def approve_vendor_comparison(name, exception_reason=None):
 	doc.status = "APPROVED"
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Vendor Comparison",
+			subject_name=name,
+			event_type=EventType.APPROVED,
+			linked_project=doc.get("linked_project"),
+			from_status="PENDING_APPROVAL",
+			to_status="APPROVED",
+			current_status="APPROVED",
+			approved_by=frappe.session.user,
+			approved_on=now_datetime(),
+			current_owner_role=_detect_primary_role(),
+			remarks=exception_reason or "",
+			source_route="/procurement/vendor-comparisons",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: approve_vendor_comparison")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Vendor comparison approved"}
 
 
@@ -2415,6 +2767,8 @@ def approve_vendor_comparison(name, exception_reason=None):
 def reject_vendor_comparison(name, reason=None):
 	"""Reject a vendor comparison sheet."""
 	_require_procurement_approval_access()
+	if not (reason or "").strip():
+		frappe.throw("A rejection reason is required. Please provide remarks.")
 	doc = frappe.get_doc("GE Vendor Comparison", name)
 	if doc.status != "PENDING_APPROVAL":
 		return {
@@ -2422,10 +2776,28 @@ def reject_vendor_comparison(name, reason=None):
 			"message": f"Vendor comparison is in {doc.status} status, must be PENDING_APPROVAL to reject",
 		}
 	doc.status = "REJECTED"
-	if reason:
-		doc.exception_reason = reason
+	doc.exception_reason = reason
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Vendor Comparison",
+			subject_name=name,
+			event_type=EventType.REJECTED,
+			linked_project=doc.get("linked_project"),
+			from_status="PENDING_APPROVAL",
+			to_status="REJECTED",
+			current_status="REJECTED",
+			current_owner_role=_detect_primary_role(),
+			remarks=reason,
+			source_route="/procurement/vendor-comparisons",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: reject_vendor_comparison")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Vendor comparison rejected"}
 
 
@@ -2575,13 +2947,35 @@ def approve_dispatch_challan(name):
 	doc.status = "APPROVED"
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Dispatch Challan",
+			subject_name=name,
+			event_type=EventType.APPROVED,
+			linked_project=doc.get("linked_project"),
+			from_status="PENDING_APPROVAL",
+			to_status="APPROVED",
+			current_status="APPROVED",
+			approved_by=frappe.session.user,
+			approved_on=now_datetime(),
+			current_owner_role=_detect_primary_role(),
+			source_route="/stores/dispatch-challans",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: approve_dispatch_challan")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Dispatch challan approved"}
 
 
 @frappe.whitelist()
-def reject_dispatch_challan(name):
+def reject_dispatch_challan(name, reason=None):
 	"""Reject a dispatch challan."""
 	_require_store_approval_access()
+	if not (reason or "").strip():
+		frappe.throw("A rejection reason is required. Please provide remarks.")
 	doc = frappe.get_doc("GE Dispatch Challan", name)
 	if doc.status != "PENDING_APPROVAL":
 		return {
@@ -2591,6 +2985,25 @@ def reject_dispatch_challan(name):
 	doc.status = "REJECTED"
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Dispatch Challan",
+			subject_name=name,
+			event_type=EventType.REJECTED,
+			linked_project=doc.get("linked_project"),
+			from_status="PENDING_APPROVAL",
+			to_status="REJECTED",
+			current_status="REJECTED",
+			current_owner_role=_detect_primary_role(),
+			remarks=reason,
+			source_route="/stores/dispatch-challans",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: reject_dispatch_challan")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Dispatch challan rejected"}
 
 
@@ -2689,7 +3102,9 @@ def get_indents(project=None, status=None, limit_page_length=50, limit_start=0):
 		page_length=int(limit_page_length),
 	)
 	total = frappe.db.count("Material Request", filters=filters)
-	return {"success": True, "data": _attach_indent_project_summary(data), "total": total}
+	data = _attach_indent_project_summary(data)
+	data = _attach_indent_accountability_summary(data)
+	return {"success": True, "data": data, "total": total}
 
 
 @frappe.whitelist()
@@ -2707,31 +3122,107 @@ def create_indent(data):
 	_require_procurement_write_access()
 	values = _parse_payload(data)
 	project = values.pop("project", None)
-	company = values.get("company") or _get_default_company()
-	default_warehouse = values.get("set_warehouse") or _get_default_warehouse(company)
-	prepared_items = []
-	for item in values.get("items") or []:
-		row = dict(item)
-		if project and not row.get("project"):
-			row["project"] = project
-		if not row.get("schedule_date"):
-			row["schedule_date"] = values.get("schedule_date") or frappe.utils.add_days(frappe.utils.nowdate(), 7)
-		if default_warehouse and not row.get("warehouse"):
-			row["warehouse"] = default_warehouse
-		prepared_items.append(row)
+	doc = _create_indent_document(values, project=project)
 
-	doc_values = {"doctype": "Material Request", **values}
-	doc_values["material_request_type"] = values.get("material_request_type") or "Purchase"
-	if company:
-		doc_values["company"] = company
-	if default_warehouse and not doc_values.get("set_warehouse"):
-		doc_values["set_warehouse"] = default_warehouse
-	doc_values["items"] = prepared_items
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="Material Request",
+			subject_name=doc.name,
+			event_type=EventType.CREATED,
+			linked_project=project,
+			current_status="Draft",
+			current_owner_user=frappe.session.user,
+			current_owner_role=_detect_primary_role(),
+			source_route=f"/projects/{project}/procurement/indents" if project else "/procurement/indents",
+			reference_doctype="Material Request",
+			reference_name=doc.name,
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: create_indent")
 
-	doc = frappe.get_doc(doc_values)
-	doc.insert()
-	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": "Indent created"}
+
+
+@frappe.whitelist()
+def get_project_indents(project=None, limit_page_length=25, limit_start=0):
+	"""Return project-scoped indents for PM/PH inventory-facing surfaces."""
+	_require_project_inventory_read_access()
+	project = _ensure_project_manager_project_scope(project) if _get_project_manager_assigned_projects() else _require_param(project, "project")
+	result = get_indents(
+		project=project,
+		limit_page_length=limit_page_length,
+		limit_start=limit_start,
+	)
+	return result
+
+
+@frappe.whitelist()
+def create_project_indent(data):
+	"""Create a project-scoped indent from the PM inventory lane."""
+	_require_project_inventory_write_access()
+	values = _parse_payload(data)
+	project = _ensure_project_manager_project_scope(values.get("project") or values.get("linked_project"))
+	item_code = _require_param(values.get("item_code"), "item_code")
+	required_qty = flt(values.get("qty") or values.get("required_qty"))
+	if required_qty <= 0:
+		frappe.throw("Required quantity must be greater than zero")
+
+	item_row = {
+		"item_code": item_code,
+		"qty": required_qty,
+		"project": project,
+		"schedule_date": values.get("schedule_date") or frappe.utils.add_days(frappe.utils.nowdate(), 7),
+	}
+	if values.get("uom"):
+		item_row["uom"] = values.get("uom")
+	if values.get("warehouse"):
+		item_row["warehouse"] = values.get("warehouse")
+
+	doc = _create_indent_document(
+		{
+			"material_request_type": "Purchase",
+			"schedule_date": values.get("schedule_date"),
+			"set_warehouse": values.get("warehouse"),
+			"company": values.get("company"),
+			"transaction_date": values.get("transaction_date") or today(),
+			"items": [item_row],
+		},
+		project=project,
+	)
+
+	remarks = values.get("remarks")
+	if remarks and hasattr(doc, "title"):
+		doc.title = remarks[:140]
+		doc.save(ignore_permissions=True)
+		frappe.db.commit()
+
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="Material Request",
+			subject_name=doc.name,
+			event_type=EventType.CREATED,
+			linked_project=project,
+			current_status="Draft",
+			current_owner_user=frappe.session.user,
+			current_owner_role=ROLE_PROJECT_MANAGER,
+			source_route=f"/project-manager/inventory?project={project}",
+			reference_doctype="Material Request",
+			reference_name=doc.name,
+			remarks=remarks,
+			metadata={
+				"created_from": "project_manager_inventory",
+				"item_code": item_code,
+				"qty": required_qty,
+				"linked_site": values.get("linked_site"),
+			},
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: create_project_indent")
+
+	return {"success": True, "data": doc.as_dict(), "message": "Project indent created"}
 
 
 @frappe.whitelist()
@@ -2773,6 +3264,312 @@ def get_indent_stats(project=None):
 			"cancelled": sum(1 for row in rows if row.docstatus == 2 or row.status == "Cancelled"),
 		},
 	}
+
+
+# ── Indent Workflow Action Layer (Phase 2 Accountability) ────
+
+def _get_indent_project(doc):
+	"""Extract the linked project from a Material Request via its items."""
+	if getattr(doc, "items", None):
+		return doc.items[0].get("project")
+	row = frappe.db.get_value("Material Request Item", {"parent": doc.name}, "project")
+	return row
+
+
+@frappe.whitelist()
+def submit_indent(name):
+	"""Submit a draft indent (Material Request) for PH review."""
+	_require_procurement_write_access()
+	doc = frappe.get_doc("Material Request", name)
+	if doc.docstatus != 0:
+		frappe.throw("Only draft indents can be submitted.")
+	doc.submit()
+	frappe.db.commit()
+	project = _get_indent_project(doc)
+	submitter_role = _detect_primary_role()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="Material Request",
+			subject_name=name,
+			event_type=EventType.SUBMITTED,
+			linked_project=project,
+			from_status="Draft",
+			to_status="Submitted",
+			current_status="Submitted",
+			submitted_by=frappe.session.user,
+			submitted_on=now_datetime(),
+			current_owner_role=ROLE_PROJECT_HEAD,
+			current_owner_user="",
+			assigned_to_role=ROLE_PROJECT_HEAD,
+			from_owner_user=frappe.session.user,
+			from_owner_role=submitter_role,
+			to_owner_role=ROLE_PROJECT_HEAD,
+			source_route=f"/projects/{project}/procurement/indents" if project else "/procurement/indents",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: submit_indent")
+
+	try:
+		from gov_erp.alert_dispatcher import on_indent_event
+		on_indent_event(
+			project,
+			name,
+			"submitted",
+			detail="Indent submitted and waiting for Project Head review.",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Alert: submit_indent")
+
+	return {"success": True, "data": doc.as_dict(), "message": "Indent submitted for review"}
+
+
+@frappe.whitelist()
+def acknowledge_indent(name):
+	"""PH acknowledges receipt of a submitted indent."""
+	_require_procurement_approval_access()
+	doc = frappe.get_doc("Material Request", name)
+	if doc.docstatus != 1:
+		frappe.throw("Only submitted indents can be acknowledged.")
+	project = _get_indent_project(doc)
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="Material Request",
+			subject_name=name,
+			event_type=EventType.ACKNOWLEDGED,
+			linked_project=project,
+			from_status="Submitted",
+			to_status="Acknowledged",
+			current_status="Acknowledged",
+			current_owner_user=frappe.session.user,
+			current_owner_role=ROLE_PROJECT_HEAD,
+			assigned_to_role=ROLE_PROJECT_HEAD,
+			to_owner_user=frappe.session.user,
+			to_owner_role=ROLE_PROJECT_HEAD,
+			source_route=f"/projects/{project}/procurement/indents" if project else "/procurement/indents",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: acknowledge_indent")
+
+	try:
+		from gov_erp.alert_dispatcher import on_indent_event
+		on_indent_event(
+			project,
+			name,
+			"acknowledged",
+			detail=f"Indent acknowledged by {frappe.session.user}.",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Alert: acknowledge_indent")
+
+	return {"success": True, "message": "Indent acknowledged"}
+
+
+@frappe.whitelist()
+def accept_indent(name):
+	"""PH accepts the indent and passes it to the procurement team."""
+	_require_procurement_approval_access()
+	doc = frappe.get_doc("Material Request", name)
+	if doc.docstatus != 1:
+		frappe.throw("Only submitted indents can be accepted.")
+	project = _get_indent_project(doc)
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="Material Request",
+			subject_name=name,
+			event_type=EventType.ACCEPTED,
+			linked_project=project,
+			from_status="Acknowledged" if frappe.db.exists("GE Accountability Record", {"subject_doctype": "Material Request", "subject_name": name, "current_status": "Acknowledged"}) else "Submitted",
+			to_status="Accepted",
+			current_status="Accepted",
+			accepted_by=frappe.session.user,
+			accepted_on=now_datetime(),
+			current_owner_role=ROLE_PROCUREMENT_MANAGER,
+			current_owner_user="",
+			assigned_to_role=ROLE_PROCUREMENT_MANAGER,
+			from_owner_user=frappe.session.user,
+			from_owner_role=ROLE_PROJECT_HEAD,
+			to_owner_role=ROLE_PROCUREMENT_MANAGER,
+			source_route=f"/projects/{project}/procurement/indents" if project else "/procurement/indents",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: accept_indent")
+
+	try:
+		from gov_erp.alert_dispatcher import on_indent_event
+		on_indent_event(
+			project,
+			name,
+			"accepted",
+			detail=f"Indent accepted by {frappe.session.user} and handed to procurement.",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Alert: accept_indent")
+
+	return {"success": True, "message": "Indent accepted — procurement can proceed"}
+
+
+@frappe.whitelist()
+def reject_indent(name, reason=None):
+	"""PH rejects a submitted indent and stops the Material Request."""
+	_require_procurement_approval_access()
+	if not (reason or "").strip():
+		frappe.throw("A rejection reason is required. Please provide remarks.")
+	doc = frappe.get_doc("Material Request", name)
+	if doc.docstatus != 1:
+		frappe.throw("Only submitted indents can be rejected.")
+	doc.status = "Stopped"
+	doc.save()
+	frappe.db.commit()
+	project = _get_indent_project(doc)
+	requester_user = _get_indent_requester_user(doc)
+	requester_role = _detect_primary_role(requester_user) if requester_user else ROLE_PROJECT_MANAGER
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="Material Request",
+			subject_name=name,
+			event_type=EventType.REJECTED,
+			linked_project=project,
+			from_status="Submitted",
+			to_status="Rejected",
+			current_status="Rejected",
+			current_owner_role=requester_role,
+			current_owner_user=requester_user or "",
+			assigned_to_role=requester_role,
+			assigned_to_user=requester_user or "",
+			from_owner_user=frappe.session.user,
+			from_owner_role=ROLE_PROJECT_HEAD,
+			to_owner_user=requester_user or "",
+			to_owner_role=requester_role,
+			remarks=reason,
+			source_route=f"/projects/{project}/procurement/indents" if project else "/procurement/indents",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: reject_indent")
+
+	try:
+		from gov_erp.alert_dispatcher import on_indent_event
+		on_indent_event(
+			project,
+			name,
+			"rejected",
+			detail=reason,
+			extra_recipients=[requester_user] if requester_user else None,
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Alert: reject_indent")
+
+	return {"success": True, "data": doc.as_dict(), "message": "Indent rejected"}
+
+
+@frappe.whitelist()
+def return_indent(name, reason=None):
+	"""PH returns an indent for revision — cancels the Material Request."""
+	_require_procurement_approval_access()
+	if not (reason or "").strip():
+		frappe.throw("A return reason is required. Please provide remarks.")
+	doc = frappe.get_doc("Material Request", name)
+	if doc.docstatus != 1:
+		frappe.throw("Only submitted indents can be returned for revision.")
+	doc.cancel()
+	frappe.db.commit()
+	project = _get_indent_project(doc)
+	requester_user = _get_indent_requester_user(doc)
+	requester_role = _detect_primary_role(requester_user) if requester_user else ROLE_PROJECT_MANAGER
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="Material Request",
+			subject_name=name,
+			event_type=EventType.RETURNED,
+			linked_project=project,
+			from_status="Submitted",
+			to_status="Returned for Revision",
+			current_status="Returned for Revision",
+			current_owner_role=requester_role,
+			current_owner_user=requester_user or "",
+			assigned_to_role=requester_role,
+			assigned_to_user=requester_user or "",
+			from_owner_user=frappe.session.user,
+			from_owner_role=ROLE_PROJECT_HEAD,
+			to_owner_user=requester_user or "",
+			to_owner_role=requester_role,
+			remarks=reason,
+			source_route=f"/projects/{project}/procurement/indents" if project else "/procurement/indents",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: return_indent")
+
+	try:
+		from gov_erp.alert_dispatcher import on_indent_event
+		on_indent_event(
+			project,
+			name,
+			"returned",
+			detail=reason,
+			extra_recipients=[requester_user] if requester_user else None,
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Alert: return_indent")
+
+	return {"success": True, "data": doc.as_dict(), "message": "Indent returned for revision"}
+
+
+@frappe.whitelist()
+def escalate_indent(name, escalate_to_user=None, reason=None):
+	"""Escalate a stalled indent to a higher authority."""
+	_require_roles(ROLE_PROJECT_HEAD, ROLE_DIRECTOR)
+	if not (reason or "").strip():
+		frappe.throw("An escalation reason is required. Please provide remarks.")
+	doc = frappe.get_doc("Material Request", name)
+	project = _get_indent_project(doc)
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="Material Request",
+			subject_name=name,
+			event_type=EventType.ESCALATED,
+			linked_project=project,
+			current_status="Escalated",
+			current_owner_role=ROLE_DIRECTOR,
+			current_owner_user=escalate_to_user or "",
+			assigned_to_role=ROLE_DIRECTOR,
+			assigned_to_user=escalate_to_user or "",
+			escalated_to_user=escalate_to_user,
+			escalated_to_role=ROLE_DIRECTOR,
+			from_owner_user=frappe.session.user,
+			from_owner_role=_detect_primary_role(),
+			to_owner_user=escalate_to_user or "",
+			to_owner_role=ROLE_DIRECTOR,
+			remarks=reason,
+			source_route=f"/projects/{project}/procurement/indents" if project else "/procurement/indents",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: escalate_indent")
+
+	try:
+		from gov_erp.alert_dispatcher import on_indent_event
+		extra = [escalate_to_user] if escalate_to_user else None
+		on_indent_event(project, name, "escalated", detail=reason, extra_recipients=extra)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Alert: escalate_indent")
+
+	return {"success": True, "message": "Indent escalated"}
 
 
 @frappe.whitelist()
@@ -3791,6 +4588,24 @@ def submit_onboarding(name):
 		doc.submitted_by = frappe.session.user
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Employee Onboarding",
+			subject_name=name,
+			event_type=EventType.SUBMITTED,
+			linked_project=doc.get("linked_project"),
+			from_status="DRAFT",
+			to_status="SUBMITTED",
+			current_status="SUBMITTED",
+			current_owner_role=_detect_primary_role(),
+			source_route="/hr/onboarding",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: submit_onboarding")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Onboarding submitted"}
 
 
@@ -3805,6 +4620,24 @@ def review_onboarding(name):
 	doc.reviewed_by = frappe.session.user
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Employee Onboarding",
+			subject_name=name,
+			event_type=EventType.ACKNOWLEDGED,
+			linked_project=doc.get("linked_project"),
+			from_status="SUBMITTED",
+			to_status="UNDER_REVIEW",
+			current_status="UNDER_REVIEW",
+			current_owner_role=_detect_primary_role(),
+			source_route="/hr/onboarding",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: review_onboarding")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Onboarding is now under review"}
 
 
@@ -3818,6 +4651,24 @@ def return_onboarding_to_submitted(name):
 	doc.onboarding_status = "SUBMITTED"
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Employee Onboarding",
+			subject_name=name,
+			event_type=EventType.RETURNED,
+			linked_project=doc.get("linked_project"),
+			from_status="UNDER_REVIEW",
+			to_status="SUBMITTED",
+			current_status="SUBMITTED",
+			current_owner_role=_detect_primary_role(),
+			source_route="/hr/onboarding",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: return_onboarding_to_submitted")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Onboarding returned to submitted state"}
 
 
@@ -3840,6 +4691,26 @@ def approve_onboarding(name):
 	doc.approved_at = frappe.utils.now()
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Employee Onboarding",
+			subject_name=name,
+			event_type=EventType.APPROVED,
+			linked_project=doc.get("linked_project"),
+			from_status="UNDER_REVIEW",
+			to_status="APPROVED",
+			current_status="APPROVED",
+			approved_by=frappe.session.user,
+			approved_on=now_datetime(),
+			current_owner_role=_detect_primary_role(),
+			source_route="/hr/onboarding",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: approve_onboarding")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Onboarding approved"}
 
 
@@ -3850,12 +4721,32 @@ def reject_onboarding(name, reason=None):
 	doc = frappe.get_doc("GE Employee Onboarding", name)
 	if doc.onboarding_status != "UNDER_REVIEW":
 		return {"success": False, "message": f"Onboarding is in {doc.onboarding_status} status, must be UNDER_REVIEW to reject"}
+	if not (reason or "").strip():
+		frappe.throw("A rejection reason is required. Please provide remarks.")
 	doc.onboarding_status = "REJECTED"
 	doc.rejected_by = frappe.session.user
-	if reason:
-		doc.rejection_reason = reason
+	doc.rejection_reason = reason
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Employee Onboarding",
+			subject_name=name,
+			event_type=EventType.REJECTED,
+			linked_project=doc.get("linked_project"),
+			from_status="UNDER_REVIEW",
+			to_status="REJECTED",
+			current_status="REJECTED",
+			remarks=reason,
+			current_owner_role=_detect_primary_role(),
+			source_route="/hr/onboarding",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: reject_onboarding")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Onboarding rejected"}
 
 
@@ -5165,6 +6056,26 @@ def approve_travel_log(name):
 	doc.travel_status = "APPROVED"
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Travel Log",
+			subject_name=name,
+			event_type=EventType.APPROVED,
+			linked_project=doc.get("linked_project"),
+			from_status="SUBMITTED",
+			to_status="APPROVED",
+			current_status="APPROVED",
+			approved_by=frappe.session.user,
+			approved_on=now_datetime(),
+			current_owner_role=_detect_primary_role(),
+			source_route="/hr/travel-logs",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: approve_travel_log")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Travel log approved"}
 
 
@@ -5172,15 +6083,35 @@ def approve_travel_log(name):
 def reject_travel_log(name, reason=None):
 	"""Reject a submitted travel log."""
 	_require_hr_approval_access()
+	if not (reason or "").strip():
+		frappe.throw("A rejection reason is required. Please provide remarks.")
 	doc = frappe.get_doc("GE Travel Log", name)
 	if doc.travel_status != "SUBMITTED":
 		return {"success": False, "message": f"Travel log is in {doc.travel_status} status, must be SUBMITTED to reject"}
 	doc.travel_status = "REJECTED"
 	doc.rejected_by = frappe.session.user
-	if reason:
-		doc.rejection_reason = reason
+	doc.rejection_reason = reason
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Travel Log",
+			subject_name=name,
+			event_type=EventType.REJECTED,
+			linked_project=doc.get("linked_project"),
+			from_status="SUBMITTED",
+			to_status="REJECTED",
+			current_status="REJECTED",
+			current_owner_role=_detect_primary_role(),
+			remarks=reason,
+			source_route="/hr/travel-logs",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: reject_travel_log")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Travel log rejected"}
 
 
@@ -5291,6 +6222,27 @@ def approve_overtime_entry(name):
 	doc.overtime_status = "APPROVED"
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Overtime Entry",
+			subject_name=name,
+			event_type=EventType.APPROVED,
+			linked_project=doc.get("linked_project"),
+			linked_site=doc.get("linked_site"),
+			from_status="SUBMITTED",
+			to_status="APPROVED",
+			current_status="APPROVED",
+			approved_by=frappe.session.user,
+			approved_on=now_datetime(),
+			current_owner_role=_detect_primary_role(),
+			source_route="/hr/overtime",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: approve_overtime_entry")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Overtime entry approved"}
 
 
@@ -5298,15 +6250,36 @@ def approve_overtime_entry(name):
 def reject_overtime_entry(name, reason=None):
 	"""Reject a submitted overtime entry."""
 	_require_hr_approval_access()
+	if not (reason or "").strip():
+		frappe.throw("A rejection reason is required. Please provide remarks.")
 	doc = frappe.get_doc("GE Overtime Entry", name)
 	if doc.overtime_status != "SUBMITTED":
 		return {"success": False, "message": f"Overtime entry is in {doc.overtime_status} status, must be SUBMITTED to reject"}
 	doc.overtime_status = "REJECTED"
 	doc.rejected_by = frappe.session.user
-	if reason:
-		doc.rejection_reason = reason
+	doc.rejection_reason = reason
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Overtime Entry",
+			subject_name=name,
+			event_type=EventType.REJECTED,
+			linked_project=doc.get("linked_project"),
+			linked_site=doc.get("linked_site"),
+			from_status="SUBMITTED",
+			to_status="REJECTED",
+			current_status="REJECTED",
+			current_owner_role=_detect_primary_role(),
+			remarks=reason,
+			source_route="/hr/overtime",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: reject_overtime_entry")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Overtime entry rejected"}
 
 
@@ -5835,8 +6808,7 @@ def get_dprs(project=None, site=None, report_date=None):
 	"""Return DPR records."""
 	_require_execution_read_access()
 	filters = {}
-	if project:
-		filters["linked_project"] = project
+	_apply_project_manager_project_filter(filters, project=project, project_field="linked_project")
 	if site:
 		filters["linked_site"] = site
 	if report_date:
@@ -5860,6 +6832,9 @@ def get_dpr(name=None):
 	_require_execution_read_access()
 	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE DPR", name)
+	assigned = _get_project_manager_assigned_projects()
+	if assigned and doc.linked_project not in assigned:
+		frappe.throw("Project Manager cannot access DPR outside assigned projects", frappe.PermissionError)
 	return {"success": True, "data": doc.as_dict()}
 
 
@@ -5868,6 +6843,8 @@ def create_dpr(data):
 	"""Create a DPR. Enforces one DPR per site per day."""
 	_require_execution_write_access()
 	values = json.loads(data) if isinstance(data, str) else data
+	if values.get("linked_project"):
+		values["linked_project"] = _ensure_project_manager_project_scope(values.get("linked_project"))
 	# Enforce uniqueness: one DPR per site per day
 	if values.get("linked_site") and values.get("report_date"):
 		existing = frappe.db.exists("GE DPR", {
@@ -5888,6 +6865,11 @@ def update_dpr(name, data):
 	_require_execution_write_access()
 	values = json.loads(data) if isinstance(data, str) else data
 	doc = frappe.get_doc("GE DPR", name)
+	assigned = _get_project_manager_assigned_projects()
+	if assigned and doc.linked_project not in assigned:
+		frappe.throw("Project Manager cannot update DPR outside assigned projects", frappe.PermissionError)
+	if "linked_project" in values:
+		values["linked_project"] = _ensure_project_manager_project_scope(values.get("linked_project"))
 	doc.update(values)
 	doc.save()
 	frappe.db.commit()
@@ -5898,6 +6880,10 @@ def update_dpr(name, data):
 def delete_dpr(name):
 	"""Delete a DPR."""
 	_require_execution_write_access()
+	doc = frappe.get_doc("GE DPR", name)
+	assigned = _get_project_manager_assigned_projects()
+	if assigned and doc.linked_project not in assigned:
+		frappe.throw("Project Manager cannot delete DPR outside assigned projects", frappe.PermissionError)
 	frappe.delete_doc("GE DPR", name)
 	frappe.db.commit()
 	return {"success": True, "message": "DPR deleted"}
@@ -5908,8 +6894,7 @@ def get_dpr_stats(project=None):
 	"""Aggregate DPR stats."""
 	_require_execution_read_access()
 	filters = {}
-	if project:
-		filters["linked_project"] = project
+	_apply_project_manager_project_filter(filters, project=project, project_field="linked_project")
 	rows = frappe.get_all("GE DPR", filters=filters, fields=["manpower_on_site", "equipment_count"])
 	return {
 		"success": True,
@@ -6090,6 +7075,26 @@ def approve_invoice(name):
 	doc.approved_at = frappe.utils.now_datetime()
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Invoice",
+			subject_name=name,
+			event_type=EventType.APPROVED,
+			linked_project=doc.get("linked_project"),
+			from_status="SUBMITTED",
+			to_status="APPROVED",
+			current_status="APPROVED",
+			approved_by=frappe.session.user,
+			approved_on=now_datetime(),
+			current_owner_role=_detect_primary_role(),
+			source_route=f"/projects/{doc.get('linked_project')}/invoices" if doc.get("linked_project") else "/invoices",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: approve_invoice")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Invoice approved"}
 
 
@@ -6097,6 +7102,8 @@ def approve_invoice(name):
 def reject_invoice(name, reason):
 	"""Reject a submitted invoice."""
 	_require_billing_approval_access()
+	if not (reason or "").strip():
+		frappe.throw("A rejection reason is required. Please provide remarks.")
 	doc = frappe.get_doc("GE Invoice", name)
 	if doc.status != "SUBMITTED":
 		return {"success": False, "message": f"Invoice is in {doc.status} status, must be SUBMITTED to reject"}
@@ -6105,6 +7112,25 @@ def reject_invoice(name, reason):
 	doc.rejection_reason = reason
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Invoice",
+			subject_name=name,
+			event_type=EventType.REJECTED,
+			linked_project=doc.get("linked_project"),
+			from_status="SUBMITTED",
+			to_status="DRAFT",
+			current_status="DRAFT",
+			current_owner_role=_detect_primary_role(),
+			remarks=reason,
+			source_route=f"/projects/{doc.get('linked_project')}/invoices" if doc.get("linked_project") else "/invoices",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: reject_invoice")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Invoice rejected and returned to draft"}
 
 
@@ -6118,6 +7144,24 @@ def mark_invoice_paid(name):
 	doc.status = "PAYMENT_RECEIVED"
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Invoice",
+			subject_name=name,
+			event_type=EventType.COMPLETED,
+			linked_project=doc.get("linked_project"),
+			from_status="APPROVED",
+			to_status="PAYMENT_RECEIVED",
+			current_status="PAYMENT_RECEIVED",
+			current_owner_role=_detect_primary_role(),
+			source_route=f"/projects/{doc.get('linked_project')}/billing" if doc.get("linked_project") else "/finance/billing",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: mark_invoice_paid")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Invoice marked as payment received"}
 
 
@@ -6132,6 +7176,24 @@ def cancel_invoice(name, reason):
 	doc.rejection_reason = reason
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Invoice",
+			subject_name=name,
+			event_type=EventType.CANCELLED,
+			linked_project=doc.get("linked_project"),
+			to_status="CANCELLED",
+			current_status="CANCELLED",
+			remarks=reason,
+			current_owner_role=_detect_primary_role(),
+			source_route=f"/projects/{doc.get('linked_project')}/billing" if doc.get("linked_project") else "/finance/billing",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: cancel_invoice")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Invoice cancelled"}
 
 
@@ -6416,6 +7478,26 @@ def release_retention(name, release_amount=None):
 	doc.status = "RELEASED" if total_after >= doc.retention_amount else "PARTIALLY_RELEASED"
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Retention Ledger",
+			subject_name=name,
+			event_type=EventType.APPROVED,
+			linked_project=doc.get("linked_project"),
+			to_status=doc.status,
+			current_status=doc.status,
+			approved_by=frappe.session.user,
+			approved_on=now_datetime(),
+			remarks=f"Released {amount} of {doc.retention_amount}",
+			current_owner_role=_detect_primary_role(),
+			source_route=f"/projects/{doc.get('linked_project')}/retention" if doc.get("linked_project") else "/finance/retention",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: release_retention")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Retention released"}
 
 
@@ -6523,6 +7605,26 @@ def approve_penalty_deduction(name):
 	doc.approved_by = frappe.session.user
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Penalty Deduction",
+			subject_name=name,
+			event_type=EventType.APPROVED,
+			linked_project=doc.get("linked_project"),
+			from_status="PENDING",
+			to_status="APPROVED",
+			current_status="APPROVED",
+			approved_by=frappe.session.user,
+			approved_on=now_datetime(),
+			current_owner_role=_detect_primary_role(),
+			source_route=f"/projects/{doc.get('linked_project')}/penalties" if doc.get("linked_project") else "/penalties",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: approve_penalty_deduction")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Penalty approved"}
 
 
@@ -6545,6 +7647,8 @@ def apply_penalty_deduction(name, invoice_name=None):
 def reverse_penalty_deduction(name, reason):
 	"""Reverse an applied penalty."""
 	_require_billing_approval_access()
+	if not (reason or "").strip():
+		frappe.throw("A reversal reason is required. Please provide remarks.")
 	doc = frappe.get_doc("GE Penalty Deduction", name)
 	if doc.status != "APPLIED":
 		return {"success": False, "message": f"Penalty must be APPLIED to reverse (current: {doc.status})"}
@@ -6552,6 +7656,25 @@ def reverse_penalty_deduction(name, reason):
 	doc.reversal_reason = reason
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Penalty Deduction",
+			subject_name=name,
+			event_type=EventType.OVERRIDDEN,
+			linked_project=doc.get("linked_project"),
+			from_status="APPLIED",
+			to_status="REVERSED",
+			current_status="REVERSED",
+			remarks=reason,
+			current_owner_role=_detect_primary_role(),
+			source_route=f"/projects/{doc.get('linked_project')}/penalties" if doc.get("linked_project") else "/finance/penalties",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: reverse_penalty_deduction")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Penalty reversed"}
 
 
@@ -7131,6 +8254,26 @@ def approve_sla_penalty(name):
 	doc.approved_by = frappe.session.user
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE SLA Penalty Record",
+			subject_name=name,
+			event_type=EventType.APPROVED,
+			linked_project=doc.get("linked_project"),
+			from_status="PENDING",
+			to_status="APPROVED",
+			current_status="APPROVED",
+			approved_by=frappe.session.user,
+			approved_on=now_datetime(),
+			current_owner_role=_detect_primary_role(),
+			source_route="/sla",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: approve_sla_penalty")
+
 	return {"success": True, "data": doc.as_dict(), "message": "SLA penalty approved"}
 
 
@@ -7141,11 +8284,31 @@ def reject_sla_penalty(name, reason=None):
 	doc = frappe.get_doc("GE SLA Penalty Record", name)
 	if doc.approval_status != "PENDING":
 		return {"success": False, "message": f"Penalty is in {doc.approval_status} status, must be PENDING to reject"}
+	if not (reason or "").strip():
+		frappe.throw("A rejection reason is required. Please provide remarks.")
 	doc.approval_status = "REJECTED"
-	if reason:
-		doc.remarks = reason
+	doc.remarks = reason
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE SLA Penalty Record",
+			subject_name=name,
+			event_type=EventType.REJECTED,
+			linked_project=doc.get("linked_project"),
+			from_status="PENDING",
+			to_status="REJECTED",
+			current_status="REJECTED",
+			remarks=reason,
+			current_owner_role=_detect_primary_role(),
+			source_route="/sla",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: reject_sla_penalty")
+
 	return {"success": True, "data": doc.as_dict(), "message": "SLA penalty rejected"}
 
 
@@ -7161,6 +8324,24 @@ def waive_sla_penalty(name, reason):
 	doc.approved_by = frappe.session.user
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE SLA Penalty Record",
+			subject_name=name,
+			event_type=EventType.OVERRIDDEN,
+			linked_project=doc.get("linked_project"),
+			to_status="WAIVED",
+			current_status="WAIVED",
+			remarks=reason,
+			current_owner_role=_detect_primary_role(),
+			source_route="/sla",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: waive_sla_penalty")
+
 	return {"success": True, "data": doc.as_dict(), "message": "SLA penalty waived"}
 
 
@@ -7746,7 +8927,7 @@ def _annotate_project_documents(rows, latest_only=False):
 
 
 @frappe.whitelist()
-def get_project_documents(folder=None, project=None, category=None, site=None, latest_only=0):
+def get_project_documents(folder=None, project=None, category=None, site=None, latest_only=0, stage=None, reference_doctype=None, subcategory=None):
 	"""Return custom GE Project Document records."""
 	_require_document_read_access()
 	filters = {}
@@ -7758,6 +8939,12 @@ def get_project_documents(folder=None, project=None, category=None, site=None, l
 		filters["category"] = category
 	if site:
 		filters["linked_site"] = site
+	if stage:
+		filters["linked_stage"] = stage
+	if reference_doctype:
+		filters["reference_doctype"] = reference_doctype
+	if subcategory:
+		filters["document_subcategory"] = subcategory
 	data = frappe.get_all(
 		"GE Project Document",
 		filters=filters,
@@ -7767,14 +8954,22 @@ def get_project_documents(folder=None, project=None, category=None, site=None, l
 			"folder",
 			"linked_project",
 			"linked_site",
+			"linked_stage",
 			"source_document",
 			"category",
+			"document_subcategory",
+			"reference_doctype",
+			"reference_name",
+			"supersedes_document",
+			"is_mandatory",
 			"file",
 			"version",
 			"uploaded_by",
 			"uploaded_on",
 			"submitted_by",
 			"submitted_on",
+			"valid_from",
+			"valid_till",
 			"expiry_date",
 			"status",
 			"assigned_to",
@@ -7782,6 +8977,8 @@ def get_project_documents(folder=None, project=None, category=None, site=None, l
 			"due_date",
 			"blocker_reason",
 			"escalated_to",
+			"reviewed_by",
+			"approved_by",
 			"approved_rejected_by",
 			"closure_note",
 			"remarks",
@@ -7908,7 +9105,87 @@ def upload_project_document(data):
 	doc = frappe.get_doc({"doctype": "GE Project Document", **values})
 	doc.insert()
 	frappe.db.commit()
+	# Accountability: log document upload
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		evt = EventType.DOC_SUPERSEDED if values.get("supersedes_document") else EventType.DOC_UPLOADED
+		record_and_log(
+			subject_doctype="GE Project Document",
+			subject_name=doc.name,
+			event_type=evt,
+			linked_project=doc.linked_project,
+			from_status="",
+			to_status=doc.status or "Submitted",
+			current_status=doc.status or "Submitted",
+			current_owner_role=_detect_primary_role(),
+			source_route="/documents",
+			remarks=f"Stage: {doc.linked_stage or 'N/A'}, Category: {doc.category}, Subcategory: {doc.document_subcategory or 'N/A'}",
+		)
+	except Exception:
+		frappe.log_error(f"Accountability log failed for doc upload {doc.name}", "Accountability Error")
 	return {"success": True, "data": doc.as_dict(), "message": "Project document uploaded"}
+
+
+@frappe.whitelist()
+def update_document_status(data):
+	"""Update the workflow status of a GE Project Document with accountability logging.
+	Supports: In Review, Approved, Rejected, Closed transitions.
+	"""
+	_require_document_write_access()
+	values = _parse_payload(data)
+	name = _require_param(values.get("name"), "name")
+	new_status = _require_param(values.get("status"), "status")
+	reason = values.get("reason") or values.get("remarks") or ""
+
+	doc = frappe.get_doc("GE Project Document", name)
+	old_status = doc.status
+
+	if new_status == "Rejected" and not (reason or "").strip():
+		frappe.throw("Reason is required when rejecting a document")
+
+	doc.status = new_status
+	if new_status == "In Review" and not doc.reviewed_by:
+		doc.reviewed_by = frappe.session.user
+	if new_status == "Approved":
+		if not doc.approved_by:
+			doc.approved_by = frappe.session.user
+		if not doc.approved_rejected_by:
+			doc.approved_rejected_by = frappe.session.user
+	if new_status == "Rejected":
+		if not doc.approved_rejected_by:
+			doc.approved_rejected_by = frappe.session.user
+	if reason:
+		doc.remarks = reason
+	doc.save(ignore_permissions=True)
+	frappe.db.commit()
+
+	# Map status to accountability event type
+	status_event_map = {
+		"In Review": "DOC_REVIEWED",
+		"Approved": "DOC_APPROVED",
+		"Rejected": "DOC_REJECTED",
+		"Closed": "COMPLETED",
+	}
+	evt_name = status_event_map.get(new_status)
+	if evt_name:
+		try:
+			from gov_erp.accountability import record_and_log, EventType
+			record_and_log(
+				subject_doctype="GE Project Document",
+				subject_name=doc.name,
+				event_type=getattr(EventType, evt_name),
+				linked_project=doc.linked_project,
+				from_status=old_status,
+				to_status=new_status,
+				current_status=new_status,
+				current_owner_role=_detect_primary_role(),
+				source_route="/documents",
+				remarks=reason or f"Document {new_status.lower()}",
+			)
+		except Exception:
+			frappe.log_error(f"Accountability log failed for doc status change {doc.name}", "Accountability Error")
+
+	return {"success": True, "data": doc.as_dict(), "message": f"Document status updated to {new_status}"}
 
 
 @frappe.whitelist()
@@ -7943,12 +9220,21 @@ def get_document_versions(name=None):
 			"folder",
 			"linked_project",
 			"linked_site",
+			"linked_stage",
 			"category",
+			"document_subcategory",
+			"reference_doctype",
+			"reference_name",
+			"supersedes_document",
 			"file",
 			"version",
 			"uploaded_by",
 			"uploaded_on",
+			"valid_from",
+			"valid_till",
 			"expiry_date",
+			"reviewed_by",
+			"approved_by",
 			"remarks",
 			"creation",
 		],
@@ -8015,6 +9301,253 @@ def _process_expiring_documents():
 			)
 		except Exception:
 			frappe.log_error(f"Expiry alert failed for {doc_row.name}", "Alert Error")
+
+
+# ────────────────────────────────────────────────────────────────
+# Document Traceability: Requirement rules, dossier, gates
+# ────────────────────────────────────────────────────────────────
+
+@frappe.whitelist()
+def get_document_requirements(stage=None):
+	"""Return all GE Document Requirement rules, optionally filtered by stage."""
+	_require_document_read_access()
+	filters = {}
+	if stage:
+		filters["stage"] = stage
+	data = frappe.get_all(
+		"GE Document Requirement",
+		filters=filters,
+		fields=[
+			"name", "stage", "document_category", "document_subcategory",
+			"is_mandatory", "scope_level", "uploader_role", "reviewer_role",
+			"description",
+		],
+		order_by="stage asc, document_category asc",
+	)
+	return {"success": True, "data": data}
+
+
+@frappe.whitelist()
+def check_stage_document_completeness(project=None, stage=None, site=None):
+	"""Check which required documents exist and which are missing for a given stage."""
+	_require_document_read_access()
+	stage = _require_param(stage, "stage")
+	if not project and site:
+		project = frappe.db.get_value("GE Site", site, "linked_project")
+	project = _require_param(project, "project")
+
+	requirements = frappe.get_all(
+		"GE Document Requirement",
+		filters={"stage": stage},
+		fields=[
+			"name", "stage", "document_category", "document_subcategory",
+			"is_mandatory", "scope_level",
+		],
+	)
+
+	doc_filters = {"linked_project": project, "linked_stage": stage}
+	if site:
+		doc_filters["linked_site"] = site
+	existing_docs = frappe.get_all(
+		"GE Project Document",
+		filters=doc_filters,
+		fields=["name", "document_name", "category", "document_subcategory", "status", "linked_site"],
+	)
+
+	existing_set = set()
+	for d in existing_docs:
+		if (d.status or "").strip().lower() == "rejected":
+			continue
+		existing_set.add((d.category, d.document_subcategory or ""))
+
+	results = []
+	all_satisfied = True
+	for req in requirements:
+		key = (req.document_category, req.document_subcategory or "")
+		found = key in existing_set
+		if req.is_mandatory and not found:
+			all_satisfied = False
+		results.append({
+			"requirement": req.name,
+			"stage": req.stage,
+			"category": req.document_category,
+			"subcategory": req.document_subcategory,
+			"mandatory": req.is_mandatory,
+			"scope_level": req.scope_level,
+			"satisfied": found,
+		})
+
+	return {
+		"success": True,
+		"data": {
+			"requirements": results,
+			"all_mandatory_satisfied": all_satisfied,
+			"total": len(results),
+			"satisfied_count": sum(1 for r in results if r["satisfied"]),
+			"missing_mandatory_count": sum(1 for r in results if r["mandatory"] and not r["satisfied"]),
+		},
+	}
+
+
+@frappe.whitelist()
+def get_project_dossier(project=None):
+	"""Return all documents for a project grouped by stage for dossier view."""
+	_require_document_read_access()
+	project = _require_param(project, "project")
+
+	docs = frappe.get_all(
+		"GE Project Document",
+		filters={"linked_project": project},
+		fields=[
+			"name", "document_name", "linked_stage", "linked_site",
+			"category", "document_subcategory", "reference_doctype",
+			"reference_name", "file", "version", "status",
+			"is_mandatory", "uploaded_by", "uploaded_on",
+			"reviewed_by", "approved_by", "valid_from", "valid_till",
+			"expiry_date", "supersedes_document", "creation",
+		],
+		order_by="linked_stage asc, category asc, creation desc",
+	)
+
+	stages = {}
+	for doc in docs:
+		stage_key = doc.linked_stage or "Unclassified"
+		if stage_key not in stages:
+			stages[stage_key] = []
+		stages[stage_key].append(doc)
+
+	return {"success": True, "data": {"project": project, "stages": stages, "total_documents": len(docs)}}
+
+
+@frappe.whitelist()
+def get_site_dossier(site=None):
+	"""Return all documents for a site, grouped by stage."""
+	_require_document_read_access()
+	site = _require_param(site, "site")
+
+	if not frappe.db.exists("GE Site", site):
+		frappe.throw(f"Site {site} does not exist")
+	project = frappe.db.get_value("GE Site", site, "linked_project")
+
+	docs = frappe.get_all(
+		"GE Project Document",
+		filters={"linked_site": site},
+		fields=[
+			"name", "document_name", "linked_project", "linked_stage",
+			"category", "document_subcategory", "reference_doctype",
+			"reference_name", "file", "version", "status",
+			"is_mandatory", "uploaded_by", "uploaded_on",
+			"reviewed_by", "approved_by", "valid_from", "valid_till",
+			"expiry_date", "supersedes_document", "creation",
+		],
+		order_by="linked_stage asc, category asc, creation desc",
+	)
+
+	stages = {}
+	for doc in docs:
+		stage_key = doc.linked_stage or "Unclassified"
+		if stage_key not in stages:
+			stages[stage_key] = []
+		stages[stage_key].append(doc)
+
+	return {"success": True, "data": {"site": site, "project": project, "stages": stages, "total_documents": len(docs)}}
+
+
+@frappe.whitelist()
+def get_record_documents(reference_doctype=None, reference_name=None):
+	"""Return all documents linked to a specific record (e.g., a BOQ, a PO, etc.)."""
+	_require_document_read_access()
+	reference_doctype = _require_param(reference_doctype, "reference_doctype")
+	reference_name = _require_param(reference_name, "reference_name")
+
+	docs = frappe.get_all(
+		"GE Project Document",
+		filters={
+			"reference_doctype": reference_doctype,
+			"reference_name": reference_name,
+		},
+		fields=[
+			"name", "document_name", "linked_project", "linked_site",
+			"linked_stage", "category", "document_subcategory",
+			"file", "version", "status", "is_mandatory",
+			"uploaded_by", "uploaded_on", "reviewed_by", "approved_by",
+			"valid_from", "valid_till", "expiry_date",
+			"supersedes_document", "creation",
+		],
+		order_by="creation desc",
+	)
+	return {"success": True, "data": docs}
+
+
+@frappe.whitelist()
+def check_progression_gate(project=None, target_stage=None, site=None):
+	"""Check if all mandatory documents from prior stages are present before advancing.
+	Returns warn/block status.
+	"""
+	_require_document_read_access()
+	target_stage = _require_param(target_stage, "target_stage")
+	if not project and site:
+		project = frappe.db.get_value("GE Site", site, "linked_project")
+	project = _require_param(project, "project")
+
+	STAGE_ORDER = [
+		"Survey", "BOM_BOQ", "Drawing", "Indent", "Quotation_Vendor_Comparison",
+		"PO", "Dispatch", "GRN_Inventory", "Execution", "Commissioning",
+		"O_M", "SLA", "RMA", "Commercial", "Closure",
+	]
+	if target_stage not in STAGE_ORDER:
+		return {"success": False, "message": f"Unknown stage: {target_stage}"}
+
+	target_idx = STAGE_ORDER.index(target_stage)
+	prior_stages = STAGE_ORDER[:target_idx]
+
+	missing_mandatory = []
+	warnings = []
+
+	for prior_stage in prior_stages:
+		requirements = frappe.get_all(
+			"GE Document Requirement",
+			filters={"stage": prior_stage, "is_mandatory": 1},
+			fields=["name", "stage", "document_category", "document_subcategory", "scope_level"],
+		)
+		if not requirements:
+			continue
+
+		doc_filters = {"linked_project": project, "linked_stage": prior_stage}
+		if site:
+			doc_filters["linked_site"] = site
+		existing_docs = frappe.get_all(
+			"GE Project Document",
+			filters=doc_filters,
+			fields=["category", "document_subcategory", "status"],
+		)
+		existing_set = set()
+		for d in existing_docs:
+			if (d.get("status") or "").strip().lower() == "rejected":
+				continue
+			existing_set.add((d.category, d.document_subcategory or ""))
+
+		for req in requirements:
+			key = (req.document_category, req.document_subcategory or "")
+			if key not in existing_set:
+				missing_mandatory.append({
+					"stage": req.stage,
+					"category": req.document_category,
+					"subcategory": req.document_subcategory,
+				})
+
+	can_proceed = len(missing_mandatory) == 0
+	return {
+		"success": True,
+		"data": {
+			"target_stage": target_stage,
+			"can_proceed": can_proceed,
+			"missing_mandatory": missing_mandatory,
+			"missing_count": len(missing_mandatory),
+			"message": "All mandatory documents present" if can_proceed
+				else f"{len(missing_mandatory)} mandatory document(s) missing from prior stages",
+		},
+	}
 
 
 def _get_finance_request_rows(filters):
@@ -8221,6 +9754,8 @@ def get_pending_approvals():
 		ROLE_PRESALES_HEAD,
 		ROLE_ACCOUNTS,
 		ROLE_HR_MANAGER,
+		ROLE_PROJECT_HEAD,
+		ROLE_PROCUREMENT_HEAD,
 		ROLE_DEPARTMENT_HEAD,
 		ROLE_DIRECTOR,
 	)
@@ -8407,6 +9942,53 @@ def get_pending_approvals():
 				"age_days": max((frappe.utils.now_datetime() - created_on).days, 0),
 				"status": "Pending",
 				"type": "Billing",
+			}
+		)
+
+	for row in frappe.get_all(
+		"GE Accountability Record",
+		filters={
+			"subject_doctype": "Material Request",
+			"current_status": ["in", ["Submitted", "Acknowledged", "Escalated"]],
+			"latest_event_type": ["not in", ["ACCEPTED", "REJECTED", "RETURNED", "CANCELLED", "COMPLETED"]],
+		},
+		fields=[
+			"subject_name",
+			"linked_project",
+			"current_status",
+			"current_owner_role",
+			"current_owner_user",
+			"assigned_to_role",
+			"assigned_to_user",
+			"submitted_by",
+			"creation",
+			"modified",
+			"escalated_to_role",
+			"escalated_to_user",
+			"blocking_reason",
+		],
+		order_by="modified desc",
+	):
+		created_on = frappe.utils.get_datetime(row.modified or row.creation)
+		action_owner = row.current_owner_user or row.assigned_to_user or row.current_owner_role or row.assigned_to_role or ROLE_PROJECT_HEAD
+		action_hint = "Review indent details and either acknowledge, accept, reject, or return it with written justification."
+		if row.current_status == "Escalated":
+			action_hint = "Escalated indent requires higher-authority review with a written decision trail."
+		elif row.current_status == "Acknowledged":
+			action_hint = "Indent has been acknowledged. Approve or reject the next handoff."
+		records.append(
+			{
+				"id": row.subject_name,
+				"tender_id": row.linked_project or "-",
+				"approval_for": "Indent Approval",
+				"approval_from": row.current_owner_role or ROLE_PROJECT_HEAD,
+				"action_owner": action_owner,
+				"action_hint": action_hint,
+				"requester": row.submitted_by or "-",
+				"request_date": row.modified or row.creation,
+				"age_days": max((frappe.utils.now_datetime() - created_on).days, 0),
+				"status": "Pending",
+				"type": "Indent",
 			}
 		)
 
@@ -9516,8 +11098,7 @@ def get_petty_cash_entries(project=None, site=None, status=None, category=None):
 	"""Return petty cash entries."""
 	_require_petty_cash_read_access()
 	filters = {}
-	if project:
-		filters["linked_project"] = project
+	_apply_project_manager_project_filter(filters, project=project, project_field="linked_project")
 	if site:
 		filters["linked_site"] = site
 	if status:
@@ -9545,6 +11126,9 @@ def get_petty_cash_entry(name=None):
 	_require_petty_cash_read_access()
 	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Petty Cash", name)
+	assigned = _get_project_manager_assigned_projects()
+	if assigned and doc.linked_project not in assigned:
+		frappe.throw("Project Manager cannot access petty cash outside assigned projects", frappe.PermissionError)
 	return {"success": True, "data": doc.as_dict()}
 
 
@@ -9555,6 +11139,7 @@ def create_petty_cash_entry(data):
 	values = json.loads(data) if isinstance(data, str) else data
 	if not values.get("linked_project"):
 		frappe.throw("Project is required for petty cash entry")
+	values["linked_project"] = _ensure_project_manager_project_scope(values.get("linked_project"))
 	values.setdefault("status", "Draft")
 	doc = frappe.get_doc({"doctype": "GE Petty Cash", **values})
 	doc.insert()
@@ -9570,6 +11155,11 @@ def update_petty_cash_entry(name, data):
 	if "linked_project" in values and not values.get("linked_project"):
 		frappe.throw("Project is required for petty cash entry")
 	doc = frappe.get_doc("GE Petty Cash", name)
+	assigned = _get_project_manager_assigned_projects()
+	if assigned and doc.linked_project not in assigned:
+		frappe.throw("Project Manager cannot update petty cash outside assigned projects", frappe.PermissionError)
+	if "linked_project" in values:
+		values["linked_project"] = _ensure_project_manager_project_scope(values.get("linked_project"))
 	doc.update(values)
 	doc.save()
 	frappe.db.commit()
@@ -9581,11 +11171,32 @@ def approve_petty_cash_entry(name):
 	"""Approve a petty cash entry."""
 	_require_petty_cash_approval_access()
 	doc = frappe.get_doc("GE Petty Cash", name)
+	old_status = doc.status
 	doc.status = "Approved"
 	doc.approved_by = frappe.session.user
 	doc.approved_on = frappe.utils.today()
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Petty Cash",
+			subject_name=name,
+			event_type=EventType.APPROVED,
+			linked_project=doc.get("linked_project"),
+			from_status=old_status,
+			to_status="Approved",
+			current_status="Approved",
+			approved_by=frappe.session.user,
+			approved_on=now_datetime(),
+			current_owner_role=_detect_primary_role(),
+			source_route=f"/projects/{doc.get('linked_project')}/petty-cash" if doc.get("linked_project") else "/petty-cash",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: approve_petty_cash_entry")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Petty cash entry approved"}
 
 
@@ -9593,11 +11204,33 @@ def approve_petty_cash_entry(name):
 def reject_petty_cash_entry(name, reason=None):
 	"""Reject a petty cash entry."""
 	_require_petty_cash_approval_access()
+	if not (reason or "").strip():
+		frappe.throw("A rejection reason is required. Please provide remarks.")
 	doc = frappe.get_doc("GE Petty Cash", name)
+	old_status = doc.status
 	doc.status = "Rejected"
-	doc.rejection_reason = reason or ""
+	doc.rejection_reason = reason
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Petty Cash",
+			subject_name=name,
+			event_type=EventType.REJECTED,
+			linked_project=doc.get("linked_project"),
+			from_status=old_status,
+			to_status="Rejected",
+			current_status="Rejected",
+			current_owner_role=_detect_primary_role(),
+			remarks=reason,
+			source_route=f"/projects/{doc.get('linked_project')}/petty-cash" if doc.get("linked_project") else "/petty-cash",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: reject_petty_cash_entry")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Petty cash entry rejected"}
 
 
@@ -9605,9 +11238,194 @@ def reject_petty_cash_entry(name, reason=None):
 def delete_petty_cash_entry(name):
 	"""Delete a draft petty cash entry."""
 	_require_petty_cash_write_access()
+	doc = frappe.get_doc("GE Petty Cash", name)
+	assigned = _get_project_manager_assigned_projects()
+	if assigned and doc.linked_project not in assigned:
+		frappe.throw("Project Manager cannot delete petty cash outside assigned projects", frappe.PermissionError)
 	frappe.delete_doc("GE Petty Cash", name)
 	frappe.db.commit()
 	return {"success": True, "message": "Petty cash entry deleted"}
+
+
+def _require_project_inventory_read_access():
+	_require_roles(ROLE_PROJECT_MANAGER, ROLE_PROJECT_HEAD, ROLE_DIRECTOR)
+
+
+def _require_project_inventory_write_access():
+	_require_roles(ROLE_PROJECT_MANAGER, ROLE_PROJECT_HEAD)
+
+
+@frappe.whitelist()
+def get_project_inventory_records(project=None, site=None):
+	"""Return project-scoped inventory truth for PM/PH surfaces."""
+	_require_project_inventory_read_access()
+	filters = {}
+	_apply_project_manager_project_filter(filters, project=project, project_field="linked_project")
+	if site:
+		filters["linked_site"] = site
+	data = frappe.get_all(
+		"GE Project Inventory",
+		filters=filters,
+		fields=[
+			"name",
+			"linked_project",
+			"linked_site",
+			"item_code",
+			"item_name",
+			"unit",
+			"received_qty",
+			"consumed_qty",
+			"balance_qty",
+			"last_grn_ref",
+			"last_receipt_note",
+			"modified",
+		],
+		order_by="item_code asc, modified desc",
+	)
+	return {"success": True, "data": data}
+
+
+@frappe.whitelist()
+def record_project_inventory_receipt(data):
+	"""Apply a project-side receipt update to project inventory totals."""
+	_require_project_inventory_write_access()
+	values = _parse_payload(data)
+	project = _ensure_project_manager_project_scope(values.get("linked_project"))
+	item_code = _require_param(values.get("item_code"), "item_code")
+	received_qty = flt(values.get("received_qty"))
+	if received_qty <= 0:
+		frappe.throw("Received quantity must be greater than zero")
+	filters = {
+		"linked_project": project,
+		"item_code": item_code,
+	}
+	if values.get("linked_site"):
+		filters["linked_site"] = values.get("linked_site")
+	existing_name = frappe.db.get_value("GE Project Inventory", filters, "name")
+	if existing_name:
+		doc = frappe.get_doc("GE Project Inventory", existing_name)
+		doc.received_qty = flt(doc.received_qty) + received_qty
+	else:
+		doc = frappe.get_doc(
+			{
+				"doctype": "GE Project Inventory",
+				"linked_project": project,
+				"linked_site": values.get("linked_site"),
+				"item_code": item_code,
+				"item_name": values.get("item_name") or item_code,
+				"unit": values.get("unit"),
+				"received_qty": received_qty,
+				"consumed_qty": 0,
+			}
+		)
+	doc.item_name = values.get("item_name") or doc.item_name or item_code
+	doc.unit = values.get("unit") or doc.unit
+	doc.last_grn_ref = values.get("last_grn_ref") or doc.last_grn_ref
+	doc.last_receipt_note = values.get("last_receipt_note") or doc.last_receipt_note
+	if existing_name:
+		doc.save()
+	else:
+		doc.insert()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Project inventory updated"}
+
+
+@frappe.whitelist()
+def get_material_consumption_reports(project=None, site=None):
+	"""Return material consumption reports scoped to a project."""
+	_require_project_inventory_read_access()
+	filters = {}
+	_apply_project_manager_project_filter(filters, project=project, project_field="linked_project")
+	if site:
+		filters["linked_site"] = site
+	data = frappe.get_all(
+		"GE Material Consumption Report",
+		filters=filters,
+		fields=[
+			"name",
+			"linked_project",
+			"linked_site",
+			"report_date",
+			"item_code",
+			"item_name",
+			"unit",
+			"consumed_qty",
+			"remarks",
+			"status",
+			"submitted_by",
+			"submitted_to",
+			"creation",
+		],
+		order_by="report_date desc, creation desc",
+	)
+	return {"success": True, "data": data}
+
+
+@frappe.whitelist()
+def create_material_consumption_report(data):
+	"""Create a PM-side material consumption report and update project inventory."""
+	_require_project_inventory_write_access()
+	values = _parse_payload(data)
+	project = _ensure_project_manager_project_scope(values.get("linked_project"))
+	item_code = _require_param(values.get("item_code"), "item_code")
+	consumed_qty = flt(values.get("consumed_qty"))
+	if consumed_qty <= 0:
+		frappe.throw("Consumed quantity must be greater than zero")
+	filters = {
+		"linked_project": project,
+		"item_code": item_code,
+	}
+	if values.get("linked_site"):
+		filters["linked_site"] = values.get("linked_site")
+	inventory_name = frappe.db.get_value("GE Project Inventory", filters, "name")
+	if not inventory_name:
+		frappe.throw("Create a project inventory record before submitting material consumption")
+	inventory_doc = frappe.get_doc("GE Project Inventory", inventory_name)
+	if flt(inventory_doc.balance_qty) < consumed_qty:
+		frappe.throw("Consumed quantity exceeds available project inventory balance")
+	report = frappe.get_doc(
+		{
+			"doctype": "GE Material Consumption Report",
+			"linked_project": project,
+			"linked_site": values.get("linked_site"),
+			"report_date": values.get("report_date") or today(),
+			"item_code": item_code,
+			"item_name": values.get("item_name") or inventory_doc.item_name or item_code,
+			"unit": values.get("unit") or inventory_doc.unit,
+			"consumed_qty": consumed_qty,
+			"remarks": values.get("remarks"),
+			"status": "Submitted",
+			"submitted_by": frappe.session.user,
+			"submitted_to": values.get("submitted_to"),
+		}
+	)
+	report.insert()
+	inventory_doc.consumed_qty = flt(inventory_doc.consumed_qty) + consumed_qty
+	inventory_doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": report.as_dict(), "message": "Material consumption report submitted"}
+
+
+@frappe.whitelist()
+def get_project_receiving_summary(project=None):
+	"""Return project-linked dispatch and GRN visibility for PM follow-through."""
+	_require_project_inventory_read_access()
+	project = _ensure_project_manager_project_scope(project) if _get_project_manager_assigned_projects() else _require_param(project, "project")
+	grns = frappe.get_all(
+		"Purchase Receipt",
+		filters={"project": project},
+		fields=["name", "supplier", "posting_date", "status", "set_warehouse", "grand_total"],
+		order_by="posting_date desc, creation desc",
+		page_length=25,
+	)
+	dispatches = frappe.get_all(
+		"GE Dispatch Challan",
+		filters={"linked_project": project},
+		fields=["name", "dispatch_date", "dispatch_type", "status", "target_site_name", "total_items", "total_qty"],
+		order_by="dispatch_date desc, creation desc",
+		page_length=25,
+	)
+	return {"success": True, "data": {"project": project, "grns": grns, "dispatches": dispatches}}
 
 
 # ── Manpower Log APIs ────────────────────────────────────────
@@ -9960,6 +11778,27 @@ def approve_technical_deviation(name):
 	doc.approved_by = frappe.session.user
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Technical Deviation",
+			subject_name=name,
+			event_type=EventType.APPROVED,
+			linked_project=doc.get("linked_project"),
+			linked_site=doc.get("linked_site"),
+			from_status="Open",
+			to_status="Approved",
+			current_status="Approved",
+			approved_by=frappe.session.user,
+			approved_on=now_datetime(),
+			current_owner_role=_detect_primary_role(),
+			source_route=f"/projects/{doc.get('linked_project')}/technical-deviations" if doc.get("linked_project") else "/technical-deviations",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: approve_technical_deviation")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Technical deviation approved"}
 
 
@@ -9967,15 +11806,36 @@ def approve_technical_deviation(name):
 def reject_technical_deviation(name, reason=None):
 	"""Reject a technical deviation."""
 	_require_roles(ROLE_ENGINEERING_HEAD, ROLE_PROJECT_MANAGER, ROLE_PROJECT_HEAD)
+	if not (reason or "").strip():
+		frappe.throw("A rejection reason is required. Please provide remarks.")
 	doc = frappe.get_doc("GE Technical Deviation", name)
 	if doc.status not in ("Open",):
 		frappe.throw(f"Cannot reject deviation in '{doc.status}' state. Must be 'Open'.")
 	doc.status = "Rejected"
 	doc.approved_by = frappe.session.user
-	if reason:
-		doc.remarks = (doc.remarks or "") + f"\nRejection reason: {reason}"
+	doc.remarks = (doc.remarks or "") + f"\nRejection reason: {reason}"
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Technical Deviation",
+			subject_name=name,
+			event_type=EventType.REJECTED,
+			linked_project=doc.get("linked_project"),
+			linked_site=doc.get("linked_site"),
+			from_status="Open",
+			to_status="Rejected",
+			current_status="Rejected",
+			current_owner_role=_detect_primary_role(),
+			remarks=reason,
+			source_route=f"/projects/{doc.get('linked_project')}/technical-deviations" if doc.get("linked_project") else "/technical-deviations",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: reject_technical_deviation")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Technical deviation rejected"}
 
 
@@ -10004,6 +11864,27 @@ def submit_change_request(name):
 	doc.status = "Submitted"
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Change Request",
+			subject_name=name,
+			event_type=EventType.SUBMITTED,
+			linked_project=doc.get("linked_project"),
+			linked_site=doc.get("linked_site"),
+			from_status="Draft",
+			to_status="Submitted",
+			current_status="Submitted",
+			submitted_by=frappe.session.user,
+			submitted_on=now_datetime(),
+			current_owner_role=_detect_primary_role(),
+			source_route=f"/projects/{doc.get('linked_project')}/change-requests" if doc.get("linked_project") else "/change-requests",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: submit_change_request")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Change request submitted for review"}
 
 
@@ -10018,6 +11899,27 @@ def approve_change_request(name):
 	doc.approved_by = frappe.session.user
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Change Request",
+			subject_name=name,
+			event_type=EventType.APPROVED,
+			linked_project=doc.get("linked_project"),
+			linked_site=doc.get("linked_site"),
+			from_status="Submitted",
+			to_status="Approved",
+			current_status="Approved",
+			approved_by=frappe.session.user,
+			approved_on=now_datetime(),
+			current_owner_role=_detect_primary_role(),
+			source_route=f"/projects/{doc.get('linked_project')}/change-requests" if doc.get("linked_project") else "/change-requests",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: approve_change_request")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Change request approved"}
 
 
@@ -10025,15 +11927,36 @@ def approve_change_request(name):
 def reject_change_request(name, reason=None):
 	"""Reject a submitted change request."""
 	_require_roles(ROLE_ENGINEERING_HEAD, ROLE_PROJECT_HEAD)
+	if not (reason or "").strip():
+		frappe.throw("A rejection reason is required. Please provide remarks.")
 	doc = frappe.get_doc("GE Change Request", name)
 	if doc.status != "Submitted":
 		frappe.throw(f"Cannot reject change request in '{doc.status}' state. Must be 'Submitted'.")
 	doc.status = "Rejected"
 	doc.approved_by = frappe.session.user
-	if reason:
-		doc.remarks = (doc.remarks or "") + f"\nRejection reason: {reason}"
+	doc.remarks = (doc.remarks or "") + f"\nRejection reason: {reason}"
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Change Request",
+			subject_name=name,
+			event_type=EventType.REJECTED,
+			linked_project=doc.get("linked_project"),
+			linked_site=doc.get("linked_site"),
+			from_status="Submitted",
+			to_status="Rejected",
+			current_status="Rejected",
+			current_owner_role=_detect_primary_role(),
+			remarks=reason,
+			source_route=f"/projects/{doc.get('linked_project')}/change-requests" if doc.get("linked_project") else "/change-requests",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: reject_change_request")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Change request rejected"}
 
 
@@ -10051,6 +11974,27 @@ def approve_test_report(name):
 	doc.approval_date = frappe.utils.today()
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Test Report",
+			subject_name=name,
+			event_type=EventType.APPROVED,
+			linked_project=doc.get("linked_project"),
+			linked_site=doc.get("linked_site"),
+			from_status="Submitted",
+			to_status="Approved",
+			current_status="Approved",
+			approved_by=frappe.session.user,
+			approved_on=now_datetime(),
+			current_owner_role=_detect_primary_role(),
+			source_route="/execution/commissioning/test-reports",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: approve_test_report")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Test report approved"}
 
 
@@ -10061,13 +12005,34 @@ def reject_test_report(name, reason=None):
 	doc = frappe.get_doc("GE Test Report", name)
 	if doc.status != "Submitted":
 		frappe.throw(f"Cannot reject test report in '{doc.status}' state. Must be 'Submitted'.")
+	if not (reason or "").strip():
+		frappe.throw("A rejection reason is required. Please provide remarks.")
 	doc.status = "Rejected"
 	doc.approved_by = frappe.session.user
 	doc.approval_date = frappe.utils.today()
-	if reason:
-		doc.remarks = (doc.remarks or "") + f"\nRejection reason: {reason}"
+	doc.remarks = (doc.remarks or "") + f"\nRejection reason: {reason}"
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Test Report",
+			subject_name=name,
+			event_type=EventType.REJECTED,
+			linked_project=doc.get("linked_project"),
+			linked_site=doc.get("linked_site"),
+			from_status="Submitted",
+			to_status="Rejected",
+			current_status="Rejected",
+			remarks=reason,
+			current_owner_role=_detect_primary_role(),
+			source_route="/execution/commissioning/test-reports",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: reject_test_report")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Test report rejected"}
 
 
@@ -10220,6 +12185,27 @@ def submit_drawing(name):
 	doc.status = "Submitted"
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Drawing",
+			subject_name=name,
+			event_type=EventType.SUBMITTED,
+			linked_project=doc.get("linked_project"),
+			linked_site=doc.get("linked_site"),
+			from_status="Draft",
+			to_status="Submitted",
+			current_status="Submitted",
+			submitted_by=frappe.session.user,
+			submitted_on=now_datetime(),
+			current_owner_role=_detect_primary_role(),
+			source_route=f"/projects/{doc.get('linked_project')}/drawings" if doc.get("linked_project") else "/drawings",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: submit_drawing")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Drawing submitted for approval"}
 
 
@@ -10234,6 +12220,27 @@ def approve_drawing(name):
 	doc.approved_by = frappe.session.user
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Drawing",
+			subject_name=name,
+			event_type=EventType.APPROVED,
+			linked_project=doc.get("linked_project"),
+			linked_site=doc.get("linked_site"),
+			from_status="Submitted",
+			to_status="Approved",
+			current_status="Approved",
+			approved_by=frappe.session.user,
+			approved_on=now_datetime(),
+			current_owner_role=_detect_primary_role(),
+			source_route=f"/projects/{doc.get('linked_project')}/drawings" if doc.get("linked_project") else "/drawings",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: approve_drawing")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Drawing approved"}
 
 
@@ -10249,6 +12256,26 @@ def supersede_drawing(name, superseded_by=None):
 		doc.supersedes_drawing = superseded_by
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Drawing",
+			subject_name=name,
+			event_type=EventType.OVERRIDDEN,
+			linked_project=doc.get("linked_project"),
+			linked_site=doc.get("linked_site"),
+			from_status="Approved",
+			to_status="Superseded",
+			current_status="Superseded",
+			current_owner_role=_detect_primary_role(),
+			remarks=f"Superseded by {superseded_by}" if superseded_by else "Superseded",
+			source_route=f"/projects/{doc.get('linked_project')}/drawings" if doc.get("linked_project") else "/drawings",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: supersede_drawing")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Drawing superseded"}
 
 # ── Project Spine Model APIs ────────────────────────────────
@@ -11075,6 +13102,28 @@ def approve_project_stage(project=None, remarks=None):
 
         doc.save()
         frappe.db.commit()
+
+        # ── Accountability ledger ─────────────────────────────────────────────
+        try:
+                from gov_erp.accountability import record_and_log, EventType
+                _to_stage = next_stage if next_stage else "COMPLETED"
+                record_and_log(
+                        subject_doctype="Project",
+                        subject_name=project,
+                        event_type=EventType.APPROVED,
+                        linked_project=project,
+                        from_status=current_stage,
+                        to_status=_to_stage,
+                        current_status=_to_stage,
+                        approved_by=frappe.session.user,
+                        approved_on=now_datetime(),
+                        remarks=remarks,
+                        current_owner_role=_detect_primary_role(),
+                        source_route=f"/projects/{project}",
+                )
+        except Exception:
+                frappe.log_error(frappe.get_traceback(), "Accountability: approve_project_stage")
+
         return {"success": True, "data": _serialize_workflow_state(doc), "message": "Stage approved"}
 
 
@@ -11083,6 +13132,8 @@ def reject_project_stage(project=None, remarks=None):
         """Reject the current project stage and return it to the owning department."""
         _require_project_workspace_access()
         project = _require_param(project, "project")
+        if not (remarks or "").strip():
+                frappe.throw("A rejection reason is required. Please provide remarks.")
         doc = frappe.get_doc("Project", project)
         _sync_project_workflow_fields(doc)
         workflow_state = _serialize_workflow_state(doc)
@@ -11090,10 +13141,30 @@ def reject_project_stage(project=None, remarks=None):
         if not workflow_state["actions"]["can_reject"]:
                 frappe.throw("Current stage cannot be rejected by this user right now.")
 
+        current_stage = doc.current_project_stage
         doc.current_stage_status = "REJECTED"
-        _append_project_workflow_event(doc, "STAGE_REJECTED", doc.current_project_stage, remarks=remarks)
+        _append_project_workflow_event(doc, "STAGE_REJECTED", current_stage, remarks=remarks)
         doc.save()
         frappe.db.commit()
+
+        # ── Accountability ledger ─────────────────────────────────────────────
+        try:
+                from gov_erp.accountability import record_and_log, EventType
+                record_and_log(
+                        subject_doctype="Project",
+                        subject_name=project,
+                        event_type=EventType.REJECTED,
+                        linked_project=project,
+                        from_status=current_stage,
+                        to_status="REJECTED",
+                        current_status="REJECTED",
+                        remarks=remarks,
+                        current_owner_role=_detect_primary_role(),
+                        source_route=f"/projects/{project}",
+                )
+        except Exception:
+                frappe.log_error(frappe.get_traceback(), "Accountability: reject_project_stage")
+
         return {"success": True, "data": _serialize_workflow_state(doc), "message": "Stage rejected"}
 
 
@@ -11127,6 +13198,8 @@ def override_project_stage(project=None, new_stage=None, remarks=None):
         _require_capability("project.stage.override", project=project, required_mode="override")
         if new_stage not in WORKFLOW_STAGE_KEYS:
                 frappe.throw(f"Invalid stage override: {new_stage}")
+        if not (remarks or "").strip():
+                frappe.throw("A reason is required for stage override. Please provide remarks.")
 
         doc = frappe.get_doc("Project", project)
         previous_stage = doc.current_project_stage or WORKFLOW_STAGE_KEYS[0]
@@ -11145,6 +13218,25 @@ def override_project_stage(project=None, new_stage=None, remarks=None):
                 doc.status = "Completed"
         doc.save()
         frappe.db.commit()
+
+        # ── Accountability ledger ─────────────────────────────────────────────
+        try:
+                from gov_erp.accountability import record_and_log, EventType
+                record_and_log(
+                        subject_doctype="Project",
+                        subject_name=project,
+                        event_type=EventType.OVERRIDDEN,
+                        linked_project=project,
+                        from_status=previous_stage,
+                        to_status=new_stage,
+                        current_status=new_stage,
+                        remarks=remarks,
+                        current_owner_role=_detect_primary_role(),
+                        source_route=f"/projects/{project}",
+                )
+        except Exception:
+                frappe.log_error(frappe.get_traceback(), "Accountability: override_project_stage")
+
         return {"success": True, "data": _serialize_workflow_state(doc), "message": "Project stage overridden"}
 
 
@@ -11220,6 +13312,342 @@ def get_department_spine_view(department=None, project=None):
                         ],
                 },
         }
+
+
+# ╔═══════════════════════════════════════════════════════════════╗
+# ║  PROJECT FAVORITES                                           ║
+# ╚═══════════════════════════════════════════════════════════════╝
+
+@frappe.whitelist()
+def toggle_project_favorite(project=None):
+	"""Toggle the current user's favorite status for a project. Returns is_favorite."""
+	_require_spine_read_access()
+	project = _require_param(project, "project")
+	user = frappe.session.user
+	existing = frappe.db.exists("GE Project Favorite", {"linked_project": project, "user": user})
+	if existing:
+		frappe.delete_doc("GE Project Favorite", existing, force=True)
+		frappe.db.commit()
+		return {"success": True, "data": {"is_favorite": False}, "message": "Removed from favorites"}
+	doc = frappe.get_doc({"doctype": "GE Project Favorite", "linked_project": project, "user": user}).insert(ignore_permissions=True)
+	frappe.db.commit()
+	return {"success": True, "data": {"is_favorite": True}, "message": "Added to favorites"}
+
+
+@frappe.whitelist()
+def get_project_favorites():
+	"""Return list of project names the current user has favorited."""
+	_require_spine_read_access()
+	rows = frappe.get_all("GE Project Favorite", filters={"user": frappe.session.user}, fields=["linked_project"], limit_page_length=500)
+	return {"success": True, "data": [r.linked_project for r in rows]}
+
+
+# ╔═══════════════════════════════════════════════════════════════╗
+# ║  PROJECT NOTES                                               ║
+# ╚═══════════════════════════════════════════════════════════════╝
+
+PROJECT_NOTE_FIELDS = [
+	"name", "linked_project", "title", "content", "is_private",
+	"owner", "creation", "modified",
+]
+
+
+@frappe.whitelist()
+def get_project_notes(project=None):
+	"""Return notes for a project. Private notes only visible to their owner."""
+	_require_spine_read_access()
+	project = _require_param(project, "project")
+	user = frappe.session.user
+	notes = frappe.get_all(
+		"GE Project Note",
+		filters={"linked_project": project},
+		fields=PROJECT_NOTE_FIELDS,
+		order_by="modified desc",
+		limit_page_length=200,
+	)
+	# Filter private notes to only the owner
+	visible = [n for n in notes if not n.get("is_private") or n.get("owner") == user]
+	return {"success": True, "data": visible}
+
+
+@frappe.whitelist()
+def create_project_note(data):
+	"""Create a project note."""
+	_require_spine_read_access()
+	values = json.loads(data) if isinstance(data, str) else data
+	values["doctype"] = "GE Project Note"
+	_require_param(values.get("linked_project"), "linked_project")
+	_require_param(values.get("title"), "title")
+	doc = frappe.get_doc(values).insert(ignore_permissions=True)
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Note created"}
+
+
+@frappe.whitelist()
+def update_project_note(name, data):
+	"""Update a project note. Only the owner can update."""
+	_require_spine_read_access()
+	doc = frappe.get_doc("GE Project Note", name)
+	if doc.owner != frappe.session.user:
+		frappe.throw("Only the note creator can edit this note", frappe.PermissionError)
+	values = json.loads(data) if isinstance(data, str) else data
+	for field in ("title", "content", "is_private"):
+		if field in values:
+			setattr(doc, field, values[field])
+	doc.save(ignore_permissions=True)
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Note updated"}
+
+
+@frappe.whitelist()
+def delete_project_note(name):
+	"""Delete a project note. Only the owner can delete."""
+	_require_spine_read_access()
+	doc = frappe.get_doc("GE Project Note", name)
+	if doc.owner != frappe.session.user:
+		frappe.throw("Only the note creator can delete this note", frappe.PermissionError)
+	frappe.delete_doc("GE Project Note", name, force=True)
+	frappe.db.commit()
+	return {"success": True, "message": "Note deleted"}
+
+
+# ╔═══════════════════════════════════════════════════════════════╗
+#   RISE-Ported: Project Tasks (list/kanban, CRUD, subtasks)
+# ╚═══════════════════════════════════════════════════════════════╝
+
+@frappe.whitelist()
+def get_project_tasks(project=None, status=None, parent_task=None):
+	"""List tasks for a project. Supports status/parent filter."""
+	_require_spine_read_access()
+	if not project:
+		frappe.throw("project is required")
+	filters = {"linked_project": project}
+	if status:
+		filters["status"] = status
+	if parent_task is not None:
+		filters["parent_task"] = parent_task if parent_task else ["in", ["", None]]
+	tasks = frappe.get_all(
+		"GE Project Task",
+		filters=filters,
+		fields=[
+			"name", "linked_project", "linked_site", "title", "status",
+			"priority", "assigned_to", "collaborators", "start_date",
+			"deadline", "description", "parent_task", "milestone_id",
+			"points", "labels", "sort_order", "owner", "creation", "modified"
+		],
+		order_by="sort_order asc, creation desc",
+		ignore_permissions=True,
+		limit_page_length=500,
+	)
+	return tasks
+
+
+@frappe.whitelist()
+def create_project_task(data):
+	"""Create a new project task."""
+	_require_spine_read_access()
+	if isinstance(data, str):
+		data = frappe.parse_json(data)
+	if not data.get("linked_project") or not data.get("title"):
+		frappe.throw("linked_project and title are required")
+	doc = frappe.new_doc("GE Project Task")
+	for field in ["linked_project", "linked_site", "title", "status", "priority",
+	              "assigned_to", "collaborators", "start_date", "deadline",
+	              "description", "parent_task", "milestone_id", "points", "labels", "sort_order"]:
+		if field in data:
+			doc.set(field, data[field])
+	doc.insert(ignore_permissions=True)
+	frappe.db.commit()
+	return doc.as_dict()
+
+
+@frappe.whitelist()
+def update_project_task(name, data):
+	"""Update an existing project task."""
+	_require_spine_read_access()
+	if isinstance(data, str):
+		data = frappe.parse_json(data)
+	doc = frappe.get_doc("GE Project Task", name)
+	for field in ["title", "status", "priority", "assigned_to", "collaborators",
+	              "start_date", "deadline", "description", "parent_task",
+	              "milestone_id", "points", "labels", "sort_order", "linked_site"]:
+		if field in data:
+			doc.set(field, data[field])
+	doc.save(ignore_permissions=True)
+	frappe.db.commit()
+	return doc.as_dict()
+
+
+@frappe.whitelist()
+def delete_project_task(name):
+	"""Delete a project task and its subtasks."""
+	_require_spine_read_access()
+	# delete subtasks first
+	subtasks = frappe.get_all("GE Project Task", filters={"parent_task": name}, pluck="name", ignore_permissions=True)
+	for st in subtasks:
+		frappe.delete_doc("GE Project Task", st, force=True, ignore_permissions=True)
+	frappe.delete_doc("GE Project Task", name, force=True, ignore_permissions=True)
+	frappe.db.commit()
+	return {"success": True}
+
+
+@frappe.whitelist()
+def reorder_project_tasks(task_orders):
+	"""Bulk-update sort_order for drag-drop reorder."""
+	_require_spine_read_access()
+	if isinstance(task_orders, str):
+		task_orders = frappe.parse_json(task_orders)
+	for item in task_orders:
+		frappe.db.set_value("GE Project Task", item["name"], "sort_order", item["sort_order"], update_modified=False)
+	frappe.db.commit()
+	return {"success": True}
+
+
+@frappe.whitelist()
+def update_task_status(name, status):
+	"""Quick status update for kanban drag-drop."""
+	_require_spine_read_access()
+	if status not in ("To Do", "In Progress", "Review", "Done"):
+		frappe.throw("Invalid status")
+	frappe.db.set_value("GE Project Task", name, "status", status)
+	frappe.db.commit()
+	return {"success": True, "status": status}
+
+
+@frappe.whitelist()
+def get_task_summary(project=None):
+	"""Return task counts by status for a project."""
+	_require_spine_read_access()
+	if not project:
+		frappe.throw("project is required")
+	rows = frappe.db.sql("""
+		SELECT status, COUNT(*) as cnt, COALESCE(SUM(points),0) as pts
+		FROM `tabGE Project Task`
+		WHERE linked_project=%s
+		GROUP BY status
+	""", (project,), as_dict=True)
+	summary = {"To Do": {"count": 0, "points": 0}, "In Progress": {"count": 0, "points": 0},
+	           "Review": {"count": 0, "points": 0}, "Done": {"count": 0, "points": 0}, "total": 0, "total_points": 0}
+	for r in rows:
+		summary[r.status] = {"count": r.cnt, "points": int(r.pts)}
+		summary["total"] += r.cnt
+		summary["total_points"] += int(r.pts)
+	return summary
+
+
+# ╔═══════════════════════════════════════════════════════════════╗
+#   RISE-Ported: Project Cloning
+# ╚═══════════════════════════════════════════════════════════════╝
+
+@frappe.whitelist()
+def clone_project(source_project, new_project_name, copy_tasks=1, copy_milestones=1, copy_notes=1):
+	"""Clone a project: optionally copy tasks, milestones, notes."""
+	_require_spine_read_access()
+	if not source_project or not new_project_name:
+		frappe.throw("source_project and new_project_name are required")
+
+	copy_tasks = int(copy_tasks or 0)
+	copy_milestones = int(copy_milestones or 0)
+	copy_notes = int(copy_notes or 0)
+
+	# Verify source exists
+	if not frappe.db.exists("Project", source_project):
+		frappe.throw("Source project not found")
+	if frappe.db.exists("Project", new_project_name):
+		frappe.throw("A project with this name already exists")
+
+	result = {"project": new_project_name, "tasks_copied": 0, "milestones_copied": 0, "notes_copied": 0}
+
+	# Clone tasks with parent-child ID mapping (RISE pattern)
+	if copy_tasks:
+		old_tasks = frappe.get_all("GE Project Task",
+			filters={"linked_project": source_project},
+			fields=["*"], ignore_permissions=True, order_by="sort_order asc")
+		task_id_map = {}
+		for t in old_tasks:
+			old_name = t.name
+			new_task = frappe.new_doc("GE Project Task")
+			for f in ["title", "status", "priority", "assigned_to", "collaborators",
+			          "start_date", "deadline", "description", "milestone_id",
+			          "points", "labels", "sort_order", "linked_site"]:
+				new_task.set(f, t.get(f))
+			new_task.linked_project = new_project_name
+			new_task.parent_task = ""
+			new_task.insert(ignore_permissions=True)
+			task_id_map[old_name] = new_task.name
+		# Fix parent_task references using ID map
+		for t in old_tasks:
+			if t.parent_task and t.parent_task in task_id_map:
+				frappe.db.set_value("GE Project Task", task_id_map[t.name],
+				                    "parent_task", task_id_map[t.parent_task], update_modified=False)
+		result["tasks_copied"] = len(task_id_map)
+
+	# Clone notes
+	if copy_notes:
+		old_notes = frappe.get_all("GE Project Note",
+			filters={"linked_project": source_project},
+			fields=["title", "content", "is_private"], ignore_permissions=True)
+		for n in old_notes:
+			new_note = frappe.new_doc("GE Project Note")
+			new_note.linked_project = new_project_name
+			new_note.title = n.title
+			new_note.content = n.content
+			new_note.is_private = n.is_private
+			new_note.insert(ignore_permissions=True)
+		result["notes_copied"] = len(old_notes)
+
+	frappe.db.commit()
+	return result
+
+
+# ╔═══════════════════════════════════════════════════════════════╗
+#   RISE-Ported: Timesheet Aggregation
+# ╚═══════════════════════════════════════════════════════════════╝
+
+@frappe.whitelist()
+def get_project_timesheet_summary(project=None):
+	"""Aggregate time data from DPR, manpower, and overtime entries for a project."""
+	_require_spine_read_access()
+	if not project:
+		frappe.throw("project is required")
+
+	summary = {
+		"dpr_count": 0,
+		"dpr_rows": [],
+		"manpower_total_persons": 0,
+		"manpower_rows": [],
+		"overtime_total_hours": 0,
+		"overtime_rows": [],
+	}
+
+	# DPR entries
+	if frappe.db.exists("DocType", "GE DPR"):
+		dprs = frappe.get_all("GE DPR",
+			filters={"linked_project": project},
+			fields=["name", "linked_site", "report_date", "summary", "manpower_on_site", "equipment_count", "owner", "creation"],
+			order_by="report_date desc", limit_page_length=50, ignore_permissions=True)
+		summary["dpr_count"] = len(dprs)
+		summary["dpr_rows"] = dprs
+
+	# Manpower logs
+	if frappe.db.exists("DocType", "GE Manpower Log"):
+		manpower = frappe.get_all("GE Manpower Log",
+			filters={"linked_project": project},
+			fields=["name", "linked_site", "log_date", "num_persons", "trade", "remarks", "owner", "creation"],
+			order_by="log_date desc", limit_page_length=50, ignore_permissions=True)
+		summary["manpower_rows"] = manpower
+		summary["manpower_total_persons"] = sum(int(m.get("num_persons") or 0) for m in manpower)
+
+	# Overtime entries
+	if frappe.db.exists("DocType", "GE Overtime Entry"):
+		overtime = frappe.get_all("GE Overtime Entry",
+			filters={"linked_project": project},
+			fields=["name", "linked_site", "entry_date", "hours", "employee_name", "reason", "status", "owner", "creation"],
+			order_by="entry_date desc", limit_page_length=50, ignore_permissions=True)
+		summary["overtime_rows"] = overtime
+		summary["overtime_total_hours"] = sum(float(o.get("hours") or 0) for o in overtime)
+
+	return summary
 
 
 @frappe.whitelist()
@@ -11401,6 +13829,30 @@ def advance_site_stage(site=None, new_stage=None, notes=None):
         _refresh_project_spine(doc.linked_project)
 
         frappe.db.commit()
+
+        # ── Accountability ledger ─────────────────────────────────────────
+        try:
+                from gov_erp.accountability import record_and_log, EventType
+                record_and_log(
+                        subject_doctype="GE Site",
+                        subject_name=site,
+                        event_type=EventType.SUBMITTED,
+                        linked_project=doc.linked_project,
+                        linked_site=site,
+                        linked_stage=new_stage,
+                        from_status=old_stage,
+                        to_status=new_stage,
+                        current_status=new_stage,
+                        current_owner_user=frappe.session.user,
+                        current_owner_role=_detect_primary_role(),
+                        remarks=notes or "",
+                        source_route=f"/projects/{doc.linked_project}/sites/{site}",
+                        reference_doctype="GE Site",
+                        reference_name=site,
+                )
+        except Exception:
+                frappe.log_error(frappe.get_traceback(), "Accountability: advance_site_stage")
+
         return {
                 "success": True,
                 "data": doc.as_dict(),
@@ -11415,11 +13867,39 @@ def toggle_site_blocked(site=None, blocked=None, reason=None):
         site = _require_param(site, "site")
         blocked = cint(blocked)
 
+        # Reason is mandatory when blocking (BLOCKED event requires it by ledger rules)
+        if blocked and not (reason or "").strip():
+                frappe.throw("A blocking reason is required when blocking a site.")
+
         doc = frappe.get_doc("GE Site", site)
         doc.site_blocked = blocked
         doc.blocker_reason = reason if blocked else ""
         doc.save(ignore_permissions=True)
         frappe.db.commit()
+
+        # ── Accountability ledger ─────────────────────────────────────────
+        try:
+                from gov_erp.accountability import record_and_log, EventType
+                event_type = EventType.BLOCKED if blocked else EventType.UNBLOCKED
+                record_and_log(
+                        subject_doctype="GE Site",
+                        subject_name=site,
+                        event_type=event_type,
+                        linked_project=doc.linked_project,
+                        linked_site=site,
+                        linked_stage=doc.current_site_stage,
+                        is_blocked=bool(blocked),
+                        blocking_reason=reason if blocked else None,
+                        current_owner_user=frappe.session.user,
+                        current_owner_role=_detect_primary_role(),
+                        remarks=reason or "",
+                        source_route=f"/projects/{doc.linked_project}/sites/{site}",
+                        reference_doctype="GE Site",
+                        reference_name=site,
+                )
+        except Exception:
+                frappe.log_error(frappe.get_traceback(), "Accountability: toggle_site_blocked")
+
         return {
                 "success": True,
                 "data": doc.as_dict(),
@@ -11568,11 +14048,32 @@ def approve_estimate(name):
 	doc = frappe.get_doc("GE Estimate", name)
 	if doc.status not in ("SENT", "DRAFT"):
 		return {"success": False, "message": f"Estimate cannot be approved from {doc.status} state"}
+	old_status = doc.status
 	doc.status = "APPROVED"
 	doc.approved_by = frappe.session.user
 	doc.approved_at = frappe.utils.now_datetime()
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Estimate",
+			subject_name=name,
+			event_type=EventType.APPROVED,
+			linked_project=doc.get("linked_project"),
+			from_status=old_status,
+			to_status="APPROVED",
+			current_status="APPROVED",
+			approved_by=frappe.session.user,
+			approved_on=now_datetime(),
+			current_owner_role=_detect_primary_role(),
+			source_route=f"/projects/{doc.get('linked_project')}/estimates" if doc.get("linked_project") else "/estimates",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: approve_estimate")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Estimate approved"}
 
 
@@ -11580,11 +14081,33 @@ def approve_estimate(name):
 def reject_estimate(name, reason=None):
 	"""Reject an estimate."""
 	_require_billing_approval_access()
+	if not (reason or "").strip():
+		frappe.throw("A rejection reason is required. Please provide remarks.")
 	doc = frappe.get_doc("GE Estimate", name)
+	old_status = doc.status
 	doc.status = "REJECTED"
-	doc.remarks = reason or doc.remarks
+	doc.remarks = reason
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE Estimate",
+			subject_name=name,
+			event_type=EventType.REJECTED,
+			linked_project=doc.get("linked_project"),
+			from_status=old_status,
+			to_status="REJECTED",
+			current_status="REJECTED",
+			current_owner_role=_detect_primary_role(),
+			remarks=reason,
+			source_route=f"/projects/{doc.get('linked_project')}/estimates" if doc.get("linked_project") else "/estimates",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: reject_estimate")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Estimate rejected"}
 
 
@@ -12208,6 +14731,7 @@ def create_user_reminder(
         reference_doctype=None,
         reference_name=None,
         notes=None,
+        shared_with=None,
 ):
         """Create a new reminder for the current user."""
         _require_authenticated_user()
@@ -12227,6 +14751,7 @@ def create_user_reminder(
                 reference_doctype=reference_doctype,
                 reference_name=reference_name,
                 notes=notes,
+                shared_with=shared_with,
         )
         frappe.db.commit()
         return {"success": True, "data": {"name": name}, "message": "Reminder created"}
@@ -12339,9 +14864,43 @@ def delete_reminder(reminder_name=None):
         return {"success": True, "message": "Reminder deleted"}
 
 
-# ============================================================================
-# COLLABORATION API (record-based comments, mentions, assignments)
-# ============================================================================
+@frappe.whitelist()
+def count_missed_reminders():
+        """Return count of past-due active/snoozed reminders for the current user.
+
+        A reminder is "missed" when next_reminder_at is in the past,
+        status is Active or Snoozed, and is_sent = 0.
+        Also counts reminders shared with the current user that are past-due.
+        """
+        _require_authenticated_user()
+        from frappe.utils import now_datetime
+
+        user = frappe.session.user
+        now = now_datetime()
+
+        own_count = frappe.db.count(
+                "GE User Reminder",
+                filters={
+                        "user": user,
+                        "status": ["in", ["Active", "Snoozed"]],
+                        "is_sent": 0,
+                        "next_reminder_at": ["<=", now],
+                },
+        )
+        shared_count = frappe.db.count(
+                "GE User Reminder",
+                filters={
+                        "shared_with": user,
+                        "status": ["in", ["Active", "Snoozed"]],
+                        "is_sent": 0,
+                        "next_reminder_at": ["<=", now],
+                },
+        )
+        total = (own_count or 0) + (shared_count or 0)
+        return {"success": True, "data": {"count": total}}
+
+
+
 
 @frappe.whitelist(methods=["POST"])
 def add_record_comment(
@@ -13962,8 +16521,7 @@ def get_pm_requests(project=None, request_type=None, status=None):
 	"""List PM requests for a project."""
 	_require_pm_request_read_access()
 	filters = {}
-	if project:
-		filters["linked_project"] = project
+	_apply_project_manager_project_filter(filters, project=project, project_field="linked_project")
 	if request_type:
 		filters["request_type"] = request_type
 	if status:
@@ -13989,6 +16547,10 @@ def create_pm_request(data):
 	_require_pm_request_write_access()
 	values = json.loads(data) if isinstance(data, str) else data
 	values["doctype"] = "GE PM Request"
+	# Enforce PM can only create requests for their assigned projects
+	linked = values.get("linked_project")
+	if linked:
+		_ensure_project_manager_project_scope(linked)
 	values["status"] = cstr(values.get("status") or "Draft").strip() or "Draft"
 	if values["status"] not in ("Draft", "Pending"):
 		frappe.throw("New PM requests can only be saved as Draft or Pending")
@@ -13998,6 +16560,26 @@ def create_pm_request(data):
 	values.pop("reviewed_date", None)
 	doc = frappe.get_doc(values).insert()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE PM Request",
+			subject_name=doc.name,
+			event_type=EventType.CREATED,
+			linked_project=linked,
+			current_status="Draft",
+			submitted_by=frappe.session.user,
+			current_owner_user=frappe.session.user,
+			current_owner_role=_detect_primary_role(),
+			source_route=f"/projects/{linked}/pm-requests" if linked else "/pm-requests",
+			reference_doctype="GE PM Request",
+			reference_name=doc.name,
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: create_pm_request")
+
 	return {"success": True, "data": doc.as_dict(), "message": "PM request created"}
 
 
@@ -14034,6 +16616,27 @@ def submit_pm_request(name):
 	doc.requested_date = doc.requested_date or frappe.utils.today()
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE PM Request",
+			subject_name=name,
+			event_type=EventType.SUBMITTED,
+			linked_project=doc.linked_project,
+			from_status="Draft",
+			to_status="Pending",
+			current_status="Pending",
+			submitted_by=frappe.session.user,
+			submitted_on=now_datetime(),
+			current_owner_user=frappe.session.user,
+			current_owner_role=_detect_primary_role(),
+			source_route=f"/projects/{doc.linked_project}/pm-requests" if doc.linked_project else "/pm-requests",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: submit_pm_request")
+
 	return {"success": True, "data": doc.as_dict(), "message": "PM request submitted for review"}
 
 
@@ -14051,6 +16654,27 @@ def approve_pm_request(name, remarks=None):
 		doc.reviewer_remarks = remarks
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE PM Request",
+			subject_name=name,
+			event_type=EventType.APPROVED,
+			linked_project=doc.linked_project,
+			from_status="Pending",
+			to_status="Approved",
+			current_status="Approved",
+			approved_by=frappe.session.user,
+			approved_on=now_datetime(),
+			current_owner_role=_detect_primary_role(),
+			remarks=remarks or "",
+			source_route=f"/projects/{doc.linked_project}/pm-requests" if doc.linked_project else "/pm-requests",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: approve_pm_request")
+
 	return {"success": True, "data": doc.as_dict(), "message": "PM request approved"}
 
 
@@ -14058,16 +16682,36 @@ def approve_pm_request(name, remarks=None):
 def reject_pm_request(name, remarks=None):
 	"""PH rejects a pending PM request."""
 	_require_pm_request_review_access()
+	if not (remarks or "").strip():
+		frappe.throw("A rejection reason is required. Please provide remarks.")
 	doc = frappe.get_doc("GE PM Request", name)
 	if doc.status != "Pending":
 		frappe.throw("Only pending requests can be rejected")
 	doc.status = "Rejected"
 	doc.reviewed_by = frappe.session.user
 	doc.reviewed_date = frappe.utils.today()
-	if remarks:
-		doc.reviewer_remarks = remarks
+	doc.reviewer_remarks = remarks
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE PM Request",
+			subject_name=name,
+			event_type=EventType.REJECTED,
+			linked_project=doc.linked_project,
+			from_status="Pending",
+			to_status="Rejected",
+			current_status="Rejected",
+			current_owner_role=_detect_primary_role(),
+			remarks=remarks,
+			source_route=f"/projects/{doc.linked_project}/pm-requests" if doc.linked_project else "/pm-requests",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: reject_pm_request")
+
 	return {"success": True, "data": doc.as_dict(), "message": "PM request rejected"}
 
 
@@ -14078,12 +16722,33 @@ def withdraw_pm_request(name):
 	doc = frappe.get_doc("GE PM Request", name)
 	if doc.status not in ("Draft", "Pending"):
 		frappe.throw("Only draft or pending requests can be withdrawn")
+	old_status = doc.status
 	doc.status = "Withdrawn"
 	doc.reviewed_by = None
 	doc.reviewed_date = None
 	doc.reviewer_remarks = None
 	doc.save()
 	frappe.db.commit()
+
+	# ── Accountability ledger ─────────────────────────────────────────────
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE PM Request",
+			subject_name=name,
+			event_type=EventType.CANCELLED,
+			linked_project=doc.linked_project,
+			from_status=old_status,
+			to_status="Withdrawn",
+			current_status="Withdrawn",
+			current_owner_user=frappe.session.user,
+			current_owner_role=_detect_primary_role(),
+			remarks="Withdrawn by requestor",
+			source_route=f"/projects/{doc.linked_project}/pm-requests" if doc.linked_project else "/pm-requests",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: withdraw_pm_request")
+
 	return {"success": True, "data": doc.as_dict(), "message": "PM request withdrawn"}
 
 
@@ -14097,3 +16762,454 @@ def delete_pm_request(name):
 	frappe.delete_doc("GE PM Request", name)
 	frappe.db.commit()
 	return {"success": True, "message": "PM request deleted"}
+
+
+# ============================================================================
+# ACCOUNTABILITY & TRACEABILITY API
+# ============================================================================
+
+@frappe.whitelist()
+def get_accountability_timeline(subject_doctype=None, subject_name=None):
+	"""Return the full accountability record + ordered event timeline for a tracked object."""
+	_require_authenticated_user()
+	_require_param(subject_doctype, "subject_doctype")
+	_require_param(subject_name, "subject_name")
+	_enforce_accountability_subject_scope(subject_doctype, subject_name)
+
+	from gov_erp.accountability import get_accountability_timeline as _get_timeline
+
+	result = _get_timeline(subject_doctype, subject_name)
+	return {"success": True, "data": result}
+
+
+@frappe.whitelist()
+def get_accountability_record(subject_doctype=None, subject_name=None):
+	"""Return the live accountability snapshot (record only, no events) for a tracked object."""
+	_require_authenticated_user()
+	_require_param(subject_doctype, "subject_doctype")
+	_require_param(subject_name, "subject_name")
+	_enforce_accountability_subject_scope(subject_doctype, subject_name)
+
+	record = frappe.db.get_value(
+		"GE Accountability Record",
+		{"subject_doctype": subject_doctype, "subject_name": subject_name},
+		"*",
+		as_dict=True,
+	)
+	return {"success": True, "data": record or None}
+
+
+@frappe.whitelist()
+def get_open_accountability_items(
+	project=None,
+	site=None,
+	owner_user=None,
+	blocked_only=0,
+	escalated_only=0,
+	subject_doctype=None,
+	limit=100,
+):
+	"""
+	Query open accountability items with optional filters.
+
+	Open = latest_event_type not in COMPLETED/CANCELLED.
+	Accessible to Directors, Project Heads, and Department Heads.
+	"""
+	_require_authenticated_user()
+	_require_roles(
+		"Director", "Project Head", "Department Head",
+		"Project Manager", "Engineering Head", "Procurement Head",
+		"Procurement Manager", "Store Manager", "System Manager",
+	)
+	project = _enforce_accountability_project_scope(project, require_project_for_pm=True)
+
+	from gov_erp.accountability import get_open_accountability_items as _get_open
+
+	items = _get_open(
+		project=project,
+		site=site,
+		owner_user=owner_user,
+		blocked_only=bool(cint(blocked_only)),
+		escalated_only=bool(cint(escalated_only)),
+		subject_doctype=subject_doctype,
+		limit=cint(limit) or 100,
+	)
+	return {"success": True, "data": items}
+
+
+@frappe.whitelist()
+def get_overdue_accountability_items(project=None, site=None, limit=50):
+	"""Return accountability records where due_date is in the past and status is open."""
+	_require_authenticated_user()
+	_require_roles("Director", "Project Head", "Department Head", "System Manager")
+	project = _enforce_accountability_project_scope(project, require_project_for_pm=True)
+
+	filters = {
+		"latest_event_type": ["not in", ["COMPLETED", "CANCELLED", ""]],
+		"due_date": ["<", frappe.utils.today()],
+	}
+	if project:
+		filters["linked_project"] = project
+	if site:
+		filters["linked_site"] = site
+
+	items = frappe.get_all(
+		"GE Accountability Record",
+		filters=filters,
+		fields=[
+			"name", "subject_doctype", "subject_name",
+			"linked_project", "linked_site", "linked_stage",
+			"current_status", "latest_event_type",
+			"current_owner_user", "current_owner_role",
+			"due_date", "is_blocked", "blocking_reason",
+			"source_route", "creation", "modified",
+		],
+		order_by="due_date asc",
+		limit_page_length=cint(limit) or 50,
+	)
+	return {"success": True, "data": items}
+
+
+@frappe.whitelist()
+def get_blocked_accountability_items(project=None, site=None, limit=50):
+	"""Return accountability records that are currently blocked."""
+	_require_authenticated_user()
+	_require_roles("Director", "Project Head", "Department Head", "System Manager")
+	project = _enforce_accountability_project_scope(project, require_project_for_pm=True)
+
+	filters = {
+		"is_blocked": 1,
+		"latest_event_type": ["not in", ["COMPLETED", "CANCELLED"]],
+	}
+	if project:
+		filters["linked_project"] = project
+	if site:
+		filters["linked_site"] = site
+
+	items = frappe.get_all(
+		"GE Accountability Record",
+		filters=filters,
+		fields=[
+			"name", "subject_doctype", "subject_name",
+			"linked_project", "linked_site", "linked_stage",
+			"current_status", "latest_event_type",
+			"current_owner_user", "current_owner_role",
+			"blocking_reason", "due_date",
+			"source_route", "creation", "modified",
+		],
+		order_by="modified asc",
+		limit_page_length=cint(limit) or 50,
+	)
+	return {"success": True, "data": items}
+
+
+@frappe.whitelist()
+def get_accountability_events_by_project(project=None, event_type=None, limit=200):
+	"""Return all accountability events linked to a project, newest first."""
+	_require_authenticated_user()
+	_require_param(project, "project")
+	project = _enforce_accountability_project_scope(project, require_project_for_pm=True)
+
+	filters = {"linked_project": project}
+	if event_type:
+		filters["event_type"] = event_type
+
+	events = frappe.get_all(
+		"GE Accountability Event",
+		filters=filters,
+		fields=[
+			"name", "accountability_record", "event_type",
+			"actor", "actor_role", "actor_department",
+			"from_status", "to_status",
+			"from_owner_user", "to_owner_user",
+			"remarks", "reason_code",
+			"linked_site", "linked_stage",
+			"reference_doctype", "reference_name",
+			"event_time",
+		],
+		order_by="event_time desc",
+		limit_page_length=cint(limit) or 200,
+	)
+	return {"success": True, "data": events}
+
+
+@frappe.whitelist()
+def get_accountability_dashboard_summary(project=None, site=None, department=None):
+	"""
+	Director/RCA dashboard summary.
+	Returns blocked, overdue, escalated, recently rejected counts + items,
+	plus an event-type heatmap for pattern analysis.
+	"""
+	_require_authenticated_user()
+	_require_roles("Director", "Project Head", "Department Head", "System Manager")
+	project = _enforce_accountability_project_scope(project, require_project_for_pm=True)
+
+	closed_statuses = ("COMPLETED", "CANCELLED", "CLOSED")
+	thirty_days_ago = add_days(today(), -30)
+	ninety_days_ago = add_days(today(), -90)
+
+	# ── Base record filters ───────────────────────────────────────────────
+	base_filters: dict = {
+		"latest_event_type": ["not in", list(closed_statuses)],
+	}
+	if project:
+		base_filters["linked_project"] = project
+	if site:
+		base_filters["linked_site"] = site
+	if department:
+		base_filters["current_owner_department"] = department
+
+	record_fields = [
+		"name", "subject_doctype", "subject_name",
+		"linked_project", "linked_site", "linked_stage",
+		"current_status", "latest_event_type",
+		"current_owner_user", "current_owner_role", "current_owner_department",
+		"is_blocked", "blocking_reason",
+		"escalated_to_user", "escalated_to_role",
+		"due_date", "source_route", "creation", "modified",
+	]
+
+	# ── 1. Blocked items ──────────────────────────────────────────────────
+	blocked_filters = {**base_filters, "is_blocked": 1}
+	blocked_items = frappe.get_all(
+		"GE Accountability Record",
+		filters=blocked_filters,
+		fields=record_fields,
+		order_by="modified asc",
+		limit_page_length=50,
+	)
+
+	# ── 2. Escalated items ────────────────────────────────────────────────
+	escalated_filters = {**base_filters, "escalated_to_user": ["!=", ""]}
+	escalated_items = frappe.get_all(
+		"GE Accountability Record",
+		filters=escalated_filters,
+		fields=record_fields,
+		order_by="modified asc",
+		limit_page_length=50,
+	)
+
+	# ── 3. Overdue items (due_date < today, not closed) ───────────────────
+	overdue_filters = {
+		**base_filters,
+		"due_date": ["<", today()],
+		"due_date": ["is", "set"],
+	}
+	overdue_filters["due_date"] = ["<", today()]
+	overdue_items = frappe.get_all(
+		"GE Accountability Record",
+		filters={
+			**{k: v for k, v in base_filters.items()},
+			"due_date": ["<", today()],
+		},
+		fields=record_fields,
+		order_by="due_date asc",
+		limit_page_length=50,
+	)
+	# Filter out records without a due_date (frappe does not natively filter "is set" + "<")
+	overdue_items = [r for r in overdue_items if r.get("due_date")]
+
+	# ── 4. All open records total ─────────────────────────────────────────
+	total_open = frappe.db.count("GE Accountability Record", base_filters)
+
+	# ── 5. Recently rejected events (last 30 days) ────────────────────────
+	event_filters: dict = {"event_type": "REJECTED", "event_time": [">=", thirty_days_ago]}
+	if project:
+		event_filters["linked_project"] = project
+	if site:
+		event_filters["linked_site"] = site
+
+	rejected_events = frappe.get_all(
+		"GE Accountability Event",
+		filters=event_filters,
+		fields=[
+			"name", "accountability_record", "actor", "actor_role", "actor_department",
+			"from_status", "to_status", "remarks", "linked_project", "linked_site",
+			"reference_doctype", "reference_name", "event_time",
+		],
+		order_by="event_time desc",
+		limit_page_length=30,
+	)
+
+	# ── 6. Department heatmap (open records by department) ────────────────
+	dept_rows = frappe.get_all(
+		"GE Accountability Record",
+		filters=base_filters,
+		fields=["current_owner_department"],
+	)
+	dept_heatmap: dict = {}
+	for row in dept_rows:
+		dept = row.get("current_owner_department") or "Unassigned"
+		dept_heatmap[dept] = dept_heatmap.get(dept, 0) + 1
+
+	# Sort by count descending
+	dept_heatmap_list = [{"department": k, "count": v} for k, v in dept_heatmap.items()]
+	dept_heatmap_list.sort(key=lambda x: x["count"], reverse=True)
+
+	# ── 7. Event type distribution (recent 90 days) ───────────────────────
+	all_events_filters: dict = {"event_time": [">=", ninety_days_ago]}
+	if project:
+		all_events_filters["linked_project"] = project
+	if site:
+		all_events_filters["linked_site"] = site
+
+	event_type_rows = frappe.get_all(
+		"GE Accountability Event",
+		filters=all_events_filters,
+		fields=["event_type"],
+	)
+	event_type_counts: dict = {}
+	for row in event_type_rows:
+		et = row.get("event_type") or "UNKNOWN"
+		event_type_counts[et] = event_type_counts.get(et, 0) + 1
+
+	event_type_list = [{"event_type": k, "count": v} for k, v in event_type_counts.items()]
+	event_type_list.sort(key=lambda x: x["count"], reverse=True)
+
+	return {
+		"success": True,
+		"data": {
+			"summary": {
+				"total_open": total_open,
+				"total_blocked": len(blocked_items),
+				"total_overdue": len(overdue_items),
+				"total_escalated": len(escalated_items),
+				"total_rejected_recent": len(rejected_events),
+			},
+			"blocked_items": blocked_items,
+			"overdue_items": overdue_items,
+			"escalated_items": escalated_items,
+			"rejected_events": rejected_events,
+			"department_heatmap": dept_heatmap_list,
+			"event_type_distribution": event_type_list,
+		},
+	}
+
+
+# ── Phase 9: Backfill / Migration ────────────────────────────────────────────
+
+@frappe.whitelist()
+def backfill_accountability_records(doctype=None, limit=100, dry_run=1):
+	"""
+	Phase 9 migration helper.
+
+	Creates baseline GE Accountability Records for existing open objects that
+	do not yet have one.  Only Director / System Manager can run this.
+
+	Args:
+		doctype  – restrict to one DocType (e.g. "Material Request"). Leave blank
+		           to iterate all registered types.
+		limit    – max records to process per call (default 100).
+		dry_run  – 1 (default) = preview only, 0 = actually write records.
+
+	Returns a report of what was processed / would be created.
+	"""
+	if "Director" not in frappe.get_roles(frappe.session.user) and "System Manager" not in frappe.get_roles(frappe.session.user):
+		frappe.throw("Only Directors or System Managers may run the accountability backfill.")
+
+	dry_run = int(dry_run or 1)
+	limit = int(limit or 100)
+
+	# Supported doctype → status-field + open-value pairs
+	BACKFILL_MAP = {
+		"Material Request": {
+			"status_field": "status",
+			"open_statuses": ["Draft", "Submitted", "Pending", "Partially Ordered"],
+			"project_field": None,  # items-level; skip project linkage
+		},
+		"GE Cost Sheet": {
+			"status_field": "status",
+			"open_statuses": ["DRAFT", "PENDING_APPROVAL"],
+			"project_field": "linked_project",
+		},
+		"GE Employee Onboarding": {
+			"status_field": "onboarding_status",
+			"open_statuses": ["DRAFT", "SUBMITTED", "UNDER_REVIEW"],
+			"project_field": "linked_project",
+		},
+		"GE Invoice": {
+			"status_field": "status",
+			"open_statuses": ["DRAFT", "SUBMITTED", "APPROVED"],
+			"project_field": "linked_project",
+		},
+		"GE Vendor Comparison": {
+			"status_field": "status",
+			"open_statuses": ["DRAFT", "PENDING_APPROVAL"],
+			"project_field": "linked_project",
+		},
+		"GE BOQ": {
+			"status_field": "status",
+			"open_statuses": ["DRAFT", "PENDING_APPROVAL"],
+			"project_field": "linked_project",
+		},
+		"GE Drawing": {
+			"status_field": "status",
+			"open_statuses": ["Draft", "Submitted", "Pending Approval"],
+			"project_field": "linked_project",
+		},
+	}
+
+	target_types = [doctype] if doctype else list(BACKFILL_MAP.keys())
+	report = {"processed": 0, "created": 0, "skipped": 0, "errors": 0, "details": []}
+
+	from gov_erp.accountability import upsert_accountability_record, EventType
+
+	for dt in target_types:
+		meta = BACKFILL_MAP.get(dt)
+		if not meta:
+			report["details"].append({"doctype": dt, "status": "unsupported"})
+			continue
+
+		status_field = meta["status_field"]
+		project_field = meta["project_field"]
+
+		try:
+			filters = [[status_field, "in", meta["open_statuses"]]]
+			fields = ["name", status_field]
+			if project_field:
+				fields.append(project_field)
+
+			rows = frappe.get_all(dt, filters=filters, fields=fields, limit_page_length=limit)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), f"Backfill: fetch {dt}")
+			report["errors"] += 1
+			continue
+
+		for row in rows:
+			report["processed"] += 1
+			# Check if record already exists
+			existing = frappe.db.exists(
+				"GE Accountability Record",
+				{"subject_doctype": dt, "subject_name": row["name"]},
+			)
+			if existing:
+				report["skipped"] += 1
+				report["details"].append({"doctype": dt, "name": row["name"], "action": "skipped_exists"})
+				continue
+
+			if dry_run:
+				report["created"] += 1  # would create
+				report["details"].append({"doctype": dt, "name": row["name"], "action": "would_create"})
+			else:
+				try:
+					linked_project = row.get(project_field) if project_field else None
+					upsert_accountability_record(
+						subject_doctype=dt,
+						subject_name=row["name"],
+						event_type=EventType.CREATED,
+						linked_project=linked_project,
+						current_status=row.get(status_field),
+						current_owner_role="Unknown (backfill)",
+						source_route="/accountability/backfill",
+						remarks="Backfilled by Phase 9 migration",
+					)
+					frappe.db.commit()
+					report["created"] += 1
+					report["details"].append({"doctype": dt, "name": row["name"], "action": "created"})
+				except Exception:
+					frappe.log_error(frappe.get_traceback(), f"Backfill: create record {dt}/{row['name']}")
+					report["errors"] += 1
+					report["details"].append({"doctype": dt, "name": row["name"], "action": "error"})
+
+	report["dry_run"] = bool(dry_run)
+	return {"success": True, "data": report}

@@ -55,7 +55,29 @@ def test_frontend_notification_surfaces_use_phase3_routes_and_filters():
     mentions_panel = _read(ROOT / "erp_frontend" / "src" / "components" / "mentions" / "MentionsPanel.tsx")
 
     assert "user_mentioned: 'Mentioned You'" in bell
+    assert "site_status_changed: 'Site Status Changed'" in bell
+    assert "site_installation_stage_changed: 'Installation Stage Changed'" in bell
     assert "useSearchParams" in notifications_page
     assert "searchParams.get('filter')" in notifications_page
     assert "Project: `/projects/${name}`" in mentions_panel
     assert "'GE Tender': `/pre-sales/${name}`" in mentions_panel
+
+
+def test_site_updates_emit_alerts_for_status_and_installation_progress():
+    handlers = _read(APP_ROOT / "doc_event_handlers.py")
+    dispatcher = _read(APP_ROOT / "alert_dispatcher.py")
+    alert_doctype = _read(APP_ROOT / "gov_erp" / "doctype" / "ge_alert" / "ge_alert.json")
+
+    for expected in [
+        'if doc.has_value_changed("status"):',
+        "on_site_status_changed(project, doc.name, doc.status)",
+        'if doc.has_value_changed("installation_stage"):',
+        "on_site_installation_stage_changed(project, doc.name, doc.installation_stage)",
+        'def on_site_status_changed(project_name: str, site_name: str, status: str, **kwargs):',
+        'def on_site_installation_stage_changed(project_name: str, site_name: str, installation_stage: str, **kwargs):',
+        '"site_status_changed"',
+        '"site_installation_stage_changed"',
+        "site_status_changed\\nsite_installation_stage_changed",
+    ]:
+        combined = "\n".join([handlers, dispatcher, alert_doctype])
+        assert expected in combined

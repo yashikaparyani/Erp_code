@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { Plus, MapPin, CheckCircle2, Clock, FileText, Eye, Trash2 } from 'lucide-react';
+import ActionModal from '@/components/ui/ActionModal';
 
 interface Survey {
   name: string;
@@ -28,6 +29,7 @@ export default function SurveyPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [completionTender, setCompletionTender] = useState('');
   const [completionResult, setCompletionResult] = useState<string>('');
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [createForm, setCreateForm] = useState({
     linked_tender: '',
     site_name: '',
@@ -133,9 +135,6 @@ export default function SurveyPage() {
   };
 
   const handleDeleteSurvey = async (name: string) => {
-    if (!confirm(`Delete survey ${name}?`)) {
-      return;
-    }
     try {
       const response = await fetch(`/api/surveys/${encodeURIComponent(name)}`, {
         method: 'DELETE',
@@ -390,7 +389,7 @@ export default function SurveyPage() {
                     </button>
                     <button
                       className="text-red-600 hover:text-red-800 text-sm font-medium inline-flex items-center gap-1"
-                      onClick={() => handleDeleteSurvey(survey.name)}
+                      onClick={() => setDeleteTarget(survey.name)}
                     >
                       <Trash2 className="w-4 h-4" />
                       Delete
@@ -402,6 +401,19 @@ export default function SurveyPage() {
           </table>
         </div>
       </div>
+      <ActionModal
+        open={deleteTarget !== null}
+        title="Delete Survey"
+        description={`Delete survey ${deleteTarget}?`}
+        confirmLabel="Delete"
+        variant="danger"
+        fields={[]}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={async () => {
+          if (deleteTarget) await handleDeleteSurvey(deleteTarget);
+          setDeleteTarget(null);
+        }}
+      />
     </div>
   );
 }

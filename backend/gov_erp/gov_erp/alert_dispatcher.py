@@ -40,6 +40,8 @@ EVENT_CAPABILITY_MAP = {
 BROAD_PROJECT_EVENTS = {
     "project_created",
     "site_stage_changed",
+    "site_status_changed",
+    "site_installation_stage_changed",
     "site_blocked",
     "site_unblocked",
     "milestone_overdue",
@@ -47,6 +49,12 @@ BROAD_PROJECT_EVENTS = {
     "document_uploaded",
     "document_replaced",
     "document_expiring",
+    "indent_submitted",
+    "indent_acknowledged",
+    "indent_accepted",
+    "indent_rejected",
+    "indent_returned",
+    "indent_escalated",
 }
 
 # Department-scoped events — only go to users in that department + PMs
@@ -323,6 +331,36 @@ def on_site_stage_changed(project_name: str, site_name: str, stage: str, **kwarg
     )
 
 
+def on_site_status_changed(project_name: str, site_name: str, status: str, **kwargs):
+    """Emit alert when a site's high-level status changes."""
+    emit_alert(
+        "site_status_changed",
+        f"Site {site_name} status changed to '{status}'",
+        project=project_name,
+        site=site_name,
+        stage=status,
+        reference_doctype="GE Site",
+        reference_name=site_name,
+        route_path=f"/projects/{project_name}/sites/{site_name}",
+        **kwargs,
+    )
+
+
+def on_site_installation_stage_changed(project_name: str, site_name: str, installation_stage: str, **kwargs):
+    """Emit alert when a site's installation stage progresses."""
+    emit_alert(
+        "site_installation_stage_changed",
+        f"Site {site_name} installation stage changed to '{installation_stage}'",
+        project=project_name,
+        site=site_name,
+        stage=installation_stage,
+        reference_doctype="GE Site",
+        reference_name=site_name,
+        route_path=f"/projects/{project_name}/sites/{site_name}",
+        **kwargs,
+    )
+
+
 def on_site_blocked(project_name: str, site_name: str, blocked: bool, **kwargs):
     """Emit alert when a site is blocked or unblocked."""
     event_type = "site_blocked" if blocked else "site_unblocked"
@@ -457,5 +495,46 @@ def on_execution_event(
         reference_doctype=reference_doctype,
         reference_name=doc_name,
         route_path=route_path or f"/projects/{project_name}",
+        **kwargs,
+    )
+
+
+def on_indent_event(
+    project_name: str,
+    indent_name: str,
+    action: str,
+    *,
+    detail: str = None,
+    extra_recipients: list[str] = None,
+    **kwargs,
+):
+    """Emit alerts for indent workflow transitions."""
+    event_map = {
+        "submitted": "indent_submitted",
+        "acknowledged": "indent_acknowledged",
+        "accepted": "indent_accepted",
+        "rejected": "indent_rejected",
+        "returned": "indent_returned",
+        "escalated": "indent_escalated",
+    }
+    summary_map = {
+        "submitted": f"Indent {indent_name} submitted for approval",
+        "acknowledged": f"Indent {indent_name} acknowledged",
+        "accepted": f"Indent {indent_name} accepted for procurement action",
+        "rejected": f"Indent {indent_name} rejected",
+        "returned": f"Indent {indent_name} returned for revision",
+        "escalated": f"Indent {indent_name} escalated",
+    }
+
+    emit_alert(
+        event_map.get(action, "general"),
+        summary_map.get(action, f"Indent {indent_name} updated"),
+        project=project_name,
+        department="procurement",
+        reference_doctype="Material Request",
+        reference_name=indent_name,
+        detail=detail,
+        route_path="/indents",
+        extra_recipients=extra_recipients,
         **kwargs,
     )

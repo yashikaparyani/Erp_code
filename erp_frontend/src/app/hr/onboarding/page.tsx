@@ -25,6 +25,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
+import ActionModal from '@/components/ui/ActionModal';
 
 type OnboardingStatus =
   | 'DRAFT'
@@ -429,6 +430,8 @@ export default function HrOnboardingPage() {
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [busyAction, setBusyAction] = useState<ActionKey | null>(null);
+  const [rejectModal, setRejectModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [flash, setFlash] = useState<Flash | null>(null);
@@ -617,12 +620,12 @@ export default function HrOnboardingPage() {
     }
   }
 
-  async function runAction(action: ActionKey) {
+  async function runAction(action: ActionKey, extra?: Record<string, string>) {
     if (!selectedId) return;
 
     let reason: string | undefined;
     if (action === 'reject') {
-      reason = window.prompt('Enter rejection reason')?.trim();
+      reason = extra?.reason;
       if (!reason) return;
     }
 
@@ -653,7 +656,6 @@ export default function HrOnboardingPage() {
 
   async function deleteRecord() {
     if (!selectedId) return;
-    if (!window.confirm('Delete this onboarding record?')) return;
 
     setSaving(true);
     setFlash(null);
@@ -1093,7 +1095,7 @@ export default function HrOnboardingPage() {
                     {actionButtons.filter((action) => action.show).map((action) => (
                       <button
                         key={action.key}
-                        onClick={() => void runAction(action.key)}
+                        onClick={() => action.key === 'reject' ? setRejectModal(true) : void runAction(action.key)}
                         disabled={Boolean(busyAction)}
                         className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-white transition disabled:opacity-60 ${action.tone}`}
                       >
@@ -1103,7 +1105,7 @@ export default function HrOnboardingPage() {
                     ))}
                     <button onClick={startEdit} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"><Pencil className="h-4 w-4" />Edit</button>
                     {!detail.employee_reference && (
-                      <button onClick={() => void deleteRecord()} disabled={saving} className="inline-flex items-center gap-2 rounded-xl border border-rose-200 px-4 py-2.5 text-sm font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-60"><Trash2 className="h-4 w-4" />Delete</button>
+                      <button onClick={() => setShowDeleteConfirm(true)} disabled={saving} className="inline-flex items-center gap-2 rounded-xl border border-rose-200 px-4 py-2.5 text-sm font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-60"><Trash2 className="h-4 w-4" />Delete</button>
                     )}
                   </div>
                 </div>
@@ -1349,6 +1351,34 @@ export default function HrOnboardingPage() {
           )}
         </main>
       </div>
+
+      <ActionModal
+        open={rejectModal}
+        title="Reject Onboarding"
+        description="Enter a reason for rejecting this onboarding record."
+        confirmLabel="Reject"
+        variant="danger"
+        fields={[{ name: 'reason', label: 'Rejection Reason', type: 'textarea' }]}
+        onCancel={() => setRejectModal(false)}
+        onConfirm={async (values) => {
+          await runAction('reject', { reason: values.reason || '' });
+          setRejectModal(false);
+        }}
+      />
+
+      <ActionModal
+        open={showDeleteConfirm}
+        title="Delete Onboarding Record"
+        description="Delete this onboarding record? This cannot be undone."
+        confirmLabel="Delete"
+        variant="danger"
+        fields={[]}
+        onCancel={() => setShowDeleteConfirm(false)}
+        onConfirm={async () => {
+          await deleteRecord();
+          setShowDeleteConfirm(false);
+        }}
+      />
     </div>
   );
 }

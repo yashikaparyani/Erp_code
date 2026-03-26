@@ -10,10 +10,13 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category') || '';
     const latestOnly = searchParams.get('latest_only') || '';
     const source = searchParams.get('source') || '';
-    const useCustom = source === 'custom' || Boolean(project) || Boolean(category) || Boolean(site) || Boolean(latestOnly);
+    const stage = searchParams.get('stage') || '';
+    const reference_doctype = searchParams.get('reference_doctype') || '';
+    const subcategory = searchParams.get('subcategory') || '';
+    const useCustom = source === 'custom' || Boolean(project) || Boolean(category) || Boolean(site) || Boolean(latestOnly) || Boolean(stage) || Boolean(reference_doctype) || Boolean(subcategory);
     const result = await callFrappeMethod(
       useCustom ? 'get_project_documents' : 'get_documents',
-      useCustom ? { folder, project, site, category, latest_only: latestOnly } : { folder },
+      useCustom ? { folder, project, site, category, latest_only: latestOnly, stage, reference_doctype, subcategory } : { folder },
       request,
     );
     return NextResponse.json({ success: true, data: result.data || [] });

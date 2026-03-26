@@ -261,7 +261,7 @@ export default function TenderWorkspacePage() {
   const derivedFunnel = tender ? (tender.computed_funnel_status || deriveTenderFunnelStatus(tender)) : '';
   const funnelMeta = getTenderFunnelMeta(derivedFunnel);
   const isDirector = currentRole === 'Director';
-  const isPresales = presalesRoles.has(currentRole);
+  const isPresales = currentRole ? presalesRoles.has(currentRole) : false;
 
   const goNoGoApproval = useMemo(
     () => workspace?.approvals.find((row) => row.approval_type === 'GO_NO_GO' && row.status === 'Pending') || null,

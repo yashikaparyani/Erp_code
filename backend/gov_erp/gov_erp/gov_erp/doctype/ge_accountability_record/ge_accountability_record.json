@@ -1,0 +1,351 @@
+{
+ "actions": [],
+ "autoname": "hash",
+ "creation": "2026-03-26 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "subject_doctype",
+  "column_break_subject",
+  "subject_name",
+  "section_break_root",
+  "root_doctype",
+  "column_break_root",
+  "root_name",
+  "section_break_context",
+  "linked_project",
+  "linked_site",
+  "column_break_context",
+  "linked_stage",
+  "source_route",
+  "section_break_status",
+  "current_status",
+  "latest_event_type",
+  "column_break_status",
+  "is_blocked",
+  "blocking_reason",
+  "section_break_ownership",
+  "current_owner_user",
+  "current_owner_role",
+  "column_break_ownership",
+  "current_owner_department",
+  "assigned_to_user",
+  "assigned_to_role",
+  "section_break_submission",
+  "submitted_by",
+  "submitted_on",
+  "column_break_submission",
+  "accepted_by",
+  "accepted_on",
+  "section_break_approval",
+  "approved_by",
+  "approved_on",
+  "column_break_approval",
+  "due_date",
+  "section_break_escalation",
+  "escalated_to_user",
+  "escalated_to_role",
+  "section_break_closure",
+  "closed_by",
+  "closed_on"
+ ],
+ "fields": [
+  {
+   "fieldname": "subject_doctype",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Subject DocType",
+   "options": "DocType",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_subject",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "subject_name",
+   "fieldtype": "Dynamic Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Subject Name",
+   "options": "subject_doctype",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_root",
+   "fieldtype": "Section Break",
+   "label": "Root Document"
+  },
+  {
+   "fieldname": "root_doctype",
+   "fieldtype": "Link",
+   "label": "Root DocType",
+   "options": "DocType"
+  },
+  {
+   "fieldname": "column_break_root",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "root_name",
+   "fieldtype": "Dynamic Link",
+   "label": "Root Name",
+   "options": "root_doctype"
+  },
+  {
+   "fieldname": "section_break_context",
+   "fieldtype": "Section Break",
+   "label": "Project Context"
+  },
+  {
+   "fieldname": "linked_project",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Linked Project",
+   "options": "Project"
+  },
+  {
+   "fieldname": "linked_site",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Linked Site",
+   "options": "GE Site"
+  },
+  {
+   "fieldname": "column_break_context",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "linked_stage",
+   "fieldtype": "Data",
+   "label": "Linked Stage"
+  },
+  {
+   "fieldname": "source_route",
+   "fieldtype": "Data",
+   "label": "Source Route"
+  },
+  {
+   "fieldname": "section_break_status",
+   "fieldtype": "Section Break",
+   "label": "Status"
+  },
+  {
+   "fieldname": "current_status",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Current Status"
+  },
+  {
+   "fieldname": "latest_event_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Latest Event Type",
+   "options": "\nCREATED\nSUBMITTED\nASSIGNED\nACKNOWLEDGED\nACCEPTED\nRETURNED\nAPPROVED\nREJECTED\nBLOCKED\nUNBLOCKED\nESCALATED\nDUE_DATE_CHANGED\nREOPENED\nCOMPLETED\nCANCELLED\nOVERRIDDEN"
+  },
+  {
+   "fieldname": "column_break_status",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_blocked",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Blocked"
+  },
+  {
+   "depends_on": "is_blocked",
+   "fieldname": "blocking_reason",
+   "fieldtype": "Small Text",
+   "label": "Blocking Reason"
+  },
+  {
+   "fieldname": "section_break_ownership",
+   "fieldtype": "Section Break",
+   "label": "Current Ownership"
+  },
+  {
+   "fieldname": "current_owner_user",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Current Owner",
+   "options": "User"
+  },
+  {
+   "fieldname": "current_owner_role",
+   "fieldtype": "Data",
+   "label": "Current Owner Role"
+  },
+  {
+   "fieldname": "column_break_ownership",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "current_owner_department",
+   "fieldtype": "Data",
+   "label": "Current Owner Department"
+  },
+  {
+   "fieldname": "assigned_to_user",
+   "fieldtype": "Link",
+   "label": "Assigned To",
+   "options": "User"
+  },
+  {
+   "fieldname": "assigned_to_role",
+   "fieldtype": "Data",
+   "label": "Assigned To Role"
+  },
+  {
+   "fieldname": "section_break_submission",
+   "fieldtype": "Section Break",
+   "label": "Submission"
+  },
+  {
+   "fieldname": "submitted_by",
+   "fieldtype": "Link",
+   "label": "Submitted By",
+   "options": "User"
+  },
+  {
+   "fieldname": "submitted_on",
+   "fieldtype": "Datetime",
+   "label": "Submitted On"
+  },
+  {
+   "fieldname": "column_break_submission",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "accepted_by",
+   "fieldtype": "Link",
+   "label": "Accepted By",
+   "options": "User"
+  },
+  {
+   "fieldname": "accepted_on",
+   "fieldtype": "Datetime",
+   "label": "Accepted On"
+  },
+  {
+   "fieldname": "section_break_approval",
+   "fieldtype": "Section Break",
+   "label": "Approval"
+  },
+  {
+   "fieldname": "approved_by",
+   "fieldtype": "Link",
+   "label": "Approved By",
+   "options": "User"
+  },
+  {
+   "fieldname": "approved_on",
+   "fieldtype": "Datetime",
+   "label": "Approved On"
+  },
+  {
+   "fieldname": "column_break_approval",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "due_date",
+   "fieldtype": "Date",
+   "in_standard_filter": 1,
+   "label": "Due Date"
+  },
+  {
+   "fieldname": "section_break_escalation",
+   "fieldtype": "Section Break",
+   "label": "Escalation"
+  },
+  {
+   "fieldname": "escalated_to_user",
+   "fieldtype": "Link",
+   "label": "Escalated To",
+   "options": "User"
+  },
+  {
+   "fieldname": "escalated_to_role",
+   "fieldtype": "Data",
+   "label": "Escalated To Role"
+  },
+  {
+   "fieldname": "section_break_closure",
+   "fieldtype": "Section Break",
+   "label": "Closure"
+  },
+  {
+   "fieldname": "closed_by",
+   "fieldtype": "Link",
+   "label": "Closed By",
+   "options": "User"
+  },
+  {
+   "fieldname": "closed_on",
+   "fieldtype": "Datetime",
+   "label": "Closed On"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-03-26 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE Accountability Record",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "write": 1,
+   "role": "System Manager"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Director"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Project Head"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Department Head"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Project Manager"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Engineering Head"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Procurement Head"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Procurement Manager"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}

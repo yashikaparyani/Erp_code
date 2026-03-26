@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Calculator, CircleDollarSign, Eye, FileSpreadsheet, Plus, TrendingDown, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import ActionModal from '@/components/ui/ActionModal';
 
 type CostSheet = {
   name: string;
@@ -46,6 +48,7 @@ export default function FinanceCostingPage() {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
   const [actionLoadingName, setActionLoadingName] = useState<string | null>(null);
+  const [reasonTarget, setReasonTarget] = useState<{ name: string; action: 'reject' | 'revise' } | null>(null);
   const [createForm, setCreateForm] = useState({
     linked_tender: '',
     linked_boq: '',
@@ -137,13 +140,13 @@ export default function FinanceCostingPage() {
     }
   };
 
-  const runAction = async (name: string, action: 'submit' | 'approve' | 'reject' | 'revise') => {
+  const runAction = async (name: string, action: 'submit' | 'approve' | 'reject' | 'revise', extra?: Record<string, string>) => {
     setError('');
     setActionLoadingName(name);
     try {
       const payload: Record<string, unknown> = { action };
       if (action === 'reject' || action === 'revise') {
-        payload.reason = prompt(`${action === 'reject' ? 'Reject' : 'Revise'} reason`) || '';
+        payload.reason = extra?.reason || '';
       }
 
       const response = await fetch(`/api/cost-sheets/${encodeURIComponent(name)}/actions`, {
@@ -328,7 +331,7 @@ export default function FinanceCostingPage() {
                 {rows.map((row) => (
                   <tr key={row.name}>
                     <td>
-                      <div className="font-medium text-gray-900">{row.name}</div>
+                      <Link href={`/finance/costing/${encodeURIComponent(row.name)}`} className="font-medium text-blue-600 hover:underline">{row.name}</Link>
                       <div className="text-xs text-gray-500">v{row.version || 1} • {row.total_items || 0} items</div>
                     </td>
                     <td>
@@ -371,11 +374,11 @@ export default function FinanceCostingPage() {
                         {row.status === 'SUBMITTED' && canApproveReject ? (
                           <>
                             <button className="text-green-600 hover:text-green-800 text-sm font-medium" disabled={actionLoadingName === row.name} onClick={() => runAction(row.name, 'approve')}>Approve</button>
-                            <button className="text-red-600 hover:text-red-800 text-sm font-medium" disabled={actionLoadingName === row.name} onClick={() => runAction(row.name, 'reject')}>Reject</button>
+                            <button className="text-red-600 hover:text-red-800 text-sm font-medium" disabled={actionLoadingName === row.name} onClick={() => setReasonTarget({ name: row.name, action: 'reject' })}>Reject</button>
                           </>
                         ) : null}
                         {(row.status === 'APPROVED' || row.status === 'REJECTED') && canCreateOrSubmit ? (
-                          <button className="text-orange-600 hover:text-orange-800 text-sm font-medium" disabled={actionLoadingName === row.name} onClick={() => runAction(row.name, 'revise')}>Revise</button>
+                          <button className="text-orange-600 hover:text-orange-800 text-sm font-medium" disabled={actionLoadingName === row.name} onClick={() => setReasonTarget({ name: row.name, action: 'revise' })}>Revise</button>
                         ) : null}
                       </div>
                     </td>
@@ -386,6 +389,19 @@ export default function FinanceCostingPage() {
           )}
         </div>
       </div>
+      <ActionModal
+        open={reasonTarget !== null}
+        title={reasonTarget?.action === 'reject' ? 'Reject Cost Sheet' : 'Revise Cost Sheet'}
+        description={`${reasonTarget?.action === 'reject' ? 'Reject' : 'Revise'} ${reasonTarget?.name}?`}
+        confirmLabel={reasonTarget?.action === 'reject' ? 'Reject' : 'Revise'}
+        variant={reasonTarget?.action === 'reject' ? 'danger' : 'default'}
+        fields={[{ name: 'reason', label: 'Reason', type: 'textarea' }]}
+        onCancel={() => setReasonTarget(null)}
+        onConfirm={async (values) => {
+          if (reasonTarget) await runAction(reasonTarget.name, reasonTarget.action, { reason: values.reason || '' });
+          setReasonTarget(null);
+        }}
+      />
     </div>
   );
 }

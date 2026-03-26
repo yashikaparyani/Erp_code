@@ -31,7 +31,11 @@
   "column_break_delivery2",
   "sent_at",
   "section_break_notes",
-  "notes"
+  "notes",
+  "section_break_sharing",
+  "shared_with",
+  "column_break_snooze",
+  "snooze_until"
  ],
  "fields": [
   {
@@ -183,11 +187,34 @@
    "fieldname": "notes",
    "fieldtype": "Small Text",
    "label": "Notes"
+  },
+  {
+   "fieldname": "section_break_sharing",
+   "fieldtype": "Section Break",
+   "label": "Sharing"
+  },
+  {
+   "fieldname": "shared_with",
+   "fieldtype": "Link",
+   "label": "Share With",
+   "options": "User",
+   "description": "Optional: share this reminder view-only with another user. Snooze is disabled for shared recipients."
+  },
+  {
+   "fieldname": "column_break_snooze",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "snooze_until",
+   "fieldtype": "Datetime",
+   "label": "Snoozed Until",
+   "read_only": 1,
+   "description": "Set when reminder is snoozed. Cleared on dismissal or completion."
   }
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-03-19 12:00:00.000000",
+ "modified": "2026-03-26 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Gov Erp",
  "name": "GE User Reminder",

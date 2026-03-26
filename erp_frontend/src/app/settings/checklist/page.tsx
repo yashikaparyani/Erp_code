@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { Plus, Edit2, Trash2, ChevronsLeft, ChevronsRight, X } from 'lucide-react';
+import ActionModal from '@/components/ui/ActionModal';
 
 interface CheckListData {
   id: string;
@@ -17,6 +18,7 @@ export default function CheckListPage() {
   const [showModal, setShowModal] = useState(false);
   const [newCheckList, setNewCheckList] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const loadChecklists = async () => {
     setIsLoading(true);
@@ -79,8 +81,7 @@ export default function CheckListPage() {
   };
 
   const handleDelete = (id: string) => {
-    if (confirm('Are you sure you want to delete this checklist?')) {
-      (async () => {
+    (async () => {
         try {
           const response = await fetch(`/api/tender-checklists/${encodeURIComponent(id)}`, {
             method: 'DELETE',
@@ -96,7 +97,6 @@ export default function CheckListPage() {
           alert('Failed to delete checklist');
         }
       })();
-    }
   };
 
   return (
@@ -167,7 +167,7 @@ export default function CheckListPage() {
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button 
-                          onClick={() => handleDelete(row.id)}
+                          onClick={() => setDeleteTarget(row.id)}
                           className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -243,6 +243,20 @@ export default function CheckListPage() {
           </div>
         </div>
       )}
+
+      <ActionModal
+        open={deleteTarget !== null}
+        title="Delete Checklist"
+        description="Are you sure you want to delete this checklist?"
+        confirmLabel="Delete"
+        variant="danger"
+        fields={[]}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={async () => {
+          if (deleteTarget) handleDelete(deleteTarget);
+          setDeleteTarget(null);
+        }}
+      />
     </div>
   );
 }

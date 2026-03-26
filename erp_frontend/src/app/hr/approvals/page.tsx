@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   UserCheck,
 } from 'lucide-react';
+import ActionModal from '@/components/ui/ActionModal';
 
 type InboxView = 'pending' | 'completed';
 type RequestType = 'all' | 'onboarding' | 'leave' | 'travel' | 'overtime' | 'regularization';
@@ -110,6 +111,7 @@ export default function HrApprovalsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [flash, setFlash] = useState<Flash>(null);
+  const [remarksTarget, setRemarksTarget] = useState<{ item: ApprovalItem; action: string } | null>(null);
   const [inbox, setInbox] = useState<InboxData>({
     view: 'pending',
     request_type: 'all',
@@ -142,14 +144,11 @@ export default function HrApprovalsPage() {
     setRefreshing(false);
   }
 
-  async function runAction(item: ApprovalItem, action: string) {
+  async function runAction(item: ApprovalItem, action: string, extra?: Record<string, string>) {
     const needsRemarks = action === 'approve' || action === 'reject';
     let remarks = '';
     if (needsRemarks) {
-      const promptLabel = action === 'approve' ? 'Approval remarks (optional)' : 'Rejection remarks';
-      const response = window.prompt(promptLabel, action === 'approve' ? '' : item.remarks || '');
-      if (response === null) return;
-      remarks = response.trim();
+      remarks = extra?.remarks || '';
       if (action === 'reject' && !remarks) return;
     }
 
@@ -285,10 +284,10 @@ export default function HrApprovalsPage() {
                           <button onClick={() => void runAction(item, 'review')} disabled={busyAction === `${item.workflow_type}:${item.name}:review`} className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-600 disabled:opacity-60">{busyAction === `${item.workflow_type}:${item.name}:review` ? 'Working...' : 'Review'}</button>
                         ) : null}
                         {item.actions.includes('approve') ? (
-                          <button onClick={() => void runAction(item, 'approve')} disabled={busyAction === `${item.workflow_type}:${item.name}:approve`} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-60">{busyAction === `${item.workflow_type}:${item.name}:approve` ? 'Working...' : 'Approve'}</button>
+                          <button onClick={() => setRemarksTarget({ item, action: 'approve' })} disabled={busyAction === `${item.workflow_type}:${item.name}:approve`} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-60">{busyAction === `${item.workflow_type}:${item.name}:approve` ? 'Working...' : 'Approve'}</button>
                         ) : null}
                         {item.actions.includes('reject') ? (
-                          <button onClick={() => void runAction(item, 'reject')} disabled={busyAction === `${item.workflow_type}:${item.name}:reject`} className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-700 disabled:opacity-60">{busyAction === `${item.workflow_type}:${item.name}:reject` ? 'Working...' : 'Reject'}</button>
+                          <button onClick={() => setRemarksTarget({ item, action: 'reject' })} disabled={busyAction === `${item.workflow_type}:${item.name}:reject`} className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-700 disabled:opacity-60">{busyAction === `${item.workflow_type}:${item.name}:reject` ? 'Working...' : 'Reject'}</button>
                         ) : null}
                         <Link href={item.path} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">Open</Link>
                       </div>
@@ -300,6 +299,20 @@ export default function HrApprovalsPage() {
           </div>
         )}
       </div>
+
+      <ActionModal
+        open={remarksTarget !== null}
+        title={remarksTarget?.action === 'approve' ? 'Approve Request' : 'Reject Request'}
+        description={`${remarksTarget?.action === 'approve' ? 'Approve' : 'Reject'} ${remarksTarget?.item.title || ''}?`}
+        confirmLabel={remarksTarget?.action === 'approve' ? 'Approve' : 'Reject'}
+        variant={remarksTarget?.action === 'reject' ? 'danger' : 'success'}
+        fields={[{ name: 'remarks', label: remarksTarget?.action === 'approve' ? 'Remarks (optional)' : 'Rejection Remarks', type: 'textarea' }]}
+        onCancel={() => setRemarksTarget(null)}
+        onConfirm={async (values) => {
+          if (remarksTarget) await runAction(remarksTarget.item, remarksTarget.action, { remarks: values.remarks || '' });
+          setRemarksTarget(null);
+        }}
+      />
     </div>
   );
 }

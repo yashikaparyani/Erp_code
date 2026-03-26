@@ -1,0 +1,133 @@
+{
+ "actions": [],
+ "autoname": "naming_series:",
+ "creation": "2026-03-26 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "stage",
+  "document_category",
+  "document_subcategory",
+  "cb_req",
+  "is_mandatory",
+  "scope_level",
+  "sb_ownership",
+  "uploader_role",
+  "reviewer_role",
+  "sb_meta",
+  "description"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "DREQ-.#####"
+  },
+  {
+   "fieldname": "stage",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Stage",
+   "options": "Survey\nBOM_BOQ\nDrawing\nIndent\nQuotation_Vendor_Comparison\nPO\nDispatch\nGRN_Inventory\nExecution\nCommissioning\nO_M\nSLA\nRMA\nCommercial\nClosure",
+   "reqd": 1
+  },
+  {
+   "fieldname": "document_category",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Document Category",
+   "options": "Survey\nEngineering\nProcurement\nExecution\nCommissioning\nO&M\nFinance\nHR\nDispatch\nGRN_Inventory\nSLA\nRMA\nCommercial\nApprovals\nOther",
+   "reqd": 1
+  },
+  {
+   "fieldname": "document_subcategory",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Document Subcategory",
+   "options": "\nsurvey_form\nsite_photos\nmeasurements\ncoordinates\nsurvey_notes\nbom_draft\nboq_draft\nboq_approved\ncalculation_sheet\nsite_drawing\nlayout_drawing\nissued_for_review\nissued_for_execution\nrevised_drawing\nindent_support\nitem_requirement\nvendor_quotation\ncomparison_sheet\npurchase_order\napproval_note\ndispatch_challan\nlr_proof\npacking_list\ngrn\nreceipt_proof\ndpr\ninstallation_checklist\ntest_report\ncommissioning_report\nsignoff\nsla_profile\nmaintenance_report\nrma_proof\nother"
+  },
+  {
+   "fieldname": "cb_req",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "is_mandatory",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Mandatory"
+  },
+  {
+   "default": "Project",
+   "fieldname": "scope_level",
+   "fieldtype": "Select",
+   "label": "Scope Level",
+   "options": "Project\nSite"
+  },
+  {
+   "fieldname": "sb_ownership",
+   "fieldtype": "Section Break",
+   "label": "Ownership"
+  },
+  {
+   "fieldname": "uploader_role",
+   "fieldtype": "Data",
+   "label": "Who Uploads (Role)"
+  },
+  {
+   "fieldname": "reviewer_role",
+   "fieldtype": "Data",
+   "label": "Who Reviews (Role)"
+  },
+  {
+   "fieldname": "sb_meta",
+   "fieldtype": "Section Break",
+   "label": "Details"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-03-26 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE Document Requirement",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1, "delete": 1, "email": 1, "export": 1,
+   "print": 1, "read": 1, "report": 1,
+   "role": "System Manager", "share": 1, "write": 1
+  },
+  {
+   "read": 1, "report": 1,
+   "role": "Director", "write": 1, "create": 1
+  },
+  {
+   "read": 1, "report": 1,
+   "role": "Department Head"
+  },
+  {
+   "read": 1, "report": 1,
+   "role": "Project Head"
+  },
+  {
+   "read": 1, "report": 1,
+   "role": "Project Manager"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "ASC",
+ "states": [],
+ "track_changes": 1
+}

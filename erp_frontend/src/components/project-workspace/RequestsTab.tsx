@@ -8,6 +8,7 @@ import {
 import { callOps } from './pm-helpers';
 import { useAccessibleOverlay } from '@/lib/useAccessibleOverlay';
 import { sanitizeRichText } from '@/lib/sanitizeRichText';
+import { useRole } from '../../context/RoleContext';
 
 /* ── Types ── */
 
@@ -70,6 +71,7 @@ const TYPE_SHORT: Record<string, string> = {
 /* ── Component ── */
 
 export default function RequestsTab({ projectId }: { projectId: string }) {
+  const { currentRole } = useRole();
   const [requests, setRequests] = useState<PMRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -104,6 +106,8 @@ export default function RequestsTab({ projectId }: { projectId: string }) {
       ((form.request_type === 'Hold Recommendation' || form.request_type === 'Escalation Memo') &&
         !!form.description.trim() && !!form.justification.trim())
     );
+  const canReviewRequests = currentRole === 'Project Head' || currentRole === 'Department Head' || currentRole === 'Director';
+  const canCreateRequests = currentRole === 'Project Manager' || currentRole === 'Project Head';
 
   /* ── Load ── */
 
@@ -231,9 +235,11 @@ export default function RequestsTab({ projectId }: { projectId: string }) {
           <button onClick={() => void load()} className="btn btn-secondary text-xs">
             <RefreshCcw className="h-3.5 w-3.5" /> Refresh
           </button>
-          <button onClick={() => setShowCreate(true)} className="btn btn-primary text-xs">
-            <Plus className="h-3.5 w-3.5" /> New Request
-          </button>
+          {canCreateRequests ? (
+            <button onClick={() => setShowCreate(true)} className="btn btn-primary text-xs">
+              <Plus className="h-3.5 w-3.5" /> New Request
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -294,6 +300,7 @@ export default function RequestsTab({ projectId }: { projectId: string }) {
           onClose={() => setDetail(null)}
           onAction={doAction}
           actionLoading={actionLoading}
+          canReviewRequests={canReviewRequests}
         />
       )}
 
@@ -318,12 +325,13 @@ export default function RequestsTab({ projectId }: { projectId: string }) {
    ═══════════════════════════════════════════════════════════ */
 
 function DetailDrawer({
-  req, onClose, onAction, actionLoading,
+  req, onClose, onAction, actionLoading, canReviewRequests,
 }: {
   req: PMRequest;
   onClose: () => void;
   onAction: (action: string, name: string, remarks?: string) => void;
   actionLoading: string;
+  canReviewRequests: boolean;
 }) {
   const [remarks, setRemarks] = useState('');
   const busy = actionLoading === req.name;
@@ -465,7 +473,7 @@ function DetailDrawer({
                     </button>
                   </>
                 )}
-                {req.status === 'Pending' && (
+                {req.status === 'Pending' && canReviewRequests && (
                   <>
                     <button
                       type="button"
@@ -492,6 +500,15 @@ function DetailDrawer({
                       Withdraw
                     </button>
                   </>
+                )}
+                {req.status === 'Pending' && !canReviewRequests && (
+                  <button
+                    disabled={busy}
+                    onClick={() => onAction('withdraw_pm_request', req.name)}
+                    className="btn btn-secondary text-xs"
+                  >
+                    Withdraw
+                  </button>
                 )}
               </div>
             </div>

@@ -14,6 +14,7 @@ import {
   Waves,
   XCircle,
 } from 'lucide-react';
+import ActionModal from '@/components/ui/ActionModal';
 
 type EmployeeOption = {
   name: string;
@@ -293,6 +294,7 @@ export default function HrAttendancePage() {
   const [allocationForm, setAllocationForm] = useState(INITIAL_ALLOCATION_FORM);
   const [regularizationForm, setRegularizationForm] = useState(INITIAL_REGULARIZATION_FORM);
   const [working, setWorking] = useState<string | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<{ id: string; type: 'leave' | 'regularization' } | null>(null);
 
   const employeeOptions = useMemo(() => employees.map((employee) => ({ value: employee.name, label: `${employee.employee_name} (${employee.name})` })), [employees]);
 
@@ -454,10 +456,10 @@ export default function HrAttendancePage() {
     }
   }
 
-  async function runLeaveAction(id: string, action: 'submit' | 'approve' | 'reject' | 'reopen') {
+  async function runLeaveAction(id: string, action: 'submit' | 'approve' | 'reject' | 'reopen', extra?: Record<string, string>) {
     setWorking(`leave-${id}-${action}`);
     try {
-      const reason = action === 'reject' ? window.prompt('Enter rejection reason')?.trim() : undefined;
+      const reason = action === 'reject' ? extra?.reason : undefined;
       if (action === 'reject' && !reason) return;
       const res = await fetch(`/api/hr/leave/applications/${encodeURIComponent(id)}/actions`, {
         method: 'POST',
@@ -475,10 +477,10 @@ export default function HrAttendancePage() {
     }
   }
 
-  async function runRegularizationAction(id: string, action: 'submit' | 'approve' | 'reject' | 'reopen') {
+  async function runRegularizationAction(id: string, action: 'submit' | 'approve' | 'reject' | 'reopen', extra?: Record<string, string>) {
     setWorking(`regularization-${id}-${action}`);
     try {
-      const reason = action === 'reject' ? window.prompt('Enter rejection reason')?.trim() : undefined;
+      const reason = action === 'reject' ? extra?.reason : undefined;
       if (action === 'reject' && !reason) return;
       const res = await fetch(`/api/hr/regularizations/${encodeURIComponent(id)}/actions`, {
         method: 'POST',
@@ -658,7 +660,7 @@ export default function HrAttendancePage() {
                         <div className="flex flex-wrap gap-2">
                           {item.leave_status === 'DRAFT' ? <button onClick={() => void runLeaveAction(item.name, 'submit')} className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-700">Submit</button> : null}
                           {item.leave_status === 'SUBMITTED' ? <button onClick={() => void runLeaveAction(item.name, 'approve')} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700">Approve</button> : null}
-                          {item.leave_status === 'SUBMITTED' ? <button onClick={() => void runLeaveAction(item.name, 'reject')} className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-700">Reject</button> : null}
+                          {item.leave_status === 'SUBMITTED' ? <button onClick={() => setRejectTarget({ id: item.name, type: 'leave' })} className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-700">Reject</button> : null}
                           {(item.leave_status === 'SUBMITTED' || item.leave_status === 'REJECTED') ? <button onClick={() => void runLeaveAction(item.name, 'reopen')} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">Back To Draft</button> : null}
                         </div>
                       </td>
@@ -861,7 +863,7 @@ export default function HrAttendancePage() {
                         <div className="flex flex-wrap gap-2">
                           {item.regularization_status === 'DRAFT' ? <button onClick={() => void runRegularizationAction(item.name, 'submit')} className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-700">Submit</button> : null}
                           {item.regularization_status === 'SUBMITTED' ? <button onClick={() => void runRegularizationAction(item.name, 'approve')} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700">Approve</button> : null}
-                          {item.regularization_status === 'SUBMITTED' ? <button onClick={() => void runRegularizationAction(item.name, 'reject')} className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-700">Reject</button> : null}
+                          {item.regularization_status === 'SUBMITTED' ? <button onClick={() => setRejectTarget({ id: item.name, type: 'regularization' })} className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-700">Reject</button> : null}
                           {(item.regularization_status === 'SUBMITTED' || item.regularization_status === 'REJECTED') ? <button onClick={() => void runRegularizationAction(item.name, 'reopen')} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">Back To Draft</button> : null}
                         </div>
                       </td>
@@ -873,6 +875,23 @@ export default function HrAttendancePage() {
           </SectionCard>
         </div>
       ) : null}
+
+      <ActionModal
+        open={rejectTarget !== null}
+        title={rejectTarget?.type === 'leave' ? 'Reject Leave Application' : 'Reject Regularization'}
+        description={`Reject ${rejectTarget?.id}?`}
+        confirmLabel="Reject"
+        variant="danger"
+        fields={[{ name: 'reason', label: 'Rejection Reason', type: 'textarea' }]}
+        onCancel={() => setRejectTarget(null)}
+        onConfirm={async (values) => {
+          if (rejectTarget) {
+            if (rejectTarget.type === 'leave') await runLeaveAction(rejectTarget.id, 'reject', { reason: values.reason || '' });
+            else await runRegularizationAction(rejectTarget.id, 'reject', { reason: values.reason || '' });
+          }
+          setRejectTarget(null);
+        }}
+      />
     </div>
   );
 }

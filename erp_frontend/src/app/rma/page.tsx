@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { AlertTriangle, FileCheck2, Plus, RefreshCcw, ShieldCheck, Truck, Wrench, X } from 'lucide-react';
+import ActionModal from '@/components/ui/ActionModal';
 
 interface RMATracker {
   name: string;
@@ -90,9 +91,10 @@ export default function RMAPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [busyName, setBusyName] = useState<string | null>(null);
+  const [workflowTarget, setWorkflowTarget] = useState<{ name: string; method: string; label: string } | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<string | null>(null);
 
   const handleWorkflow = async (rmaName: string, method: string, label: string) => {
-    if (!confirm(`${label} RMA "${rmaName}"?`)) return;
     setBusyName(rmaName);
     try {
       await fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method, args: { name: rmaName } }) });
@@ -152,14 +154,14 @@ export default function RMAPage() {
     }
   };
 
-  const runRmaAction = async (name: string, action: 'approve' | 'reject' | 'close' | 'status', newStatus?: string) => {
+  const runRmaAction = async (name: string, action: 'approve' | 'reject' | 'close' | 'status', newStatus?: string, extra?: Record<string, string>) => {
     const response = await fetch('/api/rma-trackers', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name,
         action,
-        reason: action === 'reject' ? prompt('Reject reason') || '' : '',
+        reason: action === 'reject' ? (extra?.reason || '') : '',
         new_status: newStatus || '',
       }),
     });
@@ -266,7 +268,7 @@ export default function RMAPage() {
                   <td>
                     <div className="flex flex-wrap gap-2">
                       {item.rma_status === 'PENDING' ? <button className="text-xs font-medium text-green-600" onClick={() => void runRmaAction(item.name, 'approve')}>Approve</button> : null}
-                      {item.rma_status === 'PENDING' ? <button className="text-xs font-medium text-red-600" onClick={() => void runRmaAction(item.name, 'reject')}>Reject</button> : null}
+                      {item.rma_status === 'PENDING' ? <button className="text-xs font-medium text-red-600" onClick={() => setRejectTarget(item.name)}>Reject</button> : null}
                       {item.rma_status === 'APPROVED' ? <button className="text-xs font-medium text-amber-600" onClick={() => void runRmaAction(item.name, 'status', 'IN_TRANSIT')}>In Transit</button> : null}
                       {(item.rma_status === 'REPAIRED' || item.rma_status === 'REPLACED' || item.rma_status === 'REJECTED') ? <button className="text-xs font-medium text-blue-600" onClick={() => void runRmaAction(item.name, 'close')}>Close</button> : null}
                     </div>
@@ -275,12 +277,12 @@ export default function RMAPage() {
                     <div className="flex flex-wrap gap-1">
                       {(!item.approval_status || item.approval_status === 'PENDING') && (
                         <>
-                          <button onClick={() => handleWorkflow(item.name, 'approve_rma', 'Approve')} disabled={busyName === item.name} className="px-2 py-1 text-xs font-medium text-green-700 bg-green-50 rounded hover:bg-green-100 disabled:opacity-50">Approve</button>
-                          <button onClick={() => handleWorkflow(item.name, 'reject_rma', 'Reject')} disabled={busyName === item.name} className="px-2 py-1 text-xs font-medium text-red-700 bg-red-50 rounded hover:bg-red-100 disabled:opacity-50">Reject</button>
+                          <button onClick={() => setWorkflowTarget({ name: item.name, method: 'approve_rma', label: 'Approve' })} disabled={busyName === item.name} className="px-2 py-1 text-xs font-medium text-green-700 bg-green-50 rounded hover:bg-green-100 disabled:opacity-50">Approve</button>
+                          <button onClick={() => setWorkflowTarget({ name: item.name, method: 'reject_rma', label: 'Reject' })} disabled={busyName === item.name} className="px-2 py-1 text-xs font-medium text-red-700 bg-red-50 rounded hover:bg-red-100 disabled:opacity-50">Reject</button>
                         </>
                       )}
                       {item.rma_status !== 'CLOSED' && (
-                        <button onClick={() => handleWorkflow(item.name, 'close_rma', 'Close')} disabled={busyName === item.name} className="px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50">Close</button>
+                        <button onClick={() => setWorkflowTarget({ name: item.name, method: 'close_rma', label: 'Close' })} disabled={busyName === item.name} className="px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50">Close</button>
                       )}
                     </div>
                   </td>
@@ -378,6 +380,34 @@ export default function RMAPage() {
           </div>
         </div>
       )}
+
+      <ActionModal
+        open={workflowTarget !== null}
+        title={`${workflowTarget?.label} RMA`}
+        description={`${workflowTarget?.label} RMA "${workflowTarget?.name}"?`}
+        confirmLabel={workflowTarget?.label || 'Confirm'}
+        variant={workflowTarget?.label === 'Reject' ? 'danger' : 'default'}
+        fields={[]}
+        onCancel={() => setWorkflowTarget(null)}
+        onConfirm={async () => {
+          if (workflowTarget) await handleWorkflow(workflowTarget.name, workflowTarget.method, workflowTarget.label);
+          setWorkflowTarget(null);
+        }}
+      />
+
+      <ActionModal
+        open={rejectTarget !== null}
+        title="Reject RMA"
+        description={`Reject RMA "${rejectTarget}"?`}
+        confirmLabel="Reject"
+        variant="danger"
+        fields={[{ name: 'reason', label: 'Reject Reason', type: 'textarea' }]}
+        onCancel={() => setRejectTarget(null)}
+        onConfirm={async (values) => {
+          if (rejectTarget) await runRmaAction(rejectTarget, 'reject', undefined, { reason: values.reason || '' });
+          setRejectTarget(null);
+        }}
+      />
     </div>
   );
 }

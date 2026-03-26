@@ -87,6 +87,7 @@ export default function ApprovalsPage() {
     if (approvalFor.includes('proforma')) return 'proforma';
     if (approvalType === 'tender approval' || approvalFor.includes('tender approval')) return 'tender_approval';
     if (approvalFor.includes('vendor comparison')) return 'vendor_comparison';
+    if (approvalType === 'indent' || approvalFor.includes('indent')) return 'indent';
     return '';
   };
 
@@ -178,6 +179,7 @@ export default function ApprovalsPage() {
 
   const getActionLabels = (row: ApprovalData) => {
     const normalized = row.approval_for.toLowerCase();
+    if (normalized.includes('indent')) return { approve: 'Accept', reject: 'Reject' };
     if (normalized.includes('go_no_go')) return { approve: 'Go', reject: 'No Go' };
     if (normalized.includes('technical')) return { approve: 'Approve Technical', reject: 'Reject Technical' };
     return { approve: 'Approve', reject: 'Reject' };
@@ -431,7 +433,13 @@ export default function ApprovalsPage() {
             <button className="btn btn-secondary" onClick={() => setDialog(null)}>Cancel</button>
             <button
               className="btn btn-primary"
-              disabled={dialog?.mode !== 'reject' || processingId === dialog.row.id}
+              disabled={
+                dialog?.mode !== 'reject' ||
+                processingId === dialog.row.id ||
+                (dialog?.mode === 'reject' &&
+                  getApprovalKind(dialog.row) === 'indent' &&
+                  dialog.value.trim().length === 0)
+              }
               onClick={() => dialog?.mode === 'reject' ? void runApproval(dialog.row, 'reject', dialog.value.trim()) : undefined}
             >
               {dialog?.mode === 'reject' && processingId === dialog.row.id ? 'Rejecting...' : 'Confirm Reject'}
@@ -441,7 +449,7 @@ export default function ApprovalsPage() {
       >
         {dialog?.mode === 'reject' ? (
           <div className="space-y-3">
-            <p className="text-sm text-gray-600">Add an optional reason for rejecting <span className="font-medium text-gray-900">{dialog.row.id}</span>.</p>
+            <p className="text-sm text-gray-600">Add a written reason for rejecting <span className="font-medium text-gray-900">{dialog.row.id}</span>.</p>
             <textarea
               className="input min-h-28"
               placeholder="Reason for rejection"

@@ -1,452 +1,511 @@
 # Project Manager Workspace Spec
 
-Date: 2026-03-23
+Date: 2026-03-24
 
-## Goal
+## Purpose
 
-Define the target project page behavior for `Project Manager` versus `Project Head`.
+This document no longer describes only the ideal target.
 
-The reference behavior is the client-side project page style described from the RISE PMS example.  
-In our ERP:
+It now records:
 
-- `Project Manager` should be the day-to-day project operator
-- `Project Head` should be the approving / controlling authority
+1. the current database condition
+2. the current backend code condition
+3. the current frontend code condition
+4. the current frontend runtime condition
+5. the gap between current implementation and the intended PM/PH operating model
 
-This means the project manager workspace should become the primary execution-facing project page, while the project head layer remains approval-heavy and governance-heavy.
+The main reason for this rewrite is that earlier versions overstated the PM workspace as if it already existed in a rich project-centric form.
 
-## Role Split
+That is not the current truth.
 
-## Project Manager = Client-Side Operational Role
+Also, this document now distinguishes between:
 
-Project Manager should see and actively use:
+- what exists in code
+- what is actually visible in the running app
 
-- project overview
-- reminders
-- private working notes
-- task list
-- task kanban
+Those are not the same right now.
+
+## High-Level Reality
+
+The current implementation has already moved away from giving `Project Manager` the same broad project surface as `Project Head`.
+
+But it has not yet landed on the originally described rich PM project workspace either.
+
+So the current state is:
+
+- `Project Head` has a broad project / governance dashboard and wider cross-project visibility
+- `Project Manager` has some narrowed project-scoped code paths on disk
+- the shared rich project workspace still exists in the product, but it is not currently the primary PM experience
+
+But runtime behavior is still inconsistent.
+
+That distinction is critical.
+
+## Target Operating Model
+
+The business interpretation remains:
+
+- `Project Head` = approval / governance / supervisory layer over multiple PMs
+- `Project Manager` = project-level coordinator and operator
+- central specialist teams = Engineering, Procurement, Finance, I&C, HR
+
+PM should not own HQ specialist systems.
+
+PM should own project-side coordination and submissions such as:
+
+- survey submission to Engineering
+- project-side receiving / GRN follow-through
+- project inventory maintenance
+- material consumption reporting
+- DPR / progress reporting
+- petty cash usage within thresholds
+- formal requests to Project Head
+
+## Current Condition Audit
+
+## 1. Database Condition
+
+## 1.1 PM-Specific Schema That Exists
+
+The database model now includes PM-specific or PM-relevant DocTypes for the narrowed project-side flow:
+
+- `GE Project Inventory`
+- `GE Material Consumption Report`
+- `GE PM Request`
+- `GE Petty Cash`
+- `GE DPR`
+- `GE Project Issue`
+- `GE Project Staffing Assignment`
+
+These models are already present in the codebase under:
+
+- [ge_project_inventory.json](/workspace/development/Erp_code/backend/gov_erp/gov_erp/gov_erp/doctype/ge_project_inventory/ge_project_inventory.json)
+- [ge_material_consumption_report.json](/workspace/development/Erp_code/backend/gov_erp/gov_erp/gov_erp/doctype/ge_material_consumption_report/ge_material_consumption_report.json)
+- [ge_pm_request.json](/workspace/development/Erp_code/backend/gov_erp/gov_erp/gov_erp/doctype/ge_pm_request/ge_pm_request.json)
+- [ge_petty_cash.json](/workspace/development/Erp_code/backend/gov_erp/gov_erp/gov_erp/doctype/ge_petty_cash/ge_petty_cash.json)
+- [ge_dpr.json](/workspace/development/Erp_code/backend/gov_erp/gov_erp/gov_erp/doctype/ge_dpr/ge_dpr.json)
+
+## 1.2 What This Means
+
+The schema already supports the narrower PM model better than the older broad shared-project model.
+
+In particular:
+
+- `GE Project Inventory` supports project-level stock truth
+- `GE Material Consumption Report` supports project-level consumption reporting
+- `GE DPR` supports PM-to-PH progress reporting
+- `GE PM Request` supports PM-to-PH formal escalation / approval flows
+- `GE Petty Cash` already exists as a project-linked operational record
+
+## 1.3 Important Database Caveat
+
+Live row-count validation from the shell was not fully available in this pass because the MariaDB host name used by the bench site was not resolvable from this execution context.
+
+So this section is a schema-condition audit, not a fully live row-count audit.
+
+That said, the important architectural truth is still clear:
+
+- the database already contains PM-side supporting models
+- but the database model is still mixed with older broad `Project Manager` permissions on many legacy DocTypes
+
+## 1.4 Database Verdict
+
+Database readiness is `partial but structurally supportive`.
+
+The schema is not the main blocker anymore.
+The bigger blockers are backend permission consistency and frontend workspace shape.
+
+## 2. Backend Code Condition
+
+## 2.1 PM Role Narrowing Exists
+
+The backend now contains explicit PM project-scope helpers in:
+
+- [api.py](/workspace/development/Erp_code/backend/gov_erp/gov_erp/api.py)
+
+Key helpers:
+
+- `_get_project_manager_assigned_projects()`
+- `_apply_project_manager_project_filter(...)`
+- `_ensure_project_manager_project_scope(...)`
+
+These helpers are the current backbone for restricting PM activity to assigned projects only.
+
+## 2.2 PM-Specific Working APIs Exist
+
+The backend already exposes PM-side APIs for the narrowed coordination model:
+
+- `get_project_inventory_records`
+- `record_project_inventory_receipt`
+- `get_material_consumption_reports`
+- `create_material_consumption_report`
+- `get_project_receiving_summary`
+- `get_dprs`
+- `get_dpr`
+- `create_dpr`
+- `update_dpr`
+- `delete_dpr`
+- `get_dpr_stats`
+- petty cash CRUD with assigned-project enforcement
+- PM request workflow methods for submit / approve / reject / withdraw
+
+Relevant backend source:
+
+- [api.py](/workspace/development/Erp_code/backend/gov_erp/gov_erp/api.py)
+
+## 2.3 PM Route Truth Has Been Tightened
+
+The route-gating layer currently denies PM access to broad shared HQ-style surfaces in:
+
+- [permission_engine.py](/workspace/development/Erp_code/backend/gov_erp/gov_erp/permission_engine.py)
+
+The deny list for `Project Manager` explicitly includes:
+
+- `/projects`
+- `/procurement`
+- `/inventory`
+- `/grns`
+- `/petty-cash`
+- `/documents`
+- `/reports`
+- `/execution`
+- `/engineering`
+- `/milestones`
+- `/manpower`
+- `/purchase-orders`
+- `/indents`
+
+This is why the current PM design is no longer the broad shared project workspace.
+
+## 2.4 RBAC Seed Still Shows Architectural Drift
+
+The backend seed still grants PM broad module capabilities by module family in:
+
+- [rbac_seed.py](/workspace/development/Erp_code/backend/gov_erp/gov_erp/rbac_seed.py)
+
+Current PM mappings still include:
+
+- `project_command`
+- `engineering`
+- `procurement`
+- `inventory`
+- `execution_ic`
+- `dms`
+- `reports`
+
+all at `assigned_project` scope.
+
+So the backend currently has two overlapping truths:
+
+1. route truth is narrowed hard
+2. module capability seed still carries older broad PM assumptions
+
+That is one of the main reasons PM behavior feels inconsistent.
+
+## 2.5 Legacy DocType Permission Drift Still Exists
+
+Many DocType JSONs still include `Project Manager` in role permissions for broader records such as:
+
 - milestones
-- gantt/timeline
-- files
-- comments
-- timesheets
-- expenses
-- project staff
+- surveys
+- dispatch challans
+- project documents
+- communication logs
+- DPR
 - petty cash
+- project assets
+- device uptime
+- technical deviations
+- change requests
 
-Project Manager should be able to:
-
-- create and manage tasks
-- assign/collaborate with team members
-- log time
-- upload working files
-- add private notes
-- manage day-to-day project comments
-- raise milestone / deadline extension requests
-- raise staffing requests
-- manage project petty cash usage within approved controls
-
-Project Manager should **not** be the final approver for:
-
-- milestone deadline changes
-- project completion
-- project cancel / hold
-- milestone closure where governance approval is needed
-- budget / petty cash limit changes
-- major staffing approvals
-
-## Project Head = Server-Side Approval / Governance Role
-
-Project Head should control:
-
-- project deadlines
-- milestone deadlines
-- project status changes
-- extension approvals / rejections
-- major staffing approvals
-- project completion / hold / cancel actions
-- approval of sensitive commercial or execution changes
-
-Project Head should be able to:
-
-- set initial project deadline
-- set or revise milestone deadlines
-- approve or reject timeline extension requests
-- approve or reject sensitive petty cash escalation
-- approve or reject staff changes where policy requires it
-- review audit trail of PM requests with written reasons
-
-## Core Workflow Rule
-
-Project Head sets deadlines.  
-Project Manager executes within those deadlines.
-
-If Project Manager needs more time:
-
-1. PM raises a `timeline extension request`
-2. PM enters:
-   - target project or milestone
-   - requested new deadline
-   - written reason
-   - optional attachment/evidence
-3. Request goes to Project Head
-4. Project Head:
-   - approves, or
-   - rejects with remarks
-5. On approval:
-   - project/milestone deadline updates
-   - activity log records who changed what
-   - PM sees final decision in workspace activity / alerts
-
-This same pattern should apply to:
-
-- milestone extension
-- project hold / reopen requests
-- key staffing escalation
-
-## Required PM Workspace Tabs
+This means:
 
-These are the target tabs/subsections the Project Manager project page should expose.
+- route-level PM experience has been tightened
+- document-level role memberships are still not fully refactored to the new PM philosophy
 
-## 1. Overview
+## 2.6 Backend Verdict
 
-Should include:
+Backend condition is `mixed`.
 
-- project title
-- favourite/star
-- project stats
-- progress ring / progress summary
-- start date
-- deadline
-- status
-- total hours worked
-- project description
-- project members
-- activity feed preview
+Good:
 
-PM actions:
+- PM assigned-project scoping exists
+- PM-side APIs exist for DPR, project inventory, petty cash, and material consumption
+- route gating already blocks many wrong global pages
 
-- edit descriptive fields where allowed
-- add/remove members where policy allows
-- raise extension request
-- start/stop timer
+Not good:
 
-PH actions:
+- RBAC seed and many DocType permissions still carry the older broader PM assumption
+- backend truth is therefore not yet conceptually clean
 
-- approve changes requiring governance
-- finalize project status changes
+## 3. Frontend Code Condition
 
-## 2. Tasks List
+## 3.1 PM Code Path No Longer Intends To Use Project Head Dashboard
 
-Should include:
+The home route now renders a dedicated PM dashboard in:
 
-- labels
-- batch update
-- add task
-- add multiple tasks
-- filters
-- column toggle
-- export / print
-- search
+- [page.tsx](/workspace/development/Erp_code/erp_frontend/src/app/page.tsx)
+- [ProjectManagerDashboard.tsx](/workspace/development/Erp_code/erp_frontend/src/components/dashboards/ProjectManagerDashboard.tsx)
 
-Task fields should include:
+This means the code on disk intends to show a PM-specific dashboard.
 
-- title
-- description
-- points
-- milestone
-- assign to
-- collaborators
-- status
-- priority
-- labels
-- start date
-- deadline
-- upload file
+It does **not** prove that the running app is actually showing that dashboard.
 
-PM owns:
+## 3.2 Current PM Frontend Code Is a Narrow Coordination Mini-Suite
 
-- task creation
-- assignment
-- status updates
-- collaboration
+The PM dashboard and sidebar currently frame PM as a coordinator with four direct work lanes:
 
-PH owns:
+- `Survey Submission`
+- `Project Inventory`
+- `Project Petty Cash`
+- `DPR & Progress`
 
-- approval only where business policy requires escalation
+Relevant frontend files:
 
-## 3. Tasks Kanban
+- [ProjectManagerDashboard.tsx](/workspace/development/Erp_code/erp_frontend/src/components/dashboards/ProjectManagerDashboard.tsx)
+- [Sidebar.tsx](/workspace/development/Erp_code/erp_frontend/src/components/Sidebar.tsx)
+- [RoleContext.tsx](/workspace/development/Erp_code/erp_frontend/src/context/RoleContext.tsx)
 
-Should include:
+Current PM frontend access list is:
 
-- To Do
-- In Progress
-- Done
-- drag/drop state changes
-- search
-- filters
-- refresh
+- `/`
+- `/notifications`
+- `/survey`
+- `/project-manager/dpr`
+- `/project-manager/inventory`
+- `/project-manager/petty-cash`
 
-PM owns this as the live execution board.
+That is the frontend code truth right now.
 
-## 4. Milestones
+## 3.3 PM-Specific Pages That Exist In Code
 
-Should include:
+There are currently three PM-specific project-side pages:
 
-- due date
-- title
-- progress
-- action menu
+- [project-manager/inventory/page.tsx](/workspace/development/Erp_code/erp_frontend/src/app/project-manager/inventory/page.tsx)
+- [project-manager/petty-cash/page.tsx](/workspace/development/Erp_code/erp_frontend/src/app/project-manager/petty-cash/page.tsx)
+- [project-manager/dpr/page.tsx](/workspace/development/Erp_code/erp_frontend/src/app/project-manager/dpr/page.tsx)
 
-PM can:
+These pages are all assigned-project-driven and avoid opening the broad HQ pages.
 
-- create milestone proposals or operational milestones if allowed
-- update progress
-- request date change
+### PM Inventory Page
 
-PH can:
+Current behavior:
 
-- approve milestone creation where policy requires
-- set/finalize due dates
-- approve extension requests
+- selects from assigned projects only
+- reads project inventory records
+- reads project receiving summary
+- reads material consumption reports
+- allows project-side receipt update
+- allows material consumption report submission
 
-## 5. Gantt / Timeline
+This page is trying to combine:
 
-Should include:
+- project inventory
+- project GRN / receipt follow-through
+- project consumption reporting
 
-- group by milestone / team member
-- assigned-to filter
-- milestone filter
-- status filter
-- day/week/month views
+That is directionally correct, but still not the richer project-workspace shape described in the earlier markdown.
 
-This is primarily PM-facing for planning and execution visibility.
+### PM Petty Cash Page
 
-## 6. Notes (Private)
+Current behavior:
 
-Private PM notes:
+- selects from assigned projects only
+- loads petty cash only for selected assigned project
+- allows creation of project-linked petty cash entry
 
-- title
-- description / rich text
-- files
+This is aligned with the “petty cash should move to PM project context” idea.
 
-Only visible to creator or policy-defined owner.
+### PM DPR Page
 
-## 7. Files
+Current behavior:
 
-Should include:
+- selects from assigned projects only
+- loads DPRs for selected assigned project
+- loads project sites
+- allows new DPR submission
 
-- file list
-- category
-- upload
-- category management
-- filters
-- search
+This page explicitly states that it replaces the shared execution command view for PM.
 
-PM owns daily operational files.  
-PH can review and govern sensitive project documents where needed.
+## 3.4 Shared Rich Project Workspace Still Exists In Code, But PM Is Not Using It As Primary Code Path
 
-## 8. Comments
+The rich shared project workspace still exists via:
 
-Should include:
+- [WorkspaceShell.tsx](/workspace/development/Erp_code/erp_frontend/src/components/project-workspace/WorkspaceShell.tsx)
+- [projects/[id]/page.tsx](/workspace/development/Erp_code/erp_frontend/src/app/projects/[id]/page.tsx)
 
-- project comment composer
-- attachments
-- threaded discussion
+Department project workspaces also still exist for:
 
-PM uses this for operational collaboration.
+- Engineering
+- Procurement
+- Execution
+- HR
+- Finance
+- O&M
 
-## 9. Timesheets
+But PM is not currently implemented as a project-scoped version of that workspace.
 
-Should include:
+That is the central frontend code truth.
 
-- details
-- summary
-- chart
-- log time
-- task-linked time entries
+## 3.5 Frontend Code Verdict
 
-PM owns day-to-day timesheet logging and tracking.  
-PH reviews through management visibility, not by becoming the primary operator.
+Frontend code condition is `coherent in narrow scope, but not aligned with the original PM workspace spec`.
 
-## 10. Expenses
+What exists now is:
 
-Should include:
+- a PM coordination dashboard
+- three PM-specific operational pages
 
-- expense list
-- category
-- title
-- amount
-- taxes
-- file upload
+What does not exist now is:
 
-This should align with project petty cash / expense controls.
+- a rich assigned-project PM workspace with tabs such as overview, tasks, kanban, milestones, gantt, notes, files, comments, timesheets, expenses, staff, petty cash
 
-## 11. Staff
+## 4. Frontend Runtime Condition
 
-A dedicated `Staff` tab should be added for Project Manager.
+## 4.1 What Was Actually Observed In The Running App
 
-This tab should show:
+The live screenshot evidence shows:
 
-- current assigned staff
-- role / designation
-- department
-- allocation window
-- status
-- staffing notes
+- the logged-in user label says `Project Manager`
+- the visible dashboard is still `Project Head Dashboard`
+- the left navigation is still not reflecting the PM-specific mini-suite described in code
 
-PM actions:
+So the running app is still effectively showing PH-style behavior to PM.
 
-- request staff assignment
-- request replacement / release
-- view staffing history
+## 4.2 What This Means
 
-PH actions:
+The runtime UI does **not** currently match the frontend code description above.
 
-- approve / reject staffing escalation where required
+Possible reasons include:
 
-Recommended backend mapping:
+- stale frontend bundle
+- stale running process
+- cached client assets
+- incomplete deploy / restart
+- route or role state not actually using the latest code path
 
-- use existing project staffing / manpower assignment records where possible
-- do not collapse daily manpower logs and staffing assignment history into one UI concept
+I cannot prove which one from this document alone, so I am not going to pretend to know.
 
-## 12. Petty Cash
+## 4.3 Runtime Verdict
 
-Petty cash should move to the `Project Manager` project workspace level conceptually.
+Runtime frontend condition is `still broken for PM`.
 
-That means:
+The only safe statement is:
 
-- PM sees petty cash as a project operating tool
-- not as a procurement-owned primary control surface
+- PM is still seeing PH-style dashboard behavior in the running app
 
-Procurement may still retain visibility for audit/support, but PM should own day-to-day project petty cash requests and entries.
+That is the effective truth until proven otherwise by a fresh runtime verification.
 
-Recommended behavior:
+## Gap Against The Earlier Spec
 
-- petty cash tab or card inside PM workspace
-- PM can create usage/request entries
-- approval rules still depend on role thresholds
-- PH or finance approves above threshold
+The earlier version of this document described a much richer PM workspace than what is currently implemented.
 
-## Approval Workflows To Add / Clarify
+That earlier spec implied:
 
-## A. Timeline Extension Request
+- PM should live inside a primary project workspace
+- PM should get a client-style cockpit similar to the RISE reference
+- PM should have project tabs for tasks, milestones, timeline, notes, files, comments, timesheets, staff, and petty cash
 
-Fields:
+Current implementation does not match that.
 
-- project
-- milestone optional
-- current deadline
-- requested deadline
-- reason
-- attachment optional
-- request date
-- requested by
-- status
-- approver remarks
+More importantly, current runtime does not even fully match the narrowed PM code path.
 
-States:
+Instead, current code tries to give PM:
 
-- Draft
-- Submitted
-- Approved
-- Rejected
-- Cancelled
+- one coordination dashboard
+- one survey lane
+- one project inventory / receiving lane
+- one petty cash lane
+- one DPR lane
 
-Approver:
+But current runtime still shows a PH-style dashboard.
 
-- Project Head
+So the earlier document was too aspirational relative to both code reality and runtime reality.
 
-## B. Milestone Deadline Change Request
+## Corrected Interpretation
 
-Same pattern as timeline extension, but milestone-specific.
+The right interpretation now is:
 
-## C. Staffing Request
+- PM should not have access to company-wide project lists or HQ-wide shared module pages
+- PM should still eventually have a project-centric workspace
+- but that workspace must be limited to assigned projects only
 
-Fields:
+In other words:
 
-- project
-- role/designation needed
-- quantity
-- required from date
-- required till date
-- reason
-- urgency
-- status
+- not `global /projects`
+- but possibly `My Projects` or direct entry into assigned project(s)
 
-Approver:
+Inside that PM-only project workspace, the eventual tabs should be project-linked only.
 
-- Project Head
-- optionally HR depending on policy
+## What The Current Implementation Is Best Described As
 
-## D. Petty Cash Escalation Approval
+The current PM implementation is best described as:
 
-For cases where PM exceeds a threshold or requests exceptional usage.
+`an attempted interim PM coordination suite in code, but still runtime-broken in the served UI`
 
-Approver:
+That is the most accurate summary of the code today.
 
-- Project Head and/or Accounts
+## Recommended Correct Direction From Here
 
-## Current ERP Direction vs Target
+If the product is to align with the original business intention, the next architectural step should be:
 
-Current direction:
+1. restore a PM project-centric workspace
+2. make it assigned-project-only
+3. keep global HQ modules hidden
+4. move the current PM mini-pages into tabs or sections inside that workspace
 
-- strong shared `WorkspaceShell`
-- project / department workspaces already exist
-- comments, files, activity, milestones, reminders, DMS, and staffing-related pieces already exist in fragments
+That means the final PM experience should probably become:
 
-Target change:
+- `My Projects`
+- open assigned project
+- inside project:
+  - overview
+  - survey submission
+  - project GRN / receipt follow-through
+  - project inventory
+  - material consumption
+  - DPR
+  - petty cash
+  - staff
+  - files
+  - comments
+  - requests to PH
 
-- make `Project Manager` workspace the main client-style operating page
-- move `petty cash` from procurement-first framing to PM project-first framing
-- add `Staff` tab to PM workspace
-- introduce explicit approval requests instead of direct PM authority over deadline changes
+This would preserve the business logic without reopening HQ-wide pages.
 
-## Implementation Direction
+## Final Verdict
 
-## Phase 1
+## Database
 
-Refactor PM project page tabs to include:
+Supports the PM-side model better than before.
 
-- overview
-- tasks list
-- kanban
-- milestones
-- gantt
-- files
-- comments
-- timesheets
-- expenses
-- staff
-- petty cash
+## Backend
 
-## Phase 2
+Has the right PM-specific APIs and assigned-project guards, but still carries legacy role-permission drift.
 
-Move petty cash visibility and entry flow into PM workspace.
+## Frontend Code
 
-Procurement can still keep supporting visibility, but PM should see it in project context first.
+Tries to deliver a narrowed PM coordination suite instead of the rich PM project workspace originally described.
 
-## Phase 3
+## Frontend Runtime
 
-Add `Staff` tab using project staffing assignment history plus related manpower visibility.
-
-## Phase 4
-
-Add `timeline extension request` and `milestone extension request` approval workflow.
-
-## Phase 5
-
-Bind Project Head approvals into:
-
-- alerts
-- activity feed
-- approval inbox
-- audit trail
+Still confuses PM with PH in the running app, based on direct screenshot evidence.
 
 ## Final Rule
 
-The Project Manager page should feel like the client-facing operational cockpit.  
-The Project Head page should feel like the approval and governance layer above it.
+Current truth in code:
 
-Project Manager executes.  
-Project Head authorizes.
+- PM is being refactored toward a narrow project-side coordinator
+- PH is implemented as the broader governance layer
+
+Current truth in runtime:
+
+- PM is still seeing PH-style dashboard behavior
+
+Target truth:
+
+- PM should still become an assigned-project-only project workspace owner
+- PH should remain the approval and governance layer above it
+
+Project Manager executes in project context.  
+Project Head authorizes across projects.

@@ -23,15 +23,15 @@ export default function RouteGuard({ children }: { children: React.ReactNode }) 
   // backend permissions haven't loaded yet.
   if (!isPermissionLoaded || !permissions) {
     if (pathname === '/projects' || pathname.startsWith('/projects/')) {
-      if (!PROJECT_SIDE_ROLES.includes(currentRole)) {
-        return <AccessDenied role={currentRole} path={pathname} />;
+      if (!currentRole || !PROJECT_SIDE_ROLES.includes(currentRole)) {
+        return <AccessDenied role={currentRole ?? 'Guest'} path={pathname} />;
       }
     }
   }
 
   // Check role-based route access (delegates to backend RBAC when loaded)
   if (!hasAccess(pathname)) {
-    return <AccessDenied role={currentRole} path={pathname} />;
+    return <AccessDenied role={currentRole ?? 'Guest'} path={pathname} />;
   }
 
   return <>{children}</>;

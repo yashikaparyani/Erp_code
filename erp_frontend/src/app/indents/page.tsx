@@ -1,6 +1,10 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { ClipboardList, Plus, Clock, CheckCircle2, ShoppingCart, X } from 'lucide-react';
+import { AccountabilityTimeline } from '../../components/accountability/AccountabilityTimeline';
+import { useRole } from '../../context/RoleContext';
+import ActionModal from '@/components/ui/ActionModal';
 
 interface Indent {
   name: string;
@@ -13,6 +17,18 @@ interface Indent {
   docstatus?: number;
   per_ordered?: number;
   creation?: string;
+  project?: string | null;
+  projects?: string[];
+  accountability_status?: string;
+  accountability_owner_role?: string;
+  accountability_owner_user?: string;
+  accountability_latest_event?: string;
+  accountability_assigned_to_role?: string;
+  accountability_assigned_to_user?: string;
+  accountability_is_blocked?: 0 | 1;
+  accountability_blocking_reason?: string;
+  accountability_escalated_to_role?: string;
+  accountability_escalated_to_user?: string;
 }
 
 interface IndentStats {
@@ -26,18 +42,35 @@ interface IndentStats {
 }
 
 function statusBadge(status?: string) {
-  const map: Record<string, string> = { Draft: 'badge-yellow', Pending: 'badge-blue', 'Partially Ordered': 'badge-purple', Ordered: 'badge-green', Transferred: 'badge-green', Cancelled: 'badge-red' };
+  const map: Record<string, string> = {
+    Draft: 'badge-yellow',
+    Pending: 'badge-blue',
+    Submitted: 'badge-blue',
+    Acknowledged: 'badge-purple',
+    Accepted: 'badge-green',
+    Rejected: 'badge-red',
+    'Returned for Revision': 'badge-yellow',
+    Escalated: 'badge-purple',
+    'Partially Ordered': 'badge-purple',
+    Ordered: 'badge-green',
+    Transferred: 'badge-green',
+    Cancelled: 'badge-red',
+  };
   return map[status || ''] || 'badge-gray';
 }
 
 export default function IndentsPage() {
+  const { currentRole } = useRole();
   const [items, setItems] = useState<Indent[]>([]);
   const [stats, setStats] = useState<IndentStats>({});
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [actingOn, setActingOn] = useState('');
+  const [expandedTrace, setExpandedTrace] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [form, setForm] = useState({ material_request_type: 'Purchase', set_warehouse: '', schedule_date: '', project: '' });
+  const [reasonModal, setReasonModal] = useState<{ name: string; action: string; label: string } | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -69,6 +102,40 @@ export default function IndentsPage() {
     }
   };
 
+  const runAction = async (method: string, args: Record<string, string>) => {
+    setError('');
+    setActingOn(args.name || method);
+    try {
+      const res = await fetch('/api/ops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ method, args }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok || !payload.success) throw new Error(payload.message || `Failed to run ${method}`);
+      await loadData();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : `Failed to run ${method}`);
+    } finally {
+      setActingOn('');
+    }
+  };
+
+
+
+  const approvalRoles = new Set(['Project Head', 'Director', 'Department Head']);
+
+  const getWorkflowStatus = (item: Indent) => item.accountability_status || item.status || 'Draft';
+
+  const canSubmit = (item: Indent) =>
+    item.docstatus === 0 && new Set(['Procurement Manager', 'Purchase', 'Project Head', 'Director']).has(currentRole || '');
+
+  const canAcknowledge = (item: Indent) =>
+    approvalRoles.has(currentRole || '') && getWorkflowStatus(item) === 'Submitted';
+
+  const canAcceptOrReject = (item: Indent) =>
+    approvalRoles.has(currentRole || '') && ['Submitted', 'Acknowledged', 'Escalated'].includes(getWorkflowStatus(item));
+
   if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full" /></div>;
 
   return (
@@ -93,20 +160,111 @@ export default function IndentsPage() {
         <div className="card-header"><h3 className="font-semibold text-gray-900">All Indents</h3></div>
         <div className="overflow-x-auto">
           <table className="data-table">
-            <thead><tr><th>Indent #</th><th>Type</th><th>Date</th><th>Required By</th><th>Warehouse</th><th>Status</th><th>% Ordered</th></tr></thead>
+            <thead><tr><th>Indent #</th><th>Project</th><th>Type</th><th>Date</th><th>Required By</th><th>Warehouse</th><th>Workflow</th><th>Action Owner</th><th>% Ordered</th><th>Actions</th></tr></thead>
             <tbody>
               {items.length === 0 ? (
-                <tr><td colSpan={7} className="text-center py-8 text-gray-500">No indent records found</td></tr>
+                <tr><td colSpan={10} className="text-center py-8 text-gray-500">No indent records found</td></tr>
               ) : items.map(item => (
-                <tr key={item.name}>
-                  <td><div className="font-medium text-gray-900">{item.name}</div></td>
-                  <td><div className="text-sm text-gray-700">{item.material_request_type || '-'}</div></td>
-                  <td><div className="text-sm text-gray-700">{item.transaction_date || '-'}</div></td>
-                  <td><div className="text-sm text-gray-700">{item.schedule_date || '-'}</div></td>
-                  <td><div className="text-sm text-gray-700">{item.set_warehouse || '-'}</div></td>
-                  <td><span className={`badge ${statusBadge(item.status)}`}>{item.status || 'Draft'}</span></td>
-                  <td><div className="text-sm text-gray-700">{item.per_ordered?.toFixed(0) ?? 0}%</div></td>
-                </tr>
+                <Fragment key={item.name}>
+                  <tr key={item.name}>
+                    <td><Link href={`/indents/${encodeURIComponent(item.name)}`} className="font-medium text-blue-700 hover:text-blue-900 hover:underline">{item.name}</Link></td>
+                    <td>
+                      <div className="text-sm text-gray-700">{item.project || item.projects?.join(', ') || '-'}</div>
+                    </td>
+                    <td><div className="text-sm text-gray-700">{item.material_request_type || '-'}</div></td>
+                    <td><div className="text-sm text-gray-700">{item.transaction_date || '-'}</div></td>
+                    <td><div className="text-sm text-gray-700">{item.schedule_date || '-'}</div></td>
+                    <td><div className="text-sm text-gray-700">{item.set_warehouse || '-'}</div></td>
+                    <td>
+                      <div className="flex flex-col gap-1">
+                        <span className={`badge ${statusBadge(getWorkflowStatus(item))}`}>{getWorkflowStatus(item)}</span>
+                        {item.accountability_is_blocked ? (
+                          <span className="text-xs text-red-600">{item.accountability_blocking_reason || 'Blocked'}</span>
+                        ) : null}
+                      </div>
+                    </td>
+                    <td>
+                      <div className="text-sm text-gray-700">
+                        {item.accountability_owner_user || item.accountability_assigned_to_user || '-'}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {item.accountability_owner_role || item.accountability_assigned_to_role || '-'}
+                      </div>
+                    </td>
+                    <td><div className="text-sm text-gray-700">{item.per_ordered?.toFixed(0) ?? 0}%</div></td>
+                    <td>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          className="btn btn-secondary !px-3 !py-1.5 !text-xs"
+                          onClick={() => setExpandedTrace(expandedTrace === item.name ? null : item.name)}
+                        >
+                          {expandedTrace === item.name ? 'Hide Trace' : 'Trace'}
+                        </button>
+                        {canSubmit(item) ? (
+                          <button
+                            className="btn btn-primary !px-3 !py-1.5 !text-xs"
+                            disabled={actingOn === item.name}
+                            onClick={() => void runAction('submit_indent', { name: item.name })}
+                          >
+                            Submit
+                          </button>
+                        ) : null}
+                        {canAcknowledge(item) ? (
+                          <button
+                            className="btn btn-secondary !px-3 !py-1.5 !text-xs"
+                            disabled={actingOn === item.name}
+                            onClick={() => void runAction('acknowledge_indent', { name: item.name })}
+                          >
+                            Acknowledge
+                          </button>
+                        ) : null}
+                        {canAcceptOrReject(item) ? (
+                          <>
+                            <button
+                              className="btn btn-primary !px-3 !py-1.5 !text-xs"
+                              disabled={actingOn === item.name}
+                              onClick={() => void runAction('accept_indent', { name: item.name })}
+                            >
+                              Accept
+                            </button>
+                            <button
+                              className="btn btn-secondary !px-3 !py-1.5 !text-xs"
+                              disabled={actingOn === item.name}
+                              onClick={() => setReasonModal({ name: item.name, action: 'reject_indent', label: `Reject ${item.name}` })}
+                            >
+                              Reject
+                            </button>
+                            <button
+                              className="btn btn-secondary !px-3 !py-1.5 !text-xs"
+                              disabled={actingOn === item.name}
+                              onClick={() => setReasonModal({ name: item.name, action: 'return_indent', label: `Return ${item.name} for revision` })}
+                            >
+                              Return
+                            </button>
+                            {currentRole === 'Project Head' || currentRole === 'Director' ? (
+                              <button
+                                className="btn btn-secondary !px-3 !py-1.5 !text-xs"
+                                disabled={actingOn === item.name}
+                                onClick={() => setReasonModal({ name: item.name, action: 'escalate_indent', label: `Escalate ${item.name}` })}
+                              >
+                                Escalate
+                              </button>
+                            ) : null}
+                          </>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                  {expandedTrace === item.name ? (
+                    <tr key={`${item.name}-trace`}>
+                      <td colSpan={10} className="bg-slate-50">
+                        <div className="p-4">
+                          <AccountabilityTimeline subjectDoctype="Material Request" subjectName={item.name} compact={false} initialLimit={6} />
+                        </div>
+                      </td>
+                    </tr>
+                  ) : null}
+                </Fragment>
               ))}
             </tbody>
           </table>
@@ -136,6 +294,23 @@ export default function IndentsPage() {
           </div>
         </div>
       )}
+
+      {/* Reason Modal for reject / return / escalate */}
+      <ActionModal
+        open={!!reasonModal}
+        title={reasonModal?.label || 'Provide Justification'}
+        description="Please enter a written justification for this action."
+        variant={reasonModal?.action === 'reject_indent' ? 'danger' : 'default'}
+        confirmLabel={reasonModal?.action === 'reject_indent' ? 'Reject' : reasonModal?.action === 'return_indent' ? 'Return' : 'Escalate'}
+        fields={[{ name: 'reason', label: 'Justification', type: 'textarea' as const, required: true, placeholder: 'Written justification…' }]}
+        busy={!!actingOn}
+        onConfirm={async (values) => {
+          if (!reasonModal || !values.reason?.trim()) return;
+          await runAction(reasonModal.action, { name: reasonModal.name, reason: values.reason.trim() });
+          setReasonModal(null);
+        }}
+        onCancel={() => setReasonModal(null)}
+      />
     </div>
   );
 }

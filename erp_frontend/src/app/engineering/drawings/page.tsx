@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { ExternalLink, FileText } from 'lucide-react';
 import OpsWorkspace from '../../../components/ops/OpsWorkspace';
 
@@ -30,7 +31,9 @@ export default function DrawingsPage() {
         { label: 'Drawings', path: 'length', hint: 'Loaded drawings', icon: FileText, tone: 'blue' },
       ]}
       columns={[
-        { key: 'name', label: 'Drawing', render: (row) => row.name || '-' },
+        { key: 'name', label: 'Drawing', render: (row) => (
+          <Link href={`/engineering/drawings/${encodeURIComponent(row.name)}`} className="text-blue-600 hover:text-blue-800 font-medium">{row.name || '-'}</Link>
+        ) },
         { key: 'drawing_title', label: 'Title', render: (row) => row.drawing_title || row.title || '-' },
         { key: 'project', label: 'Project', render: (row) => row.project || '-' },
         { key: 'revision_no', label: 'Revision', render: (row) => row.revision_no || '-' },

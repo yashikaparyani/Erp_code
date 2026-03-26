@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { Clock3 } from 'lucide-react';
 import OpsWorkspace from '../../../components/ops/OpsWorkspace';
 
@@ -31,7 +32,7 @@ export default function HrOvertimePage() {
         { label: 'Approved Hours', path: 'total_hours', hint: 'Aggregate hours', icon: Clock3, tone: 'purple' },
       ]}
       columns={[
-        { key: 'name', label: 'Entry', render: (row) => row.name || '-' },
+        { key: 'name', label: 'Entry', render: (row) => <Link href={`/hr/overtime/${encodeURIComponent(row.name)}`} className="text-blue-600 hover:underline font-medium">{row.name || '-'}</Link> },
         { key: 'employee', label: 'Employee', render: (row) => row.employee || '-' },
         { key: 'overtime_date', label: 'Date', render: (row) => row.overtime_date || '-' },
         { key: 'overtime_hours', label: 'Hours', render: (row) => row.overtime_hours || '-' },

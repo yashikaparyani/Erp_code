@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { callFrappeMethod } from '../_lib/frappe';
+import { callFrappeMethod, jsonErrorResponse } from '../_lib/frappe';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
     const sp = request.nextUrl.searchParams;
+
+    // ?count_missed=1 → return badge count of past-due reminders
+    if (sp.get('count_missed') === '1') {
+      const result = await callFrappeMethod('count_missed_reminders', {}, request);
+      return NextResponse.json({ success: true, data: result?.data ?? { count: 0 } });
+    }
+
     const args: Record<string, string> = {};
     if (sp.get('project')) args.project = sp.get('project')!;
     if (sp.get('active_only')) args.active_only = sp.get('active_only')!;
@@ -13,10 +20,7 @@ export async function GET(request: NextRequest) {
     const result = await callFrappeMethod('get_reminders', args, request);
     return NextResponse.json(result);
   } catch (error) {
-    return NextResponse.json(
-      { success: false, message: error instanceof Error ? error.message : 'Failed to fetch reminders', data: [] },
-      { status: 500 }
-    );
+    return jsonErrorResponse(error, 'Failed to fetch reminders');
   }
 }
 
@@ -26,6 +30,7 @@ export async function POST(request: NextRequest) {
     const { action, ...params } = body;
 
     if (action === 'create') {
+      // shared_with is forwarded if provided
       const result = await callFrappeMethod('create_user_reminder', params, request);
       return NextResponse.json(result);
     }
@@ -59,9 +64,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: false, message: 'Invalid action' }, { status: 400 });
   } catch (error) {
-    return NextResponse.json(
-      { success: false, message: error instanceof Error ? error.message : 'Failed to process reminder action' },
-      { status: 500 }
-    );
+    return jsonErrorResponse(error, 'Reminder action failed');
   }
 }
