@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { CheckCircle, ClipboardList, ExternalLink, FileText, Plus, X } from 'lucide-react';
 
 interface TestReport {
@@ -253,7 +254,7 @@ export default function CommissioningTestReportsPage() {
                 ) : reports.map(r => (
                   <tr key={r.name}>
                     <td>
-                      <div className="font-medium text-gray-900">{r.report_name || r.name}</div>
+                      <Link href={`/execution/commissioning/test-reports/${encodeURIComponent(r.name)}`} className="font-medium text-blue-700 hover:text-blue-900 hover:underline">{r.report_name || r.name}</Link>
                       <div className="text-xs text-gray-500">{r.name}</div>
                     </td>
                     <td>
@@ -316,7 +317,7 @@ export default function CommissioningTestReportsPage() {
                   const pct = totalItems ? Math.round((doneItems / totalItems) * 100) : 0;
                   return (
                     <tr key={c.name}>
-                      <td><div className="font-medium text-gray-900">{c.name}</div></td>
+                      <td><Link href={`/execution/commissioning/checklists/${encodeURIComponent(c.name)}`} className="font-medium text-blue-700 hover:text-blue-900 hover:underline">{c.name}</Link></td>
                       <td><div className="text-sm text-gray-900">{c.checklist_name || '-'}</div></td>
                       <td>
                         <div className="text-sm text-gray-900">{c.linked_project || '-'}</div>
@@ -367,7 +368,7 @@ export default function CommissioningTestReportsPage() {
                   <tr><td colSpan={8} className="text-center py-8 text-gray-500">No client signoffs</td></tr>
                 ) : signoffs.map(s => (
                   <tr key={s.name}>
-                    <td><div className="font-medium text-gray-900">{s.name}</div></td>
+                    <td><Link href={`/execution/commissioning/client-signoffs/${encodeURIComponent(s.name)}`} className="font-medium text-blue-700 hover:text-blue-900 hover:underline">{s.name}</Link></td>
                     <td>
                       <div className="text-sm text-gray-900">{s.linked_project || '-'}</div>
                       <div className="text-xs text-gray-500">{s.linked_site || ''}</div>

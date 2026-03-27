@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { callFrappeMethod } from '@/app/api/_lib/frappe';
 
-export const dynamic = 'force-dynamic';
-
 const ALLOWED_ACTIONS: Record<string, string> = {
   assign: 'assign_ticket',
   start: 'start_ticket',
@@ -13,6 +11,8 @@ const ALLOWED_ACTIONS: Record<string, string> = {
   escalate: 'escalate_ticket',
   comment: 'add_ticket_comment',
 };
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(
   request: NextRequest,
@@ -26,7 +26,7 @@ export async function POST(
     const method = ALLOWED_ACTIONS[action];
     if (!method) return NextResponse.json({ success: false, message: `Unknown action: ${action}` }, { status: 400 });
     const result = await callFrappeMethod(method, { name, ...extra }, request);
-    return NextResponse.json({ success: true, data: result.data || result, message: `${action} completed` });
+    return NextResponse.json({ success: true, data: result, message: `${action} completed` });
   } catch (err) {
     return NextResponse.json({ success: false, message: err instanceof Error ? err.message : 'Action failed' }, { status: 500 });
   }

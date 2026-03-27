@@ -116,6 +116,7 @@ export async function GET(request: NextRequest) {
           refund_status: refundStatus,
           expected_refund_date: refundStatus === 'Not Required' ? '' : expectedRefundDate,
           instrument_number: instrument?.instrument_number || '',
+          instrument_name: instrument?.name || '',
           bank_name: instrument?.bank_name || '',
           issue_date: instrument?.issue_date || '',
           expiry_date: instrument?.expiry_date || '',

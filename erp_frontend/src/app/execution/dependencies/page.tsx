@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { GitBranch, Link2, Plus, Shield, ShieldCheck, X } from 'lucide-react';
 
 interface DependencyRule {
@@ -161,7 +162,7 @@ export default function DependenciesPage() {
                   <tr><td colSpan={6} className="text-center py-8 text-gray-500">No dependency rules defined</td></tr>
                 ) : rules.map(rule => (
                   <tr key={rule.name}>
-                    <td><div className="font-medium text-gray-900">{rule.name}</div></td>
+                    <td><Link href={`/execution/dependencies/${encodeURIComponent(rule.name)}`} className="font-medium text-blue-700 hover:text-blue-900 hover:underline">{rule.name}</Link></td>
                     <td><div className="text-sm text-gray-900">{rule.linked_task || '-'}</div></td>
                     <td><div className="text-sm text-gray-900">{rule.prerequisite_task || '-'}</div></td>
                     <td><div className="text-sm text-gray-900">{rule.prerequisite_type || '-'}</div></td>

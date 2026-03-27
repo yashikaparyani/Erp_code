@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { callFrappeMethod } from '../../../_lib/frappe';
+import { callFrappeMethod } from '@/app/api/_lib/frappe';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,10 +12,7 @@ export async function GET(
     const name = decodeURIComponent(id);
     const result = await callFrappeMethod('get_dependency_rule', { name }, request);
     return NextResponse.json({ success: true, data: result.data || result });
-  } catch (error) {
-    return NextResponse.json(
-      { success: false, message: error instanceof Error ? error.message : 'Failed to fetch dependency rule' },
-      { status: 500 },
-    );
+  } catch (err) {
+    return NextResponse.json({ success: false, message: err instanceof Error ? err.message : 'Failed to load dependency rule' }, { status: 500 });
   }
 }

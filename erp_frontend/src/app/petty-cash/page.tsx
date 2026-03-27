@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Wallet, Plus, CheckCircle2, Clock, X } from 'lucide-react';
 
 interface PettyCash {
@@ -148,7 +149,7 @@ export default function PettyCashPage() {
             <tbody>
               {items.length === 0 ? <tr><td colSpan={9} className="text-center py-8 text-gray-500">No petty cash entries found</td></tr> : items.map(item => (
                 <tr key={item.name}>
-                  <td><div className="font-medium text-gray-900">{item.name}</div></td>
+                  <td><Link href={`/petty-cash/${encodeURIComponent(item.name)}`} className="font-medium text-blue-700 hover:text-blue-900 hover:underline">{item.name}</Link></td>
                   <td><div className="text-sm text-gray-700">{item.entry_date || '-'}</div></td>
                   <td><div className="text-sm text-gray-900 max-w-xs truncate">{item.description || '-'}</div></td>
                   <td><div className="text-sm text-gray-700">{item.category || '-'}</div></td>

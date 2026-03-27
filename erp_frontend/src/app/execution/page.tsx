@@ -517,7 +517,7 @@ export default function ExecutionPage() {
               ) : sites.map(site => (
                 <tr key={site.name}>
                   <td>
-                    <div className="font-medium text-gray-900">{site.name}</div>
+                    <Link href={`/execution/sites/${encodeURIComponent(site.name)}`} className="font-medium text-blue-700 hover:text-blue-900 hover:underline">{site.name}</Link>
                     <div className="text-xs text-gray-500">{site.site_code}</div>
                   </td>
                   <td>

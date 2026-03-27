@@ -17,6 +17,7 @@ type EmdTrackingRow = {
   refund_status: string;
   expected_refund_date: string;
   instrument_number: string;
+  instrument_name: string;
   bank_name: string;
   issue_date: string;
   expiry_date: string;
@@ -245,7 +246,12 @@ export default function EmdTrackingPage() {
                     ) : null}
                   </td>
                   <td className="px-4 py-4 align-top">
-                    <div className="font-medium text-[var(--text-main)]">{row.instrument_number || '-'}</div>
+                    <div>
+                      {row.instrument_name
+                        ? <Link href={`/pre-sales/emd-tracking/${encodeURIComponent(row.instrument_name)}`} className="font-medium text-blue-700 hover:text-blue-900 hover:underline">{row.instrument_number || row.instrument_name}</Link>
+                        : <div className="font-medium text-[var(--text-main)]">{row.instrument_number || '-'}</div>
+                      }
+                    </div>
                     <div className="mt-1 text-[11px] text-[var(--text-soft)]">Issued: {formatDate(row.issue_date)}</div>
                   </td>
                   <td className="px-4 py-4 align-top">{row.bank_name || '-'}</td>
