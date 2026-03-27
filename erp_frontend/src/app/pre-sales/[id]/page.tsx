@@ -496,9 +496,9 @@ export default function TenderWorkspacePage() {
     <div className="space-y-6">
       <div className="rounded-[2rem] bg-gradient-to-br from-[#0f5164] via-[#1d708c] to-[#7bb7c6] px-6 py-6 text-white shadow-lg">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link href="/pre-sales/tender" className="inline-flex items-center gap-2 text-sm font-medium text-white/90 hover:text-white">
+          <Link href="/pre-sales/dashboard" className="inline-flex items-center gap-2 text-sm font-medium text-white/90 hover:text-white">
             <ArrowLeft className="h-4 w-4" />
-            Back to tender list
+            Back to pre-sales dashboard
           </Link>
           <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${funnelMeta.toneClass}`}>
             <span className={`h-2.5 w-2.5 rounded-full ${funnelMeta.dotClass}`} />

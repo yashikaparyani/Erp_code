@@ -1,11 +1,12 @@
 'use client';
 import React, { useState, useEffect, useCallback, useTransition } from 'react';
-import { RefreshCw, LayoutDashboard, Palette, TrendingUp, AlertCircle, CheckCircle, Clock, DollarSign } from 'lucide-react';
+import { RefreshCw, LayoutDashboard, Palette, TrendingUp, AlertCircle, CheckCircle, Clock, DollarSign, Plus } from 'lucide-react';
 import FunnelColorCard from '../../../components/presales/FunnelColorCard';
 import FunnelFilterStrip, { DashboardFilters, DEFAULT_FILTERS, loadSavedFilters, saveFilters } from '../../../components/presales/FunnelFilterStrip';
 import ActiveFilterChips from '../../../components/presales/ActiveFilterChips';
 import FunnelTenderTable from '../../../components/presales/FunnelTenderTable';
 import ColorLegendPage from '../../../components/presales/ColorLegendPage';
+import CreateTenderModal from '../../../components/CreateTenderModal';
 import { FunnelColorKey, SYSTEM_FUNNEL_META, USER_SLOT_DEFAULTS, PresalesColorConfig } from '../../../components/tenderFunnel';
 
 // ─────────────────────────────────────────────────── Types
@@ -103,6 +104,7 @@ export default function PresalesDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [isPending, startTransition] = useTransition();
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   // Load saved filters on mount
   useEffect(() => {
@@ -245,6 +247,13 @@ export default function PresalesDashboard() {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-[var(--text-soft)]">{totalCount} tenders</span>
+          <button
+            onClick={() => setIsCreateOpen(true)}
+            className="flex items-center gap-1.5 rounded-xl bg-[var(--accent)] px-3 py-2 text-xs font-semibold text-white transition-all hover:opacity-95"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            New Tender
+          </button>
           <button
             onClick={handleRefresh}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-white border border-[var(--border-subtle)] text-[var(--text-main)] hover:border-[var(--accent)] transition-all"
@@ -397,6 +406,15 @@ export default function PresalesDashboard() {
           onUpdateSlot={handleUpdateColorSlot}
         />
       )}
+
+      <CreateTenderModal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        onSuccess={() => {
+          setIsCreateOpen(false);
+          handleRefresh();
+        }}
+      />
     </div>
   );
 }
