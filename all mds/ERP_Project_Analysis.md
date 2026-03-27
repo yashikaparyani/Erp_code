@@ -398,24 +398,24 @@ Delivery (GRN) → Installation → Commissioning → Billing → Payment Tracki
 
 ## 🚀 ERPNext Par Kaise Start Karen — Step by Step
 
-### Step 1: ERPNext Install Karo (Docker — Easiest Method)
+### Step 1: ERPNext Install Karo (WSL Native Recommended)
 
 ```bash
-# Prerequisites: Docker Desktop install hona chahiye
-git clone https://github.com/frappe/frappe_docker
-cd frappe_docker
+# Ubuntu/WSL shell ke andar bench-based setup prefer karo
+# Docker optional fallback hai, default path nahin
+bench init frappe-bench --frappe-branch version-15
+cd frappe-bench
 
-# Copy environment file
-cp example.env .env
+# Site banao aur ERPNext install karo
+bench new-site your_site.local
+bench get-app erpnext --branch version-15
+bench --site your_site.local install-app erpnext
 
-# Start containers
-docker compose -f compose.yaml \
-  -f overrides/compose.mariadb.yaml \
-  -f overrides/compose.redis.yaml \
-  up -d
+# Start local services
+bench start
 
-# Open in browser: http://localhost:8080
-# Default login: Administrator / admin
+# Open in browser: http://localhost:8000
+# Default login: Administrator / your admin password
 ```
 
 ### Step 2: Custom Frappe App Banao
@@ -615,7 +615,7 @@ Frontend:           Vue.js + Frappe Desk UI
 File Storage:       Frappe File System (local or S3)
 Task Queue:         Redis + RQ (Frappe built-in)
 Notifications:      Frappe Email + In-app Notifications
-Deployment:         Docker / Ubuntu Server / ERPNext Cloud
+Deployment:         WSL-native Ubuntu / Ubuntu Server / ERPNext Cloud
 Version Control:    Git (separate repo for custom app)
 ```
 
@@ -629,7 +629,7 @@ Version Control:    Git (separate repo for custom app)
 
 ## 📌 Next Steps (Kya Karna Hai Abhi)
 
-- [ ] **Step 1:** Docker install karo + ERPNext setup karo locally
+- [ ] **Step 1:** WSL-native / Ubuntu bench setup karo + ERPNext locally chalao
 - [ ] **Step 2:** Custom Frappe app create karo: `govt_project_erp`
 - [ ] **Step 3:** Foundation DocTypes banao: Org, Branch, User, Role
 - [ ] **Step 4:** Tender Module se start karo (sabse pehla module)

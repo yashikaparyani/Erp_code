@@ -734,138 +734,90 @@ Completed:
 
 ## Priority Ladder
 
-## Priority 1: Transactional Depth
+*Last updated: 2026-03-27 — reflects post-audit reality.*
 
-These affect core operational execution and can break user trust quickly.
+## Priority 1: Missing Pages With Ready Backend (Depth 0 → 4) ✅ DONE
 
-- vendor comparison detail
-- indent detail
-- PO creation and PO detail strengthening
-- GRN detail
-- project inventory detail
-- dispatch / receipt linkage
+All four Depth-0 gaps now have list + `[id]` detail pages at Depth 4:
 
-## Priority 2: PM / Project Execution Depth
+- ✅ `/dispatch-challans` — list page + `[id]` detail (submit/approve/reject/mark_dispatched). KPI cards, line items table, LinkedRecordsPanel, AccountabilityTimeline.
+- ✅ `/sla-penalties` — list page + `[id]` detail (approve/reject/waive). Penalty amount KPI, linked ticket cross-link, waiver ActionModal.
+- ✅ `/hr/leave/applications` — list page + `[id]` detail (submit/approve/reject/reopen). Leave balance context, date-range KPIs, rejection reason display.
+- ✅ `/hr/regularizations` — list page + `[id]` detail (submit/approve/reject/reopen). Check-in/out time KPIs, linked attendance log, rejection reason display.
 
-- PM dashboard live data
-- survey -> BOQ -> drawing -> indent continuity
-- execution site detail
-- DPR / consumption / blocker detail
+## Priority 2: List-Only Pages With Ready Backend (Depth 2 → 4) ✅ DONE
 
-## Priority 3: Approval Depth
+All list pages now have full detail + workflow surfaces.
 
-- replace all `prompt()` / `confirm()` decision flows
-- use structured action modals with:
-  - remarks
-  - justification
-  - attachment where needed
-  - accountability event creation
+- ✅ `/project-manager/dpr` — `[id]` detail page with site context, KPIs (date/manpower/equipment), activities + issues child tables, linked records
+- ✅ `/project-manager/requests` — `[id]` detail page with submit/approve/reject/withdraw workflow, priority badge, KPIs, reject modal with remarks
+- ✅ `/finance/follow-ups` — `[id]` detail page with close/escalate workflow, promised payment KPIs, action modals with remarks
+- ✅ `/finance/retention` — `[id]` detail page with release workflow, amount KPIs, release progress bar, partial/full release modal
+- ✅ `/hr/onboarding` — `[id]` detail page with submit/review/approve/reject/send-back/reopen/map-to-employee, education/experience/documents child tables, reject modal with reason
+
+## Priority 3: Depth 3 Pages Needing Final Polish (Depth 3 → 4)
+
+These work but have remaining gaps noted in the Appendix.
+
+- `/vendor-comparisons/[id]` — add quote line item breakdown, downstream PO chain card
+- `/purchase-orders/[id]` — add itemized creation UI, upstream comparison link, downstream GRN card
+- `/indents/[id]` — add stock-on-hand context card, downstream comparison link
 
 ## Priority 4: Document And RCA Depth
 
-- dossier entry points everywhere
-- linked record document panels
+- dossier entry points from all major lifecycle pages
+- linked record document panels on any remaining operational pages
 - accountability drilldown on all critical record pages
 
 ## Phase Plan
 
-## Phase 1 — Remove Thin Action UX
+*Updated 2026-03-27.*
 
-Goal:
+## Phase 1 — Remove Thin Action UX ✅ DONE
 
-- eliminate browser `prompt()` / `confirm()` dependency for business decisions
+All major approve/reject/escalate/return flows now use structured modal/form workflows. No `prompt()` / `confirm()` dependency remains in completed modules.
 
-Scope:
+## Phase 2 — Build Missing Second-Click Pages ✅ LARGELY DONE
 
-- procurement
-- PO detail
-- indents
-- any approval page still using prompt-based input
+All critical transactional modules now have detail pages:
 
-Done when:
+- ✅ Vendor comparisons, indents, GRNs, purchase orders
+- ✅ Engineering (BOQ, drawings, deviations, change requests, surveys)
+- ✅ Execution (sites, dependencies, test reports, checklists, signoffs, devices)
+- ✅ Finance (billing, costing, estimates, proformas, payment receipts, penalties)
+- ✅ HR (employees, overtime, travel logs, technician visits)
+- ✅ O&M (tickets, RMA, SLA profiles)
+- ✅ Pre-Sales (tenders, bids, EMD instruments)
+- ✅ Settings/Admin (milestones, comm-logs, petty-cash)
 
-- all business-critical approve/reject/escalate/return actions use proper modal/forms
+✅ **Priority 1 complete**: dispatch-challans, sla-penalties, hr/leave/applications, hr/regularizations all at Depth 4.
+✅ **Priority 2 complete**: DPR, PM requests, finance follow-ups, finance retention, HR onboarding all at Depth 4.
 
-## Phase 2 — Build Missing Second-Click Pages
+## Phase 3 — Add Third-Click Workflow Depth ✅ DONE
 
-Goal:
+All detail pages now expose decision-taking with structured modal/form workflows. All Priority 1 and Priority 2 workflow gaps closed.
 
-- every critical transactional module gets a real detail page
+## Phase 4 — Close PM / Project Operational Depth ✅ LARGELY DONE
 
-Scope:
+- ✅ PM petty-cash, comm-logs, milestones detail pages done
+- ✅ PM requests `[id]` — submit/approve/reject/withdraw
+- ✅ PM DPR `[id]` — detail with activities/issues child tables
+- ⬜ PM dashboard live data
 
-- vendor comparisons
-- indents
-- GRN
-- project inventory
-- dispatch where applicable
-
-Done when:
-
-- users can open a record page and understand the full object context before acting
-
-## Phase 3 — Add Third-Click Workflow Depth
-
-Goal:
-
-- detail pages can support decision-taking, not just display
-
-Scope:
-
-- approvals
-- documents
-- accountability events
-- downstream/upstream navigation
-
-Done when:
-
-- each critical record can be reviewed, acted on, and traced from one frontend surface
-
-## Phase 4 — Close PM / Project Operational Depth
-
-Goal:
-
-- make PM and project execution surfaces truly usable day to day
-
-Scope:
-
-- PM dashboard live metrics
-- survey to BOQ/drawing handoff visibility
-- project inventory / DPR / petty cash / requests continuity
-- execution site depth
-
-Done when:
-
-- PM can run their side of the lifecycle without relying on fragmented module jumps
-
-## Phase 5 — Close Reports / Dossier / RCA Embedding
-
-Goal:
-
-- make documents and accountability part of normal work, not side pages
-
-Scope:
+## Phase 5 — Close Reports / Dossier / RCA Embedding ⬜ PENDING
 
 - report drilldowns
 - dossier shortcuts everywhere
-- accountability panels on transactional pages
+- accountability panels on any remaining operational pages
 
-Done when:
-
-- object pages expose both operational state and traceability state
-
-## Phase 6 — UAT Depth Audit
-
-Goal:
-
-- verify by real user journey, not route existence
+## Phase 6 — UAT Depth Audit ⬜ PENDING
 
 Test journeys:
 
-- survey -> BOQ -> drawing -> indent
-- indent -> comparison -> PO -> dispatch -> GRN -> inventory
-- project inventory -> consumption -> DPR -> approval
-- SLA / RMA -> service records -> closure docs
+- survey → BOQ → drawing → indent → comparison → PO → dispatch → GRN → inventory
+- project inventory → consumption → DPR → approval
+- SLA ticket → RMA → SLA penalty → waive/approve
+- HR leave application → approve → attendance reconciliation
 
 Done when:
 
@@ -959,13 +911,14 @@ Pages not listed here are usually one of these:
 ## B. Procurement / Stores / Inventory
 
 - `/procurement` — `Depth 1` — still list-heavy and action-heavy; vendor comparison workflow is not anchored around a project-first operating surface.
-- `/vendor-comparisons/[id]` — `Depth 2` — detail page now exists, but still needs deeper linked docs, downstream chain, and richer quote/procurement context.
-- `/purchase-orders` — `Depth 1` — list page is usable, but creation is still thin and still not a strong workflow shell.
-- `/purchase-orders/[id]` — `Depth 2` — PO detail exists, but itemized creation, linked docs, accountability, and downstream GRN/receipt depth are still incomplete.
-- `/indents` — `Depth 1` — list page exists, but workflow still begins too close to action buttons.
-- `/indents/[id]` — `Depth 2` — detail page exists, but still needs stronger stock context, document stack, and downstream procurement chain.
-- `/grns` — `Depth 1` — receipt listing exists, but page depth is still shallow.
-- `/grns/[id]` — `Depth 2` — detail page exists, but document and accountability depth is still light.
+- `/vendor-comparisons/[id]` — `Depth 3` — detail page with approve/reject/revise workflow, exception reason modal, approved-by display, LinkedRecordsPanel, RecordDocumentsPanel, AccountabilityTimeline. **Remaining gap**: quote-level line item view, downstream PO/dispatch chain card.
+- `/purchase-orders` — `Depth 1` — list page is usable, but creation is still thin and not a strong workflow shell.
+- `/purchase-orders/[id]` — `Depth 3` — PO detail has line items table, submit/cancel actions, payment terms with approve/reject, LinkedRecordsPanel, RecordDocumentsPanel, AccountabilityTimeline. **Remaining gap**: itemized creation UI, upstream comparison link, downstream GRN chain card.
+- `/dispatch-challans` — `Depth 4` ✅ — list page with status filter, KPI cards (total/draft/pending/dispatched), 9-column table. Detail page with submit/approve/reject/mark-dispatched workflow, line items table, LinkedRecordsPanel, RecordDocumentsPanel, AccountabilityTimeline, reject ActionModal.
+- `/indents` — `Depth 2` — list page links to detail.
+- `/indents/[id]` — `Depth 3` — detail page with submit/acknowledge/accept/reject/return/escalate workflow, reject modal, LinkedRecordsPanel, RecordDocumentsPanel, AccountabilityTimeline. **Remaining gap**: stock-on-hand context card, downstream comparison link.
+- `/grns` — `Depth 2` — list page links to detail.
+- `/grns/[id]` — `Depth 3` — detail page with receipt items table, total/rejected qty summary, LinkedRecordsPanel, RecordDocumentsPanel, AccountabilityTimeline. Read-only (no workflow actions on GRN itself).
 - `/inventory` — `Depth 1-2` — central inventory is functional, but project-vs-central inventory UX and linked transactional drilldown are still weak.
 - `/stock-position` — `Depth 1` — reporting/list surface only.
 - `/stock-aging` — `Depth 1` — reporting/list surface only.
@@ -973,9 +926,9 @@ Pages not listed here are usually one of these:
 
 ## C. Project Manager / Project / Workspace
 
-- `/project-manager/dpr` — `Depth 2` — real page exists, but still not deeply tied into full execution object chain and dossier flow.
-- `/project-manager/petty-cash` — `Depth 2` — project-scoped and useful, but still narrow and not embedded in broader PM operational depth.
-- `/project-manager/requests` — `Depth 2` — request flow exists, but it still needs stronger context-rich linkage to project milestones, docs, and approvals.
+- `/project-manager/dpr` — `Depth 4` ✅ — list page + `[id]` detail page with KPI cards (date/manpower/equipment/site), detail card (project/site/submitted_by/weather/safety), summary/work-activities/issues-delays/material-received sections, LinkedRecordsPanel, RecordDocumentsPanel, AccountabilityTimeline.
+- `/project-manager/petty-cash` — `Depth 2` — project-scoped list. Note: standalone `/petty-cash/[id]` detail page now exists (Depth 4 ✅). PM workspace tab can deep-link into it.
+- `/project-manager/requests` — `Depth 4` ✅ — list page + `[id]` detail page with submit/approve/reject/withdraw workflow, StatusBadge + PriorityBadge, KPI cards (type/amount/delay-days/positions/requested-date), detail card with all fields, subject/description/justification text blocks, reject ActionModal with remarks, LinkedRecordsPanel, RecordDocumentsPanel, AccountabilityTimeline.
 - `/projects` — `Depth 1` — project list exists, but still acts mostly as entry routing rather than rich lifecycle triage.
 - `/projects/[id]` — `Depth 3` — strong shared workspace exists, but object-level drilldown depth is still inconsistent across tabs.
 - `/projects/[id]/accountability` — `Depth 3` — good RCA view, but still depends on wider module adoption for full usefulness.
@@ -1001,10 +954,18 @@ Pages not listed here are usually one of these:
 
 ## E. Execution / I&C / Commissioning
 
-- `/execution` — `Depth 1-2` — dashboard/list surface exists, but site-level operational depth is still incomplete.
-- `/execution/dependencies` — `Depth 2` — dependency visibility exists, but broader execution chain integration is still partial.
+- `/execution` — `Depth 4` — dashboard/list surface with Link to site detail page; sites table links to `execution/sites/[id]`.
+- `/execution/sites/[id]` — `Depth 4` — full site detail with location/contact info, linked test reports + checklists + client signoffs + devices, documents, accountability trail.
+- `/execution/dependencies` — `Depth 4` — dependency rules table with Link to detail; detail page (`dependencies/[id]`) with task/prerequisite info, hard/soft block indicator, linked override requests, documents, accountability trail.
+- `/execution/dependencies/[id]` — `Depth 4` — full dependency rule detail with active/inactive badge and linked overrides.
 - `/execution/project-structure` — `Depth 2` — useful surface, but still not a complete third-click operational space.
-- `/execution/commissioning` — `Depth 2` — commissioning route exists, but still needs richer test/signoff/closure depth.
+- `/execution/commissioning` — `Depth 4` — site readiness table with Link to site detail; commissioning stats with navigation to test-reports and devices.
+- `/execution/commissioning/test-reports` — `Depth 4` — three-tab page (Test Reports / Checklists / Client Signoffs) with Link columns; test report names link to `test-reports/[id]`, checklist IDs link to `checklists/[id]`, signoff IDs link to `client-signoffs/[id]`.
+- `/execution/commissioning/test-reports/[id]` — `Depth 4` — full test report detail with approve/reject/resubmit workflow, test type/date/tester info, file link, rejection reason banner, documents, accountability trail.
+- `/execution/commissioning/checklists/[id]` — `Depth 4` — full checklist detail with start/complete workflow, progress bar, checklist items with done/pending states, documents, accountability trail.
+- `/execution/commissioning/client-signoffs/[id]` — `Depth 4` — full signoff detail with sign/approve workflow, attachment link, client signatory capture modal, documents, accountability trail.
+- `/execution/commissioning/devices` — `Depth 4` — four-tab page (Devices / IP Pools / IP Allocations / Uptime Logs) with device names linked to `devices/[id]`.
+- `/execution/commissioning/devices/[id]` — `Depth 4` — full device detail with commission/mark-faulty/decommission workflow, serial/MAC/IP info, warranty date, linked uptime logs + IP allocations, documents, accountability trail.
 - `/execution/comm-logs` — `Depth 1` — generic workspace wrapper and still shallow.
 - `/execution/projects` — `Depth 1` — department project list only.
 - `/execution/projects/[id]` — `Depth 3` — workspace exists, but execution object-depth remains incomplete.
@@ -1023,10 +984,10 @@ Pages not listed here are usually one of these:
 - `/finance/proformas/[id]` — `Depth 4` — full proforma detail with overdue indicator and conversion lifecycle.
 - `/finance/payment-receipts` — `Depth 4` — list page with link to detail; detail page (`payment-receipts/[id]`) with type badge, amount summary (received/adjusted/TDS/unadjusted), payment mode/reference/bank details, linked invoice, documents, accountability.
 - `/finance/payment-receipts/[id]` — `Depth 4` — read-only receipt detail with full payment breakdown.
-- `/finance/follow-ups` — `Depth 1` — generic workspace wrapper, no detail page yet.
+- `/finance/follow-ups` — `Depth 4` ✅ — list page + `[id]` detail page with close/escalate workflow, StatusBadge (OPEN/PROMISED/ESCALATED/CLOSED), KPI cards (promised-amount/promised-date/next-follow-up/escalation-level), detail card (customer/invoice/project/mode/contact/assigned-to/summary), close + escalate ActionModals with optional remarks, LinkedRecordsPanel, RecordDocumentsPanel, AccountabilityTimeline.
 - `/finance/penalties` — `Depth 4` — list page with link to detail; detail page (`penalties/[id]`) with approve/apply-to-invoice/reverse workflow, source badge (LD/SLA/Client), penalty amount card, apply modal with invoice prompt, reverse modal with reason, linked invoice, documents, accountability.
 - `/finance/penalties/[id]` — `Depth 4` — full penalty detail with apply + reverse modals.
-- `/finance/retention` — `Depth 1` — generic workspace wrapper, no detail page yet.
+- `/finance/retention` — `Depth 4` ✅ — list page + `[id]` detail page with release workflow, StatusBadge (RETAINED/PARTIALLY_RELEASED/RELEASED), KPI cards (retained/released/remaining/percent), release progress bar, release ActionModal with amount field, linked project + invoice, RecordDocumentsPanel, AccountabilityTimeline.
 - `/finance/customer-statement` — `Depth 1-2` — useful report-style page, but not a fully deep workflow surface.
 - `/finance/receivable-aging` — `Depth 1` — report/list page only.
 - `/finance/projects` — `Depth 1` — department project list only.
@@ -1038,8 +999,12 @@ Pages not listed here are usually one of these:
 - `/hr/employees` — `Depth 4` — full employee directory with row-click to detail page.
 - `/hr/employees/[id]` — `Depth 4` — full employee profile with tabbed sections (Personal, Employment, Bank/PF/ESI, Family, Education, Experience, Contracts, Documents, Separation), inline editing.
 - `/hr/attendance` — `Depth 2` — substantial page, but swipe ingestion is still explicitly placeholder-backed.
-- `/hr/approvals` — `Depth 2` — useful queue page, but still needs more cross-linking to richer object pages.
-- `/hr/onboarding` — `Depth 3` — single-page CRUD with creation, editing, document upload, and mapping-to-employee workflow.
+- `/hr/approvals` — `Depth 2` — useful queue page. Now backed by standalone list + detail pages for both leave applications and regularizations.
+- `/hr/onboarding` — `Depth 4` ✅ — list page + `[id]` detail page with submit/review/approve/reject/send-back/reopen/map-to-employee workflow, education/experience/documents child tables, KPI cards (DOJ/location/form-source/employee-ref), reject ActionModal with required reason, LinkedRecordsPanel (employee), RecordDocumentsPanel, AccountabilityTimeline.
+- `/hr/leave/applications` — `Depth 4` ✅ — list page with status filter, KPI cards (total/draft/submitted/approved), 7-column table. Detail page with submit/approve/reject/reopen workflow, date-range KPIs, leave type card, employee/project links, rejection reason banner, LinkedRecordsPanel, RecordDocumentsPanel, AccountabilityTimeline, reject ActionModal.
+- `/hr/leave/applications/[id]` — `Depth 4` ✅ — full leave application detail with RBAC-gated workflow actions.
+- `/hr/regularizations` — `Depth 4` ✅ — list page with status filter, KPI cards, 7-column table with check-in/out times. Detail page with submit/approve/reject/reopen workflow, time KPIs, linked attendance log, rejection reason banner, LinkedRecordsPanel, RecordDocumentsPanel, AccountabilityTimeline, reject ActionModal.
+- `/hr/regularizations/[id]` — `Depth 4` ✅ — full regularization detail with RBAC-gated workflow actions.
 - `/hr/operations` — `Depth 1-2` — operational visibility exists, but still broad and shallow in parts.
 - `/hr/reports` — `Depth 1-2` — useful surface, but still more dashboard/report shell than fully drillable reporting suite.
 - `/hr/overtime` — `Depth 4` — list page with link to detail; detail page (`overtime/[id]`) with submit/approve/reject workflow, hours/rate/amount summary cards, rejection reason banner, approval badge, linked employee profile, documents, accountability trail.
@@ -1060,6 +1025,8 @@ Pages not listed here are usually one of these:
 - `/sla` — `Depth 4` — OpsWorkspace wrapper with Link column to sla-profiles detail page.
 - `/sla-profiles` — `Depth 4` — list page with Link to detail; detail page (`sla-profiles/[id]`) with response/resolution time KPIs, working hours type, escalation settings, linked tickets, documents, accountability trail.
 - `/sla-profiles/[id]` — `Depth 4` — read-only SLA profile detail with KPI cards and linked tickets.
+- `/sla-penalties` — `Depth 4` ✅ — list page with status filter, KPI cards (total/pending/approved/penalty-amount), 8-column table with ticket cross-link. Detail page with approve/reject/waive workflow, penalty amount KPI, breach type, linked ticket, penalty rule, waiver/rejection reason display, LinkedRecordsPanel, RecordDocumentsPanel, AccountabilityTimeline, reject + waive ActionModals.
+- `/sla-penalties/[id]` — `Depth 4` ✅ — full SLA penalty detail with RBAC-gated workflow actions.
 - `/rma` — `Depth 4` — list page with Link to detail; detail page (`rma/[id]`) with approve/reject/close/update-status workflow, warranty & RMA status badges, failure/RCA section, linked source ticket, documents, accountability trail.
 - `/rma/[id]` — `Depth 4` — full RMA tracker detail with workflow actions and linked records.
 
@@ -1068,10 +1035,11 @@ Pages not listed here are usually one of these:
 - `/pre-sales/dashboard` — `Depth 2` — usable, but still not the end state of full tender-workspace depth.
 - `/pre-sales/tender` — `Depth 1-2` — list and funnel are strong, but workflow depth remains uneven.
 - `/pre-sales/bids` — `Depth 1-2` — list-first surface, still shallow in places.
-- `/pre-sales/bids/[id]` — `Depth 2-3` — one of the stronger detail pages, but still not a universal template for the rest of the app.
-- `/pre-sales/[id]` — `Depth 2-3` — reasonably strong, but still not full lifecycle perfection.
+- `/pre-sales/bids/[id]` — `Depth 4` ✅ — enhanced with LinkedRecordsPanel (EMD instruments), RecordDocumentsPanel, AccountabilityTimeline.
+- `/pre-sales/[id]` — `Depth 4` ✅ — enhanced with LinkedRecordsPanel (bids), RecordDocumentsPanel, AccountabilityTimeline.
 - `/pre-sales/approvals` — `Depth 2` — useful queue, but linked action context can still improve.
-- `/pre-sales/emd-tracking` — `Depth 1-2` — operational page exists, still not deeply linked everywhere.
+- `/pre-sales/emd-tracking` — `Depth 3` ✅ — tracking list now links to individual instrument detail pages; instrument_name exposed in API.
+- `/pre-sales/emd-tracking/[id]` — `Depth 4` ✅ — new instrument detail page with KPI cards (amount/issue/expiry), expiry warning, linked tender link, RecordDocumentsPanel, AccountabilityTimeline. API route: `api/emd-pbg/[id]` (GET via frappe.client.get).
 - `/pre-sales/in-process-bid` — `Depth 1` — thin list surface.
 - `/pre-sales/won-bids` — `Depth 1` — thin list surface.
 - `/pre-sales/cancel-bid` — `Depth 1` — thin list surface.
@@ -1080,12 +1048,12 @@ Pages not listed here are usually one of these:
 ## J. Settings / Admin / Utilities With Remaining Shallow Areas
 
 - `/master-data` — `Depth 1-2` — broad admin surface, but still not consistently deep for each master object.
-- `/milestones` — `Depth 1` — list surface, still not a strong milestone detail/workflow area.
-- `/comm-logs` — `Depth 1` — list surface only.
+- `/milestones` — `Depth 4` ✅ — list page linked to detail; detail page (`milestones/[id]`) with start/complete/cancel workflow, overdue detection, completion notes modal, RecordDocumentsPanel, AccountabilityTimeline. API routes: `milestones/[id]` GET + PATCH.
+- `/comm-logs` — `Depth 4` ✅ — list page linked to detail; detail page (`comm-logs/[id]`) with direction/type badges, follow-up overdue warning, summary & notes section, RecordDocumentsPanel, AccountabilityTimeline. API routes: `comm-logs/[id]` GET + PATCH.
+- `/petty-cash` — `Depth 4` ✅ — list page linked to detail; detail page (`petty-cash/[id]`) with approve/reject workflow, rejection reason modal, amount KPI card, RecordDocumentsPanel, AccountabilityTimeline. API routes: `petty-cash/[id]` GET + POST (approve/reject).
 - `/change-requests` — `Depth 1` — list surface only.
 - `/device-uptime` — `Depth 1` — list/report style surface only.
 - `/manpower` — `Depth 1` — list-heavy and still shallow.
-- `/petty-cash` — `Depth 1-2` — usable, but still not deeply linked into accountability/document flow everywhere.
 - `/payment-receipts` — `Depth 1-2` — workable page, but still not rich in linked object context.
 - `/penalties` — `Depth 1-2` — workable page, but still shallow.
 - `/retention` — `Depth 1-2` — workable page, but still shallow.
