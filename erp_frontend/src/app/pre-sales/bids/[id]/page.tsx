@@ -6,6 +6,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, ArrowLeft, BadgeCheck, FileStack, RefreshCw, Timer, Trophy, XCircle } from 'lucide-react';
 import { useRole } from '../../../../context/RoleContext';
 import ActionModal from '@/components/ui/ActionModal';
+import { AccountabilityTimeline } from '@/components/accountability/AccountabilityTimeline';
+import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
+import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
 
 type LoiRow = {
   name: string;
@@ -510,6 +513,14 @@ export default function BidWorkspacePage() {
           </table>
         </div>
       </section>
+
+      <LinkedRecordsPanel links={[
+        { label: 'EMD Instruments', doctype: 'GE EMD Instrument', method: 'frappe.client.get_list', args: { doctype: 'GE EMD Instrument', filters: JSON.stringify({ linked_bid: bidId }), fields: JSON.stringify(['name', 'instrument_type', 'amount', 'status']), limit_page_length: '10' } },
+      ]} />
+
+      <RecordDocumentsPanel referenceDoctype="GE Bid" referenceName={bidId || ''} title="Linked Documents" initialLimit={5} />
+
+      <div className="rounded-3xl border border-[var(--border-subtle)] bg-white p-5"><div className="mb-3 font-semibold text-[var(--text-main)]">Accountability Trail</div><AccountabilityTimeline subjectDoctype="GE Bid" subjectName={bidId || ''} compact={false} initialLimit={10} /></div>
 
       <ActionModal
         open={bidModal !== null}

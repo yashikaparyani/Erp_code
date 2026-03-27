@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Target, Plus, CheckCircle2, Clock, AlertCircle, X } from 'lucide-react';
 
 interface Milestone {
@@ -76,7 +77,7 @@ export default function MilestonesPage() {
             <tbody>
               {items.length === 0 ? <tr><td colSpan={8} className="text-center py-8 text-gray-500">No milestones found</td></tr> : items.map(item => (
                 <tr key={item.name}>
-                  <td><div className="font-medium text-gray-900">{item.name}</div></td>
+                  <td><Link href={`/milestones/${encodeURIComponent(item.name)}`} className="font-medium text-blue-700 hover:text-blue-900 hover:underline">{item.name}</Link></td>
                   <td><div className="text-sm text-gray-900">{item.milestone_name || '-'}</div></td>
                   <td><div className="text-sm text-gray-700">{item.linked_project || '-'}</div></td>
                   <td><div className="text-sm text-gray-700">{item.linked_site || '-'}</div></td>

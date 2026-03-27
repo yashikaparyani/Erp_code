@@ -218,7 +218,7 @@ export default function CommissioningDashboardPage() {
               ) : site_readiness.slice(0, 15).map((r) => (
                 <tr key={r.site}>
                   <td>
-                    <div className="font-medium text-gray-900">{r.site_name || r.site}</div>
+                    <Link href={`/execution/sites/${encodeURIComponent(r.site)}`} className="font-medium text-blue-700 hover:text-blue-900 hover:underline">{r.site_name || r.site}</Link>
                     <div className="text-xs text-gray-500">{r.site_code || r.site}</div>
                   </td>
                   <td className="text-sm text-gray-700">{r.project || '-'}</td>

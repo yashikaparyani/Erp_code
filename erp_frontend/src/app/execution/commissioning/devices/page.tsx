@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Activity, Cpu, Network, Plus, Wifi, X } from 'lucide-react';
 
 interface DeviceRegister {
@@ -165,7 +166,7 @@ export default function CommissioningDevicesPage() {
                   <tr><td colSpan={8} className="text-center py-8 text-gray-500">No devices registered</td></tr>
                 ) : devices.map(d => (
                   <tr key={d.name}>
-                    <td><div className="font-medium text-gray-900">{d.name}</div></td>
+                    <td><Link href={`/execution/commissioning/devices/${encodeURIComponent(d.name)}`} className="font-medium text-blue-700 hover:text-blue-900 hover:underline">{d.name}</Link></td>
                     <td><div className="text-sm text-gray-900">{d.device_name || '-'}</div><div className="text-xs text-gray-500">{d.make_model || ''}</div></td>
                     <td><div className="text-sm text-gray-900">{d.device_type || '-'}</div></td>
                     <td><div className="text-sm text-gray-900">{d.serial_no || '-'}</div><div className="text-xs text-gray-500">{d.mac_address || ''}</div></td>

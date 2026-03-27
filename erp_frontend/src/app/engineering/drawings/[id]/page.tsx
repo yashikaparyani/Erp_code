@@ -20,6 +20,7 @@ import {
 import { AccountabilityTimeline } from '@/components/accountability/AccountabilityTimeline';
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
 import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
+import TraceabilityPanel from '@/components/ui/TraceabilityPanel';
 import { useAuth } from '@/context/AuthContext';
 
 const FRAPPE_URL = process.env.NEXT_PUBLIC_FRAPPE_URL || '';
@@ -304,6 +305,8 @@ export default function DrawingDetailPage() {
       />
 
       {/* Linked Documents */}
+      <TraceabilityPanel projectId={data.project} />
+
       <RecordDocumentsPanel
         referenceDoctype="GE Drawing"
         referenceName={drawingName}

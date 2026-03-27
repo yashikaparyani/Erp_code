@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { MessageSquare, Plus, ArrowUpRight, ArrowDownLeft, X } from 'lucide-react';
 
 interface CommLog {
@@ -81,7 +82,7 @@ export default function CommLogsPage() {
             <tbody>
               {items.length === 0 ? <tr><td colSpan={8} className="text-center py-8 text-gray-500">No communication logs found</td></tr> : items.map(item => (
                 <tr key={item.name}>
-                  <td><div className="font-medium text-gray-900">{item.name}</div></td>
+                  <td><Link href={`/comm-logs/${encodeURIComponent(item.name)}`} className="font-medium text-blue-700 hover:text-blue-900 hover:underline">{item.name}</Link></td>
                   <td><div className="text-sm text-gray-700">{item.communication_date || '-'}</div></td>
                   <td>{directionIcon(item.direction)}</td>
                   <td><span className={`badge ${typeBadge(item.communication_type)}`}>{item.communication_type || '-'}</span></td>

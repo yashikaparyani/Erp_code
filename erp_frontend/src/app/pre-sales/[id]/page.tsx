@@ -7,6 +7,9 @@ import { useEffect, useMemo, useState } from 'react';
 import ModalFrame from '@/components/ui/ModalFrame';
 import { deriveTenderFunnelStatus, getTenderFunnelMeta } from '@/components/tenderFunnel';
 import { useRole } from '@/context/RoleContext';
+import { AccountabilityTimeline } from '@/components/accountability/AccountabilityTimeline';
+import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
+import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
 import {
   AlertCircle,
   ArrowLeft,
@@ -808,6 +811,14 @@ export default function TenderWorkspacePage() {
           )) : <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-sm text-gray-500">No approval request created yet.</div>}
         </div>
       </section>
+
+      <LinkedRecordsPanel links={[
+        { label: 'Bids', doctype: 'GE Bid', method: 'frappe.client.get_list', args: { doctype: 'GE Bid', filters: JSON.stringify({ tender: tenderId }), fields: JSON.stringify(['name', 'bid_amount', 'status', 'bid_date']), limit_page_length: '10' }, href: (name: string) => `/pre-sales/bids/${name}` },
+      ]} />
+
+      <RecordDocumentsPanel referenceDoctype="GE Tender" referenceName={tenderId} title="Linked Documents" initialLimit={5} />
+
+      <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm"><div className="mb-3 font-semibold text-gray-900">Accountability Trail</div><AccountabilityTimeline subjectDoctype="GE Tender" subjectName={tenderId} compact={false} initialLimit={10} /></div>
 
       <ModalFrame open={Boolean(rejectMode)} onClose={() => { setRejectMode(null); setReasonInput(''); }} title="Reason Required">
         <div className="space-y-4">

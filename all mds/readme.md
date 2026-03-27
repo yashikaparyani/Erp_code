@@ -119,14 +119,14 @@ Meri recommendation: ERPNext choose karo — 70% work already done hai, tujhe si
 🚀 ERPNext Par Kaise Start Karen — Step by Step
 Step 1: ERPNext Install Karo
 bash
-# Easy banka via Docker
-git clone https://github.com/frappe/frappe_docker
-cd frappe_docker
-docker compose -f compose.yaml \
-  -f overrides/compose.mariadb.yaml \
-  -f overrides/compose.redis.yaml \
-  up -d
-Ya ERPNext Cloud (paid) ya local install via bench.
+# Recommended: WSL-native bench setup
+bench init frappe-bench --frappe-branch version-15
+cd frappe-bench
+bench new-site your_site.local
+bench get-app erpnext --branch version-15
+bench --site your_site.local install-app erpnext
+bench start
+Ya ERPNext Cloud (paid). Docker ko default dev path mat rakho.
 
 Step 2: Custom App Banao (Frappe App)
 bash

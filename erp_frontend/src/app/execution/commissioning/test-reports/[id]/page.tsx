@@ -5,11 +5,12 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft, Loader2, AlertCircle, Calendar, User, Building2,
-  MapPin, Hash, CheckCircle2, XCircle, FileText, ClipboardCheck,
+  CheckCircle2, XCircle, Hash, FileText, MapPin, Tag, Beaker,
 } from 'lucide-react';
 import ActionModal from '@/components/ui/ActionModal';
 import { AccountabilityTimeline } from '@/components/accountability/AccountabilityTimeline';
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
+import TraceabilityPanel from '@/components/ui/TraceabilityPanel';
 import { useAuth } from '@/context/AuthContext';
 
 interface TestReportDetail {
@@ -23,8 +24,6 @@ interface TestReportDetail {
   status?: string;
   file?: string;
   remarks?: string;
-  approved_by?: string;
-  approved_on?: string;
   rejection_reason?: string;
   creation?: string;
   modified?: string;
@@ -37,22 +36,12 @@ function formatDate(value?: string) {
 }
 
 function StatusBadge({ status }: { status?: string }) {
-  const s = (status || '').toUpperCase();
+  const s = (status || 'PENDING').toUpperCase();
   const style = s === 'APPROVED' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
     : s === 'REJECTED' ? 'bg-rose-50 text-rose-700 border-rose-200'
-    : s === 'SUBMITTED' ? 'bg-blue-50 text-blue-700 border-blue-200'
-    : s === 'DRAFT' ? 'bg-gray-100 text-gray-700 border-gray-200'
+    : s === 'PENDING' || s === 'SUBMITTED' ? 'bg-amber-50 text-amber-700 border-amber-200'
     : 'bg-gray-50 text-gray-600 border-gray-200';
-  return <span className={`inline-flex items-center rounded-lg border px-3 py-1 text-xs font-semibold ${style}`}>{s || 'N/A'}</span>;
-}
-
-function TypeBadge({ type }: { type?: string }) {
-  const t = (type || '').toUpperCase();
-  const style = t === 'FAT' ? 'bg-orange-50 text-orange-700 border-orange-200'
-    : t === 'SAT' ? 'bg-blue-50 text-blue-700 border-blue-200'
-    : t === 'UAT' ? 'bg-purple-50 text-purple-700 border-purple-200'
-    : 'bg-gray-50 text-gray-600 border-gray-200';
-  return <span className={`inline-flex items-center rounded-lg border px-2.5 py-0.5 text-xs font-semibold ${style}`}>{t || 'N/A'}</span>;
+  return <span className={`inline-flex items-center rounded-lg border px-3 py-1 text-xs font-semibold ${style}`}>{s}</span>;
 }
 
 export default function TestReportDetailPage() {
@@ -71,7 +60,7 @@ export default function TestReportDetailPage() {
     const set = new Set(currentUser?.roles || []);
     return roles.some((r) => set.has(r));
   };
-  const canApprove = hasRole('Director', 'System Manager', 'I&C Manager', 'QA Manager', 'Project Manager');
+  const canManage = hasRole('Director', 'System Manager', 'I&C Manager', 'QA Manager');
 
   const loadData = useCallback(async () => {
     setLoading(true); setError('');
@@ -91,9 +80,9 @@ export default function TestReportDetailPage() {
   const runAction = async (action: string, extra: Record<string, string> = {}) => {
     setActionBusy(action); setError('');
     try {
-      const res = await fetch('/api/execution/commissioning/test-reports', {
+      const res = await fetch(`/api/execution/commissioning/test-reports/${encodeURIComponent(reportName)}/actions`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, name: reportName, ...extra }),
+        body: JSON.stringify({ action, ...extra }),
       });
       const result = await res.json();
       if (!result.success) throw new Error(result.message || `Failed to ${action}`);
@@ -107,8 +96,9 @@ export default function TestReportDetailPage() {
   if (error && !data) return <div className="flex flex-col items-center justify-center h-64 gap-4"><AlertCircle className="h-10 w-10 text-rose-400" /><p className="text-rose-600">{error}</p><Link href="/execution/commissioning/test-reports" className="text-sm text-blue-600 hover:underline">← Back to Test Reports</Link></div>;
   if (!data) return null;
 
-  const st = (data.status || '').toUpperCase();
-  const isSubmitted = st === 'SUBMITTED';
+  const st = (data.status || 'PENDING').toUpperCase();
+  const isPending = st === 'PENDING' || st === 'SUBMITTED';
+  const isRejected = st === 'REJECTED';
 
   return (
     <div className="space-y-6">
@@ -118,19 +108,17 @@ export default function TestReportDetailPage() {
           <h1 className="text-2xl font-bold text-gray-900">{data.report_name || data.name}</h1>
           <p className="mt-1 text-sm text-gray-500">{data.name}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <TypeBadge type={data.test_type} />
-          <StatusBadge status={st} />
-        </div>
+        <StatusBadge status={st} />
       </div>
 
       {successMsg && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">{successMsg}</div>}
       {error && <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700">{error} <button onClick={() => setError('')} className="ml-2 font-medium underline">Dismiss</button></div>}
 
-      {isSubmitted && canApprove && (
+      {canManage && (isPending || isRejected) && (
         <div className="flex flex-wrap gap-2">
-          <button onClick={() => runAction('approve')} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"><CheckCircle2 className="h-3.5 w-3.5" /> Approve</button>
-          <button onClick={() => setRejectModal(true)} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-700 disabled:opacity-50"><XCircle className="h-3.5 w-3.5" /> Reject</button>
+          {isPending && <button onClick={() => runAction('approve')} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"><CheckCircle2 className="h-3.5 w-3.5" /> Approve</button>}
+          {isPending && <button onClick={() => setRejectModal(true)} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-700 disabled:opacity-50"><XCircle className="h-3.5 w-3.5" /> Reject</button>}
+          {isRejected && <button onClick={() => runAction('resubmit')} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"><FileText className="h-3.5 w-3.5" /> Resubmit</button>}
         </div>
       )}
 
@@ -142,51 +130,50 @@ export default function TestReportDetailPage() {
               {[
                 [<Hash key="n" className="h-3.5 w-3.5" />, 'Report ID', data.name],
                 [<FileText key="rn" className="h-3.5 w-3.5" />, 'Report Name', data.report_name],
-                [<ClipboardCheck key="tt" className="h-3.5 w-3.5" />, 'Test Type', data.test_type],
+                [<Beaker key="tt" className="h-3.5 w-3.5" />, 'Test Type', data.test_type],
                 [<Building2 key="p" className="h-3.5 w-3.5" />, 'Project', data.linked_project],
                 [<MapPin key="s" className="h-3.5 w-3.5" />, 'Site', data.linked_site],
                 [<Calendar key="td" className="h-3.5 w-3.5" />, 'Test Date', formatDate(data.test_date)],
                 [<User key="tb" className="h-3.5 w-3.5" />, 'Tested By', data.tested_by],
-                [<User key="ab" className="h-3.5 w-3.5" />, 'Approved By', data.approved_by],
-                [<Calendar key="ao" className="h-3.5 w-3.5" />, 'Approved On', formatDate(data.approved_on)],
                 [<User key="o" className="h-3.5 w-3.5" />, 'Created By', data.owner],
                 [<Calendar key="c" className="h-3.5 w-3.5" />, 'Created', formatDate(data.creation)],
               ].map(([icon, label, value]) => (
                 <div key={String(label)} className="flex items-center gap-2">
                   <span className="text-gray-400">{icon}</span>
                   <dt className="text-gray-500 w-32 shrink-0">{String(label)}</dt>
-                  <dd className="font-medium text-gray-900 truncate">{String(value || '-')}</dd>
+                  <dd className="font-medium text-gray-900 truncate">{String(value ?? '-')}</dd>
                 </div>
               ))}
             </dl>
+            {data.file && (
+              <div className="mt-4">
+                <a href={data.file} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:underline"><FileText className="h-3.5 w-3.5" /> View Report File</a>
+              </div>
+            )}
           </div>
         </div>
 
         <div className="card lg:col-span-2">
-          <div className="card-header"><h3 className="font-semibold text-gray-900">Remarks & Findings</h3></div>
+          <div className="card-header"><h3 className="font-semibold text-gray-900">Remarks</h3></div>
           <div className="card-body space-y-4">
-            {data.remarks ? <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap">{data.remarks}</div> : <p className="text-sm text-gray-400 italic">No remarks provided</p>}
+            {data.remarks ? <p className="text-sm text-gray-700 whitespace-pre-wrap">{data.remarks}</p> : <p className="text-sm text-gray-400 italic">No remarks provided</p>}
             {data.rejection_reason && (
               <div className="rounded-xl border border-rose-200 bg-rose-50 p-4">
                 <h4 className="text-sm font-medium text-rose-800 mb-2">Rejection Reason</h4>
                 <p className="text-sm text-rose-700 whitespace-pre-wrap">{data.rejection_reason}</p>
               </div>
             )}
-            {data.file && (
-              <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
-                <h4 className="text-sm font-medium text-blue-800 mb-2">Attached Report File</h4>
-                <a href={data.file} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-700 hover:underline inline-flex items-center gap-1"><FileText className="h-4 w-4" /> View / Download Report</a>
-              </div>
-            )}
           </div>
         </div>
       </div>
+
+      <TraceabilityPanel projectId={data.linked_project} siteId={data.linked_site} />
 
       <RecordDocumentsPanel referenceDoctype="GE Test Report" referenceName={reportName} title="Linked Documents" initialLimit={5} />
 
       <div className="card"><div className="card-header"><h3 className="font-semibold text-gray-900">Accountability Trail</h3></div><div className="card-body"><AccountabilityTimeline subjectDoctype="GE Test Report" subjectName={reportName} compact={false} initialLimit={10} /></div></div>
 
-      <ActionModal open={rejectModal} title="Reject Test Report" description={`Reject test report ${data.name}. A reason is required.`} variant="danger" confirmLabel="Reject" busy={actionBusy === 'reject'} fields={[{ name: 'remarks', label: 'Rejection Reason', type: 'textarea', required: true, placeholder: 'Reason for rejection...' }]} onConfirm={async (values) => { await runAction('reject', { remarks: values.remarks || '' }); setRejectModal(false); }} onCancel={() => setRejectModal(false)} />
+      <ActionModal open={rejectModal} title="Reject Test Report" description={`Reject report ${data.name}. A reason is required.`} variant="danger" confirmLabel="Reject" busy={actionBusy === 'reject'} fields={[{ name: 'reason', label: 'Rejection Reason', type: 'textarea', required: true, placeholder: 'Reason for rejection...' }]} onConfirm={async (values) => { await runAction('reject', { reason: values.reason || '' }); setRejectModal(false); }} onCancel={() => setRejectModal(false)} />
     </div>
   );
 }

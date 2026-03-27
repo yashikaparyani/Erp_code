@@ -12,6 +12,7 @@ import ActionModal from '@/components/ui/ActionModal';
 import { AccountabilityTimeline } from '@/components/accountability/AccountabilityTimeline';
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
 import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
+import TraceabilityPanel from '@/components/ui/TraceabilityPanel';
 import { useAuth } from '@/context/AuthContext';
 
 interface TicketDetail {
@@ -255,13 +256,15 @@ export default function TicketDetailPage() {
         ...(data.is_rma ? [{ label: 'RMA Tracker', doctype: 'GE RMA Tracker', method: 'frappe.client.get_list', args: { doctype: 'GE RMA Tracker', filters: JSON.stringify({ linked_ticket: data.name }), fields: JSON.stringify(['name', 'rma_status', 'warranty_status', 'aging_days']), limit_page_length: '10' }, href: (name: string) => `/rma/${name}` }] : []),
       ]} />
 
+      <TraceabilityPanel projectId={data.linked_project} siteId={data.linked_site} />
+
       <RecordDocumentsPanel referenceDoctype="GE Service Ticket" referenceName={ticketName} title="Linked Documents" initialLimit={5} />
 
       <div className="card"><div className="card-header"><h3 className="font-semibold text-gray-900">Accountability Trail</h3></div><div className="card-body"><AccountabilityTimeline subjectDoctype="GE Service Ticket" subjectName={ticketName} compact={false} initialLimit={10} /></div></div>
 
-      <ActionModal open={assignModal} title="Assign Ticket" description={`Assign ticket ${data.name} to a team member.`} variant="primary" confirmLabel="Assign" busy={actionBusy === 'assign'} fields={[{ name: 'assigned_to', label: 'Assign To', type: 'text', required: true, placeholder: 'User email or ID' }]} onConfirm={async (values) => { await runAction('assign', { assigned_to: values.assigned_to || '' }); setAssignModal(false); }} onCancel={() => setAssignModal(false)} />
+      <ActionModal open={assignModal} title="Assign Ticket" description={`Assign ticket ${data.name} to a team member.`} variant="default" confirmLabel="Assign" busy={actionBusy === 'assign'} fields={[{ name: 'assigned_to', label: 'Assign To', type: 'text', required: true, placeholder: 'User email or ID' }]} onConfirm={async (values) => { await runAction('assign', { assigned_to: values.assigned_to || '' }); setAssignModal(false); }} onCancel={() => setAssignModal(false)} />
 
-      <ActionModal open={commentModal} title="Add Comment" description={`Add a comment to ticket ${data.name}.`} variant="primary" confirmLabel="Post Comment" busy={actionBusy === 'comment'} fields={[{ name: 'comment', label: 'Comment', type: 'textarea', required: true, placeholder: 'Enter your comment...' }]} onConfirm={async (values) => { await runAction('comment', { comment: values.comment || '' }); setCommentModal(false); }} onCancel={() => setCommentModal(false)} />
+      <ActionModal open={commentModal} title="Add Comment" description={`Add a comment to ticket ${data.name}.`} variant="default" confirmLabel="Post Comment" busy={actionBusy === 'comment'} fields={[{ name: 'comment', label: 'Comment', type: 'textarea', required: true, placeholder: 'Enter your comment...' }]} onConfirm={async (values) => { await runAction('comment', { comment: values.comment || '' }); setCommentModal(false); }} onCancel={() => setCommentModal(false)} />
     </div>
   );
 }

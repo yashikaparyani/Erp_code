@@ -11,6 +11,7 @@ import ActionModal from '@/components/ui/ActionModal';
 import { AccountabilityTimeline } from '@/components/accountability/AccountabilityTimeline';
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
 import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
+import TraceabilityPanel from '@/components/ui/TraceabilityPanel';
 import { useAuth } from '@/context/AuthContext';
 
 interface ProformaDetail {
@@ -209,6 +210,8 @@ export default function ProformaDetailPage() {
         ...(data.linked_estimate ? [{ label: 'Source Estimate', doctype: 'GE Estimate', method: 'frappe.client.get_list', args: { doctype: 'GE Estimate', filters: JSON.stringify({ name: data.linked_estimate }), fields: JSON.stringify(['name', 'customer', 'net_amount', 'status']), limit_page_length: '5' }, href: (name: string) => `/finance/estimates/${name}` }] : []),
         { label: 'Related Invoices', doctype: 'GE Invoice', method: 'frappe.client.get_list', args: { doctype: 'GE Invoice', filters: JSON.stringify(data.linked_project ? { linked_project: data.linked_project } : {}), fields: JSON.stringify(['name', 'customer', 'net_receivable', 'status']), limit_page_length: '20' }, href: (name: string) => `/finance/billing/${name}` },
       ]} />
+
+      <TraceabilityPanel projectId={data.linked_project} />
 
       <RecordDocumentsPanel referenceDoctype="GE Proforma Invoice" referenceName={piName} title="Linked Documents" initialLimit={5} />
 
