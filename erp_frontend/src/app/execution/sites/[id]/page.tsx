@@ -5,11 +5,12 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft, Loader2, AlertCircle, Calendar, User, Building2,
-  MapPin, Hash, CheckCircle2, Clock, Activity, Shield,
+  Hash, MapPin, Globe, Tag, Compass,
 } from 'lucide-react';
 import { AccountabilityTimeline } from '@/components/accountability/AccountabilityTimeline';
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
 import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
+import TraceabilityPanel from '@/components/ui/TraceabilityPanel';
 
 interface SiteDetail {
   name: string;
@@ -18,15 +19,15 @@ interface SiteDetail {
   status?: string;
   linked_project?: string;
   linked_tender?: string;
-  latitude?: string;
-  longitude?: string;
+  latitude?: number;
+  longitude?: number;
   address?: string;
-  district?: string;
+  city?: string;
   state?: string;
-  zone?: string;
-  site_type?: string;
+  pincode?: string;
   contact_person?: string;
   contact_phone?: string;
+  contact_email?: string;
   creation?: string;
   modified?: string;
   owner?: string;
@@ -40,12 +41,12 @@ function formatDate(value?: string) {
 function StatusBadge({ status }: { status?: string }) {
   const s = (status || '').toUpperCase();
   const style = s === 'COMMISSIONED' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-    : s === 'ACTIVE' ? 'bg-blue-50 text-blue-700 border-blue-200'
+    : s === 'IN_PROGRESS' || s === 'IN PROGRESS' ? 'bg-blue-50 text-blue-700 border-blue-200'
     : s === 'PLANNED' ? 'bg-purple-50 text-purple-700 border-purple-200'
-    : s === 'CLOSED' ? 'bg-gray-100 text-gray-700 border-gray-200'
     : s === 'BLOCKED' ? 'bg-rose-50 text-rose-700 border-rose-200'
+    : s === 'COMPLETED' ? 'bg-green-50 text-green-700 border-green-200'
     : 'bg-gray-50 text-gray-600 border-gray-200';
-  return <span className={`inline-flex items-center rounded-lg border px-3 py-1 text-xs font-semibold ${style}`}>{s || 'N/A'}</span>;
+  return <span className={`inline-flex items-center rounded-lg border px-3 py-1 text-xs font-semibold ${style}`}>{s.replace(/_/g, ' ') || 'N/A'}</span>;
 }
 
 export default function SiteDetailPage() {
@@ -91,27 +92,26 @@ export default function SiteDetailPage() {
             <dl className="space-y-3 text-sm">
               {[
                 [<Hash key="n" className="h-3.5 w-3.5" />, 'Site ID', data.name],
-                [<Hash key="sc" className="h-3.5 w-3.5" />, 'Site Code', data.site_code],
+                [<Tag key="sc" className="h-3.5 w-3.5" />, 'Site Code', data.site_code],
                 [<MapPin key="sn" className="h-3.5 w-3.5" />, 'Site Name', data.site_name],
-                [<Activity key="st" className="h-3.5 w-3.5" />, 'Status', data.status],
                 [<Building2 key="p" className="h-3.5 w-3.5" />, 'Project', data.linked_project],
-                [<Shield key="t" className="h-3.5 w-3.5" />, 'Tender', data.linked_tender],
-                [<MapPin key="ty" className="h-3.5 w-3.5" />, 'Site Type', data.site_type],
-                [<MapPin key="ad" className="h-3.5 w-3.5" />, 'Address', data.address],
-                [<MapPin key="di" className="h-3.5 w-3.5" />, 'District', data.district],
-                [<MapPin key="s" className="h-3.5 w-3.5" />, 'State', data.state],
-                [<MapPin key="z" className="h-3.5 w-3.5" />, 'Zone', data.zone],
-                [<MapPin key="ll" className="h-3.5 w-3.5" />, 'Coordinates', data.latitude && data.longitude ? `${data.latitude}, ${data.longitude}` : undefined],
-                [<User key="cp" className="h-3.5 w-3.5" />, 'Contact Person', data.contact_person],
-                [<User key="ph" className="h-3.5 w-3.5" />, 'Contact Phone', data.contact_phone],
+                [<Hash key="t" className="h-3.5 w-3.5" />, 'Tender', data.linked_tender],
+                [<MapPin key="addr" className="h-3.5 w-3.5" />, 'Address', data.address],
+                [<Building2 key="c" className="h-3.5 w-3.5" />, 'City', data.city],
+                [<Globe key="st" className="h-3.5 w-3.5" />, 'State', data.state],
+                [<Hash key="pin" className="h-3.5 w-3.5" />, 'Pincode', data.pincode],
+                [<Compass key="lat" className="h-3.5 w-3.5" />, 'Latitude', data.latitude],
+                [<Compass key="lng" className="h-3.5 w-3.5" />, 'Longitude', data.longitude],
+                [<User key="cp" className="h-3.5 w-3.5" />, 'Contact', data.contact_person],
+                [<Hash key="ph" className="h-3.5 w-3.5" />, 'Phone', data.contact_phone],
+                [<Hash key="em" className="h-3.5 w-3.5" />, 'Email', data.contact_email],
                 [<User key="o" className="h-3.5 w-3.5" />, 'Created By', data.owner],
-                [<Calendar key="c" className="h-3.5 w-3.5" />, 'Created', formatDate(data.creation)],
-                [<Calendar key="m" className="h-3.5 w-3.5" />, 'Modified', formatDate(data.modified)],
+                [<Calendar key="cr" className="h-3.5 w-3.5" />, 'Created', formatDate(data.creation)],
               ].map(([icon, label, value]) => (
                 <div key={String(label)} className="flex items-center gap-2">
                   <span className="text-gray-400">{icon}</span>
                   <dt className="text-gray-500 w-32 shrink-0">{String(label)}</dt>
-                  <dd className="font-medium text-gray-900 truncate">{String(value || '-')}</dd>
+                  <dd className="font-medium text-gray-900 truncate">{String(value ?? '-')}</dd>
                 </div>
               ))}
             </dl>
@@ -121,16 +121,18 @@ export default function SiteDetailPage() {
         <div className="lg:col-span-2 space-y-6">
           <LinkedRecordsPanel links={[
             { label: 'Test Reports', doctype: 'GE Test Report', method: 'frappe.client.get_list', args: { doctype: 'GE Test Report', filters: JSON.stringify({ linked_site: data.name }), fields: JSON.stringify(['name', 'report_name', 'test_type', 'status']), limit_page_length: '10' }, href: (name: string) => `/execution/commissioning/test-reports/${name}` },
-            { label: 'Commissioning Checklists', doctype: 'GE Commissioning Checklist', method: 'frappe.client.get_list', args: { doctype: 'GE Commissioning Checklist', filters: JSON.stringify({ linked_site: data.name }), fields: JSON.stringify(['name', 'checklist_name', 'status', 'total_items', 'done_items']), limit_page_length: '10' }, href: (name: string) => `/execution/commissioning/checklists/${name}` },
-            { label: 'Client Signoffs', doctype: 'GE Client Signoff', method: 'frappe.client.get_list', args: { doctype: 'GE Client Signoff', filters: JSON.stringify({ linked_site: data.name }), fields: JSON.stringify(['name', 'signoff_type', 'status', 'signoff_date']), limit_page_length: '10' }, href: (name: string) => `/execution/commissioning/client-signoffs/${name}` },
+            { label: 'Checklists', doctype: 'GE Commissioning Checklist', method: 'frappe.client.get_list', args: { doctype: 'GE Commissioning Checklist', filters: JSON.stringify({ linked_site: data.name }), fields: JSON.stringify(['name', 'checklist_name', 'status']), limit_page_length: '10' }, href: (name: string) => `/execution/commissioning/checklists/${name}` },
+            { label: 'Client Signoffs', doctype: 'GE Client Signoff', method: 'frappe.client.get_list', args: { doctype: 'GE Client Signoff', filters: JSON.stringify({ linked_site: data.name }), fields: JSON.stringify(['name', 'signoff_type', 'status']), limit_page_length: '10' }, href: (name: string) => `/execution/commissioning/client-signoffs/${name}` },
             { label: 'Devices', doctype: 'GE Device Register', method: 'frappe.client.get_list', args: { doctype: 'GE Device Register', filters: JSON.stringify({ linked_site: data.name }), fields: JSON.stringify(['name', 'device_name', 'device_type', 'status']), limit_page_length: '10' }, href: (name: string) => `/execution/commissioning/devices/${name}` },
           ]} />
         </div>
       </div>
 
-      <RecordDocumentsPanel referenceDoctype="GE Execution Site" referenceName={siteName} title="Site Documents" initialLimit={5} />
+      <TraceabilityPanel projectId={data.linked_project} siteId={data.name} siteLabel={data.site_name || data.name} />
 
-      <div className="card"><div className="card-header"><h3 className="font-semibold text-gray-900">Accountability Trail</h3></div><div className="card-body"><AccountabilityTimeline subjectDoctype="GE Execution Site" subjectName={siteName} compact={false} initialLimit={10} /></div></div>
+      <RecordDocumentsPanel referenceDoctype="GE Site" referenceName={siteName} title="Site Documents" initialLimit={5} />
+
+      <div className="card"><div className="card-header"><h3 className="font-semibold text-gray-900">Accountability Trail</h3></div><div className="card-body"><AccountabilityTimeline subjectDoctype="GE Site" subjectName={siteName} compact={false} initialLimit={10} /></div></div>
     </div>
   );
 }

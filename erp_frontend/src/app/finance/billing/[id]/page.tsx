@@ -11,6 +11,7 @@ import ActionModal from '@/components/ui/ActionModal';
 import { AccountabilityTimeline } from '@/components/accountability/AccountabilityTimeline';
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
 import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
+import TraceabilityPanel from '@/components/ui/TraceabilityPanel';
 import { useAuth } from '@/context/AuthContext';
 
 interface InvoiceDetail {
@@ -227,6 +228,8 @@ export default function InvoiceDetailPage() {
         { label: 'Payment Receipts', doctype: 'GE Payment Receipt', method: 'frappe.client.get_list', args: { doctype: 'GE Payment Receipt', filters: JSON.stringify({ linked_invoice: data.name }), fields: JSON.stringify(['name', 'receipt_type', 'amount_received', 'received_date', 'payment_mode']), limit_page_length: '20' }, href: (name) => `/finance/payment-receipts/${name}` },
         { label: 'Penalty Deductions', doctype: 'GE Penalty Deduction', method: 'frappe.client.get_list', args: { doctype: 'GE Penalty Deduction', filters: JSON.stringify(data.linked_project ? { project: data.linked_project } : {}), fields: JSON.stringify(['name', 'source', 'penalty_amount', 'status']), limit_page_length: '20' }, href: (name) => `/finance/penalties/${name}` },
       ]} />
+
+      <TraceabilityPanel projectId={data.linked_project} siteId={data.linked_site} />
 
       <RecordDocumentsPanel referenceDoctype="GE Invoice" referenceName={invoiceName} title="Linked Documents" initialLimit={5} />
 

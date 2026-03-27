@@ -11,6 +11,7 @@ import ActionModal from '@/components/ui/ActionModal';
 import { AccountabilityTimeline } from '@/components/accountability/AccountabilityTimeline';
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
 import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
+import TraceabilityPanel from '@/components/ui/TraceabilityPanel';
 import { useAuth } from '@/context/AuthContext';
 
 interface PenaltyDetail {
@@ -198,11 +199,13 @@ export default function PenaltyDetailPage() {
         ...(data.applied_to_invoice ? [{ label: 'Applied to Invoice', doctype: 'GE Invoice', method: 'frappe.client.get_list', args: { doctype: 'GE Invoice', filters: JSON.stringify({ name: data.applied_to_invoice }), fields: JSON.stringify(['name', 'customer', 'net_receivable', 'status']), limit_page_length: '5' }, href: (name: string) => `/finance/billing/${name}` }] : []),
       ]} />
 
+      <TraceabilityPanel projectId={data.project} />
+
       <RecordDocumentsPanel referenceDoctype="GE Penalty Deduction" referenceName={penName} title="Linked Documents" initialLimit={5} />
 
       <div className="card"><div className="card-header"><h3 className="font-semibold text-gray-900">Accountability Trail</h3></div><div className="card-body"><AccountabilityTimeline subjectDoctype="GE Penalty Deduction" subjectName={penName} compact={false} initialLimit={10} /></div></div>
 
-      <ActionModal open={applyModal} title="Apply Penalty to Invoice" description={`Apply penalty ${data.name} (${fmtCurrency(data.penalty_amount)}) to an invoice.`} variant="primary" confirmLabel="Apply" busy={actionBusy === 'apply'} fields={[{ name: 'invoice_name', label: 'Invoice Name', type: 'text', required: true, placeholder: 'Enter the invoice name to apply this penalty to' }]} onConfirm={async (values) => { await runAction('apply', { invoice_name: values.invoice_name || '' }); setApplyModal(false); }} onCancel={() => setApplyModal(false)} />
+      <ActionModal open={applyModal} title="Apply Penalty to Invoice" description={`Apply penalty ${data.name} (${fmtCurrency(data.penalty_amount)}) to an invoice.`} variant="default" confirmLabel="Apply" busy={actionBusy === 'apply'} fields={[{ name: 'invoice_name', label: 'Invoice Name', type: 'text', required: true, placeholder: 'Enter the invoice name to apply this penalty to' }]} onConfirm={async (values) => { await runAction('apply', { invoice_name: values.invoice_name || '' }); setApplyModal(false); }} onCancel={() => setApplyModal(false)} />
 
       <ActionModal open={reverseModal} title="Reverse Penalty" description={`Reverse the applied penalty ${data.name}. Please provide a reason.`} variant="danger" confirmLabel="Reverse" busy={actionBusy === 'reverse'} fields={[{ name: 'reason', label: 'Reversal Reason', type: 'textarea', required: true, placeholder: 'Why is this penalty being reversed?' }]} onConfirm={async (values) => { await runAction('reverse', { reason: values.reason || '' }); setReverseModal(false); }} onCancel={() => setReverseModal(false)} />
     </div>

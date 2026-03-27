@@ -22,6 +22,7 @@ import ActionModal from '@/components/ui/ActionModal';
 import { AccountabilityTimeline } from '@/components/accountability/AccountabilityTimeline';
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
 import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
+import TraceabilityPanel from '@/components/ui/TraceabilityPanel';
 import { useAuth } from '@/context/AuthContext';
 
 interface ChangeRequestDetail {
@@ -300,6 +301,8 @@ export default function ChangeRequestDetailPage() {
       />
 
       {/* Linked Documents */}
+      <TraceabilityPanel projectId={data.project} />
+
       <RecordDocumentsPanel
         referenceDoctype="GE Change Request"
         referenceName={crName}

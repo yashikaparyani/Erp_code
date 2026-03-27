@@ -10,6 +10,7 @@ import {
 import { AccountabilityTimeline } from '@/components/accountability/AccountabilityTimeline';
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
 import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
+import TraceabilityPanel from '@/components/ui/TraceabilityPanel';
 
 interface PaymentReceiptDetail {
   name: string;
@@ -152,6 +153,8 @@ export default function PaymentReceiptDetailPage() {
       <LinkedRecordsPanel links={[
         ...(data.linked_invoice ? [{ label: 'Linked Invoice', doctype: 'GE Invoice', method: 'frappe.client.get_list', args: { doctype: 'GE Invoice', filters: JSON.stringify({ name: data.linked_invoice }), fields: JSON.stringify(['name', 'customer', 'invoice_type', 'net_receivable', 'status']), limit_page_length: '5' }, href: (name: string) => `/finance/billing/${name}` }] : []),
       ]} />
+
+      <TraceabilityPanel projectId={data.linked_project} />
 
       <RecordDocumentsPanel referenceDoctype="GE Payment Receipt" referenceName={prName} title="Linked Documents" initialLimit={5} />
 

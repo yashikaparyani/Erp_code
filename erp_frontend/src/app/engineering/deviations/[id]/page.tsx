@@ -22,6 +22,7 @@ import ActionModal from '@/components/ui/ActionModal';
 import { AccountabilityTimeline } from '@/components/accountability/AccountabilityTimeline';
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
 import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
+import TraceabilityPanel from '@/components/ui/TraceabilityPanel';
 import { useAuth } from '@/context/AuthContext';
 
 interface DeviationDetail {
@@ -340,6 +341,8 @@ export default function DeviationDetailPage() {
       />
 
       {/* Linked Documents */}
+      <TraceabilityPanel projectId={data.linked_project} siteId={data.linked_site} />
+
       <RecordDocumentsPanel
         referenceDoctype="GE Technical Deviation"
         referenceName={deviationName}

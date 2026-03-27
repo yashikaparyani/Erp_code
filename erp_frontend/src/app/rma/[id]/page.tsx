@@ -12,6 +12,7 @@ import ActionModal from '@/components/ui/ActionModal';
 import { AccountabilityTimeline } from '@/components/accountability/AccountabilityTimeline';
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
 import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
+import TraceabilityPanel from '@/components/ui/TraceabilityPanel';
 import { useAuth } from '@/context/AuthContext';
 
 interface RMADetail {
@@ -208,13 +209,15 @@ export default function RMADetailPage() {
         ...(data.linked_ticket ? [{ label: 'Source Ticket', doctype: 'GE Service Ticket', method: 'frappe.client.get_list', args: { doctype: 'GE Service Ticket', filters: JSON.stringify({ name: data.linked_ticket }), fields: JSON.stringify(['name', 'title', 'status', 'priority']), limit_page_length: '5' }, href: (name: string) => `/om-helpdesk/${name}` }] : []),
       ]} />
 
+      <TraceabilityPanel projectId={data.linked_project} />
+
       <RecordDocumentsPanel referenceDoctype="GE RMA Tracker" referenceName={rmaName} title="Linked Documents" initialLimit={5} />
 
       <div className="card"><div className="card-header"><h3 className="font-semibold text-gray-900">Accountability Trail</h3></div><div className="card-body"><AccountabilityTimeline subjectDoctype="GE RMA Tracker" subjectName={rmaName} compact={false} initialLimit={10} /></div></div>
 
       <ActionModal open={rejectModal} title="Reject RMA" description={`Reject RMA ${data.name}. A reason is required.`} variant="danger" confirmLabel="Reject" busy={actionBusy === 'reject'} fields={[{ name: 'reason', label: 'Rejection Reason', type: 'textarea', required: true, placeholder: 'Reason for rejection...' }]} onConfirm={async (values) => { await runAction('reject', { reason: values.reason || '' }); setRejectModal(false); }} onCancel={() => setRejectModal(false)} />
 
-      <ActionModal open={statusModal} title="Update RMA Status" description={`Update status for ${data.name}.`} variant="primary" confirmLabel="Update" busy={actionBusy === 'update_status'} fields={[{ name: 'new_status', label: 'New Status', type: 'select', required: true, options: [{ value: 'IN_TRANSIT', label: 'In Transit' }, { value: 'UNDER_REPAIR', label: 'Under Repair' }, { value: 'REPAIRED', label: 'Repaired' }, { value: 'REPLACED', label: 'Replaced' }] }]} onConfirm={async (values) => { await runAction('update_status', { new_status: values.new_status || '' }); setStatusModal(false); }} onCancel={() => setStatusModal(false)} />
+      <ActionModal open={statusModal} title="Update RMA Status" description={`Update status for ${data.name}.`} variant="default" confirmLabel="Update" busy={actionBusy === 'update_status'} fields={[{ name: 'new_status', label: 'New Status', type: 'select', required: true, options: [{ value: 'IN_TRANSIT', label: 'In Transit' }, { value: 'UNDER_REPAIR', label: 'Under Repair' }, { value: 'REPAIRED', label: 'Repaired' }, { value: 'REPLACED', label: 'Replaced' }] }]} onConfirm={async (values) => { await runAction('update_status', { new_status: values.new_status || '' }); setStatusModal(false); }} onCancel={() => setStatusModal(false)} />
     </div>
   );
 }

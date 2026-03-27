@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft,
+  ArrowRight,
   CheckCircle2,
   XCircle,
   Send,
@@ -16,11 +17,12 @@ import {
   Building2,
   RotateCcw,
   ArrowUpRight,
+  Boxes,
 } from 'lucide-react';
 import ActionModal from '@/components/ui/ActionModal';
 import { AccountabilityTimeline } from '@/components/accountability/AccountabilityTimeline';
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
-import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
+import TraceabilityPanel from '@/components/ui/TraceabilityPanel';
 import { useRole } from '@/context/RoleContext';
 
 interface IndentItem {
@@ -53,6 +55,23 @@ interface IndentDetail {
   modified?: string;
   owner?: string;
   _comment_count?: number;
+}
+
+interface StockContextRow {
+  item_code: string;
+  actual_qty?: number;
+  reserved_qty?: number;
+  ordered_qty?: number;
+  projected_qty?: number;
+  warehouse?: string;
+}
+
+interface VendorComparisonSummary {
+  name: string;
+  status?: string;
+  recommended_supplier?: string;
+  selected_total_amount?: number;
+  creation?: string;
 }
 
 function StatusBadge({ status }: { status?: string }) {
@@ -92,6 +111,9 @@ export default function IndentDetailPage() {
   const [rejectModal, setRejectModal] = useState(false);
   const [returnModal, setReturnModal] = useState(false);
   const [escalateModal, setEscalateModal] = useState(false);
+  const [stockContext, setStockContext] = useState<Record<string, StockContextRow>>({});
+  const [relatedComparisons, setRelatedComparisons] = useState<VendorComparisonSummary[]>([]);
+  const [contextLoading, setContextLoading] = useState(false);
 
   const approvalRoles = new Set(['Project Head', 'Director', 'Department Head']);
   const submitRoles = new Set(['Procurement Manager', 'Purchase', 'Project Head', 'Director']);
@@ -127,6 +149,19 @@ export default function IndentDetailPage() {
     setTimeout(() => setSuccessMsg(''), 4000);
   };
 
+  const postOps = useCallback(async (method: string, args: Record<string, unknown>) => {
+    const res = await fetch('/api/ops', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ method, args }),
+    });
+    const payload = await res.json();
+    if (!payload.success) {
+      throw new Error(payload.message || `Failed to execute ${method}`);
+    }
+    return payload.data?.data || payload.data;
+  }, []);
+
   const runAction = async (method: string, args: Record<string, string> = {}) => {
     setActionBusy(method);
     setError('');
@@ -146,6 +181,57 @@ export default function IndentDetailPage() {
       setActionBusy('');
     }
   };
+
+  useEffect(() => {
+    const loadContext = async () => {
+      if (!data) {
+        setStockContext({});
+        setRelatedComparisons([]);
+        return;
+      }
+
+      setContextLoading(true);
+      try {
+        const stockRows = await Promise.all(
+          (data.items || [])
+            .filter((item) => item.item_code)
+            .map(async (item) => {
+              try {
+                const response = await postOps('get_stock_position', {
+                  item_code: item.item_code || '',
+                  warehouse: item.warehouse || data.set_warehouse || '',
+                  limit_page_length: 20,
+                });
+                return {
+                  itemCode: item.item_code || '',
+                  rows: Array.isArray(response) ? response as StockContextRow[] : [],
+                };
+              } catch {
+                return { itemCode: item.item_code || '', rows: [] };
+              }
+            }),
+        );
+
+        const contextMap: Record<string, StockContextRow> = {};
+        for (const entry of stockRows) {
+          const row = entry.rows[0];
+          if (!row) continue;
+          contextMap[entry.itemCode] = row;
+        }
+
+        const comparisonData = await postOps('get_vendor_comparisons', { material_request: data.name });
+        setStockContext(contextMap);
+        setRelatedComparisons(Array.isArray(comparisonData) ? comparisonData as VendorComparisonSummary[] : []);
+      } catch {
+        setStockContext({});
+        setRelatedComparisons([]);
+      } finally {
+        setContextLoading(false);
+      }
+    };
+
+    void loadContext();
+  }, [data, postOps]);
 
   if (loading) {
     return (
@@ -171,6 +257,25 @@ export default function IndentDetailPage() {
   const items: IndentItem[] = data.items || [];
   const totalQty = items.reduce((sum, i) => sum + (i.qty || 0), 0);
   const totalOrdered = items.reduce((sum, i) => sum + (i.ordered_qty || 0), 0);
+  const stockCoverage = items.map((item) => {
+    const row = item.item_code ? stockContext[item.item_code] : undefined;
+    const actualQty = row?.actual_qty || 0;
+    const reservedQty = row?.reserved_qty || 0;
+    const availableQty = Math.max(actualQty - reservedQty, 0);
+    const requiredQty = item.qty || 0;
+    return {
+      itemCode: item.item_code || '-',
+      warehouse: row?.warehouse || item.warehouse || data.set_warehouse || '-',
+      requiredQty,
+      availableQty,
+      orderedQty: row?.ordered_qty || 0,
+      projectedQty: row?.projected_qty || 0,
+      shortageQty: Math.max(requiredQty - availableQty, 0),
+    };
+  });
+  const coveredItems = stockCoverage.filter((row) => row.shortageQty <= 0).length;
+  const shortageItems = stockCoverage.filter((row) => row.shortageQty > 0).length;
+  const totalAvailableQty = stockCoverage.reduce((sum, row) => sum + row.availableQty, 0);
 
   return (
     <div className="space-y-6">
@@ -327,6 +432,112 @@ export default function IndentDetailPage() {
         </div>
       </div>
 
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <div className="card">
+          <div className="card-header flex items-center justify-between gap-3">
+            <div>
+              <h3 className="font-semibold text-gray-900">Stock-on-Hand Context</h3>
+              <p className="mt-0.5 text-xs text-gray-500">Live warehouse stock versus the quantities requested on this indent.</p>
+            </div>
+            {contextLoading ? <span className="text-xs text-gray-400">Refreshing stock…</span> : null}
+          </div>
+          <div className="card-body space-y-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                <div className="text-xs text-gray-500">Items Fully Covered</div>
+                <div className="mt-1 text-2xl font-semibold text-gray-900">{coveredItems}</div>
+              </div>
+              <div className="rounded-xl border border-rose-100 bg-rose-50 px-4 py-3">
+                <div className="text-xs text-rose-700">Items Short</div>
+                <div className="mt-1 text-2xl font-semibold text-rose-900">{shortageItems}</div>
+              </div>
+              <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+                <div className="text-xs text-blue-700">Available Qty</div>
+                <div className="mt-1 text-2xl font-semibold text-blue-900">{totalAvailableQty}</div>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-sm">
+                <thead className="bg-gray-50 text-gray-500">
+                  <tr>
+                    <th className="px-4 py-2.5 font-medium">Item</th>
+                    <th className="px-4 py-2.5 font-medium">Warehouse</th>
+                    <th className="px-4 py-2.5 font-medium text-right">Required</th>
+                    <th className="px-4 py-2.5 font-medium text-right">Available</th>
+                    <th className="px-4 py-2.5 font-medium text-right">Ordered</th>
+                    <th className="px-4 py-2.5 font-medium text-right">Projected</th>
+                    <th className="px-4 py-2.5 font-medium text-right">Shortage</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {stockCoverage.length === 0 ? (
+                    <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">No stock context available.</td></tr>
+                  ) : stockCoverage.map((row) => (
+                    <tr key={row.itemCode}>
+                      <td className="px-4 py-2.5 font-medium text-gray-900">{row.itemCode}</td>
+                      <td className="px-4 py-2.5 text-gray-500">{row.warehouse}</td>
+                      <td className="px-4 py-2.5 text-right">{row.requiredQty}</td>
+                      <td className="px-4 py-2.5 text-right text-emerald-700">{row.availableQty}</td>
+                      <td className="px-4 py-2.5 text-right text-blue-700">{row.orderedQty}</td>
+                      <td className="px-4 py-2.5 text-right text-indigo-700">{row.projectedQty}</td>
+                      <td className="px-4 py-2.5 text-right">
+                        <span className={row.shortageQty > 0 ? 'font-semibold text-rose-700' : 'text-emerald-700'}>
+                          {row.shortageQty}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-header">
+            <h3 className="font-semibold text-gray-900">Downstream Vendor Comparisons</h3>
+            <p className="mt-0.5 text-xs text-gray-500">Comparisons raised against this indent after acceptance.</p>
+          </div>
+          <div className="card-body">
+            {relatedComparisons.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-sm text-gray-500">
+                No vendor comparisons have been linked to this indent yet.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {relatedComparisons.map((comparison) => (
+                  <Link
+                    key={comparison.name}
+                    href={`/vendor-comparisons/${encodeURIComponent(comparison.name)}`}
+                    className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 hover:border-blue-200 hover:bg-blue-50/50"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <Boxes className="h-4 w-4 text-indigo-500" />
+                        <span className="font-medium text-gray-900">{comparison.name}</span>
+                      </div>
+                      <p className="mt-1 text-xs text-gray-500">
+                        {comparison.recommended_supplier || 'Supplier pending'} • {comparison.status || 'Draft'}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3 text-right">
+                      <div>
+                        <div className="text-sm font-semibold text-gray-900">{comparison.selected_total_amount ? `₹ ${comparison.selected_total_amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}` : '₹ 0'}</div>
+                        <div className="text-xs text-gray-500">
+                          {comparison.creation ? new Date(comparison.creation).toLocaleDateString('en-IN') : 'No date'}
+                        </div>
+                      </div>
+                      <ArrowRight className="h-4 w-4 text-gray-300" />
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Linked records */}
       {data.project && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -354,31 +565,13 @@ export default function IndentDetailPage() {
       )}
 
       {/* Linked Documents */}
+      <TraceabilityPanel projectId={data.project} />
+
       <RecordDocumentsPanel
         referenceDoctype="Material Request"
         referenceName={indentName}
         title="Linked Documents"
         initialLimit={5}
-      />
-
-      {/* Linked Records */}
-      <LinkedRecordsPanel
-        links={[
-          {
-            label: 'Purchase Orders',
-            doctype: 'Purchase Order',
-            method: 'frappe.client.get_list',
-            args: { doctype: 'Purchase Order', filters: JSON.stringify({ custom_material_request: indentName }), fields: JSON.stringify(['name', 'supplier', 'status', 'grand_total', 'transaction_date']), limit_page_length: '20' },
-            href: (name) => `/purchase-orders/${name}`,
-          },
-          {
-            label: 'Vendor Comparisons',
-            doctype: 'GE Vendor Comparison',
-            method: 'frappe.client.get_list',
-            args: { doctype: 'GE Vendor Comparison', filters: JSON.stringify({ material_request: indentName }), fields: JSON.stringify(['name', 'status', 'creation']), limit_page_length: '20' },
-            href: (name) => `/vendor-comparisons/${name}`,
-          },
-        ]}
       />
 
       {/* Accountability Trail */}

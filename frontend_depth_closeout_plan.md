@@ -755,19 +755,24 @@ All list pages now have full detail + workflow surfaces.
 - ✅ `/finance/retention` — `[id]` detail page with release workflow, amount KPIs, release progress bar, partial/full release modal
 - ✅ `/hr/onboarding` — `[id]` detail page with submit/review/approve/reject/send-back/reopen/map-to-employee, education/experience/documents child tables, reject modal with reason
 
-## Priority 3: Depth 3 Pages Needing Final Polish (Depth 3 → 4)
+## Priority 3: Depth 3 Pages Needing Final Polish (Depth 3 → 4) ✅ DONE
 
-These work but have remaining gaps noted in the Appendix.
+All remaining polish gaps on the three strongest procurement detail pages are now closed.
 
-- `/vendor-comparisons/[id]` — add quote line item breakdown, downstream PO chain card
-- `/purchase-orders/[id]` — add itemized creation UI, upstream comparison link, downstream GRN card
-- `/indents/[id]` — add stock-on-hand context card, downstream comparison link
+- ✅ `/vendor-comparisons/[id]` — quote line item breakdown + downstream PO chain card added
+- ✅ `/purchase-orders/[id]` — itemized order composition UI + upstream comparison link + downstream GRN card added
+- ✅ `/indents/[id]` — stock-on-hand context card + downstream vendor comparison links added
 
-## Priority 4: Document And RCA Depth
+## Priority 4: Document and RCA Depth ✅ CORE LIFECYCLE ROUTES DONE
 
-- dossier entry points from all major lifecycle pages
-- linked record document panels on any remaining operational pages
-- accountability drilldown on all critical record pages
+Core lifecycle detail pages now expose traceability shortcuts into dossier and accountability surfaces:
+
+- ✅ procurement: vendor comparisons, indents, purchase orders, GRNs
+- ✅ engineering: BOQ, drawings, deviations, change requests
+- ✅ execution: sites, test reports, checklists, client signoffs, devices
+- ✅ finance: billing, costing, estimates, proformas, payment receipts, penalties
+- ✅ O&M: tickets, RMA
+- ✅ linked record document panels + accountability trails already present on those routes
 
 ## Phase Plan
 
@@ -804,11 +809,12 @@ All detail pages now expose decision-taking with structured modal/form workflows
 - ✅ PM DPR `[id]` — detail with activities/issues child tables
 - ⬜ PM dashboard live data
 
-## Phase 5 — Close Reports / Dossier / RCA Embedding ⬜ PENDING
+## Phase 5 — Close Reports / Dossier / RCA Embedding ✅ LARGELY DONE
 
 - report drilldowns
-- dossier shortcuts everywhere
-- accountability panels on any remaining operational pages
+- ✅ dossier shortcuts rolled into core lifecycle detail pages
+- ✅ accountability panels already present on operational detail pages touched in Priority 4
+- ⬜ remaining workspace/report shells can still link more directly into dossier drilldowns
 
 ## Phase 6 — UAT Depth Audit ⬜ PENDING
 
@@ -911,12 +917,12 @@ Pages not listed here are usually one of these:
 ## B. Procurement / Stores / Inventory
 
 - `/procurement` — `Depth 1` — still list-heavy and action-heavy; vendor comparison workflow is not anchored around a project-first operating surface.
-- `/vendor-comparisons/[id]` — `Depth 3` — detail page with approve/reject/revise workflow, exception reason modal, approved-by display, LinkedRecordsPanel, RecordDocumentsPanel, AccountabilityTimeline. **Remaining gap**: quote-level line item view, downstream PO/dispatch chain card.
+- `/vendor-comparisons/[id]` — `Depth 4` ✅ — detail page with approve/reject/revise workflow, exception reason modal, approved-by display, quote line item breakdown, downstream PO chain card, RecordDocumentsPanel, AccountabilityTimeline.
 - `/purchase-orders` — `Depth 1` — list page is usable, but creation is still thin and not a strong workflow shell.
-- `/purchase-orders/[id]` — `Depth 3` — PO detail has line items table, submit/cancel actions, payment terms with approve/reject, LinkedRecordsPanel, RecordDocumentsPanel, AccountabilityTimeline. **Remaining gap**: itemized creation UI, upstream comparison link, downstream GRN chain card.
+- `/purchase-orders/[id]` — `Depth 4` ✅ — PO detail with itemized order composition UI, source indent links, submit/cancel actions, payment terms with approve/reject, upstream vendor comparison link, downstream GRN card, RecordDocumentsPanel, AccountabilityTimeline.
 - `/dispatch-challans` — `Depth 4` ✅ — list page with status filter, KPI cards (total/draft/pending/dispatched), 9-column table. Detail page with submit/approve/reject/mark-dispatched workflow, line items table, LinkedRecordsPanel, RecordDocumentsPanel, AccountabilityTimeline, reject ActionModal.
 - `/indents` — `Depth 2` — list page links to detail.
-- `/indents/[id]` — `Depth 3` — detail page with submit/acknowledge/accept/reject/return/escalate workflow, reject modal, LinkedRecordsPanel, RecordDocumentsPanel, AccountabilityTimeline. **Remaining gap**: stock-on-hand context card, downstream comparison link.
+- `/indents/[id]` — `Depth 4` ✅ — detail page with submit/acknowledge/accept/reject/return/escalate workflow, stock-on-hand context card, downstream vendor comparison links, RecordDocumentsPanel, AccountabilityTimeline.
 - `/grns` — `Depth 2` — list page links to detail.
 - `/grns/[id]` — `Depth 3` — detail page with receipt items table, total/rejected qty summary, LinkedRecordsPanel, RecordDocumentsPanel, AccountabilityTimeline. Read-only (no workflow actions on GRN itself).
 - `/inventory` — `Depth 1-2` — central inventory is functional, but project-vs-central inventory UX and linked transactional drilldown are still weak.

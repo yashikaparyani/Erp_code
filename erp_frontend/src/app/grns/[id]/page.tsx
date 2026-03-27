@@ -17,6 +17,7 @@ import {
 import { AccountabilityTimeline } from '@/components/accountability/AccountabilityTimeline';
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
 import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
+import TraceabilityPanel from '@/components/ui/TraceabilityPanel';
 
 interface GRNItem {
   name?: string;
@@ -296,6 +297,8 @@ export default function GRNDetailPage() {
       </div>
 
       {/* Linked Documents */}
+      <TraceabilityPanel projectId={data.project} />
+
       <RecordDocumentsPanel
         referenceDoctype="Purchase Receipt"
         referenceName={grnName}

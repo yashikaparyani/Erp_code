@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft,
+  ArrowRight,
   Loader2,
   Plus,
   Trash2,
@@ -16,11 +17,13 @@ import {
   Save,
   AlertCircle,
   Upload,
+  ShoppingCart,
+  Truck,
 } from 'lucide-react';
 import ActionModal from '@/components/ui/ActionModal';
 import { AccountabilityTimeline } from '@/components/accountability/AccountabilityTimeline';
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
-import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
+import TraceabilityPanel from '@/components/ui/TraceabilityPanel';
 
 /* ── Types ─────────────────────────────────────────────────── */
 
@@ -36,6 +39,7 @@ interface POItem {
   schedule_date?: string;
   received_qty?: number;
   billed_amt?: number;
+  material_request?: string;
 }
 
 interface PurchaseOrderDetail {
@@ -77,6 +81,23 @@ interface PaymentTermsData {
   note?: string | null;
   approval_status?: string;
   total_pct?: number;
+}
+
+interface VendorComparisonSummary {
+  name: string;
+  linked_material_request?: string;
+  recommended_supplier?: string;
+  status?: string;
+  selected_total_amount?: number;
+  creation?: string;
+}
+
+interface GrnSummary {
+  name: string;
+  posting_date?: string;
+  status?: string;
+  grand_total?: number;
+  supplier?: string;
 }
 
 const TERM_TYPES = [
@@ -142,6 +163,9 @@ export default function PurchaseOrderDetailPage() {
   const [termsSaving, setTermsSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showTermsRejectModal, setShowTermsRejectModal] = useState(false);
+  const [upstreamComparison, setUpstreamComparison] = useState<VendorComparisonSummary | null>(null);
+  const [relatedGrns, setRelatedGrns] = useState<GrnSummary[]>([]);
+  const [lineageLoading, setLineageLoading] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -167,6 +191,19 @@ export default function PurchaseOrderDetailPage() {
     setSuccessMsg(msg);
     setTimeout(() => setSuccessMsg(''), 3000);
   };
+
+  const postOps = useCallback(async (method: string, args: Record<string, unknown>) => {
+    const res = await fetch('/api/ops', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ method, args }),
+    });
+    const payload = await res.json();
+    if (!payload.success) {
+      throw new Error(payload.message || `Failed to execute ${method}`);
+    }
+    return payload.data?.data || payload.data;
+  }, []);
 
   const handleAction = async (action: 'submit' | 'cancel') => {
     setActionBusy(action);
@@ -266,10 +303,65 @@ export default function PurchaseOrderDetailPage() {
     }
   };
 
+  useEffect(() => {
+    const loadLineage = async () => {
+      if (!po) {
+        setUpstreamComparison(null);
+        setRelatedGrns([]);
+        return;
+      }
+
+      const materialRequests = Array.from(
+        new Set((po.items || []).map((item) => item.material_request).filter(Boolean) as string[]),
+      );
+
+      setLineageLoading(true);
+      try {
+        const [comparisonGroups, grnsData] = await Promise.all([
+          Promise.all(
+            materialRequests.map(async (materialRequest) => {
+              try {
+                const result = await postOps('get_vendor_comparisons', { material_request: materialRequest });
+                return Array.isArray(result) ? result as VendorComparisonSummary[] : [];
+              } catch {
+                return [];
+              }
+            }),
+          ),
+          postOps('get_grns', { purchase_order: po.name, limit_page_length: 20 }),
+        ]);
+
+        const comparisons = comparisonGroups
+          .flat()
+          .filter((comparison, index, all) => all.findIndex((row) => row.name === comparison.name) === index);
+        const matchedComparison =
+          comparisons.find((comparison) => comparison.recommended_supplier === po.supplier) ||
+          comparisons[0] ||
+          null;
+
+        setUpstreamComparison(matchedComparison);
+        setRelatedGrns(Array.isArray(grnsData) ? grnsData as GrnSummary[] : []);
+      } catch {
+        setUpstreamComparison(null);
+        setRelatedGrns([]);
+      } finally {
+        setLineageLoading(false);
+      }
+    };
+
+    void loadLineage();
+  }, [po, postOps]);
+
   // ── Computed ─────────────────────────────────────────────
   const isDraft = po?.docstatus === 0;
   const isSubmitted = po?.docstatus === 1;
   const totalEditPct = editTerms.reduce((sum, t) => sum + (t.percentage || 0), 0);
+  const sourceIndents = Array.from(
+    new Set((po?.items || []).map((item) => item.material_request).filter(Boolean) as string[]),
+  );
+  const totalReceivedQty = (po?.items || []).reduce((sum, item) => sum + (item.received_qty || 0), 0);
+  const totalBilledAmount = (po?.items || []).reduce((sum, item) => sum + (item.billed_amt || 0), 0);
+  const grnValue = relatedGrns.reduce((sum, grn) => sum + (grn.grand_total || 0), 0);
 
   // ── Render ───────────────────────────────────────────────
   if (loading) {
@@ -368,16 +460,42 @@ export default function PurchaseOrderDetailPage() {
 
         {/* Items table */}
         <div className="card lg:col-span-2">
-          <div className="card-header"><h3 className="font-semibold text-gray-900">Line Items</h3></div>
+          <div className="card-header">
+            <h3 className="font-semibold text-gray-900">Itemized Order Composition</h3>
+            <p className="mt-0.5 text-xs text-gray-500">Source-linked itemization showing the exact order lines, originating indents, and fulfilment progress.</p>
+          </div>
+          <div className="card-body border-b border-gray-100">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                <div className="text-xs text-gray-500">Line Items</div>
+                <div className="mt-1 text-2xl font-semibold text-gray-900">{po.items?.length || 0}</div>
+              </div>
+              <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+                <div className="text-xs text-blue-700">Source Indents</div>
+                <div className="mt-1 text-2xl font-semibold text-blue-900">{sourceIndents.length}</div>
+              </div>
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3">
+                <div className="text-xs text-emerald-700">Received Qty</div>
+                <div className="mt-1 text-2xl font-semibold text-emerald-900">{totalReceivedQty}</div>
+              </div>
+              <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3">
+                <div className="text-xs text-amber-700">Billed Value</div>
+                <div className="mt-1 text-2xl font-semibold text-amber-900">{formatCurrency(totalBilledAmount)}</div>
+              </div>
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <table className="min-w-full text-left text-sm">
               <thead className="bg-gray-50 text-gray-500">
                 <tr>
                   <th className="px-4 py-2.5 font-medium">Item</th>
                   <th className="px-4 py-2.5 font-medium">Description</th>
+                  <th className="px-4 py-2.5 font-medium">Source Indent</th>
                   <th className="px-4 py-2.5 font-medium text-right">Qty</th>
                   <th className="px-4 py-2.5 font-medium text-right">Rate</th>
                   <th className="px-4 py-2.5 font-medium text-right">Amount</th>
+                  <th className="px-4 py-2.5 font-medium text-right">Received</th>
+                  <th className="px-4 py-2.5 font-medium text-right">Billed</th>
                   <th className="px-4 py-2.5 font-medium">UOM</th>
                   <th className="px-4 py-2.5 font-medium">Warehouse</th>
                 </tr>
@@ -387,18 +505,131 @@ export default function PurchaseOrderDetailPage() {
                   <tr key={item.name || idx}>
                     <td className="px-4 py-2.5 font-medium text-gray-900">{item.item_code || '-'}</td>
                     <td className="px-4 py-2.5 text-gray-500 max-w-[200px] truncate">{item.description || '-'}</td>
+                    <td className="px-4 py-2.5">
+                      {item.material_request ? (
+                        <Link href={`/indents/${encodeURIComponent(item.material_request)}`} className="text-xs font-medium text-blue-600 hover:underline">
+                          {item.material_request}
+                        </Link>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
                     <td className="px-4 py-2.5 text-right">{item.qty ?? '-'}</td>
                     <td className="px-4 py-2.5 text-right">{formatCurrency(item.rate)}</td>
                     <td className="px-4 py-2.5 text-right font-medium">{formatCurrency(item.amount)}</td>
+                    <td className="px-4 py-2.5 text-right text-emerald-700">{item.received_qty ?? 0}</td>
+                    <td className="px-4 py-2.5 text-right text-amber-700">{formatCurrency(item.billed_amt)}</td>
                     <td className="px-4 py-2.5 text-gray-500">{item.uom || '-'}</td>
                     <td className="px-4 py-2.5 text-gray-500">{item.warehouse || '-'}</td>
                   </tr>
                 ))}
                 {(!po.items || po.items.length === 0) && (
-                  <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">No items</td></tr>
+                  <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-400">No items</td></tr>
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <div className="card">
+          <div className="card-header flex items-center justify-between gap-3">
+            <div>
+              <h3 className="font-semibold text-gray-900">Upstream Comparison</h3>
+              <p className="mt-0.5 text-xs text-gray-500">Commercial source that led to this purchase order.</p>
+            </div>
+            {lineageLoading ? <span className="text-xs text-gray-400">Loading lineage…</span> : null}
+          </div>
+          <div className="card-body">
+            {upstreamComparison ? (
+              <Link
+                href={`/vendor-comparisons/${encodeURIComponent(upstreamComparison.name)}`}
+                className="block rounded-xl border border-gray-200 bg-white px-4 py-4 hover:border-blue-200 hover:bg-blue-50/50"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <ShoppingCart className="h-4 w-4 text-orange-500" />
+                      <span className="font-semibold text-gray-900">{upstreamComparison.name}</span>
+                    </div>
+                    <p className="mt-1 text-sm text-gray-600">
+                      {upstreamComparison.recommended_supplier || 'No recommended supplier'} • {upstreamComparison.linked_material_request || 'No linked indent'}
+                    </p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {upstreamComparison.creation ? `Created ${new Date(upstreamComparison.creation).toLocaleDateString('en-IN')}` : 'Creation date unavailable'}
+                    </p>
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-gray-300" />
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">
+                    <div className="text-xs text-gray-500">Status</div>
+                    <div className="mt-1 text-sm font-semibold text-gray-900">{upstreamComparison.status || '-'}</div>
+                  </div>
+                  <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2">
+                    <div className="text-xs text-emerald-700">Selected Value</div>
+                    <div className="mt-1 text-sm font-semibold text-emerald-900">{formatCurrency(upstreamComparison.selected_total_amount)}</div>
+                  </div>
+                </div>
+              </Link>
+            ) : (
+              <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-sm text-gray-500">
+                No upstream vendor comparison was resolved for this purchase order yet.
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-header">
+            <h3 className="font-semibold text-gray-900">Downstream GRN Card</h3>
+            <p className="mt-0.5 text-xs text-gray-500">Goods receipt movement raised against this purchase order.</p>
+          </div>
+          <div className="card-body">
+            {relatedGrns.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-sm text-gray-500">
+                No GRNs have been booked against this PO yet.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                    <div className="text-xs text-gray-500">GRN Count</div>
+                    <div className="mt-1 text-2xl font-semibold text-gray-900">{relatedGrns.length}</div>
+                  </div>
+                  <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+                    <div className="text-xs text-blue-700">Received Value</div>
+                    <div className="mt-1 text-2xl font-semibold text-blue-900">{formatCurrency(grnValue)}</div>
+                  </div>
+                  <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3">
+                    <div className="text-xs text-emerald-700">Receipt Progress</div>
+                    <div className="mt-1 text-2xl font-semibold text-emerald-900">{Math.round(po.per_received || 0)}%</div>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  {relatedGrns.map((grn) => (
+                    <Link
+                      key={grn.name}
+                      href={`/grns/${encodeURIComponent(grn.name)}`}
+                      className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 hover:border-blue-200 hover:bg-blue-50/50"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <Truck className="h-4 w-4 text-blue-500" />
+                          <span className="font-medium text-gray-900">{grn.name}</span>
+                        </div>
+                        <p className="mt-1 text-xs text-gray-500">{grn.posting_date || 'No posting date'} • {grn.status || 'Status pending'}</p>
+                      </div>
+                      <div className="flex items-center gap-3 text-right">
+                        <div className="text-sm font-semibold text-gray-900">{formatCurrency(grn.grand_total)}</div>
+                        <ArrowRight className="h-4 w-4 text-gray-300" />
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -598,31 +829,13 @@ export default function PurchaseOrderDetailPage() {
       </div>
 
       {/* Linked Documents */}
+      <TraceabilityPanel projectId={po.project} />
+
       <RecordDocumentsPanel
         referenceDoctype="Purchase Order"
         referenceName={poName}
         title="Linked Documents"
         initialLimit={5}
-      />
-
-      {/* Linked Records */}
-      <LinkedRecordsPanel
-        links={[
-          {
-            label: 'Goods Receipt Notes',
-            doctype: 'Purchase Receipt',
-            method: 'frappe.client.get_list',
-            args: { doctype: 'Purchase Receipt', filters: JSON.stringify({ purchase_order: poName }), fields: JSON.stringify(['name', 'status', 'grand_total', 'posting_date']), limit_page_length: '20' },
-            href: (name) => `/grns/${name}`,
-          },
-          {
-            label: 'Purchase Invoices',
-            doctype: 'Purchase Invoice',
-            method: 'frappe.client.get_list',
-            args: { doctype: 'Purchase Invoice', filters: JSON.stringify({ purchase_order: poName }), fields: JSON.stringify(['name', 'supplier', 'status', 'grand_total', 'posting_date']), limit_page_length: '20' },
-            href: (name) => `/finance/billing/${name}`,
-          },
-        ]}
       />
 
       {/* Accountability Trail */}

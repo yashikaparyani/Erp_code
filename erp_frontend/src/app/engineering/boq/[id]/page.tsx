@@ -23,6 +23,7 @@ import ActionModal from '@/components/ui/ActionModal';
 import { AccountabilityTimeline } from '@/components/accountability/AccountabilityTimeline';
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
 import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
+import TraceabilityPanel from '@/components/ui/TraceabilityPanel';
 import { useAuth } from '@/context/AuthContext';
 
 interface BoqItem {
@@ -368,6 +369,8 @@ export default function BoqDetailPage() {
       />
 
       {/* Linked Documents */}
+      <TraceabilityPanel projectId={data.linked_project} />
+
       <RecordDocumentsPanel
         referenceDoctype="GE Bill of Quantities"
         referenceName={boqName}

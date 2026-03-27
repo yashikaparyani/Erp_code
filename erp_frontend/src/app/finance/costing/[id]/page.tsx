@@ -11,6 +11,7 @@ import ActionModal from '@/components/ui/ActionModal';
 import { AccountabilityTimeline } from '@/components/accountability/AccountabilityTimeline';
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
 import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
+import TraceabilityPanel from '@/components/ui/TraceabilityPanel';
 import { useAuth } from '@/context/AuthContext';
 
 interface CostSheetDetail {
@@ -207,6 +208,8 @@ export default function CostSheetDetailPage() {
         { label: 'Related Invoices', doctype: 'GE Invoice', method: 'frappe.client.get_list', args: { doctype: 'GE Invoice', filters: JSON.stringify(data.linked_project ? { linked_project: data.linked_project } : {}), fields: JSON.stringify(['name', 'customer', 'invoice_type', 'net_receivable', 'status']), limit_page_length: '20' }, href: (name) => `/finance/billing/${name}` },
         { label: 'Related Estimates', doctype: 'GE Estimate', method: 'frappe.client.get_list', args: { doctype: 'GE Estimate', filters: JSON.stringify(data.linked_tender ? { linked_tender: data.linked_tender } : {}), fields: JSON.stringify(['name', 'customer', 'net_amount', 'status']), limit_page_length: '20' }, href: (name) => `/finance/estimates/${name}` },
       ]} />
+
+      <TraceabilityPanel projectId={data.linked_project} />
 
       <RecordDocumentsPanel referenceDoctype="GE Cost Sheet" referenceName={csName} title="Linked Documents" initialLimit={5} />
 
