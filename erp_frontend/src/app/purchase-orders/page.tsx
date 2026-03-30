@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ShoppingCart, Clock, CheckCircle2, XCircle, TrendingUp, Package,
-  Plus, Send, Ban, Trash2, ExternalLink, Loader2,
+  Plus, Send, Ban, Trash2, ExternalLink, Loader2, CheckSquare,
 } from 'lucide-react';
 import ActionModal from '@/components/ui/ActionModal';
 
@@ -20,6 +20,7 @@ interface PurchaseOrder {
   per_received?: number;
   per_billed?: number;
   docstatus?: number;
+  ph_status?: string;
   creation?: string;
   modified?: string;
 }
@@ -86,7 +87,7 @@ export default function PurchaseOrdersPage() {
     setTimeout(() => setSuccessMsg(''), 3000);
   };
 
-  const handleRowAction = async (action: 'submit' | 'cancel', poName: string) => {
+  const handleRowAction = async (action: 'submit' | 'cancel' | 'submit-to-ph', poName: string) => {
     setActionBusy(`${action}-${poName}`);
     setErrorMsg('');
     try {
@@ -97,7 +98,7 @@ export default function PurchaseOrdersPage() {
       });
       const result = await res.json();
       if (!result.success) throw new Error(result.message);
-      showSuccess(result.message || `PO ${poName} ${action === 'submit' ? 'submitted' : 'cancelled'}`);
+      showSuccess(result.message || `PO ${poName} ${action === 'submit' ? 'submitted' : action === 'submit-to-ph' ? 'sent to Project Head' : 'cancelled'}`);
       loadData();
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : `Failed to ${action}`);
@@ -257,6 +258,16 @@ export default function PurchaseOrdersPage() {
                             {actionBusy === `delete-${item.name}` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                           </button>
                         </>
+                      )}
+                      {item.docstatus === 1 && !item.ph_status && (
+                        <button
+                          onClick={() => handleRowAction('submit-to-ph', item.name)}
+                          disabled={!!actionBusy}
+                          className="rounded p-1 text-blue-600 hover:bg-blue-50"
+                          title="Submit to Project Head for approval"
+                        >
+                          {actionBusy === `submit-to-ph-${item.name}` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckSquare className="h-3.5 w-3.5" />}
+                        </button>
                       )}
                       {item.docstatus === 1 && (
                         <button

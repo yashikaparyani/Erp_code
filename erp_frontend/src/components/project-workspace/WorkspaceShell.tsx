@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   ArrowLeft,
   BookOpen,
@@ -752,7 +753,7 @@ function WorkflowControlPanel({
    Overview Tab
    ═══════════════════════════════════════════════════════════ */
 
-function OverviewTab({ detail, config, deptSites, projectId, onTabChange, wp }: { detail: ProjectDetail; config: DepartmentConfig; deptSites: SiteRow[]; projectId: string; onTabChange: (tab: TabKey) => void; wp: WorkspacePermissions | null }) {
+function OverviewTab({ detail, config, deptSites, projectId, onTabChange, buildTabHref, wp }: { detail: ProjectDetail; config: DepartmentConfig; deptSites: SiteRow[]; projectId: string; onTabChange: (tab: TabKey) => void; buildTabHref: (tab: TabKey) => string; wp: WorkspacePermissions | null }) {
   const { currentUser } = useAuth();
   const ps = detail.project_summary;
   const aq = detail.action_queue;
@@ -835,18 +836,21 @@ function OverviewTab({ detail, config, deptSites, projectId, onTabChange, wp }: 
     const items: WorkspaceShortcut[] = [
       {
         label: 'Open Operations Queue',
+        href: buildTabHref('ops'),
         tab: 'ops',
         tone: 'amber',
         detail: 'Dependencies, commissioning readiness, document expiry, and live signals',
       },
       {
         label: 'Review Project Files',
+        href: buildTabHref('files'),
         tab: 'files',
         tone: 'violet',
         detail: 'Latest documents, version history, expiry, and uploads in project context',
       },
       {
         label: 'Check Site Board',
+        href: buildTabHref('board'),
         tab: 'board',
         tone: 'blue',
         detail: 'See site distribution by lifecycle stage and move toward the next action',
@@ -868,6 +872,7 @@ function OverviewTab({ detail, config, deptSites, projectId, onTabChange, wp }: 
       });
       items.unshift({
         label: 'Project Activity',
+        href: buildTabHref('activity'),
         tab: 'activity',
         tone: 'rose',
         detail: 'Trace recent comments, workflow changes, and team coordination on this project',
@@ -881,7 +886,7 @@ function OverviewTab({ detail, config, deptSites, projectId, onTabChange, wp }: 
     }
 
     return items.slice(0, 5);
-  }, [currentUser?.roles, projectId]);
+  }, [buildTabHref, currentUser?.roles, projectId]);
 
   return (
     <div className="space-y-8">
@@ -1616,9 +1621,6 @@ function FilesTab({ projectId, currentStage, wp }: { projectId: string; currentS
     }
   };
 
-  if (loading) return <div className="flex items-center justify-center py-16 text-[var(--text-muted)]"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading documents...</div>;
-  if (error && !docs.length) return <p className="py-12 text-center text-sm text-rose-600">{error}</p>;
-
   // Document statistics
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -1718,6 +1720,9 @@ function FilesTab({ projectId, currentStage, wp }: { projectId: string; currentS
     void loadRecordDocs();
     return () => { active = false; };
   }, [selectedRecordBundle]);
+
+  if (loading) return <div className="flex items-center justify-center py-16 text-[var(--text-muted)]"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading documents...</div>;
+  if (error && !docs.length) return <p className="py-12 text-center text-sm text-rose-600">{error}</p>;
 
   return (
     <div className="space-y-4">
@@ -3773,6 +3778,9 @@ function NotesTab({ projectId }: { projectId: string }) {
    ═══════════════════════════════════════════════════════════ */
 
 export default function WorkspaceShell({ projectId, config }: { projectId: string; config: DepartmentConfig }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { permissions, isLoaded: isPermissionLoaded } = usePermissions();
   const { wp, isLoaded: isWpLoaded, loadForProject } = useWorkspacePermissions();
 
@@ -3784,7 +3792,14 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
-  const [activeTab, setActiveTab] = useState<TabKey>(config.tabs[0] || 'overview');
+  const initialTab = useMemo<TabKey>(() => {
+    const requestedTab = searchParams?.get('tab') as TabKey | null;
+    if (requestedTab && config.tabs.includes(requestedTab)) {
+      return requestedTab;
+    }
+    return config.tabs[0] || 'overview';
+  }, [config.tabs, searchParams]);
+  const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
 
   /* ── Favorite state ── */
   const [isFavorite, setIsFavorite] = useState(false);
@@ -3866,6 +3881,28 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
     }
   }, [activeTab, visibleTabs]);
 
+  useEffect(() => {
+    const requestedTab = searchParams?.get('tab') as TabKey | null;
+    if (requestedTab && visibleTabs.includes(requestedTab) && requestedTab !== activeTab) {
+      setActiveTab(requestedTab);
+      return;
+    }
+    if (!requestedTab && activeTab !== (config.tabs[0] || 'overview')) {
+      setActiveTab(config.tabs[0] || 'overview');
+    }
+  }, [activeTab, config.tabs, searchParams, visibleTabs]);
+
+  const buildWorkspaceHref = useCallback((tab: TabKey) => {
+    const params = new URLSearchParams(searchParams?.toString() || '');
+    params.set('tab', tab);
+    return `${pathname}?${params.toString()}`;
+  }, [pathname, searchParams]);
+
+  const handleTabChange = useCallback((tab: TabKey) => {
+    setActiveTab(tab);
+    router.replace(buildWorkspaceHref(tab), { scroll: false });
+  }, [buildWorkspaceHref, router]);
+
   /* –– Loading / Error states –– */
   if (loading) {
     return (
@@ -3944,32 +3981,32 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
                     <div className="fixed inset-0 z-30" onClick={() => setActionsOpen(false)} />
                     <div className="absolute right-0 z-40 mt-1 w-52 rounded-xl border border-[var(--border-subtle)] bg-white py-1 shadow-lg">
                       <button
-                        onClick={() => { setActionsOpen(false); setActiveTab('overview'); setReloadKey((k) => k + 1); }}
+                        onClick={() => { setActionsOpen(false); handleTabChange('overview'); setReloadKey((k) => k + 1); }}
                         className="flex w-full items-center gap-2 px-3 py-2 text-xs text-[var(--text-main)] hover:bg-[var(--surface-raised)]"
                       >
                         <Activity className="h-3.5 w-3.5" /> Refresh Workspace
                       </button>
                       <button
-                        onClick={() => { setActionsOpen(false); setActiveTab('notes'); }}
+                        onClick={() => { setActionsOpen(false); handleTabChange('notes'); }}
                         className="flex w-full items-center gap-2 px-3 py-2 text-xs text-[var(--text-main)] hover:bg-[var(--surface-raised)]"
                       >
                         <StickyNote className="h-3.5 w-3.5" /> Add Note
                       </button>
                       <button
-                        onClick={() => { setActionsOpen(false); setActiveTab('files'); }}
+                        onClick={() => { setActionsOpen(false); handleTabChange('files'); }}
                         className="flex w-full items-center gap-2 px-3 py-2 text-xs text-[var(--text-main)] hover:bg-[var(--surface-raised)]"
                       >
                         <Upload className="h-3.5 w-3.5" /> Upload File
                       </button>
                       <div className="my-1 border-t border-[var(--border-subtle)]" />
                       <button
-                        onClick={() => { setActionsOpen(false); setActiveTab('staff'); }}
+                        onClick={() => { setActionsOpen(false); handleTabChange('staff'); }}
                         className="flex w-full items-center gap-2 px-3 py-2 text-xs text-[var(--text-main)] hover:bg-[var(--surface-raised)]"
                       >
                         <ShieldAlert className="h-3.5 w-3.5" /> Manage Staff
                       </button>
                       <button
-                        onClick={() => { setActionsOpen(false); setActiveTab('comms'); }}
+                        onClick={() => { setActionsOpen(false); handleTabChange('comms'); }}
                         className="flex w-full items-center gap-2 px-3 py-2 text-xs text-[var(--text-main)] hover:bg-[var(--surface-raised)]"
                       >
                         <MessageSquare className="h-3.5 w-3.5" /> Communications
@@ -3992,7 +4029,7 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
             return (
               <button
                 key={tabKey}
-                onClick={() => setActiveTab(tabKey)}
+                onClick={() => handleTabChange(tabKey)}
                 className={`flex items-center gap-2 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
                   active
                     ? 'border-[var(--accent)] text-[var(--accent-strong)]'
@@ -4008,7 +4045,7 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
       </div>
 
       {/* ── Tab Content ── */}
-      {activeTab === 'overview' && <OverviewTab detail={detail} config={config} deptSites={deptSites} projectId={projectId} onTabChange={setActiveTab} wp={wp} />}
+      {activeTab === 'overview' && <OverviewTab detail={detail} config={config} deptSites={deptSites} projectId={projectId} onTabChange={handleTabChange} buildTabHref={buildWorkspaceHref} wp={wp} />}
       {activeTab === 'sites' && <SitesTab sites={deptSites} config={config} projectId={projectId} wp={wp} />}
       {activeTab === 'board' && <SiteBoardTab sites={deptSites} config={config} wp={wp} />}
       {activeTab === 'milestones' && <MilestonesTab sites={deptSites} projectId={projectId} config={config} />}

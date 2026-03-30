@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { callFrappeMethod, jsonErrorResponse } from '../../_lib/frappe';
+import { callFrappeMethod, jsonErrorResponse } from '@/app/api/_lib/frappe';
 
 export const dynamic = 'force-dynamic';
 

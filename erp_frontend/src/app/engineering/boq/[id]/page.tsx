@@ -37,6 +37,16 @@ interface BoqItem {
   amount?: number;
   make?: string;
   model?: string;
+  boq_code?: string;
+  source_group?: string;
+  module_name?: string;
+  line_type?: string;
+  source_sequence?: number;
+  is_om_item?: number;
+  is_manpower_item?: number;
+  sor_rate?: number;
+  quoted_rate?: number;
+  source_total?: number;
 }
 
 interface BoqDetail {
@@ -287,8 +297,10 @@ export default function BoqDetailPage() {
             <thead className="bg-gray-50 text-gray-500">
               <tr>
                 <th className="px-4 py-2.5 font-medium">#</th>
+                <th className="px-4 py-2.5 font-medium">Code</th>
                 <th className="px-4 py-2.5 font-medium">Site</th>
                 <th className="px-4 py-2.5 font-medium">Description</th>
+                <th className="px-4 py-2.5 font-medium">Type</th>
                 <th className="px-4 py-2.5 font-medium text-right">Qty</th>
                 <th className="px-4 py-2.5 font-medium">Unit</th>
                 <th className="px-4 py-2.5 font-medium text-right">Rate</th>
@@ -298,15 +310,31 @@ export default function BoqDetailPage() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {items.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">No line items</td></tr>
+                <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-400">No line items</td></tr>
               ) : items.map((item, idx) => (
                 <tr key={item.name || idx}>
                   <td className="px-4 py-2.5 text-gray-400">{idx + 1}</td>
+                  <td className="px-4 py-2.5 text-xs text-gray-500 font-mono">{item.boq_code || '-'}</td>
                   <td className="px-4 py-2.5 text-gray-600">{item.site_name || '-'}</td>
-                  <td className="px-4 py-2.5 font-medium text-gray-900 max-w-[250px] truncate">{item.description || '-'}</td>
+                  <td className="px-4 py-2.5 font-medium text-gray-900 max-w-[250px]">
+                    <div className="truncate">{item.description || '-'}</div>
+                    {(item.source_group || item.module_name) && (
+                      <div className="mt-0.5 text-xs text-gray-400 truncate">{[item.source_group, item.module_name].filter(Boolean).join(' · ')}</div>
+                    )}
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <div className="flex flex-wrap gap-1">
+                      {item.line_type && <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">{item.line_type}</span>}
+                      {item.is_om_item ? <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-600">O&amp;M</span> : null}
+                      {item.is_manpower_item ? <span className="rounded bg-purple-100 px-1.5 py-0.5 text-[10px] font-medium text-purple-600">MP</span> : null}
+                    </div>
+                  </td>
                   <td className="px-4 py-2.5 text-right">{item.qty ?? '-'}</td>
                   <td className="px-4 py-2.5 text-gray-500">{item.unit || '-'}</td>
-                  <td className="px-4 py-2.5 text-right">{formatCurrency(item.rate)}</td>
+                  <td className="px-4 py-2.5 text-right">
+                    {formatCurrency(item.rate)}
+                    {item.sor_rate ? <div className="text-[10px] text-gray-400" title="SOR Rate">SOR: {formatCurrency(item.sor_rate)}</div> : null}
+                  </td>
                   <td className="px-4 py-2.5 text-right font-medium">{formatCurrency(item.amount)}</td>
                   <td className="px-4 py-2.5 text-gray-500 text-xs">{[item.make, item.model].filter(Boolean).join(' / ') || '-'}</td>
                 </tr>

@@ -8,7 +8,7 @@ This document isolates the remaining work for the `Reports` surface so it can be
 
 Use this after:
 
-- `frontend_100_percent_closure_log.md`
+- `frontend_depth_closeout_plan.md`
 - the Phase 5 audit notes
 
 ## Current Reality

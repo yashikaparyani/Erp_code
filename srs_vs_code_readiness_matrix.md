@@ -21,8 +21,8 @@ Current implementation and tracker references:
 - `anda_exhaustive_compliance_list.md`
 - `hr_hybrid_strategy_for_client_acceptance.md`
 - `hr_uat_results_2026-03-22.md`
-- `team_ownership_and_todo.md`
-- `frontend_100_percent_closure_log.md` (latest frontend closure record)
+- `frontend_depth_closeout_plan.md`
+- `all mds/remaining_todo.md`
 
 Implementation surface reviewed:
 

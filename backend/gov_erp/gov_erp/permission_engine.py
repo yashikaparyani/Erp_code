@@ -46,11 +46,11 @@ MODE_HIERARCHY = {
 # Routes not listed here are considered ungated (allowed for all authenticated
 # users).  Add entries whenever a new module-specific route is created.
 MODULE_ROUTE_MAP = {
-    "project":     ["/projects", "/milestones", "/project-manager"],
+    "project":     ["/projects", "/milestones", "/project-manager", "/project-head", "/comm-logs"],
     "presales":    ["/pre-sales", "/survey"],
     "engineering": ["/engineering", "/survey", "/drawings", "/change-requests"],
     "procurement": ["/procurement", "/indents", "/purchase-orders", "/petty-cash"],
-    "execution":   ["/execution", "/manpower", "/comm-logs", "/technician-visits"],
+    "execution":   ["/execution", "/manpower", "/technician-visits"],
     "inventory":   ["/inventory", "/grns", "/stock-position", "/stock-aging"],
     "finance":     ["/finance", "/payment-receipts", "/retention", "/penalties"],
     "hr":          ["/hr"],
@@ -80,7 +80,6 @@ ROLE_ROUTE_DENY_MAP = {
         "/manpower",
         "/purchase-orders",
         "/indents",
-        "/comm-logs",
         "/drawings",
         "/change-requests",
         "/technician-visits",

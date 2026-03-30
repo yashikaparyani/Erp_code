@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Package, CheckCircle2, AlertTriangle, Truck, Eye, Plus, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
@@ -358,13 +359,13 @@ export default function InventoryPage() {
                   </td>
                   <td>
                     <div className="flex flex-wrap gap-2 items-center">
-                      <button
+                      <Link
+                        href={`/dispatch-challans/${encodeURIComponent(ch.name)}`}
                         className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1"
-                        onClick={() => alert(`Challan: ${ch.name}\nStatus: ${ch.status || '-'}\nFrom: ${ch.from_warehouse || '-'}\nTo: ${ch.to_warehouse || ch.target_site_name || '-'}`)}
                       >
                         <Eye className="w-4 h-4" />
                         View
-                      </button>
+                      </Link>
                       {ch.status === 'DRAFT' && canCreateOrSubmit ? (
                         <button className="text-indigo-600 hover:text-indigo-800 text-sm font-medium" disabled={actionLoadingName === ch.name} onClick={() => runAction(ch.name, 'submit')}>Submit</button>
                       ) : null}

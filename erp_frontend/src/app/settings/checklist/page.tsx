@@ -19,6 +19,7 @@ export default function CheckListPage() {
   const [newCheckList, setNewCheckList] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [actionError, setActionError] = useState('');
 
   const loadChecklists = async () => {
     setIsLoading(true);
@@ -66,7 +67,7 @@ export default function CheckListPage() {
           });
           const payload = await response.json();
           if (!payload.success) {
-            alert(payload.message || 'Failed to create checklist');
+            setActionError(payload.message || 'Failed to create checklist');
             return;
           }
           setNewCheckList('');
@@ -74,7 +75,7 @@ export default function CheckListPage() {
           loadChecklists();
         } catch (error) {
           console.error('Failed to create checklist:', error);
-          alert('Failed to create checklist');
+          setActionError('Failed to create checklist');
         }
       })();
     }
@@ -88,19 +89,25 @@ export default function CheckListPage() {
           });
           const payload = await response.json();
           if (!payload.success) {
-            alert(payload.message || 'Failed to delete checklist');
+            setActionError(payload.message || 'Failed to delete checklist');
             return;
           }
           loadChecklists();
         } catch (error) {
           console.error('Failed to delete checklist:', error);
-          alert('Failed to delete checklist');
+          setActionError('Failed to delete checklist');
         }
       })();
   };
 
   return (
     <div className="p-3 sm:p-4 md:p-6 bg-gray-50 min-h-screen">
+      {actionError && (
+        <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700 flex items-center justify-between">
+          {actionError}
+          <button onClick={() => setActionError('')} className="ml-2 font-medium underline">Dismiss</button>
+        </div>
+      )}
       {/* Header */}
       <div className="mb-4 sm:mb-6">
         <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Check List</h1>

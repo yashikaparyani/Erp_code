@@ -1107,7 +1107,7 @@ def send_loc_request_to_project_head(name):
     doc.loc_requested_by = frappe.session.user
     doc.save()
 
-    route_path = "/engineering/letter-of-submission"
+    route_path = "/project-head/letter-of-completion"
     from gov_erp.gov_erp.doctype.ge_alert.ge_alert import create_alert
 
     for user in _get_users_for_role(ROLE_PROJECT_HEAD):

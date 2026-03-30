@@ -14,7 +14,12 @@
   "penalty_type",
   "penalty_value",
   "penalty_currency",
-  "is_active"
+  "is_active",
+  "section_break_scope",
+  "sla_category",
+  "column_break_scope",
+  "max_penalty_cap",
+  "grace_period_minutes"
  ],
  "fields": [
   {
@@ -29,7 +34,7 @@
    "fieldtype": "Select",
    "label": "Breach Type",
    "reqd": 1,
-   "options": "RESPONSE\nRESOLUTION\nBOTH"
+   "options": "RESPONSE\nRESOLUTION\nBOTH\nUPTIME\nMANPOWER_SHORTFALL\nMILESTONE_DELAY\nSPARE_STOCKOUT\nCUSTOM"
   },
   {
    "fieldname": "cb_slab",
@@ -78,11 +83,41 @@
    "label": "Is Active",
    "reqd": 0,
    "default": "1"
+  },
+  {
+   "fieldname": "section_break_scope",
+   "fieldtype": "Section Break",
+   "label": "Breach Scope"
+  },
+  {
+   "fieldname": "sla_category",
+   "fieldtype": "Select",
+   "label": "SLA Category",
+   "options": "\nTICKET_RESPONSE\nDEVICE_UPTIME\nMANPOWER_DEPLOYMENT\nMILESTONE_ADHERENCE\nPREVENTIVE_MAINTENANCE\nSPARE_AVAILABILITY\nCUSTOM",
+   "description": "Must match SLA Profile category to link"
+  },
+  {
+   "fieldname": "column_break_scope",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "max_penalty_cap",
+   "fieldtype": "Currency",
+   "label": "Max Penalty Cap",
+   "default": "0",
+   "description": "Maximum penalty amount per measurement period (0 for no cap)"
+  },
+  {
+   "fieldname": "grace_period_minutes",
+   "fieldtype": "Int",
+   "label": "Grace Period (minutes)",
+   "default": "0",
+   "description": "Additional minutes before penalty kicks in"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-03-13 15:00:00.000000",
+ "modified": "2026-03-23 18:30:00.000000",
  "modified_by": "Administrator",
  "module": "Gov ERP",
  "name": "GE SLA Penalty Rule",

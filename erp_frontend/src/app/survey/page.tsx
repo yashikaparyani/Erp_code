@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Plus, MapPin, CheckCircle2, Clock, FileText, Eye, Trash2 } from 'lucide-react';
 import ActionModal from '@/components/ui/ActionModal';
 
@@ -25,6 +26,7 @@ export default function SurveyPage() {
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [stats, setStats] = useState<SurveyStats>({});
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string>('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [completionTender, setCompletionTender] = useState('');
@@ -60,10 +62,11 @@ export default function SurveyPage() {
 
   const handleCreateSurvey = async () => {
     if (!createForm.linked_tender.trim() || !createForm.site_name.trim()) {
-      alert('Linked Tender and Site Name are required.');
+      setErrorMessage('Linked Tender and Site Name are required.');
       return;
     }
 
+    setErrorMessage('');
     setIsSubmitting(true);
     try {
       const response = await fetch('/api/surveys', {
@@ -87,33 +90,9 @@ export default function SurveyPage() {
       });
       await loadSurveyData();
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to create survey');
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to create survey');
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const handleViewSurvey = async (name: string) => {
-    try {
-      const response = await fetch(`/api/surveys/${encodeURIComponent(name)}`);
-      const result = await response.json();
-      if (!result.success) {
-        throw new Error(result.message || 'Failed to fetch survey');
-      }
-
-      const survey = result.data || {};
-      alert(
-        [
-          `Survey: ${survey.name || name}`,
-          `Tender: ${survey.linked_tender || '-'}`,
-          `Site: ${survey.site_name || '-'}`,
-          `Status: ${survey.status || '-'}`,
-          `Survey Date: ${survey.survey_date || '-'}`,
-          `Surveyed By: ${survey.surveyed_by || '-'}`,
-        ].join('\n')
-      );
-    } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to fetch survey');
     }
   };
 
@@ -128,9 +107,10 @@ export default function SurveyPage() {
       if (!result.success) {
         throw new Error(result.message || 'Failed to update survey');
       }
+      setErrorMessage('');
       await loadSurveyData();
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to update survey');
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to update survey');
     }
   };
 
@@ -143,15 +123,16 @@ export default function SurveyPage() {
       if (!result.success) {
         throw new Error(result.message || 'Failed to delete survey');
       }
+      setErrorMessage('');
       await loadSurveyData();
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to delete survey');
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to delete survey');
     }
   };
 
   const handleCheckCompletion = async () => {
     if (!completionTender.trim()) {
-      alert('Enter tender id/name first.');
+      setErrorMessage('Enter tender id/name first.');
       return;
     }
 
@@ -163,13 +144,14 @@ export default function SurveyPage() {
       }
 
       const data = result.data || {};
+      setErrorMessage('');
       setCompletionResult(
         data.complete
           ? `Complete: ${data.completed}/${data.total} surveys done`
           : `Not complete: ${data.completed}/${data.total || 0} done, ${data.pending || 0} pending`
       );
     } catch (error) {
-      setCompletionResult(error instanceof Error ? error.message : 'Failed to check completion');
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to check completion');
     }
   };
 
@@ -194,6 +176,12 @@ export default function SurveyPage() {
           New Survey
         </button>
       </div>
+
+      {errorMessage && (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {errorMessage}
+        </div>
+      )}
 
       {isCreateOpen && (
         <div className="card mb-4 sm:mb-6">
@@ -380,13 +368,13 @@ export default function SurveyPage() {
                     </select>
                   </td>
                   <td>
-                    <button
+                    <Link
+                      href={`/survey/${encodeURIComponent(survey.name)}`}
                       className="text-blue-600 hover:text-blue-800 text-sm font-medium inline-flex items-center gap-1 mr-3"
-                      onClick={() => handleViewSurvey(survey.name)}
                     >
                       <Eye className="w-4 h-4" />
                       View
-                    </button>
+                    </Link>
                     <button
                       className="text-red-600 hover:text-red-800 text-sm font-medium inline-flex items-center gap-1"
                       onClick={() => setDeleteTarget(survey.name)}

@@ -41,6 +41,7 @@ export default function OMHelpdeskPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
+  const [actionError, setActionError] = useState('');
   const [assignModal, setAssignModal] = useState<string | null>(null);
   const [assignTo, setAssignTo] = useState('');
   const [commentModal, setCommentModal] = useState<string | null>(null);
@@ -146,7 +147,7 @@ export default function OMHelpdeskPage() {
       }
       await loadTickets();
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to convert ticket to RMA');
+      setActionError(error instanceof Error ? error.message : 'Failed to convert ticket to RMA');
     } finally {
       setBusyTicket(null);
     }
@@ -194,6 +195,13 @@ export default function OMHelpdeskPage() {
 
   return (
     <div>
+      {/* Action error banner */}
+      {actionError && (
+        <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700 flex items-center justify-between">
+          {actionError}
+          <button onClick={() => setActionError('')} className="ml-2 font-medium underline">Dismiss</button>
+        </div>
+      )}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
         <div>

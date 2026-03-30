@@ -14,6 +14,10 @@ interface EmdInstrument {
   name: string;
   instrument_type?: string;
   linked_tender?: string;
+  linked_project?: string;
+  linked_agreement_no?: string;
+  beneficiary_name?: string;
+  release_condition?: string;
   instrument_number?: string;
   amount?: number;
   status?: string;
@@ -119,6 +123,9 @@ export default function EmdInstrumentDetailPage() {
               [<Building2 key="b" className="h-3.5 w-3.5" />, 'Bank Name', data.bank_name],
               [<DollarSign key="a" className="h-3.5 w-3.5" />, 'Amount', formatCurrency(data.amount)],
               [<Hash key="lt" className="h-3.5 w-3.5" />, 'Linked Tender', data.linked_tender],
+              [<Building2 key="lp" className="h-3.5 w-3.5" />, 'Linked Project', data.linked_project],
+              [<FileText key="ag" className="h-3.5 w-3.5" />, 'Agreement No.', data.linked_agreement_no],
+              [<User key="bn" className="h-3.5 w-3.5" />, 'Beneficiary', data.beneficiary_name],
               [<Calendar key="id" className="h-3.5 w-3.5" />, 'Issue Date', formatDate(data.issue_date)],
               [<Calendar key="ed" className="h-3.5 w-3.5" />, 'Expiry Date', formatDate(data.expiry_date)],
               [<User key="o" className="h-3.5 w-3.5" />, 'Created By', data.owner],
@@ -139,6 +146,12 @@ export default function EmdInstrumentDetailPage() {
             <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50 p-3">
               <p className="text-xs font-medium text-gray-500 mb-1">Remarks</p>
               <p className="text-sm text-gray-700 whitespace-pre-wrap">{data.remarks}</p>
+            </div>
+          )}
+          {data.release_condition && (
+            <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 p-3">
+              <p className="text-xs font-medium text-blue-600 mb-1">Release Condition</p>
+              <p className="text-sm text-gray-700 whitespace-pre-wrap">{data.release_condition}</p>
             </div>
           )}
         </div>

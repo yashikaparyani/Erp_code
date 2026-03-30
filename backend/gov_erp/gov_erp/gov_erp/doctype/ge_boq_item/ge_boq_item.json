@@ -14,7 +14,21 @@
   "amount",
   "column_break_spec",
   "make",
-  "model"
+  "model",
+  "section_break_classification",
+  "boq_code",
+  "source_group",
+  "module_name",
+  "column_break_classification",
+  "line_type",
+  "source_sequence",
+  "is_om_item",
+  "is_manpower_item",
+  "section_break_rates",
+  "sor_rate",
+  "quoted_rate",
+  "column_break_rates",
+  "source_total"
  ],
  "fields": [
   {
@@ -84,12 +98,94 @@
    "fieldname": "model",
    "fieldtype": "Data",
    "label": "Model"
+  },
+  {
+   "fieldname": "section_break_classification",
+   "fieldtype": "Section Break",
+   "label": "Classification"
+  },
+  {
+   "fieldname": "boq_code",
+   "fieldtype": "Data",
+   "label": "BOQ Code",
+   "description": "Line reference from source sheet, e.g. CLB-001"
+  },
+  {
+   "fieldname": "source_group",
+   "fieldtype": "Data",
+   "label": "Source Group",
+   "description": "Grouping header from source BOQ"
+  },
+  {
+   "fieldname": "module_name",
+   "fieldtype": "Data",
+   "label": "Module Name",
+   "description": "Engineering module or system this item belongs to"
+  },
+  {
+   "fieldname": "column_break_classification",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "line_type",
+   "fieldtype": "Select",
+   "label": "Line Type",
+   "options": "\nCAPEX\nOPEX\nSERVICE\nINTEGRATION\nMANPOWER"
+  },
+  {
+   "fieldname": "source_sequence",
+   "fieldtype": "Int",
+   "label": "Source Sequence",
+   "description": "Original row order in the source sheet"
+  },
+  {
+   "fieldname": "is_om_item",
+   "fieldtype": "Check",
+   "label": "Is O&M Item",
+   "default": "0"
+  },
+  {
+   "fieldname": "is_manpower_item",
+   "fieldtype": "Check",
+   "label": "Is Manpower Item",
+   "default": "0"
+  },
+  {
+   "fieldname": "section_break_rates",
+   "fieldtype": "Section Break",
+   "label": "Rate Comparison"
+  },
+  {
+   "fieldname": "sor_rate",
+   "fieldtype": "Currency",
+   "label": "SOR Rate",
+   "default": "0",
+   "description": "Schedule of Rates rate from government/client"
+  },
+  {
+   "fieldname": "quoted_rate",
+   "fieldtype": "Currency",
+   "label": "Quoted Rate",
+   "default": "0",
+   "description": "Rate quoted by the bidder"
+  },
+  {
+   "fieldname": "column_break_rates",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "source_total",
+   "fieldtype": "Currency",
+   "label": "Source Total",
+   "default": "0",
+   "read_only": 1,
+   "description": "Total from source spreadsheet for cross-check"
   }
  ],
  "index_web_pages_for_search": 0,
  "istable": 1,
  "links": [],
- "modified": "2026-03-13 15:00:00.000000",
+ "modified": "2026-03-23 18:00:00.000000",
  "modified_by": "Administrator",
  "module": "Gov ERP",
  "name": "GE BOQ Item",

@@ -16,13 +16,14 @@ class MilestonesPhasesImporter(BaseImporter):
     target_doctype = "GE Milestone"
 
     STATUS_MAP = {
-        "NOT STARTED": "NOT_STARTED",
+        "NOT STARTED": "PLANNED",
         "IN PROGRESS": "IN_PROGRESS",
         "COMPLETED": "COMPLETED",
-        "DELAYED": "DELAYED",
+        "DELAYED": "BLOCKED",
         "BLOCKED": "BLOCKED",
-        "PENDING": "NOT_STARTED",
+        "PENDING": "PLANNED",
         "DONE": "COMPLETED",
+        "CANCELLED": "CANCELLED",
     }
 
     def parse_row(self, row, row_idx):
@@ -42,19 +43,19 @@ class MilestonesPhasesImporter(BaseImporter):
             "milestone_name": name,
             "linked_project": project,
             "linked_site": site,
-            "planned_start": normalize_date(
-                row.get("planned_start") or row.get("Planned Start")
+            "planned_start_date": normalize_date(
+                row.get("planned_start") or row.get("Planned Start") or row.get("planned_start_date")
             ),
-            "planned_end": normalize_date(
-                row.get("planned_end") or row.get("Planned End")
+            "planned_end_date": normalize_date(
+                row.get("planned_end") or row.get("Planned End") or row.get("planned_end_date")
             ),
-            "actual_start": normalize_date(
-                row.get("actual_start") or row.get("Actual Start")
+            "actual_start_date": normalize_date(
+                row.get("actual_start") or row.get("Actual Start") or row.get("actual_start_date")
             ),
-            "actual_end": normalize_date(
-                row.get("actual_end") or row.get("Actual End")
+            "actual_end_date": normalize_date(
+                row.get("actual_end") or row.get("Actual End") or row.get("actual_end_date")
             ),
-            "status": self.STATUS_MAP.get(raw_status, "NOT_STARTED"),
+            "status": self.STATUS_MAP.get(raw_status, "PLANNED"),
             "remarks": cstr(row.get("remarks") or row.get("Remarks") or "").strip(),
             "assigned_team": cstr(
                 row.get("assigned_team") or row.get("Assigned Team/Role") or ""
@@ -92,17 +93,19 @@ class MilestonesPhasesImporter(BaseImporter):
         doc.milestone_name = parsed["milestone_name"]
         doc.linked_project = parsed.get("linked_project")
         doc.linked_site = parsed.get("linked_site")
-        doc.status = parsed.get("status", "NOT_STARTED")
-        if parsed.get("planned_start"):
-            doc.planned_start = parsed["planned_start"]
-        if parsed.get("planned_end"):
-            doc.planned_end = parsed["planned_end"]
-        if parsed.get("actual_start"):
-            doc.actual_start = parsed["actual_start"]
-        if parsed.get("actual_end"):
-            doc.actual_end = parsed["actual_end"]
+        doc.status = parsed.get("status", "PLANNED")
+        if parsed.get("planned_start_date"):
+            doc.planned_start_date = parsed["planned_start_date"]
+        if parsed.get("planned_end_date"):
+            doc.planned_end_date = parsed["planned_end_date"]
+        if parsed.get("actual_start_date"):
+            doc.actual_start_date = parsed["actual_start_date"]
+        if parsed.get("actual_end_date"):
+            doc.actual_end_date = parsed["actual_end_date"]
         if parsed.get("remarks"):
             doc.remarks = parsed["remarks"]
+        if parsed.get("assigned_team"):
+            doc.assigned_team = parsed["assigned_team"]
         doc.insert(ignore_permissions=True)
         frappe.db.commit()
         return doc.name

@@ -63,6 +63,10 @@ export async function PATCH(request: NextRequest) {
       const result = await callFrappeMethod('update_rma_status', { name, new_status: rest.new_status || '' }, request);
       return NextResponse.json({ success: true, data: result.data, message: result.message || 'RMA status updated' });
     }
+    if (action === 'submit_to_ph') {
+      const result = await callFrappeMethod('submit_rma_po_to_ph', { name, remarks: rest.remarks || '' }, request);
+      return NextResponse.json({ success: true, data: result.data, message: result.message || 'RMA PO submitted to Project Head for approval' });
+    }
 
     return NextResponse.json({ success: false, message: 'Unsupported action' }, { status: 400 });
   } catch (error) {

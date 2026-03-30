@@ -364,10 +364,10 @@ export default function FinanceCostingPage() {
                     </td>
                     <td>
                       <div className="flex flex-wrap gap-2 items-center">
-                        <button className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1" onClick={() => alert(`Cost Sheet: ${row.name}\nStatus: ${row.status || '-'}`)}>
+                        <Link href={`/finance/costing/${encodeURIComponent(row.name)}`} className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1">
                           <Eye className="w-4 h-4" />
                           View
-                        </button>
+                        </Link>
                         {row.status === 'DRAFT' && canCreateOrSubmit ? (
                           <button className="text-indigo-600 hover:text-indigo-800 text-sm font-medium" disabled={actionLoadingName === row.name} onClick={() => runAction(row.name, 'submit')}>Submit</button>
                         ) : null}

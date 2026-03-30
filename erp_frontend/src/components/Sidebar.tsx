@@ -124,6 +124,10 @@ const shouldShowNavLinkForRole = (link: NavLink, role: Role, isPermissionLoaded:
     return PROJECT_SIDE_ROLES.includes(role);
   }
 
+  if (link.name === 'Project Head') {
+    return role === 'Project Head' || role === 'Director';
+  }
+
   return true;
 };
 
@@ -144,6 +148,18 @@ const navLinks: NavLink[] = [
   },
   { name: 'Projects', href: '/projects', icon: Layers3 },
   {
+    name: 'Project Head',
+    href: '/project-head/letter-of-completion',
+    icon: Briefcase,
+    children: [
+      { name: 'Project Workspace', href: '/projects', icon: Layers3 },
+      { name: 'Requests from PM', href: '/project-manager/requests', icon: Send },
+      { name: 'Communication Log', href: '/comm-logs', icon: ClipboardList },
+      { name: 'Approval', href: '/project-head/approval', icon: CheckSquare },
+      { name: 'Letter of Completion', href: '/project-head/letter-of-completion', icon: ScrollText },
+    ],
+  },
+  {
     name: 'Engineering',
     href: '/engineering',
     icon: Settings,
@@ -152,7 +168,6 @@ const navLinks: NavLink[] = [
       { name: 'Survey', href: '/survey', icon: MapPin },
       { name: 'BOQ', href: '/engineering/boq', icon: FileText },
       { name: 'Drawings', href: '/engineering/drawings', icon: FileText },
-      { name: 'Letter of Submission', href: '/engineering/letter-of-submission', icon: ScrollText },
       { name: 'Change Requests', href: '/engineering/change-requests', icon: RefreshCcw },
       { name: 'Technical Deviations', href: '/engineering/deviations', icon: AlertTriangle },
     ],
@@ -218,6 +233,7 @@ const navLinks: NavLink[] = [
       { name: 'Receivable Aging', href: '/finance/receivable-aging', icon: Clock },
       { name: 'Retention Ledger', href: '/finance/retention', icon: ShieldCheck },
       { name: 'Penalty Deductions', href: '/finance/penalties', icon: AlertTriangle },
+      { name: 'Costing Queue', href: '/finance/costing-queue', icon: CheckSquare },
     ],
   },
   {
@@ -281,6 +297,7 @@ const projectManagerNavLinks: NavLink[] = [
   { name: 'Project Inventory', href: '/project-manager/inventory', icon: Package },
   { name: 'Project Petty Cash', href: '/project-manager/petty-cash', icon: CreditCard },
   { name: 'DPR & Progress', href: '/project-manager/dpr', icon: Camera },
+  { name: 'Client Communication', href: '/comm-logs', icon: ClipboardList },
   { name: 'Requests to PH', href: '/project-manager/requests', icon: Send },
 ];
 

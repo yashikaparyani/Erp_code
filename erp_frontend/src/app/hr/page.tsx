@@ -212,7 +212,7 @@ export default function HRPage() {
       close();
       loadData();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Create failed');
+      setError(err instanceof Error ? err.message : 'Create failed');
     } finally {
       setBusy(false);
     }

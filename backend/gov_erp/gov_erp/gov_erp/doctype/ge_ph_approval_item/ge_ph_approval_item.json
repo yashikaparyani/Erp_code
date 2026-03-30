@@ -1,0 +1,196 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-03-28 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "source_type",
+  "source_name",
+  "source_id",
+  "originating_module",
+  "project",
+  "raised_by",
+  "raised_on",
+  "amount",
+  "status",
+  "linked_record",
+  "priority",
+  "remarks",
+  "ph_approver",
+  "ph_approval_date",
+  "ph_remarks",
+  "costing_queue_ref",
+  "disbursement_status"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "PHA-.#####"
+  },
+  {
+   "fieldname": "source_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Source Type",
+   "options": "\nPO\nRMA PO\nPetty Cash",
+   "reqd": 1
+  },
+  {
+   "fieldname": "source_name",
+   "fieldtype": "Data",
+   "label": "Source Name"
+  },
+  {
+   "fieldname": "source_id",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Source ID"
+  },
+  {
+   "fieldname": "originating_module",
+   "fieldtype": "Data",
+   "label": "Originating Module"
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Project",
+   "options": "Project"
+  },
+  {
+   "fieldname": "raised_by",
+   "fieldtype": "Link",
+   "label": "Raised By",
+   "options": "User"
+  },
+  {
+   "fieldname": "raised_on",
+   "fieldtype": "Datetime",
+   "label": "Raised On"
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "label": "Amount"
+  },
+  {
+   "default": "Submitted to PH",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Draft\nSubmitted to PH\nApproved by PH\nRejected by PH\nForwarded to Costing\nDisbursed / Released",
+   "reqd": 1
+  },
+  {
+   "fieldname": "linked_record",
+   "fieldtype": "Data",
+   "label": "Linked Record"
+  },
+  {
+   "fieldname": "priority",
+   "fieldtype": "Select",
+   "label": "Priority",
+   "options": "\nLow\nMedium\nHigh"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "ph_approver",
+   "fieldtype": "Link",
+   "label": "PH Approver",
+   "options": "User"
+  },
+  {
+   "fieldname": "ph_approval_date",
+   "fieldtype": "Datetime",
+   "label": "PH Approval Date"
+  },
+  {
+   "fieldname": "ph_remarks",
+   "fieldtype": "Small Text",
+   "label": "PH Remarks"
+  },
+  {
+   "fieldname": "costing_queue_ref",
+   "fieldtype": "Link",
+   "label": "Costing Queue Ref",
+   "options": "GE Costing Queue"
+  },
+  {
+   "fieldname": "disbursement_status",
+   "fieldtype": "Select",
+   "label": "Disbursement Status",
+   "options": "\nPending\nReleased\nHeld\nRejected"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "modified": "2026-03-28 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE PH Approval Item",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Purchase"
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "report": 1,
+   "role": "RMA Manager"
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Project Manager"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Accounts"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Director"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Project Head",
+   "write": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

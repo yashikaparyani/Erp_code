@@ -47,7 +47,7 @@ This is the discrepancy-driven must-fix list for the current app state.
 
 ## 7. Documentation Alignment
 
-- [x] Update [TODO.md](/workspace/development/Erp_code/TODO.md) to reflect these concrete discrepancies.
+- [x] Update [remaining_todo.md](/workspace/development/Erp_code/all%20mds/remaining_todo.md) to reflect these concrete discrepancies.
 - [x] Add a short RBAC truth-table note covering:
   - [x] nav visibility
   - [x] route/page access

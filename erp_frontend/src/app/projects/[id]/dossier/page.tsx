@@ -216,8 +216,8 @@ export default function ProjectDossierPage() {
     })
       .then((r) => r.json())
       .then((res) => {
-        if (res.success && res.data?.data) {
-          setDossier(res.data.data);
+        if (res.success && res.data) {
+          setDossier(res.data);
         } else {
           setError(res.message || 'Failed to load dossier');
         }
@@ -241,8 +241,8 @@ export default function ProjectDossierPage() {
       })
         .then((r) => r.json())
         .then((res) => {
-          if (res.success && res.data?.data) {
-            setCompletenessMap((prev) => ({ ...prev, [stage]: res.data.data }));
+          if (res.success && res.data) {
+            setCompletenessMap((prev) => ({ ...prev, [stage]: res.data }));
           }
         })
         .catch(() => {});
