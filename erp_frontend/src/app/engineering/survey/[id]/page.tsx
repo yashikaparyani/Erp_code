@@ -231,10 +231,10 @@ export default function SurveyDetailPage() {
         links={[
           {
             label: 'Related BOQs',
-            doctype: 'GE Bill of Quantities',
+            doctype: 'GE BOQ',
             method: 'frappe.client.get_list',
             args: {
-              doctype: 'GE Bill of Quantities',
+              doctype: 'GE BOQ',
               filters: JSON.stringify(data.linked_tender ? { linked_tender: data.linked_tender } : {}),
               fields: JSON.stringify(['name', 'status', 'total_amount', 'total_items', 'linked_project']),
               limit_page_length: '20',
@@ -258,7 +258,7 @@ export default function SurveyDetailPage() {
 
       {/* Linked Documents */}
       <RecordDocumentsPanel
-        referenceDoctype="GE Site Survey"
+        referenceDoctype="GE Survey"
         referenceName={surveyName}
         title="Linked Documents"
         initialLimit={5}
@@ -269,7 +269,7 @@ export default function SurveyDetailPage() {
         <div className="card-header"><h3 className="font-semibold text-gray-900">Accountability Trail</h3></div>
         <div className="card-body">
           <AccountabilityTimeline
-            subjectDoctype="GE Site Survey"
+            subjectDoctype="GE Survey"
             subjectName={surveyName}
             compact={false}
             initialLimit={10}

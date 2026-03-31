@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { getFileProxyUrl } from '@/lib/fileLinks';
 import {
   AlertCircle,
   ChevronDown,
@@ -1139,10 +1140,10 @@ export default function DocumentsPage() {
             </div>
             <div className="relative h-[75vh] bg-gray-100">
               {getFileExtension(previewDoc.file_url || previewDoc.file) === 'pdf' ? (
-                <iframe title={previewDoc.document_name || previewDoc.name} src={previewDoc.file_url || previewDoc.file} className="h-full w-full" />
+                <iframe title={previewDoc.document_name || previewDoc.name} src={getFileProxyUrl(previewDoc.file_url || previewDoc.file)} className="h-full w-full" />
               ) : (
                 <img
-                  src={previewDoc.file_url || previewDoc.file || ''}
+                  src={getFileProxyUrl(previewDoc.file_url || previewDoc.file) || ''}
                   alt={previewDoc.document_name || previewDoc.name}
                   className="h-full w-full object-contain"
                 />

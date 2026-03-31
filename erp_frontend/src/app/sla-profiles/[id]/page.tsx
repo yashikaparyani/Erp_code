@@ -126,7 +126,7 @@ export default function SLAProfileDetailPage() {
       </div>
 
       <LinkedRecordsPanel links={[
-        { label: 'Tickets Using Profile', doctype: 'GE Service Ticket', method: 'frappe.client.get_list', args: { doctype: 'GE Service Ticket', filters: JSON.stringify({ sla_profile: data.name }), fields: JSON.stringify(['name', 'title', 'status', 'priority']), limit_page_length: '10' }, href: (name: string) => `/om-helpdesk/${name}` },
+        { label: 'Tickets Using Profile', doctype: 'GE Ticket', method: 'frappe.client.get_list', args: { doctype: 'GE Ticket', filters: JSON.stringify({ sla_profile: data.name }), fields: JSON.stringify(['name', 'title', 'status', 'priority']), limit_page_length: '10' }, href: (name: string) => `/om-helpdesk/${name}` },
       ]} />
 
       <RecordDocumentsPanel referenceDoctype="GE SLA Profile" referenceName={profileName} title="Linked Documents" initialLimit={5} />

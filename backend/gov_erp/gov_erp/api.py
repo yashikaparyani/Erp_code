@@ -1610,7 +1610,7 @@ def get_emd_pbg_instruments(tender=None, instrument_type=None, status=None):
 		filters=filters,
 		fields=[
 			"name", "instrument_type", "linked_tender", "instrument_number",
-			"amount", "status", "bank_name", "issue_date", "expiry_date", "remarks",
+			"amount", "status", "bank_name", "issue_date", "expiry_date", "instrument_document", "remarks",
 			"creation", "modified",
 		],
 		order_by="creation desc",
@@ -4328,6 +4328,10 @@ def sync_site_milestone_progress(site_name):
 		},
 		"message": "Site progress synced from milestones",
 	}
+
+
+@frappe.whitelist()
+def get_dependency_rules(task=None, active=None):
 	"""Return dependency rules for execution tasks."""
 	_require_execution_read_access()
 	filters = {}
@@ -7312,6 +7316,7 @@ def get_payment_receipt_stats(project=None):
 	}
 
 
+
 @frappe.whitelist()
 def reconcile_invoice_payments(project=None, invoice_name=None):
 	"""Reconcile invoices against payment receipts.
@@ -7389,6 +7394,8 @@ def reconcile_invoice_payments(project=None, invoice_name=None):
 			},
 		},
 	}
+
+
 
 
 # ── Retention Ledger APIs ────────────────────────────────────
@@ -9457,8 +9464,11 @@ def get_site_dossier(site=None):
 def get_record_documents(reference_doctype=None, reference_name=None):
 	"""Return all documents linked to a specific record (e.g., a BOQ, a PO, etc.)."""
 	_require_document_read_access()
-	reference_doctype = _require_param(reference_doctype, "reference_doctype")
-	reference_name = _require_param(reference_name, "reference_name")
+	reference_doctype = cstr(reference_doctype or "").strip()
+	reference_name = cstr(reference_name or "").strip()
+
+	if not reference_doctype or not reference_name:
+		return {"success": True, "data": []}
 
 	docs = frappe.get_all(
 		"GE Project Document",
@@ -9661,6 +9671,8 @@ def get_finance_request_stats():
 			"pbg_count": pbg_count,
 		},
 	}
+
+
 
 
 @frappe.whitelist()

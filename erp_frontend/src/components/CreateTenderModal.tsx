@@ -14,17 +14,11 @@ interface Party {
   party_type: string;
 }
 
-interface Organization {
-  name: string;
-  organization_name: string;
-}
-
 interface TenderFormData {
   // Step 1: Basic Info
   tender_number: string;
   title: string;
   client: string;
-  organization: string;
   
   // Step 2: Dates & Status
   submission_date: string;
@@ -42,7 +36,6 @@ const initialFormData: TenderFormData = {
   tender_number: '',
   title: '',
   client: '',
-  organization: '',
   submission_date: '',
   status: 'DRAFT',
   estimated_value: 0,
@@ -69,7 +62,6 @@ export default function CreateTenderModal({ isOpen, onClose, onSuccess }: Create
   
   // Master data state
   const [clients, setClients] = useState<Party[]>([]);
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [isLoadingMaster, setIsLoadingMaster] = useState(false);
   const [showQuickAddClient, setShowQuickAddClient] = useState(false);
   const [quickAddName, setQuickAddName] = useState('');
@@ -84,19 +76,12 @@ export default function CreateTenderModal({ isOpen, onClose, onSuccess }: Create
   const fetchMasterData = async () => {
     setIsLoadingMaster(true);
     try {
-      const [clientsResponse, organizationsResponse] = await Promise.all([
-        fetch('/api/parties?type=CLIENT&active=1'),
-        fetch('/api/organizations?active=1'),
-      ]);
+      const clientsResponse = await fetch('/api/parties?type=CLIENT&active=1');
 
       const clientsData = await clientsResponse.json();
-      const organizationsData = await organizationsResponse.json();
 
       if (clientsData.success) {
         setClients(clientsData.data);
-      }
-      if (organizationsData.success) {
-        setOrganizations(organizationsData.data);
       }
     } catch (error) {
       console.error('Error fetching master data:', error);
@@ -255,7 +240,7 @@ export default function CreateTenderModal({ isOpen, onClose, onSuccess }: Create
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -263,7 +248,7 @@ export default function CreateTenderModal({ isOpen, onClose, onSuccess }: Create
       />
       
       {/* Modal */}
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-hidden">
+      <div className="relative flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
           <div>
@@ -310,7 +295,7 @@ export default function CreateTenderModal({ isOpen, onClose, onSuccess }: Create
         </div>
 
         {/* Form Content */}
-        <div className="px-6 py-6 overflow-y-auto max-h-[400px]">
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
           {/* Step 1: Basic Info */}
           {currentStep === 1 && (
             <div className="space-y-4">
@@ -404,25 +389,6 @@ export default function CreateTenderModal({ isOpen, onClose, onSuccess }: Create
                     </div>
                   </div>
                 )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Organization
-                </label>
-                <select
-                  value={formData.organization}
-                  onChange={(e) => updateFormData('organization', e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  disabled={isLoadingMaster}
-                >
-                  <option value="">Select Organization</option>
-                  {organizations.map((organization) => (
-                    <option key={organization.name} value={organization.name}>
-                      {organization.organization_name}
-                    </option>
-                  ))}
-                </select>
               </div>
 
             </div>
@@ -563,7 +529,7 @@ export default function CreateTenderModal({ isOpen, onClose, onSuccess }: Create
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50">
+        <div className="shrink-0 flex items-center justify-between border-t border-gray-200 bg-gray-50 px-6 py-4">
           <button
             onClick={handlePrevious}
             disabled={currentStep === 1}

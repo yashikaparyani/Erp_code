@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Search, ChevronDown, ChevronUp, Eye, ChevronsLeft, ChevronsRight, Loader2 } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, Eye, ChevronsLeft, ChevronsRight, Loader2, FileText } from 'lucide-react';
+import { getFileProxyUrl } from '@/lib/fileLinks';
 import ModalFrame from '@/components/ui/ModalFrame';
 import { useRole } from '@/context/RoleContext';
 
@@ -19,6 +20,8 @@ interface ApprovalData {
   request_date: string;
   status: string;
   type: string;
+  request_remarks?: string;
+  attached_document?: string;
 }
 
 type ApprovalDialogState =
@@ -37,6 +40,7 @@ export default function ApprovalsPage() {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [dialog, setDialog] = useState<ApprovalDialogState>(null);
   const [processingId, setProcessingId] = useState('');
+  const [viewDocUrl, setViewDocUrl] = useState<string | null>(null);
   const [filters, setFilters] = useState({
     tenderId: '',
     approvalType: '',
@@ -403,23 +407,118 @@ export default function ApprovalsPage() {
         footer={<button className="btn btn-secondary" onClick={() => setDialog(null)}>Close</button>}
       >
         {dialog?.mode === 'view' ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {[
-              ['Approval ID', dialog.row.id],
-              ['Tender ID', dialog.row.tender_id || '-'],
-              ['Type', dialog.row.type || '-'],
-              ['Approval For', dialog.row.approval_for || '-'],
-              ['Action Owner', dialog.row.action_owner || dialog.row.approval_from || '-'],
-              ['Requester', dialog.row.requester || '-'],
-              ['Request Date', formatDate(dialog.row.request_date)],
-              ['Action Hint', dialog.row.action_hint || '-'],
-              ['Status', dialog.row.status || '-'],
-            ].map(([label, value]) => (
-              <div key={label} className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3">
-                <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">{label}</div>
-                <div className="mt-1 text-sm font-medium text-gray-900">{value}</div>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {[
+                ['Approval ID', dialog.row.id],
+                ['Tender ID', dialog.row.tender_id || '-'],
+                ['Type', dialog.row.type || '-'],
+                ['Approval For', dialog.row.approval_for || '-'],
+                ['Action Owner', dialog.row.action_owner || dialog.row.approval_from || '-'],
+                ['Requester', dialog.row.requester || '-'],
+                ['Request Date', formatDate(dialog.row.request_date)],
+                ['Status', dialog.row.status || '-'],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">{label}</div>
+                  <div className={`mt-1 text-sm font-medium ${
+                    label === 'Status' && value === 'Approved' ? 'text-green-700' :
+                    label === 'Status' && value === 'Rejected' ? 'text-red-700' :
+                    label === 'Status' && value === 'Pending' ? 'text-amber-700' :
+                    'text-gray-900'
+                  }`}>{value}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Presales Remark */}
+            {dialog.row.request_remarks ? (
+              <div className="rounded-2xl border border-blue-100 bg-blue-50 px-5 py-4">
+                <div className="text-xs font-semibold uppercase tracking-wide text-blue-500 mb-2">Presales Remark</div>
+                <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">{dialog.row.request_remarks}</p>
               </div>
-            ))}
+            ) : (
+              <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-5 py-4 text-sm text-gray-400">
+                No remark provided by Presales.
+              </div>
+            )}
+
+            {/* Attached Document */}
+            {dialog.row.attached_document ? (
+              <div className="rounded-2xl border border-indigo-100 bg-indigo-50 px-5 py-4">
+                <div className="text-xs font-semibold uppercase tracking-wide text-indigo-500 mb-3">Attached Document</div>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100">
+                    <FileText className="h-5 w-5 text-indigo-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-gray-800 truncate">
+                      {dialog.row.attached_document.split('/').pop()}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-0.5">Click to view or open</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setViewDocUrl(getFileProxyUrl(dialog.row.attached_document))}
+                    className="shrink-0 rounded-full bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700 transition"
+                  >
+                    View Document
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-5 py-4 text-sm text-gray-400">
+                No document attached to this request.
+              </div>
+            )}
+
+            {/* Director Actions hint */}
+            {dialog.row.status === 'Pending' && (
+              <div className="rounded-2xl border border-amber-100 bg-amber-50 px-5 py-3 text-sm text-amber-800">
+                <span className="font-semibold">Action Required:</span> Use the Approve / Reject buttons in the table to act on this request after reviewing the document and remark above.
+              </div>
+            )}
+          </div>
+        ) : null}
+      </ModalFrame>
+
+      {/* Document Viewer Modal */}
+      <ModalFrame
+        open={Boolean(viewDocUrl)}
+        onClose={() => setViewDocUrl(null)}
+        title="View Document"
+        widthClassName="max-w-4xl"
+      >
+        {viewDocUrl ? (
+          <div className="space-y-3">
+            {!viewDocUrl.match(/\.(png|jpg|jpeg|gif|webp|svg)($|\?)/i) ? (
+              <iframe
+                src={viewDocUrl}
+                title="Document Viewer"
+                className="w-full rounded-2xl border border-gray-200"
+                style={{ height: '68vh' }}
+              />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={viewDocUrl} alt="Document" className="w-full rounded-2xl object-contain max-h-[65vh]" />
+            )}
+            <div className="flex justify-end gap-2">
+              <a
+                href={viewDocUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                Open in new tab
+              </a>
+              <button
+                type="button"
+                onClick={() => setViewDocUrl(null)}
+                className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                Close
+              </button>
+            </div>
           </div>
         ) : null}
       </ModalFrame>

@@ -54,6 +54,7 @@ type BidDetail = {
     closure_letter_received?: number;
     presales_closure_date?: string;
     bid_denied_reason?: string;
+    linked_project?: string;
   };
 };
 
@@ -143,12 +144,23 @@ export default function BidWorkspacePage() {
   const canDecideLoi = currentRole === 'Presales Tendering Head' && bid?.status === 'WON' && loiSummary.allReceived && bid?.loi_decision_status !== 'ACCEPTED';
   const isLegacyBid = bid?.status === 'DRAFT' || bid?.status === 'SUBMITTED';
   const locRequestStatus = bid?.loc_request_status || 'NOT_REQUESTED';
+  const linkedProject = bid?.tender_detail?.linked_project || '-';
+  const hasLinkedProject = linkedProject !== '-';
+  const canSendLoiRequest =
+    currentRole === 'Presales Tendering Head'
+    && bid?.status === 'WON'
+    && bid?.loi_decision_status !== 'ACCEPTED';
   const canSendLocRequest =
     currentRole === 'Presales Tendering Head'
     && inProcess
     && daysLeft !== null
     && daysLeft <= 90
     && locRequestStatus === 'NOT_REQUESTED';
+  const canConvertToProject =
+    currentRole === 'Presales Tendering Head'
+    && bid?.status === 'WON'
+    && !hasLinkedProject
+    && bid?.tender_detail?.status !== 'CONVERTED_TO_PROJECT';
 
   const runAction = async (actionKey: string, runner: () => Promise<void>) => {
     setBusyAction(actionKey);
@@ -257,6 +269,10 @@ export default function BidWorkspacePage() {
             <div>
               <div className="text-[var(--text-soft)]">Organization</div>
               <div className="mt-1 font-semibold text-[var(--text-main)]">{bid.tender_detail?.organization || '—'}</div>
+            </div>
+            <div>
+              <div className="text-[var(--text-soft)]">Linked Project</div>
+              <div className="mt-1 font-semibold text-[var(--text-main)]">{linkedProject || 'â€”'}</div>
             </div>
             <div>
               <div className="text-[var(--text-soft)]">Tender Status</div>
@@ -434,6 +450,24 @@ export default function BidWorkspacePage() {
             </>
           ) : null}
 
+          {canSendLoiRequest ? (
+            <button
+              disabled={busyAction === 'loi-request'}
+              onClick={() => void runAction('loi-request', async () => {
+                const response = await fetch(`/api/bids/${bid.name}/loi-request`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({}),
+                });
+                const json = await response.json();
+                if (!json.success) throw new Error(json.message || 'Failed to send LOI request');
+              })}
+              className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-3 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-60"
+            >
+              <BadgeCheck className="w-4 h-4" /> Send Request for LOI
+            </button>
+          ) : null}
+
           {canSendLocRequest ? (
             <button
               disabled={busyAction === 'loc-request'}
@@ -447,12 +481,39 @@ export default function BidWorkspacePage() {
             </button>
           ) : null}
 
+          {canConvertToProject ? (
+            <button
+              disabled={busyAction === 'convert-project'}
+              onClick={() => void runAction('convert-project', async () => {
+                const response = await fetch('/api/tender-convert', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ tender_name: bid.tender }),
+                });
+                const json = await response.json();
+                if (!json.success) throw new Error(json.message || 'Failed to convert won bid to project');
+              })}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#0f5164] px-3 py-2 text-sm font-medium text-white hover:bg-[#0a4251] disabled:opacity-60"
+            >
+              <BadgeCheck className="w-4 h-4" /> Convert to Project
+            </button>
+          ) : null}
+
           <Link
             href={`/pre-sales/${bid.tender}`}
             className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-white px-3 py-2 text-sm font-medium text-[var(--text-main)] hover:border-[var(--accent)]"
           >
             <FileStack className="w-4 h-4" /> Open Tender Workspace
           </Link>
+
+          {hasLinkedProject ? (
+            <Link
+              href={`/projects/${linkedProject}`}
+              className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 hover:border-emerald-300"
+            >
+              <BadgeCheck className="w-4 h-4" /> Open Project
+            </Link>
+          ) : null}
         </div>
 
         {bid.cancel_reason || bid.retender_reason || bid.loi_decision_reason || bid.loc_submission_remarks ? (

@@ -17,6 +17,7 @@
   "issue_date",
   "column_break_expiry",
   "expiry_date",
+  "instrument_document",
   "remarks"
  ],
  "fields": [
@@ -93,6 +94,11 @@
    "fieldname": "expiry_date",
    "fieldtype": "Date",
    "label": "Expiry Date"
+  },
+  {
+   "fieldname": "instrument_document",
+   "fieldtype": "Attach",
+   "label": "Instrument Document"
   },
   {
    "fieldname": "remarks",

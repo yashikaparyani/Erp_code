@@ -316,6 +316,7 @@ body.windows-erp-theme {
 .windows-erp-theme input[type='search'],
 .windows-erp-theme input[type='date'],
 .windows-erp-theme input[type='datetime-local'],
+.windows-erp-theme .input,
 .windows-erp-theme select,
 .windows-erp-theme textarea {
   width: 100%;
@@ -329,12 +330,14 @@ body.windows-erp-theme {
 }
 
 .windows-erp-theme input::placeholder,
+.windows-erp-theme .input::placeholder,
 .windows-erp-theme textarea::placeholder {
   color: var(--text-soft);
   opacity: 1;
 }
 
 .windows-erp-theme input:focus,
+.windows-erp-theme .input:focus,
 .windows-erp-theme select:focus,
 .windows-erp-theme textarea:focus {
   outline: none;
@@ -344,6 +347,7 @@ body.windows-erp-theme {
 }
 
 .windows-erp-theme input:disabled,
+.windows-erp-theme .input:disabled,
 .windows-erp-theme select:disabled,
 .windows-erp-theme textarea:disabled {
   background-color: var(--app-bg-alt);

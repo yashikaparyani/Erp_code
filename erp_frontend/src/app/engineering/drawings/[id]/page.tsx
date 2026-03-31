@@ -279,10 +279,10 @@ export default function DrawingDetailPage() {
         links={[
           {
             label: 'Related BOQs',
-            doctype: 'GE Bill of Quantities',
+            doctype: 'GE BOQ',
             method: 'frappe.client.get_list',
             args: {
-              doctype: 'GE Bill of Quantities',
+              doctype: 'GE BOQ',
               filters: JSON.stringify(data.project ? { linked_project: data.project } : {}),
               fields: JSON.stringify(['name', 'status', 'total_amount', 'total_items', 'linked_project']),
               limit_page_length: '20',

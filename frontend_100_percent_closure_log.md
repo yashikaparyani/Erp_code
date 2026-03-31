@@ -238,3 +238,8 @@ This means the closure work now has:
 - compile validation
 - route-access validation
 - browser login and route-health validation
+## 2026-03-27 - Tender Creation Consolidation
+
+- Removed the standalone tender list/create page from [page.tsx](/d:/erp%20final/Erp_code/erp_frontend/src/app/pre-sales/tender/page.tsx) so pre-sales no longer depends on a hidden route for tender creation.
+- Added the `New Tender` entry point directly to [page.tsx](/d:/erp%20final/Erp_code/erp_frontend/src/app/pre-sales/dashboard/page.tsx) and wired it to the existing [CreateTenderModal.tsx](/d:/erp%20final/Erp_code/erp_frontend/src/components/CreateTenderModal.tsx).
+- Updated the tender workspace back-navigation in [page.tsx](/d:/erp%20final/Erp_code/erp_frontend/src/app/pre-sales/%5Bid%5D/page.tsx) to return users to the visible pre-sales dashboard instead of the removed tender page.

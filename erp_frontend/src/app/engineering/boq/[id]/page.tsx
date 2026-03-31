@@ -372,7 +372,7 @@ export default function BoqDetailPage() {
       <TraceabilityPanel projectId={data.linked_project} />
 
       <RecordDocumentsPanel
-        referenceDoctype="GE Bill of Quantities"
+        referenceDoctype="GE BOQ"
         referenceName={boqName}
         title="Linked Documents"
         initialLimit={5}
@@ -383,7 +383,7 @@ export default function BoqDetailPage() {
         <div className="card-header"><h3 className="font-semibold text-gray-900">Accountability Trail</h3></div>
         <div className="card-body">
           <AccountabilityTimeline
-            subjectDoctype="GE Bill of Quantities"
+            subjectDoctype="GE BOQ"
             subjectName={boqName}
             compact={false}
             initialLimit={10}

@@ -258,9 +258,9 @@ export default function TicketDetailPage() {
 
       <TraceabilityPanel projectId={data.linked_project} siteId={data.linked_site} />
 
-      <RecordDocumentsPanel referenceDoctype="GE Service Ticket" referenceName={ticketName} title="Linked Documents" initialLimit={5} />
+      <RecordDocumentsPanel referenceDoctype="GE Ticket" referenceName={ticketName} title="Linked Documents" initialLimit={5} />
 
-      <div className="card"><div className="card-header"><h3 className="font-semibold text-gray-900">Accountability Trail</h3></div><div className="card-body"><AccountabilityTimeline subjectDoctype="GE Service Ticket" subjectName={ticketName} compact={false} initialLimit={10} /></div></div>
+      <div className="card"><div className="card-header"><h3 className="font-semibold text-gray-900">Accountability Trail</h3></div><div className="card-body"><AccountabilityTimeline subjectDoctype="GE Ticket" subjectName={ticketName} compact={false} initialLimit={10} /></div></div>
 
       <ActionModal open={assignModal} title="Assign Ticket" description={`Assign ticket ${data.name} to a team member.`} variant="default" confirmLabel="Assign" busy={actionBusy === 'assign'} fields={[{ name: 'assigned_to', label: 'Assign To', type: 'text', required: true, placeholder: 'User email or ID' }]} onConfirm={async (values) => { await runAction('assign', { assigned_to: values.assigned_to || '' }); setAssignModal(false); }} onCancel={() => setAssignModal(false)} />
 

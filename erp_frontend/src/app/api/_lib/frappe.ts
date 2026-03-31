@@ -74,6 +74,24 @@ function hasFrappeSessionCookie(request?: NextRequest): boolean {
   return Boolean(request?.cookies.get('sid')?.value);
 }
 
+function normalizeFrappeResourceUrl(resourcePathOrUrl: string): string {
+  const trimmed = resourcePathOrUrl.trim();
+  if (!trimmed) {
+    throw new Error('Resource path is required.');
+  }
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    const resourceUrl = new URL(trimmed);
+    const frappeUrl = new URL(FRAPPE_URL);
+    if (resourceUrl.origin !== frappeUrl.origin) {
+      throw new Error('Only Frappe-hosted resources are allowed.');
+    }
+    return resourceUrl.toString();
+  }
+
+  return new URL(trimmed.startsWith('/') ? trimmed : `/${trimmed}`, FRAPPE_URL).toString();
+}
+
 async function extractCsrfToken(cookieHeader: string): Promise<string> {
   const appResponse = await fetch(`${FRAPPE_URL}/app`, {
     headers: {
@@ -266,7 +284,9 @@ export async function callFrappeMethod<T = any>(
     body.set(key, typeof value === 'string' ? value : JSON.stringify(value));
   });
 
-  const response = await fetch(`${FRAPPE_URL}/api/method/gov_erp.api.${method}`, {
+  const qualifiedMethod = method.includes('.') ? method : `gov_erp.api.${method}`;
+
+  const response = await fetch(`${FRAPPE_URL}/api/method/${qualifiedMethod}`, {
     method: 'POST',
     headers: {
       Accept: 'application/json',
@@ -390,6 +410,31 @@ export async function callRawFrappeMethod<T = any>(
   }
 
   return payload?.message ?? payload;
+}
+
+export async function fetchFrappeResource(
+  resourcePathOrUrl: string,
+  request?: NextRequest,
+): Promise<Response> {
+  const authHeaders = request && hasFrappeSessionCookie(request)
+    ? await getAuthHeaders(request, false)
+    : await getAuthHeaders(undefined, false);
+
+  const response = await fetch(normalizeFrappeResourceUrl(resourcePathOrUrl), {
+    method: 'GET',
+    headers: {
+      Accept: '*/*',
+      ...authHeaders,
+    },
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '');
+    throw new Error(text || `Failed to fetch file (${response.status})`);
+  }
+
+  return response;
 }
 
 export async function uploadFrappeFile(

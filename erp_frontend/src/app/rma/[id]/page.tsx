@@ -206,7 +206,7 @@ export default function RMADetailPage() {
       </div>
 
       <LinkedRecordsPanel links={[
-        ...(data.linked_ticket ? [{ label: 'Source Ticket', doctype: 'GE Service Ticket', method: 'frappe.client.get_list', args: { doctype: 'GE Service Ticket', filters: JSON.stringify({ name: data.linked_ticket }), fields: JSON.stringify(['name', 'title', 'status', 'priority']), limit_page_length: '5' }, href: (name: string) => `/om-helpdesk/${name}` }] : []),
+        ...(data.linked_ticket ? [{ label: 'Source Ticket', doctype: 'GE Ticket', method: 'frappe.client.get_list', args: { doctype: 'GE Ticket', filters: JSON.stringify({ name: data.linked_ticket }), fields: JSON.stringify(['name', 'title', 'status', 'priority']), limit_page_length: '5' }, href: (name: string) => `/om-helpdesk/${name}` }] : []),
       ]} />
 
       <TraceabilityPanel projectId={data.linked_project} />

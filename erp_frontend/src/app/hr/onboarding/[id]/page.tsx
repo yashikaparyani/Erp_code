@@ -309,11 +309,11 @@ export default function OnboardingDetailPage() {
         ]}
       />
 
-      <RecordDocumentsPanel referenceDoctype="GE Onboarding" referenceName={docName} title="Attached Documents" />
+      <RecordDocumentsPanel referenceDoctype="GE Employee Onboarding" referenceName={docName} title="Attached Documents" />
       <section>
         <details open>
           <summary className="cursor-pointer text-sm font-semibold text-gray-700 mb-3">Accountability Trail</summary>
-          <AccountabilityTimeline subjectDoctype="GE Onboarding" subjectName={docName} />
+          <AccountabilityTimeline subjectDoctype="GE Employee Onboarding" subjectName={docName} />
         </details>
       </section>
 

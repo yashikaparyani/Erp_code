@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Plus, MapPin, CheckCircle2, Clock, FileText, Eye, Trash2 } from 'lucide-react';
 import ActionModal from '@/components/ui/ActionModal';
 
@@ -90,30 +91,6 @@ export default function SurveyPage() {
       alert(error instanceof Error ? error.message : 'Failed to create survey');
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const handleViewSurvey = async (name: string) => {
-    try {
-      const response = await fetch(`/api/surveys/${encodeURIComponent(name)}`);
-      const result = await response.json();
-      if (!result.success) {
-        throw new Error(result.message || 'Failed to fetch survey');
-      }
-
-      const survey = result.data || {};
-      alert(
-        [
-          `Survey: ${survey.name || name}`,
-          `Tender: ${survey.linked_tender || '-'}`,
-          `Site: ${survey.site_name || '-'}`,
-          `Status: ${survey.status || '-'}`,
-          `Survey Date: ${survey.survey_date || '-'}`,
-          `Surveyed By: ${survey.surveyed_by || '-'}`,
-        ].join('\n')
-      );
-    } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to fetch survey');
     }
   };
 
@@ -380,13 +357,13 @@ export default function SurveyPage() {
                     </select>
                   </td>
                   <td>
-                    <button
+                    <Link
+                      href={`/survey/${encodeURIComponent(survey.name)}`}
                       className="text-blue-600 hover:text-blue-800 text-sm font-medium inline-flex items-center gap-1 mr-3"
-                      onClick={() => handleViewSurvey(survey.name)}
                     >
                       <Eye className="w-4 h-4" />
                       View
-                    </button>
+                    </Link>
                     <button
                       className="text-red-600 hover:text-red-800 text-sm font-medium inline-flex items-center gap-1"
                       onClick={() => setDeleteTarget(survey.name)}

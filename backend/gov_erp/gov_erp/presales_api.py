@@ -26,6 +26,12 @@ from gov_erp.role_utils import (
     ROLE_DEPARTMENT_HEAD,
     ROLE_PROJECT_HEAD,
     ROLE_SYSTEM_MANAGER,
+    ROLE_ENGINEERING_HEAD,
+    ROLE_ACCOUNTS,
+    ROLE_HR_MANAGER,
+    ROLE_PROCUREMENT_MANAGER,
+    ROLE_STORES_LOGISTICS_HEAD,
+    ROLE_RMA_MANAGER,
 )
 
 
@@ -91,6 +97,33 @@ def _get_users_for_role(role_name):
         pluck="name",
     ) or []
     return [user for user in enabled_users if user != "Administrator"]
+
+
+def _resolve_department_link(department_key, fallback_label):
+    """Resolve a Department docname for the supplied logical department."""
+    department_key = cstr(department_key or "").strip().lower()
+    fallback_label = cstr(fallback_label or "").strip()
+    departments = frappe.get_all("Department", fields=["name", "department_name"]) or []
+
+    preferred_names = {
+        "engineering": ["engineering"],
+        "procurement": ["procurement", "purchase"],
+        "accounts": ["accounts", "finance"],
+        "hr": ["hr", "human resource", "manpower"],
+        "stores": ["store", "stores", "logistics"],
+        "om_rma": ["om", "rma", "operations", "maintenance"],
+        "project": ["project"],
+    }.get(department_key, [department_key, fallback_label.lower()])
+
+    for row in departments:
+        haystack = " ".join([
+            cstr(row.get("name") or "").lower(),
+            cstr(row.get("department_name") or "").lower(),
+        ])
+        if any(token and token in haystack for token in preferred_names):
+            return row.get("name")
+
+    return ""
 
 
 def _is_loc_window_active(tender_doc):
@@ -683,6 +716,7 @@ def get_bid(name):
         "closure_letter_received": tender_doc.get("closure_letter_received"),
         "presales_closure_date": tender_doc.get("presales_closure_date"),
         "bid_denied_reason": tender_doc.get("bid_denied_reason"),
+        "linked_project": tender_doc.get("linked_project"),
     }
 
     loi_rows = []
@@ -1066,6 +1100,82 @@ def mark_loi_received(name, loi_received_date=None, loi_document=None):
         "data": doc.as_dict(),
         "loi_summary": loi_summary,
         "message": "LOI received",
+    }
+
+
+@frappe.whitelist()
+def send_loi_request_to_departments(name, loi_expected_by=None, remarks=None):
+    """Create missing LOI tracker rows and notify all departments except Director."""
+    _ps_write_access()
+    name = _local_require_param(name)
+    bid_doc = frappe.get_doc("GE Bid", name)
+    if bid_doc.status != "WON":
+        return {"success": False, "message": "LOI requests can only be sent for won bids"}
+
+    target_departments = [
+        {"label": "Engineering", "role": ROLE_ENGINEERING_HEAD, "department_key": "engineering"},
+        {"label": "Procurement", "role": ROLE_PROCUREMENT_MANAGER, "department_key": "procurement"},
+        {"label": "Accounts", "role": ROLE_ACCOUNTS, "department_key": "accounts"},
+        {"label": "HR", "role": ROLE_HR_MANAGER, "department_key": "hr"},
+        {"label": "Stores", "role": ROLE_STORES_LOGISTICS_HEAD, "department_key": "stores"},
+        {"label": "O&M / RMA", "role": ROLE_RMA_MANAGER, "department_key": "om_rma"},
+        {"label": "Project", "role": ROLE_PROJECT_HEAD, "department_key": "project"},
+    ]
+
+    existing_rows = frappe.get_all(
+        "GE LOI Tracker",
+        filters={"bid": name},
+        fields=["name", "department"],
+    ) if frappe.db.table_exists("GE LOI Tracker") else []
+    existing_departments = {cstr(row.get("department") or "").strip() for row in existing_rows}
+
+    created_rows = []
+    alerted_users = set()
+    from gov_erp.gov_erp.doctype.ge_alert.ge_alert import create_alert
+
+    for target in target_departments:
+        department_link = _resolve_department_link(target["department_key"], target["label"])
+        if department_link not in existing_departments:
+            loi_row = frappe.get_doc({
+                "doctype": "GE LOI Tracker",
+                "bid": name,
+                "tender": bid_doc.tender,
+                "department": department_link or "",
+                "loi_expected_by": loi_expected_by or "",
+                "loi_received": 0,
+                "remarks": cstr(remarks or "LOI requested from bid workspace"),
+            })
+            loi_row.insert()
+            created_rows.append(loi_row.name)
+            if department_link:
+                existing_departments.add(department_link)
+
+        for user in _get_users_for_role(target["role"]):
+            if user in alerted_users:
+                continue
+            create_alert(
+                event_type="general",
+                recipient_user=user,
+                summary="LOI requested for bid {}".format(bid_doc.name),
+                actor=frappe.session.user,
+                linked_department=target["department_key"],
+                reference_doctype="GE Bid",
+                reference_name=bid_doc.name,
+                detail="Please submit the LOI for {} on tender {}.".format(target["label"], bid_doc.tender),
+                route_path="/pre-sales/bids/{}".format(bid_doc.name),
+            )
+            alerted_users.add(user)
+
+    frappe.db.commit()
+    loi_summary = get_loi_status(name).get("data") or {}
+    return {
+        "success": True,
+        "data": {
+            "created_rows": created_rows,
+            "alerts_sent": len(alerted_users),
+            "loi_summary": loi_summary,
+        },
+        "message": "LOI request sent to department teams",
     }
 
 

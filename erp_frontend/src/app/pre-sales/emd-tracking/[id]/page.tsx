@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { AccountabilityTimeline } from '@/components/accountability/AccountabilityTimeline';
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
+import { getFileProxyUrl } from '@/lib/fileLinks';
 
 interface EmdInstrument {
   name: string;
@@ -20,6 +21,7 @@ interface EmdInstrument {
   bank_name?: string;
   issue_date?: string;
   expiry_date?: string;
+  instrument_document?: string;
   remarks?: string;
   creation?: string;
   modified?: string;
@@ -141,6 +143,16 @@ export default function EmdInstrumentDetailPage() {
               <p className="text-sm text-gray-700 whitespace-pre-wrap">{data.remarks}</p>
             </div>
           )}
+          <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50 p-3">
+            <p className="text-xs font-medium text-gray-500 mb-1">Instrument Document</p>
+            {data.instrument_document ? (
+              <a href={getFileProxyUrl(data.instrument_document)} target="_blank" rel="noreferrer" className="text-sm text-blue-600 hover:underline">
+                Open uploaded instrument document
+              </a>
+            ) : (
+              <p className="text-sm text-gray-500">No instrument document uploaded yet.</p>
+            )}
+          </div>
         </div>
       </div>
 

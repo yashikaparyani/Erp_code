@@ -407,6 +407,7 @@ const CONNECTED_METHODS = new Set([
   'get_project_dossier',
   'get_site_dossier',
   'get_record_documents',
+  'frappe.client.get_list',
   'check_progression_gate',
   // PM Workspace – Phase 1
   'get_project_issues',

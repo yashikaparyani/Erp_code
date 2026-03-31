@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { getFileProxyUrl } from '@/lib/fileLinks';
 import {
   ArrowLeft,
   BookOpen,
@@ -1892,7 +1893,7 @@ function FilesTab({ projectId, currentStage, wp }: { projectId: string; currentS
                         </div>
                         <div className="flex items-center gap-2">
                           {doc.file && (
-                            <a href={doc.file} target="_blank" rel="noreferrer" className="text-violet-600 hover:text-violet-700">
+                            <a href={getFileProxyUrl(doc.file, true)} target="_blank" rel="noreferrer" className="text-violet-600 hover:text-violet-700">
                               <ExternalLink className="h-4 w-4" />
                             </a>
                           )}
@@ -2060,7 +2061,7 @@ function FilesTab({ projectId, currentStage, wp }: { projectId: string; currentS
                               <FileText className="h-3 w-3" />Preview
                             </button>
                           ) : null}
-                          <a href={doc.file_url || doc.file} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline">
+                          <a href={getFileProxyUrl(doc.file_url || doc.file, true)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline">
                             <Download className="h-3 w-3" />{isPreviewableDocument(doc.file_url || doc.file) ? 'Open' : 'Download'}
                           </a>
                         </div>
@@ -2157,7 +2158,7 @@ function FilesTab({ projectId, currentStage, wp }: { projectId: string; currentS
                                 <FileText className="h-3 w-3" />Preview
                               </button>
                             ) : null}
-                            <a href={v.file_url || v.file} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline">
+                            <a href={getFileProxyUrl(v.file_url || v.file, true)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline">
                               <Download className="h-3 w-3" />{isPreviewableDocument(v.file_url || v.file) ? 'Open' : 'Download'}
                             </a>
                           </div>
@@ -2189,10 +2190,10 @@ function FilesTab({ projectId, currentStage, wp }: { projectId: string; currentS
             </div>
             <div className="relative h-[75vh] bg-[var(--surface-raised)]">
               {getDocumentExtension(previewDoc.file_url || previewDoc.file) === 'pdf' ? (
-                <iframe title={previewDoc.document_name || previewDoc.name} src={previewDoc.file_url || previewDoc.file} className="h-full w-full" />
+                <iframe title={previewDoc.document_name || previewDoc.name} src={getFileProxyUrl(previewDoc.file_url || previewDoc.file)} className="h-full w-full" />
               ) : (
                 <img
-                  src={previewDoc.file_url || previewDoc.file || ''}
+                  src={getFileProxyUrl(previewDoc.file_url || previewDoc.file) || ''}
                   alt={previewDoc.document_name || previewDoc.name}
                   className="h-full w-full object-contain"
                 />

@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Upload,
 } from 'lucide-react';
+import { getFileProxyUrl } from '@/lib/fileLinks';
 
 /* ─── Types ────────────────────────────────────────────── */
 
@@ -81,11 +82,27 @@ export default function RecordDocumentsPanel({
   initialLimit = 5,
 }: RecordDocumentsPanelProps) {
   const [docs, setDocs] = useState<RecordDocument[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [expanded, setExpanded] = useState(false);
+  const normalizedReferenceDoctype = (referenceDoctype || '').trim();
+  const normalizedReferenceName = (referenceName || '').trim();
+  const hasReference =
+    Boolean(normalizedReferenceDoctype) &&
+    Boolean(normalizedReferenceName) &&
+    normalizedReferenceDoctype.toLowerCase() !== 'undefined' &&
+    normalizedReferenceName.toLowerCase() !== 'undefined' &&
+    normalizedReferenceDoctype.toLowerCase() !== 'null' &&
+    normalizedReferenceName.toLowerCase() !== 'null';
 
   const fetchDocs = useCallback(async () => {
+    if (!hasReference) {
+      setDocs([]);
+      setError('');
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError('');
     try {
@@ -94,8 +111,8 @@ export default function RecordDocumentsPanel({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           method: 'get_record_documents',
-          reference_doctype: referenceDoctype,
-          reference_name: referenceName,
+          reference_doctype: normalizedReferenceDoctype,
+          reference_name: normalizedReferenceName,
         }),
       });
       const data = await res.json();
@@ -106,11 +123,11 @@ export default function RecordDocumentsPanel({
     } finally {
       setLoading(false);
     }
-  }, [referenceDoctype, referenceName]);
+  }, [hasReference, normalizedReferenceDoctype, normalizedReferenceName]);
 
   useEffect(() => {
-    if (referenceDoctype && referenceName) fetchDocs();
-  }, [fetchDocs, referenceDoctype, referenceName]);
+    fetchDocs();
+  }, [fetchDocs]);
 
   const visible = expanded ? docs : docs.slice(0, initialLimit);
   const hasMore = docs.length > initialLimit;
@@ -192,7 +209,7 @@ export default function RecordDocumentsPanel({
                 </div>
                 {doc.file && (
                   <a
-                    href={doc.file}
+                    href={getFileProxyUrl(doc.file, true)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex-shrink-0 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-blue-600"

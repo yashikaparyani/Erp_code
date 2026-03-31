@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import ModalFrame from '@/components/ui/ModalFrame';
+import { getFileProxyUrl } from '@/lib/fileLinks';
 import { deriveTenderFunnelStatus, getTenderFunnelMeta } from '@/components/tenderFunnel';
 import { useRole } from '@/context/RoleContext';
 import { AccountabilityTimeline } from '@/components/accountability/AccountabilityTimeline';
@@ -54,6 +55,13 @@ type TenderApproval = {
   action_remarks?: string;
   creation?: string;
   acted_on?: string;
+  attached_document?: string;
+};
+
+type WorkspaceDocument = {
+  label: string;
+  file: string;
+  helper: string;
 };
 
 type Instrument = {
@@ -64,6 +72,7 @@ type Instrument = {
   bank_name?: string;
   issue_date?: string;
   expiry_date?: string;
+  instrument_document?: string;
   status?: string;
   remarks?: string;
 };
@@ -239,6 +248,11 @@ export default function TenderWorkspacePage() {
   const [showDocumentModal, setShowDocumentModal] = useState(false);
   const [documentType, setDocumentType] = useState<'tender' | 'rfp'>('tender');
   const [documentFile, setDocumentFile] = useState<File | null>(null);
+  const [instrumentFile, setInstrumentFile] = useState<File | null>(null);
+  const [showTechnicalModal, setShowTechnicalModal] = useState(false);
+  const [technicalRemark, setTechnicalRemark] = useState('');
+  const [technicalFile, setTechnicalFile] = useState<File | null>(null);
+  const [viewDocUrl, setViewDocUrl] = useState<string | null>(null);
 
   const loadWorkspace = async () => {
     try {
@@ -274,6 +288,37 @@ export default function TenderWorkspacePage() {
     () => workspace?.approvals.find((row) => row.approval_type === 'TECHNICAL' && row.status === 'Pending') || null,
     [workspace?.approvals],
   );
+  const workspaceDocuments = useMemo<WorkspaceDocument[]>(() => {
+    const docs: WorkspaceDocument[] = [];
+
+    if (tender?.tender_document) {
+      docs.push({
+        label: 'Tender Document',
+        file: tender.tender_document,
+        helper: 'Primary tender file visible directly in workspace.',
+      });
+    }
+
+    if (tender?.rfp_document) {
+      docs.push({
+        label: 'RFP Document',
+        file: tender.rfp_document,
+        helper: 'Source RFP file uploaded against this tender.',
+      });
+    }
+
+    (workspace?.approvals || []).forEach((approval) => {
+      if (!approval.attached_document) return;
+      const typeLabel = labelize(approval.approval_type) || 'Approval';
+      docs.push({
+        label: `${typeLabel} Supporting Document`,
+        file: approval.attached_document,
+        helper: `Uploaded with ${typeLabel.toLowerCase()} request${approval.requested_by ? ` by ${approval.requested_by}` : ''}.`,
+      });
+    });
+
+    return docs.filter((doc, index, list) => list.findIndex((item) => item.file === doc.file) === index);
+  }, [tender?.rfp_document, tender?.tender_document, workspace?.approvals]);
 
   const canObserve = derivedFunnel === 'Not Qualified Tender' || derivedFunnel === 'Locked Tender';
   const surveyCount = workspace?.surveys?.length || 0;
@@ -283,6 +328,10 @@ export default function TenderWorkspacePage() {
   const checklistAvg = workspace?.checklistTemplates?.length
     ? Math.round(workspace.checklistTemplates.reduce((sum, row) => sum + Number(row.completion_pct || 0), 0) / workspace.checklistTemplates.length)
     : 0;
+  const instrumentRows = (workspace?.instruments?.length ? workspace.instruments : workspace?.financeRequests) || [];
+  const emdInstruments = instrumentRows.filter((row) => row.instrument_type === 'EMD');
+  const pbgInstruments = instrumentRows.filter((row) => row.instrument_type === 'PBG');
+  const instrumentDocumentCount = instrumentRows.filter((row) => Boolean(row.instrument_document)).length;
 
   const reasonTrail: ReasonTrailItem[] = tender ? [
     tender.go_no_go_status === 'NO_GO' ? { field: 'go_no_go_remarks' as const, title: 'No-Go Reason', value: tender.go_no_go_remarks || '' } : null,
@@ -350,6 +399,37 @@ export default function TenderWorkspacePage() {
     }
   };
 
+  const submitTechnicalRequest = async () => {
+    try {
+      setBusy('submit-TECHNICAL');
+      setError('');
+      const response = await fetch('/api/tender-approvals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: tenderId, approval_type: 'TECHNICAL', remarks: technicalRemark }),
+      });
+      const json = await response.json();
+      if (!json.success) throw new Error(json.message || 'Failed to submit technical request');
+      // Upload document if provided
+      if (technicalFile && json.data?.name) {
+        const form = new FormData();
+        form.append('file', technicalFile);
+        await fetch(`/api/tender-approvals/${encodeURIComponent(json.data.name)}/document`, {
+          method: 'POST',
+          body: form,
+        });
+      }
+      setShowTechnicalModal(false);
+      setTechnicalRemark('');
+      setTechnicalFile(null);
+      await loadWorkspace();
+    } catch (actionError) {
+      setError(actionError instanceof Error ? actionError.message : 'Failed to submit technical request');
+    } finally {
+      setBusy('');
+    }
+  };
+
   const actOnApproval = async (approvalName: string, action: 'approve' | 'reject', remarks = '') => {
     try {
       setBusy(`${action}-${approvalName}`);
@@ -391,6 +471,16 @@ export default function TenderWorkspacePage() {
       });
       const json = await response.json();
       if (!json.success) throw new Error(json.message || 'Failed to create instrument');
+      if (instrumentFile && json.data?.name) {
+        const form = new FormData();
+        form.append('file', instrumentFile);
+        const uploadResponse = await fetch(`/api/emd-pbg/${encodeURIComponent(json.data.name)}/document`, {
+          method: 'POST',
+          body: form,
+        });
+        const uploadJson = await uploadResponse.json();
+        if (!uploadJson.success) throw new Error(uploadJson.message || 'Instrument created but document upload failed');
+      }
       setShowInstrumentModal(false);
       setInstrumentForm({
         instrument_type: 'EMD',
@@ -401,6 +491,7 @@ export default function TenderWorkspacePage() {
         expiry_date: '',
         remarks: '',
       });
+      setInstrumentFile(null);
       await loadWorkspace();
     } catch (actionError) {
       setError(actionError instanceof Error ? actionError.message : 'Failed to create instrument');
@@ -482,7 +573,7 @@ export default function TenderWorkspacePage() {
           : 'After qualification, send the technical approval request from here.',
       cta: !technicalApproval && derivedFunnel === 'Working but not confirmed by technical'
         ? isPresales
-          ? { label: busy === 'submit-TECHNICAL' ? 'Sending...' : 'Send Technical Request', onClick: () => void submitApproval('TECHNICAL') }
+          ? { label: busy === 'submit-TECHNICAL' ? 'Sending...' : 'Send Technical Request', onClick: () => setShowTechnicalModal(true) }
           : { label: 'Waiting For Presales Request', onClick: () => {}, disabled: true, tone: 'ghost' }
         : null,
     },
@@ -528,6 +619,28 @@ export default function TenderWorkspacePage() {
                 <div className="mt-2 text-lg font-semibold">{latestBid?.name || 'Not created'}</div>
               </div>
             </div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-4">
+                <div className="text-xs uppercase tracking-wide text-white/65">Tender Doc</div>
+                <div className="mt-2 text-lg font-semibold">{tender.tender_document ? 'Available' : 'Missing'}</div>
+                <div className="mt-1 text-xs text-white/70">{tender.tender_document ? 'Visible in workspace' : 'Upload from Add Document'}</div>
+              </div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-4">
+                <div className="text-xs uppercase tracking-wide text-white/65">RFP Doc</div>
+                <div className="mt-2 text-lg font-semibold">{tender.rfp_document ? 'Available' : 'Missing'}</div>
+                <div className="mt-1 text-xs text-white/70">{tender.rfp_document ? 'Visible in workspace' : 'Upload from Add Document'}</div>
+              </div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-4">
+                <div className="text-xs uppercase tracking-wide text-white/65">EMD Docs</div>
+                <div className="mt-2 text-lg font-semibold">{emdInstruments.filter((row) => row.instrument_document).length}</div>
+                <div className="mt-1 text-xs text-white/70">{emdInstruments.length} instrument row(s)</div>
+              </div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-4">
+                <div className="text-xs uppercase tracking-wide text-white/65">PBG Docs</div>
+                <div className="mt-2 text-lg font-semibold">{pbgInstruments.filter((row) => row.instrument_document).length}</div>
+                <div className="mt-1 text-xs text-white/70">{pbgInstruments.length} instrument row(s)</div>
+              </div>
+            </div>
           </div>
 
           <div className="rounded-3xl border border-white/15 bg-white/10 p-5">
@@ -551,7 +664,7 @@ export default function TenderWorkspacePage() {
                 </>
               ) : null}
               {isPresales && derivedFunnel === 'Working but not confirmed by technical' && !technicalApproval ? (
-                <ActionButton onClick={() => void submitApproval('TECHNICAL')} disabled={busy.length > 0}>Send Technical To Director</ActionButton>
+                <ActionButton onClick={() => setShowTechnicalModal(true)} disabled={busy.length > 0}>Send Technical To Director</ActionButton>
               ) : null}
               {isPresales && canObserve ? (
                 <ActionButton tone="ghost" onClick={() => { setRejectMode('observation'); setReasonInput(tender.bid_denied_reason || ''); }} disabled={busy.length > 0}>Keep Under Observation</ActionButton>
@@ -684,14 +797,29 @@ export default function TenderWorkspacePage() {
             <WalletCards className="h-5 w-5 text-[#0f5164]" />
             <h2 className="text-base font-semibold text-gray-900">Instruments</h2>
           </div>
+          <div className="mt-2 text-sm text-gray-500">
+            {instrumentRows.length ? `${instrumentRows.length} instrument row(s), ${instrumentDocumentCount} document link(s)` : 'Track EMD and PBG rows with their actual instrument files here.'}
+          </div>
           <div className="mt-4 space-y-3">
-            {(workspace?.instruments || workspace?.financeRequests || []).length ? (workspace?.instruments || workspace?.financeRequests || []).map((instrument) => (
+            {instrumentRows.length ? instrumentRows.map((instrument) => (
               <div key={instrument.name} className="rounded-2xl border border-gray-200 p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-sm font-semibold text-gray-900">{instrument.instrument_type || 'Instrument'} • {formatCurrency(instrument.amount)}</div>
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">{instrument.status || 'Pending'}</span>
                 </div>
                 <div className="mt-2 text-sm text-gray-600">{instrument.instrument_number || 'Number pending'} • {instrument.bank_name || 'Bank pending'}</div>
+                <div className="mt-2 flex flex-wrap gap-3 text-sm">
+                  <Link href={`/pre-sales/emd-tracking/${encodeURIComponent(instrument.name)}`} className="text-[#0f5164] underline">
+                    Open instrument workspace
+                  </Link>
+                  {instrument.instrument_document ? (
+                    <a href={getFileProxyUrl(instrument.instrument_document)} target="_blank" rel="noreferrer" className="text-[#0f5164] underline">
+                      Open instrument document
+                    </a>
+                  ) : (
+                    <span className="text-gray-500">No instrument document uploaded</span>
+                  )}
+                </div>
               </div>
             )) : <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-sm text-gray-500">No EMD/PBG instrument added yet.</div>}
           </div>
@@ -705,14 +833,16 @@ export default function TenderWorkspacePage() {
           <div className="mt-4 grid gap-3">
             <div className="rounded-2xl border border-gray-200 p-4">
               <div className="text-sm font-semibold text-gray-900">Tender Document</div>
+              <div className="mt-1 text-xs uppercase tracking-wide text-gray-400">{tender.tender_document ? 'Available in workspace' : 'Missing'}</div>
               <div className="mt-2 text-sm text-gray-600">
-                {tender.tender_document ? <a href={tender.tender_document} target="_blank" rel="noreferrer" className="text-[#0f5164] underline">Open uploaded document</a> : 'No tender document uploaded'}
+                {tender.tender_document ? <a href={getFileProxyUrl(tender.tender_document)} target="_blank" rel="noreferrer" className="text-[#0f5164] underline">Open uploaded document</a> : 'No tender document uploaded'}
               </div>
             </div>
             <div className="rounded-2xl border border-gray-200 p-4">
               <div className="text-sm font-semibold text-gray-900">RFP Document</div>
+              <div className="mt-1 text-xs uppercase tracking-wide text-gray-400">{tender.rfp_document ? 'Available in workspace' : 'Missing'}</div>
               <div className="mt-2 text-sm text-gray-600">
-                {tender.rfp_document ? <a href={tender.rfp_document} target="_blank" rel="noreferrer" className="text-[#0f5164] underline">Open uploaded RFP</a> : 'No RFP uploaded'}
+                {tender.rfp_document ? <a href={getFileProxyUrl(tender.rfp_document)} target="_blank" rel="noreferrer" className="text-[#0f5164] underline">Open uploaded RFP</a> : 'No RFP uploaded'}
               </div>
             </div>
           </div>
@@ -802,13 +932,79 @@ export default function TenderWorkspacePage() {
             <div key={approval.name} className="rounded-2xl border border-gray-200 p-4">
               <div className="flex items-center justify-between gap-3">
                 <div className="text-sm font-semibold text-gray-900">{labelize(approval.approval_type)} • {approval.approver_role || '-'}</div>
-                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">{approval.status || '-'}</span>
+                <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                  approval.status === 'Approved' ? 'bg-green-100 text-green-700' :
+                  approval.status === 'Rejected' ? 'bg-red-100 text-red-700' :
+                  'bg-amber-100 text-amber-700'
+                }`}>{approval.status || '-'}</span>
               </div>
               <div className="mt-2 text-sm text-gray-600">Requested by {approval.requested_by || '-'} on {formatDate(approval.creation)}</div>
-              {approval.request_remarks ? <div className="mt-2 text-sm text-gray-500">Request: {approval.request_remarks}</div> : null}
-              {approval.action_remarks ? <div className="mt-1 text-sm text-gray-500">Action: {approval.action_remarks}</div> : null}
+              {approval.request_remarks ? (
+                <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-blue-500 mb-1">Presales Remark</div>
+                  <div className="text-sm text-gray-700">{approval.request_remarks}</div>
+                </div>
+              ) : null}
+              {approval.attached_document ? (
+                <div className="mt-3 flex items-center gap-3 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3">
+                  <FileText className="h-5 w-5 text-indigo-500 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-indigo-500 mb-0.5">Attached Document</div>
+                    <div className="text-sm text-gray-700 truncate">{approval.attached_document.split('/').pop()}</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setViewDocUrl(getFileProxyUrl(approval.attached_document!))}
+                    className="shrink-0 rounded-full bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 transition"
+                  >
+                    View Document
+                  </button>
+                </div>
+              ) : null}
+              {approval.action_remarks ? <div className="mt-2 text-sm text-gray-500">Director note: {approval.action_remarks}</div> : null}
             </div>
           )) : <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-sm text-gray-500">No approval request created yet.</div>}
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="flex items-center gap-2">
+          <FileText className="h-5 w-5 text-[#0f5164]" />
+          <h2 className="text-base font-semibold text-gray-900">Supporting Documents</h2>
+        </div>
+        <p className="mt-1 text-sm text-gray-500">Presales uploaded files stay visible here permanently so anyone opening this workspace can view them anytime.</p>
+        <div className="mt-4 space-y-3">
+          {workspaceDocuments.length ? workspaceDocuments.map((doc) => (
+            <div key={`${doc.label}-${doc.file}`} className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
+              <FileText className="h-5 w-5 flex-shrink-0 text-[#0f5164]" />
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-semibold text-gray-900">{doc.label}</div>
+                <div className="mt-1 text-xs text-gray-500">{doc.helper}</div>
+                <div className="mt-1 truncate text-xs text-gray-400">{doc.file.split('/').pop()}</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setViewDocUrl(getFileProxyUrl(doc.file))}
+                  className="rounded-full bg-[#0f5164] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#0a4251]"
+                >
+                  View
+                </button>
+                <a
+                  href={getFileProxyUrl(doc.file, true)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-100"
+                >
+                  Open
+                </a>
+              </div>
+            </div>
+          )) : (
+            <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-sm text-gray-500">
+              No supporting documents have been uploaded yet.
+            </div>
+          )}
         </div>
       </section>
 
@@ -864,7 +1060,7 @@ export default function TenderWorkspacePage() {
         </div>
       </ModalFrame>
 
-      <ModalFrame open={showInstrumentModal} onClose={() => setShowInstrumentModal(false)} title="Add Instrument">
+      <ModalFrame open={showInstrumentModal} onClose={() => { setShowInstrumentModal(false); setInstrumentFile(null); }} title="Add Instrument">
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-sm text-gray-600">Type
             <select className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm" value={instrumentForm.instrument_type} onChange={(event) => setInstrumentForm((prev) => ({ ...prev, instrument_type: event.target.value }))}>
@@ -890,9 +1086,12 @@ export default function TenderWorkspacePage() {
           <label className="sm:col-span-2 text-sm text-gray-600">Remarks
             <textarea rows={4} className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm" value={instrumentForm.remarks} onChange={(event) => setInstrumentForm((prev) => ({ ...prev, remarks: event.target.value }))} />
           </label>
+          <label className="sm:col-span-2 text-sm text-gray-600">Instrument Document
+            <input type="file" className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm" onChange={(event) => setInstrumentFile(event.target.files?.[0] || null)} />
+          </label>
         </div>
         <div className="mt-4 flex justify-end gap-2">
-          <ActionButton tone="ghost" onClick={() => setShowInstrumentModal(false)}>Cancel</ActionButton>
+          <ActionButton tone="ghost" onClick={() => { setShowInstrumentModal(false); setInstrumentFile(null); }}>Cancel</ActionButton>
           <ActionButton onClick={() => void createInstrument()} disabled={busy.length > 0}>
             <FolderPlus className="mr-2 inline h-4 w-4" />
             Save Instrument
@@ -919,6 +1118,88 @@ export default function TenderWorkspacePage() {
             Upload Document
           </ActionButton>
         </div>
+      </ModalFrame>
+
+      {/* Technical Request Modal */}
+      <ModalFrame
+        open={showTechnicalModal}
+        onClose={() => { setShowTechnicalModal(false); setTechnicalRemark(''); setTechnicalFile(null); }}
+        title="Send Technical Approval Request"
+      >
+        <div className="space-y-5">
+          <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+            <span className="font-semibold">Note:</span> This request will be sent to the Director for technical review. Please add a remark and optionally attach a supporting document.
+          </div>
+          <label className="block text-sm font-medium text-gray-700">
+            Remark / Comment
+            <textarea
+              value={technicalRemark}
+              onChange={(e) => setTechnicalRemark(e.target.value)}
+              rows={4}
+              placeholder="Write your technical remarks or observations here..."
+              className="mt-2 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#0f5164] focus:ring-2 focus:ring-[#0f5164]/10 resize-none transition"
+            />
+          </label>
+          <label className="block text-sm font-medium text-gray-700">
+            Supporting Document <span className="text-gray-400 font-normal">(optional)</span>
+            <div className="mt-2 rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-center transition hover:border-[#0f5164]/40 hover:bg-[#0f5164]/5">
+              <FilePlus2 className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+              <p className="text-xs text-gray-500 mb-2">Upload PDF, Word, image or any file</p>
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.xlsx,.xls"
+                className="cursor-pointer text-sm text-[#0f5164]"
+                onChange={(e) => setTechnicalFile(e.target.files?.[0] || null)}
+              />
+              {technicalFile && (
+                <p className="mt-2 text-xs font-medium text-green-700">✓ {technicalFile.name}</p>
+              )}
+            </div>
+          </label>
+        </div>
+        <div className="mt-6 flex justify-end gap-3">
+          <ActionButton tone="ghost" onClick={() => { setShowTechnicalModal(false); setTechnicalRemark(''); setTechnicalFile(null); }}>Cancel</ActionButton>
+          <ActionButton
+            onClick={() => void submitTechnicalRequest()}
+            disabled={busy.length > 0 || !technicalRemark.trim()}
+          >
+            {busy === 'submit-TECHNICAL' ? 'Sending...' : 'Send Technical Request'}
+          </ActionButton>
+        </div>
+      </ModalFrame>
+
+      {/* Document Viewer Modal */}
+      <ModalFrame
+        open={Boolean(viewDocUrl)}
+        onClose={() => setViewDocUrl(null)}
+        title="View Document"
+      >
+        {viewDocUrl ? (
+          <div className="space-y-3">
+            {viewDocUrl.toLowerCase().includes('.pdf') || !viewDocUrl.match(/\.(png|jpg|jpeg|gif|webp|svg)($|\?)/) ? (
+              <iframe
+                src={viewDocUrl}
+                title="Document Viewer"
+                className="w-full rounded-2xl border border-gray-200"
+                style={{ height: '70vh' }}
+              />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={viewDocUrl} alt="Document" className="w-full rounded-2xl object-contain max-h-[65vh]" />
+            )}
+            <div className="flex justify-end gap-2">
+              <a
+                href={viewDocUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                Open in new tab
+              </a>
+              <ActionButton tone="ghost" onClick={() => setViewDocUrl(null)}>Close</ActionButton>
+            </div>
+          </div>
+        ) : null}
       </ModalFrame>
     </div>
   );

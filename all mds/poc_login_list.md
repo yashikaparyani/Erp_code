@@ -22,7 +22,7 @@ bench --site dev.localhost execute gov_erp.poc_setup.create_poc_users
 Role-based logins:
 
 - `director@technosys.local` - `Director`
--`dept.head@technosys.local` - `Department Head`
+- `dept.head@technosys.local` - `Department Head`
 - `project.head@technosys.local` - `Project Head`
 - `hr.manager@technosys.local` - `HR Manager`
 - `presales.head@technosys.local` - `Presales Tendering Head`

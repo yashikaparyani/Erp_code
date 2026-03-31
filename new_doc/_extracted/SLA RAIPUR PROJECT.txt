@@ -1,0 +1,369 @@
+
+
+===== PAGE 1 =====
+NRANSCCL F-1-Schedule-D- Section-II–Scope of Work 
+“Design, Development, Implementation, Comprehensive Operation and Maintenance of Digital 
+City Platform – Rollout of Additional Modules and allied works in Nava Raipur Atal Nagar, Dist. - 
+Raipur (CG)” 
+NRANSCCL 
+ 
+ 
+Signature of Contractor……………………   
+ 
+Signature of NRANSCCL…………………… 
+ 
+Page 75 of 89 
+ 
+take the decision and it shall be final and binding in this regard. The decision shall be taken with 
+due consideration of the terms and conditions of respective contracts of current SI and existing 
+MSI. 
+4.11 SLA Categories 
+4.11.1 Category-I: Manpower 
+Replacement/ Non-Availability of Acceptable Resource (Applicable for Key Manpower 
+Personnel as defined in clause – Manpower Deployment) 
+Definition Details 
+Service Level 
+Requirement 
+At all times the SI should have required resources deployed on the project 
+Measurement of 
+Service Level 
+Parameter 
+In case SI is not able to provide proposed resource or approved replacement 
+of resource in a timely manner. Upon replacement of resource, the number 
+of days for which a position remains vacant due to unavailability of resource 
+acceptable to NRANSCCL 
+Penalty for Non-
+achievement of 
+SLA 
+Requirement 
+a. Delay in deployment of resources: Amount as mentioned below per 
+resource per month (or part thereof) 
+SL. 
+No. Designation Rate at which recovery 
+shall be made in INR 
+1.  Project Manager 2,00,000 
+2.  Solution Architect cum 
+integration expert 1,00,000 
+3.  ITMS & Surveillance Expert and 
+Site Manager 1,00,000 
+4.  IOT and ICCC expert 1,00,000 
+5.  Network and Security Expert 1,00,000 
+6.  Database Architect/DBA 1,00,000 
+
+
+===== PAGE 2 =====
+NRANSCCL F-1-Schedule-D- Section-II–Scope of Work 
+“Design, Development, Implementation, Comprehensive Operation and Maintenance of Digital 
+City Platform – Rollout of Additional Modules and allied works in Nava Raipur Atal Nagar, Dist. - 
+Raipur (CG)” 
+NRANSCCL 
+ 
+ 
+Signature of Contractor……………………   
+ 
+Signature of NRANSCCL…………………… 
+ 
+Page 76 of 89 
+ 
+Definition Details 
+7.  Data Centre Expert 1,00,000 
+8.  Technical Support Staff 50,000 
+9.  Field Support Staff 50,000 
+10.  Helpdesk Operators 50,000 
+11.  ITMS/CCTV Operator 50,000 
+12.  Paramedical Staff 50,000 
+ 
+b. Non-availability on working days without approval: INR 10,000 per 
+resource per day 
+c. Every replacement of key resource (except when initiated on authority’s 
+request): INR 1,00,000 per replacement 
+ 
+4.11.2 Category-II: Key Milestones 
+Definition Details 
+Service Level 
+Requirement 
+Achievement of key milestones on-time on or before the deadline as 
+mentioned in the contract without delay. 
+Measurement of 
+Service Level 
+Parameter 
+To be measured in number of weeks of delay (or part thereof) from the 
+timelines mentioned in the RFP 
+Penalty for Non-
+achievement of 
+SLA 
+Requirement 
+Key Milestones (Milestone M1 to M2.7) 
+Any delay in the delivery of the project milestones would attract a Penalty of 
+0.5% of the contract value per week (or part thereof) from the due date.   
+
+
+===== PAGE 3 =====
+NRANSCCL F-1-Schedule-D- Section-II–Scope of Work 
+“Design, Development, Implementation, Comprehensive Operation and Maintenance of Digital 
+City Platform – Rollout of Additional Modules and allied works in Nava Raipur Atal Nagar, Dist. - 
+Raipur (CG)” 
+NRANSCCL 
+ 
+ 
+Signature of Contractor……………………   
+ 
+Signature of NRANSCCL…………………… 
+ 
+Page 77 of 89 
+ 
+Definition Details 
+If the Milestone 2.7 gets delayed beyond 12 week(s) from the due date 
+(delay solely attributable to the SI), NRANSCCL reserve the right to invoke 
+the termination clause in addition to the Penalty mentioned above. 
+ 
+4.11.3 Category-III: Device Uptime 
+Definition Details 
+Service Level 
+Requirement 
+Uptime of all IP equipment 
+Measurement of 
+Service Level 
+Parameter 
+Please refer to definition of Uptime. This SLA will be measured 24x7 on a 
+monthly basis, for each device based on device availability as per Network 
+monitoring system 
+Penalty for Non-
+achievement of 
+SLA 
+Requirement 
+a. >= 98%: No Penalty 
+b. For every 1% drop (or part thereof) below 98%, 0.1% of Quarterly O&M 
+Payment per device 
+ 
+4.11.4 Category-IV: Software 
+4.11.4.1 Application Availability  
+Definition Details 
+Service Level 
+Requirement 
+Uptime of all software application 
+Measurement of 
+Service Level 
+Parameter 
+Please refer to definition of Uptime. This SLA will be measured 24x7 on a 
+monthly basis, for each application 
+Penalty for Non-
+achievement of 
+a. >= 98%: No Penalty 
+
+
+===== PAGE 4 =====
+NRANSCCL F-1-Schedule-D- Section-II–Scope of Work 
+“Design, Development, Implementation, Comprehensive Operation and Maintenance of Digital 
+City Platform – Rollout of Additional Modules and allied works in Nava Raipur Atal Nagar, Dist. - 
+Raipur (CG)” 
+NRANSCCL 
+ 
+ 
+Signature of Contractor……………………   
+ 
+Signature of NRANSCCL…………………… 
+ 
+Page 78 of 89 
+ 
+Definition Details 
+SLA 
+Requirement 
+b. For every 1% drop (or part thereof) below 98%, 0.5% of Quarterly O&M 
+Payment per application 
+ 
+4.11.4.2 Application Performance 
+Definition Details 
+Service Level 
+Requirement 
+Percentage of transactions meeting the prescribed Target Response Time 
+(5 seconds by default) for Business Transactions for all components 
+measured through application monitoring solution 
+Measurement of 
+Service Level 
+Parameter 
+Response Time would be calculated as time elapsed between sending a 
+request from client to server and receiving the response. Response time of 
+services to be measured at an interval of 60 minutes and averaged on a 
+monthly basis. 
+Penalty for Non-
+achievement of 
+SLA 
+Requirement 
+a. For all components (5 seconds) 
+b. >= 99%: No Penalty 
+c. < 99% and >=95%: 0.05% of Quarterly O&M Payment per application 
+d. <95%: 0.1% of Quarterly O&M Payment per application 
+ 
+4.11.5 Category-V: Helpdesk 
+4.11.5.1 Helpdesk Incident Response Time 
+Definition Details 
+Service Level 
+Requirement 
+95% of the tickets must be responded to within 30 minutes of receipt 
+Measurement of 
+Service Level 
+Parameter 
+Percentage of incidents acknowledge and respond once a ticket/incident is 
+logged through any of the agreed channels. This is calculated for all 
+tickets/incidents reported within the month. 
+For purpose of calculation, the percentage will be rounded-off.  
+
+
+===== PAGE 5 =====
+NRANSCCL F-1-Schedule-D- Section-II–Scope of Work 
+“Design, Development, Implementation, Comprehensive Operation and Maintenance of Digital 
+City Platform – Rollout of Additional Modules and allied works in Nava Raipur Atal Nagar, Dist. - 
+Raipur (CG)” 
+NRANSCCL 
+ 
+ 
+Signature of Contractor……………………   
+ 
+Signature of NRANSCCL…………………… 
+ 
+Page 79 of 89 
+ 
+Definition Details 
+Penalty for Non-
+achievement of 
+SLA 
+Requirement 
+a. >=95%: No Penalty 
+b. <95%: 1% of Quarterly O&M Payment per one-percentage drop below 
+the target of 95%  
+ 
+4.11.5.2 Helpdesk Incident Resolution Time  
+Definition Details 
+Service Level 
+Requirement 
+100% of the incidents should be resolved within prescribed time limit of 
+problem reporting 
+Measurement of 
+Service Level 
+Parameter 
+Shall mean the time taken (after the incident has been reported at the 
+helpdesk) in resolving i.e. diagnosing, troubleshooting and fixing the 
+reported incident. 
+Penalty for Non-
+achievement of 
+SLA 
+Requirement per 
+incident 
+Severity 1 (High) 
+a. <=8 hours (No delay): No Penalty (24*7) 
+b. >8 hours: For each 30 minutes of delay, 0.1% of Quarterly O&M 
+Payment 
+Severity 2 (Medium) 
+a. <=16 hours (No delay): No Penalty (working hours) 
+b. >16 hours: For each 2 hours of delay, 0.05% of Quarterly O&M Payment 
+L1 – Severity 3 (Low) 
+a. <=24 hours (No delay): No Penalty (working hours) 
+b. >24 hours: For each 8 hours of delay, 0.03% of Quarterly O&M Payment 
+ 
+
+
+===== PAGE 6 =====
+NRANSCCL F-1-Schedule-D- Section-II–Scope of Work 
+“Design, Development, Implementation, Comprehensive Operation and Maintenance of Digital 
+City Platform – Rollout of Additional Modules and allied works in Nava Raipur Atal Nagar, Dist. - 
+Raipur (CG)” 
+NRANSCCL 
+ 
+ 
+Signature of Contractor……………………   
+ 
+Signature of NRANSCCL…………………… 
+ 
+Page 80 of 89 
+ 
+4.11.5.3 Helpdesk Re-opened Incidents 
+Definition Details 
+Service Level 
+Requirement 
+For all incidents which are designated resolved by the SI, but are re-opened 
+by the client. This is calculated for all incidents reported within the quarter. 
+Measurement of 
+Service Level 
+Parameter 
+For purpose of calculation, the percentage will be rounded-off. 
+Penalty for Non-
+achievement of 
+SLA 
+Requirement 
+a. <=2%: No Penalty 
+b. >2%: 1% of Quarterly O&M Payment per one-percentage increase 
+above the target of 2% 
+ 
+4.11.6 Category-VI: Security 
+4.11.6.1 Vulnerability Management: Percentage of timely vulnerability corrections 
+(during O & M phase) 
+Definition Details 
+Service Level 
+Requirement Percentage of timely vulnerability corrections performed by SI.  
+Measurement of 
+Service Level 
+Parameter 
+a) High Severity - Perform vulnerability correction within 8 hours of 
+vulnerability identification.  
+b) Medium Severity - Perform vulnerability correction within 16 hours of 
+vulnerability identification.  
+c) Low Severity - Perform vulnerability correction within 24 hours of 
+vulnerability identification. 
+Calculated 24*7 on a monthly basis 
+Penalty for Non-
+achievement of 
+Penalty as indicated below (per occurrence):  
+a. < 99.95 to >= 99.00% - 1% of Quarterly O&M Payment  
+
+
+===== PAGE 7 =====
+NRANSCCL F-1-Schedule-D- Section-II–Scope of Work 
+“Design, Development, Implementation, Comprehensive Operation and Maintenance of Digital 
+City Platform – Rollout of Additional Modules and allied works in Nava Raipur Atal Nagar, Dist. - 
+Raipur (CG)” 
+NRANSCCL 
+ 
+ 
+Signature of Contractor……………………   
+ 
+Signature of NRANSCCL…………………… 
+ 
+Page 81 of 89 
+ 
+Definition Details 
+SLA 
+Requirement 
+b. <99.00% to >= 98.00% - 2% of Quarterly O&M Payment 
+c. < 98% - 3% of Quarterly O&M Payment  
+In case VAPT reports are not submitted as per RFP requirements INR 
+1,00,000 per week of delay (or part thereof) 
+ 
+4.11.6.2 Security breach including Data Theft/Loss/Corruption /Malware 
+Attack/Ransomware/ Denial of Service Attack/ Intrusion or defacement 
+Definition Details 
+Service Level 
+Requirement Any incident wherein system including all cloud-based services and 
+components are compromised or any case wherein data theft occurs 
+(includes incidents pertaining to SI only) 
+Measurement of 
+Service Level 
+Parameter 
+This penalty is applicable per incident. For each breach/data theft, penalty 
+will be levied as per following criteria.  
+Penalty for Non-
+achievement of 
+SLA 
+Requirement 
+For each breach/data theft, penalty will be levied as per following criteria. 
+a. Severity 1 - Penalty of Rs 15 Lakh per incident  
+b. Severity 2 - Penalty of Rs 10 Lakh per incident  
+c. Severity 3 - Penalty of Rs 5 Lakh per incident 
+These penalties will not be part of overall SLA penalties cap per month. 
+In case of serious breach of security wherein the data is stolen or corrupted, 
+NRANSCCL reserve the right to terminate the contract. 
+For the purpose of this service level, the definition of severity is described 
+as follows: 
+Severity 1:  Environment is down, or major malfunction resulting in an 
+inoperative condition or disrupts critical business functions and requires 
+immediate attention. A significant number of end users are unable to 
