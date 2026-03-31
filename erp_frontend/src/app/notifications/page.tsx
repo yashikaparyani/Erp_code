@@ -367,13 +367,13 @@ export default function NotificationsPage() {
             </div>
             <div className="p-4 space-y-2">
               {(data.overdue_milestones as { name: string; milestone_name: string; linked_project: string; planned_date: string }[]).slice(0, 5).map(m => (
-                <div key={m.name} className="flex items-center justify-between rounded-lg border border-rose-100 bg-rose-50/50 px-3 py-2">
+                <Link key={m.name} href={`/projects/${encodeURIComponent(m.linked_project)}?tab=milestones`} className="flex items-center justify-between rounded-lg border border-rose-100 bg-rose-50/50 px-3 py-2 hover:bg-rose-100 transition-colors">
                   <div>
                     <div className="font-medium text-gray-900 text-sm">{m.milestone_name}</div>
-                    <div className="text-xs text-gray-500">{m.linked_project}</div>
+                    <div className="text-xs text-blue-600">{m.linked_project}</div>
                   </div>
                   <div className="text-xs text-rose-600 font-medium">Due {m.planned_date}</div>
-                </div>
+                </Link>
               ))}
             </div>
           </div>
@@ -387,13 +387,13 @@ export default function NotificationsPage() {
             </div>
             <div className="p-4 space-y-2">
               {(data.expired_documents as { name: string; document_name: string; linked_project: string; expiry_date: string }[]).slice(0, 5).map(d => (
-                <div key={d.name} className="flex items-center justify-between rounded-lg border border-rose-100 bg-rose-50/50 px-3 py-2">
+                <Link key={d.name} href={`/projects/${encodeURIComponent(d.linked_project)}?tab=dossier`} className="flex items-center justify-between rounded-lg border border-rose-100 bg-rose-50/50 px-3 py-2 hover:bg-rose-100 transition-colors">
                   <div>
                     <div className="font-medium text-gray-900 text-sm">{d.document_name}</div>
-                    <div className="text-xs text-gray-500">{d.linked_project}</div>
+                    <div className="text-xs text-blue-600">{d.linked_project}</div>
                   </div>
                   <div className="text-xs text-rose-600 font-medium">Expired {d.expiry_date}</div>
-                </div>
+                </Link>
               ))}
             </div>
           </div>

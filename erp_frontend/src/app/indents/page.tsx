@@ -29,6 +29,7 @@ interface Indent {
   accountability_blocking_reason?: string;
   accountability_escalated_to_role?: string;
   accountability_escalated_to_user?: string;
+  accountability_submitted_by?: string;
 }
 
 interface IndentStats {

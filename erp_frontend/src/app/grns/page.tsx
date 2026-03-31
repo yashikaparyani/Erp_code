@@ -18,10 +18,11 @@ interface GRN {
 interface GRNStats {
   total?: number;
   draft?: number;
+  submitted?: number;
   completed?: number;
   cancelled?: number;
   return_count?: number;
-  total_amount?: number;
+  total_value?: number;
 }
 
 function formatCurrency(v?: number) {
@@ -86,7 +87,7 @@ export default function GRNsPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
-        <div className="stat-card"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg flex items-center justify-center bg-blue-100 text-blue-600"><Package className="w-5 h-5" /></div><div><div className="stat-value">{stats.total ?? items.length}</div><div className="stat-label">Total GRNs</div></div></div><div className="text-xs text-gray-500 mt-2">{formatCurrency(stats.total_amount)} value</div></div>
+        <div className="stat-card"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg flex items-center justify-center bg-blue-100 text-blue-600"><Package className="w-5 h-5" /></div><div><div className="stat-value">{stats.total ?? items.length}</div><div className="stat-label">Total GRNs</div></div></div><div className="text-xs text-gray-500 mt-2">{formatCurrency(stats.total_value)} value</div></div>
         <div className="stat-card"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg flex items-center justify-center bg-yellow-100 text-yellow-600"><Clock className="w-5 h-5" /></div><div><div className="stat-value">{stats.draft ?? 0}</div><div className="stat-label">Draft</div></div></div><div className="text-xs text-gray-500 mt-2">Pending submission</div></div>
         <div className="stat-card"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg flex items-center justify-center bg-green-100 text-green-600"><CheckCircle2 className="w-5 h-5" /></div><div><div className="stat-value">{stats.completed ?? 0}</div><div className="stat-label">Completed</div></div></div><div className="text-xs text-gray-500 mt-2">Goods received</div></div>
         <div className="stat-card"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg flex items-center justify-center bg-orange-100 text-orange-600"><Truck className="w-5 h-5" /></div><div><div className="stat-value">{stats.return_count ?? 0}</div><div className="stat-label">Returns</div></div></div><div className="text-xs text-gray-500 mt-2">Returned goods</div></div>

@@ -27,6 +27,11 @@ function getFocusableElements(container: HTMLElement | null) {
 export function useAccessibleOverlay({ isOpen, onClose, initialFocusRef }: OverlayOptions) {
   const containerRef = useRef<HTMLDivElement>(null);
   const lastFocusedRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -51,7 +56,7 @@ export function useAccessibleOverlay({ isOpen, onClose, initialFocusRef }: Overl
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
-        onClose();
+        onCloseRef.current();
         return;
       }
 
@@ -93,7 +98,7 @@ export function useAccessibleOverlay({ isOpen, onClose, initialFocusRef }: Overl
       document.body.style.overflow = previousOverflow;
       lastFocusedRef.current?.focus();
     };
-  }, [initialFocusRef, isOpen, onClose]);
+  }, [initialFocusRef, isOpen]);
 
   return { containerRef };
 }

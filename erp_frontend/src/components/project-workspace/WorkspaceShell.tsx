@@ -46,6 +46,10 @@ import {
   GripVertical,
   Copy,
   Users,
+  Shield,
+  Scale,
+  ClipboardList,
+  Award,
 } from 'lucide-react';
 import { formatPercent } from '../dashboards/shared';
 import { useAuth } from '../../context/AuthContext';
@@ -53,6 +57,8 @@ import { usePermissions } from '../../context/PermissionContext';
 import { useWorkspacePermissions, WorkspacePermissions } from '../../context/WorkspacePermissionContext';
 import ReminderDrawer from '../reminders/ReminderDrawer';
 import RecordComments from '../collaboration/RecordComments';
+import MentionsPanel from '../mentions/MentionsPanel';
+import { AccountabilityDashboard } from '../accountability/AccountabilityDashboard';
 import IssuesTab from './IssuesTab';
 import StaffTab from './StaffTab';
 import PettyCashTab from './PettyCashTab';
@@ -156,7 +162,7 @@ export type ProjectDocument = {
 };
 
 export type ActivityEntry = {
-  type: 'version' | 'comment' | 'site_comment' | 'workflow';
+  type: 'version' | 'comment' | 'site_comment' | 'workflow' | 'alert' | 'accountability';
   ref_doctype: string;
   ref_name: string;
   actor: string;
@@ -166,6 +172,8 @@ export type ActivityEntry = {
   stage?: string;
   action?: string;
   detail?: string[];
+  event_type?: string;
+  route?: string;
 };
 
 type WorkflowRequirement = {
@@ -327,7 +335,7 @@ export type PMCockpitSummary = {
   action_items: ActionItem[];
 };
 
-export type TabKey = 'overview' | 'sites' | 'board' | 'milestones' | 'ops' | 'files' | 'activity' | 'issues' | 'staff' | 'petty_cash' | 'comms' | 'central_status' | 'requests' | 'notes' | 'tasks' | 'timesheets';
+export type TabKey = 'overview' | 'sites' | 'board' | 'milestones' | 'ops' | 'files' | 'activity' | 'issues' | 'staff' | 'petty_cash' | 'comms' | 'central_status' | 'requests' | 'notes' | 'tasks' | 'timesheets' | 'dossier' | 'accountability' | 'approvals' | 'closeout';
 
 export type DepartmentConfig = {
   departmentKey: string;
@@ -388,19 +396,23 @@ const TAB_META: Record<TabKey, { label: string; icon: typeof LayoutDashboard }> 
   overview:       { label: 'Overview',       icon: LayoutDashboard },
   sites:          { label: 'Sites',          icon: FolderTree },
   board:          { label: 'Site Board',     icon: Columns3 },
-  milestones:     { label: 'Milestones',     icon: Flag },
-  ops:            { label: 'Operations',     icon: Activity },
-  issues:         { label: 'Issues',         icon: AlertCircle },
-  staff:          { label: 'Staff',          icon: ShieldAlert },
-  petty_cash:     { label: 'Petty Cash',     icon: Wallet },
-  comms:          { label: 'Communications', icon: MessageSquare },
-  central_status: { label: 'Central Status', icon: Building2 },
-  requests:       { label: 'Requests',       icon: Send },
-  notes:          { label: 'Notes',          icon: StickyNote },
-  tasks:          { label: 'Tasks',          icon: CheckCircle2 },
-  timesheets:     { label: 'Timesheets',     icon: Clock },
-  files:          { label: 'Files',          icon: FileText },
-  activity:       { label: 'Activity',       icon: History },
+  milestones:       { label: 'Milestones',       icon: Flag },
+  ops:              { label: 'Operations',       icon: Activity },
+  issues:           { label: 'Issues',           icon: AlertCircle },
+  staff:            { label: 'Staff',            icon: ShieldAlert },
+  petty_cash:       { label: 'Petty Cash',       icon: Wallet },
+  comms:            { label: 'Communications',   icon: MessageSquare },
+  central_status:   { label: 'Central Status',   icon: Building2 },
+  requests:         { label: 'Requests',         icon: Send },
+  notes:            { label: 'Notes',            icon: StickyNote },
+  tasks:            { label: 'Tasks',            icon: CheckCircle2 },
+  timesheets:       { label: 'Timesheets',       icon: Clock },
+  files:            { label: 'Files',            icon: FileText },
+  activity:         { label: 'Activity',         icon: History },
+  dossier:          { label: 'Dossier',          icon: Shield },
+  accountability:   { label: 'Accountability',   icon: Scale },
+  approvals:        { label: 'Approvals',        icon: ClipboardList },
+  closeout:         { label: 'Closeout',         icon: Award },
 };
 
 const SPINE_STAGES = [
@@ -866,10 +878,18 @@ function OverviewTab({ detail, config, deptSites, projectId, onTabChange, buildT
 
     if ((currentUser?.roles || []).some((role) => role === 'Director' || role === 'Project Head' || role === 'Project Manager')) {
       items.unshift({
+        label: 'PH Approvals',
+        href: buildTabHref('approvals'),
+        tab: 'approvals',
+        tone: 'amber',
+        detail: 'PO, RMA PO, and Petty Cash requests pending Project Head approval and costing queue',
+      });
+      items.unshift({
         label: 'Project Dossier',
-        href: `/projects/${encodeURIComponent(projectId)}/dossier`,
+        href: buildTabHref('dossier'),
+        tab: 'dossier',
         tone: 'violet',
-        detail: 'Open the full project document dossier with stage-wise completeness signals',
+        detail: 'Stage-wise document completeness signals and controlled document inventory',
       });
       items.unshift({
         label: 'Project Activity',
@@ -880,7 +900,8 @@ function OverviewTab({ detail, config, deptSites, projectId, onTabChange, buildT
       });
       items.unshift({
         label: 'Accountability & RCA',
-        href: `/projects/${encodeURIComponent(projectId)}/accountability`,
+        href: buildTabHref('accountability'),
+        tab: 'accountability',
         tone: 'rose',
         detail: 'Blocked items, escalations, rejections, and full audit trail for this project',
       });
@@ -1528,7 +1549,7 @@ function FilesTab({ projectId, currentStage, wp }: { projectId: string; currentS
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const [showUpload, setShowUpload] = useState(false);
   const [uploadBusy, setUploadBusy] = useState(false);
-  const [uploadForm, setUploadForm] = useState({ document_name: '', category: 'Engineering', linked_site: '', expiry_date: '', remarks: '' });
+  const [uploadForm, setUploadForm] = useState({ document_name: '', category: 'Engineering', linked_site: '', expiry_date: '', remarks: '', linked_stage: '', document_subcategory: '', reference_doctype: '', reference_name: '', is_mandatory: false });
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [previewDoc, setPreviewDoc] = useState<ProjectDocument | null>(null);
 
@@ -1582,12 +1603,17 @@ function FilesTab({ projectId, currentStage, wp }: { projectId: string; currentS
       if (uploadForm.linked_site) formData.append('linked_site', uploadForm.linked_site);
       if (uploadForm.expiry_date) formData.append('expiry_date', uploadForm.expiry_date);
       if (uploadForm.remarks) formData.append('remarks', uploadForm.remarks);
+      if (uploadForm.linked_stage) formData.append('linked_stage', uploadForm.linked_stage);
+      if (uploadForm.document_subcategory) formData.append('document_subcategory', uploadForm.document_subcategory);
+      if (uploadForm.reference_doctype) formData.append('reference_doctype', uploadForm.reference_doctype);
+      if (uploadForm.reference_name) formData.append('reference_name', uploadForm.reference_name);
+      if (uploadForm.is_mandatory) formData.append('is_mandatory', '1');
       const res = await fetch('/api/documents/upload', { method: 'POST', body: formData });
       const payload = await res.json();
       if (!res.ok || payload.success === false) {
         setError(payload.message || 'Upload failed');
       } else {
-        setUploadForm({ document_name: '', category: 'Engineering', linked_site: '', expiry_date: '', remarks: '' });
+        setUploadForm({ document_name: '', category: 'Engineering', linked_site: '', expiry_date: '', remarks: '', linked_stage: '', document_subcategory: '', reference_doctype: '', reference_name: '', is_mandatory: false });
         setUploadFile(null);
         setShowUpload(false);
         loadDocs();
@@ -1596,6 +1622,15 @@ function FilesTab({ projectId, currentStage, wp }: { projectId: string; currentS
       setError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       setUploadBusy(false);
+    }
+  };
+
+  const handleStatusChange = async (docName: string, status: string) => {
+    try {
+      await callOps('update_document_status', { name: docName, status });
+      loadDocs();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Status update failed');
     }
   };
 
@@ -2018,6 +2053,57 @@ function FilesTab({ projectId, currentStage, wp }: { projectId: string; currentS
                 placeholder="Optional notes"
               />
             </div>
+            <div>
+              <label className="mb-1 block text-xs text-[var(--text-muted)]">Stage</label>
+              <select
+                value={uploadForm.linked_stage}
+                onChange={e => setUploadForm(f => ({ ...f, linked_stage: e.target.value }))}
+                className="w-full rounded-lg border border-[var(--border-subtle)] bg-white px-3 py-1.5 text-sm text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-orange)]"
+              >
+                <option value="">— Select stage —</option>
+                {DOSSIER_STAGE_ORDER.filter(s => s !== 'Unclassified').map(s => <option key={s} value={s}>{DOSSIER_STAGE_LABELS[s] || s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-[var(--text-muted)]">Subcategory</label>
+              <input
+                type="text"
+                value={uploadForm.document_subcategory}
+                onChange={e => setUploadForm(f => ({ ...f, document_subcategory: e.target.value }))}
+                className="w-full rounded-lg border border-[var(--border-subtle)] bg-white px-3 py-1.5 text-sm text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-orange)]"
+                placeholder="e.g. As-Built Drawing"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-[var(--text-muted)]">Reference Type</label>
+              <input
+                type="text"
+                value={uploadForm.reference_doctype}
+                onChange={e => setUploadForm(f => ({ ...f, reference_doctype: e.target.value }))}
+                className="w-full rounded-lg border border-[var(--border-subtle)] bg-white px-3 py-1.5 text-sm text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-orange)]"
+                placeholder="e.g. GE Purchase Order"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-[var(--text-muted)]">Reference Name</label>
+              <input
+                type="text"
+                value={uploadForm.reference_name}
+                onChange={e => setUploadForm(f => ({ ...f, reference_name: e.target.value }))}
+                className="w-full rounded-lg border border-[var(--border-subtle)] bg-white px-3 py-1.5 text-sm text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-orange)]"
+                placeholder="e.g. PO-00042"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="is_mandatory_upload"
+                checked={uploadForm.is_mandatory}
+                onChange={e => setUploadForm(f => ({ ...f, is_mandatory: e.target.checked }))}
+                className="rounded border-[var(--border-subtle)] text-[var(--brand-orange)] focus:ring-[var(--brand-orange)]"
+              />
+              <label htmlFor="is_mandatory_upload" className="text-xs text-[var(--text-muted)]">Mandatory document</label>
+            </div>
           </div>
           <div className="flex justify-end">
             <button onClick={handleUpload} disabled={uploadBusy || !uploadForm.document_name.trim() || !uploadForm.category.trim() || !uploadFile} className="rounded-xl bg-[var(--brand-orange)] px-4 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50 transition-opacity">
@@ -2046,7 +2132,7 @@ function FilesTab({ projectId, currentStage, wp }: { projectId: string; currentS
                 <th className="px-4 py-3 font-medium">Status / Expiry</th>
                 <th className="px-4 py-3 font-medium">Uploaded By</th>
                 <th className="px-4 py-3 font-medium">Date</th>
-                <th className="px-4 py-3 font-medium w-20"></th>
+                <th className="px-4 py-3 font-medium w-32">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border-subtle)]">
@@ -2110,15 +2196,30 @@ function FilesTab({ projectId, currentStage, wp }: { projectId: string; currentS
                     <td className="px-4 py-3 text-[var(--text-muted)]">{doc.uploaded_by || doc.owner || '-'}</td>
                     <td className="px-4 py-3 text-[var(--text-muted)]">{doc.creation ? new Date(doc.creation).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}</td>
                     <td className="px-4 py-3">
-                      {canDelete && (
-                        <button
-                          onClick={() => handleDelete(doc.name)}
-                          className="rounded-lg p-1 text-[var(--text-muted)] hover:bg-rose-50 hover:text-rose-600 transition-colors"
-                          title="Delete document"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      )}
+                      <div className="flex items-center gap-1 flex-wrap">
+                        <span className={`inline-block rounded-lg px-2 py-0.5 text-[10px] font-semibold ${
+                          (doc.status || '').toLowerCase() === 'approved' ? 'bg-emerald-50 text-emerald-700'
+                          : (doc.status || '').toLowerCase() === 'rejected' ? 'bg-rose-50 text-rose-700'
+                          : (doc.status || '').toLowerCase() === 'in review' ? 'bg-purple-50 text-purple-700'
+                          : 'bg-blue-50 text-blue-700'
+                        }`}>{doc.status || 'Submitted'}</span>
+                        {!['approved', 'rejected', 'closed'].includes((doc.status || '').toLowerCase()) && (
+                          <>
+                            <button onClick={() => handleStatusChange(doc.name, 'In Review')} className="rounded px-1.5 py-0.5 text-[10px] text-purple-600 hover:bg-purple-50" title="Mark In Review">Review</button>
+                            <button onClick={() => handleStatusChange(doc.name, 'Approved')} className="rounded px-1.5 py-0.5 text-[10px] text-emerald-600 hover:bg-emerald-50" title="Approve">Approve</button>
+                            <button onClick={() => handleStatusChange(doc.name, 'Rejected')} className="rounded px-1.5 py-0.5 text-[10px] text-rose-600 hover:bg-rose-50" title="Reject">Reject</button>
+                          </>
+                        )}
+                        {canDelete && (
+                          <button
+                            onClick={() => handleDelete(doc.name)}
+                            className="rounded-lg p-1 text-[var(--text-muted)] hover:bg-rose-50 hover:text-rose-600 transition-colors"
+                            title="Delete document"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -2221,6 +2322,8 @@ const ACTIVITY_FILTERS = [
   { key: 'comment', label: 'Comments' },
   { key: 'site_comment', label: 'Sites' },
   { key: 'workflow', label: 'Workflow' },
+  { key: 'alert', label: 'Alerts' },
+  { key: 'accountability', label: 'Accountability' },
 ] as const;
 
 class TabErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
@@ -2277,14 +2380,17 @@ function ActivityTab({ projectId }: { projectId: string }) {
   if (error) return <p className="py-12 text-center text-sm text-rose-600">{error}</p>;
   if (!entries.length) return <p className="py-12 text-center text-sm text-[var(--text-muted)]">No activity recorded for this project yet.</p>;
 
-  const typeLabel: Record<string, string> = { version: 'Update', comment: 'Comment', site_comment: 'Site', workflow: 'Workflow' };
-  const typeBg: Record<string, string> = { version: 'bg-blue-50 text-blue-700', comment: 'bg-violet-50 text-violet-700', site_comment: 'bg-amber-50 text-amber-700', workflow: 'bg-emerald-50 text-emerald-700' };
-  const typeIcon: Record<string, string> = { version: '🔄', comment: '💬', site_comment: '📍', workflow: '⚡' };
+  const typeLabel: Record<string, string> = { version: 'Update', comment: 'Comment', site_comment: 'Site', workflow: 'Workflow', alert: 'Alert', accountability: 'Accountability' };
+  const typeBg: Record<string, string> = { version: 'bg-blue-50 text-blue-700', comment: 'bg-violet-50 text-violet-700', site_comment: 'bg-amber-50 text-amber-700', workflow: 'bg-emerald-50 text-emerald-700', alert: 'bg-rose-50 text-rose-700', accountability: 'bg-orange-50 text-orange-700' };
+  const typeIcon: Record<string, string> = { version: '🔄', comment: '💬', site_comment: '📍', workflow: '⚡', alert: '🔔', accountability: '📋' };
 
   return (
     <div className="space-y-6">
       {/* Project Discussion */}
       <RecordComments referenceDoctype="Project" referenceName={projectId} />
+
+      {/* Mentions */}
+      <MentionsPanel projectId={projectId} compact limit={5} />
 
       {/* Type filter tabs */}
       <div className="flex flex-wrap items-center gap-1.5 border-b border-[var(--border-subtle)] pb-3">
@@ -2353,6 +2459,11 @@ function ActivityTab({ projectId }: { projectId: string }) {
                 ))}
                 {entry.detail.length > 5 && <span className="text-[10px] text-[var(--text-muted)]">+{entry.detail.length - 5} more</span>}
               </div>
+            )}
+            {(entry.type === 'alert' || entry.type === 'accountability') && entry.route && (
+              <Link href={entry.route} className="mt-1 inline-flex items-center gap-1 text-xs text-blue-600 hover:underline">
+                View details →
+              </Link>
             )}
           </div>
         </div>
@@ -3775,6 +3886,836 @@ function NotesTab({ projectId }: { projectId: string }) {
 }
 
 /* ═══════════════════════════════════════════════════════════
+   Dossier Tab (embedded project dossier)
+   ═══════════════════════════════════════════════════════════ */
+
+type DossierDocument = {
+  name: string;
+  document_name: string;
+  linked_stage?: string;
+  linked_site?: string;
+  category?: string;
+  document_subcategory?: string;
+  reference_doctype?: string;
+  reference_name?: string;
+  file?: string;
+  version?: number;
+  status?: string;
+  is_mandatory?: 0 | 1;
+  uploaded_by?: string;
+  uploaded_on?: string;
+  reviewed_by?: string;
+  approved_by?: string;
+  valid_from?: string;
+  valid_till?: string;
+  expiry_date?: string;
+  supersedes_document?: string;
+  creation?: string;
+};
+
+type DossierData = {
+  project: string;
+  stages: Record<string, DossierDocument[]>;
+  total_documents: number;
+};
+
+type DossierCompletenessResult = {
+  requirements: {
+    requirement: string;
+    stage: string;
+    category: string;
+    subcategory?: string;
+    mandatory: boolean;
+    satisfied: boolean;
+  }[];
+  all_mandatory_satisfied: boolean;
+  total: number;
+  satisfied_count: number;
+  missing_mandatory_count: number;
+};
+
+const DOSSIER_STAGE_ORDER = [
+  'Survey', 'BOM_BOQ', 'Drawing', 'Indent', 'Quotation_Vendor_Comparison',
+  'PO', 'Dispatch', 'GRN_Inventory', 'Execution', 'Commissioning',
+  'O_M', 'SLA', 'RMA', 'Commercial', 'Closure', 'Unclassified',
+];
+
+const DOSSIER_STAGE_LABELS: Record<string, string> = {
+  Survey: 'Survey', BOM_BOQ: 'BOM / BOQ', Drawing: 'Drawings', Indent: 'Indent',
+  Quotation_Vendor_Comparison: 'Quotation / Vendor Comparison', PO: 'Purchase Order',
+  Dispatch: 'Dispatch', GRN_Inventory: 'GRN / Inventory', Execution: 'Execution / I&C',
+  Commissioning: 'Commissioning', O_M: 'O&M', SLA: 'SLA', RMA: 'RMA',
+  Commercial: 'Commercial', Closure: 'Closure', Unclassified: 'Unclassified',
+};
+
+function DossierStatusBadge({ status }: { status?: string }) {
+  const s = (status || '').toLowerCase();
+  const tone = s === 'approved' ? 'bg-emerald-100 text-emerald-700'
+    : s === 'rejected' ? 'bg-rose-100 text-rose-700'
+    : s === 'blocked' ? 'bg-amber-100 text-amber-700'
+    : s === 'in review' ? 'bg-purple-100 text-purple-700'
+    : 'bg-blue-100 text-blue-700';
+  return <span className={`inline-flex rounded-lg px-2 py-0.5 text-[10px] font-semibold ${tone}`}>{status || 'Draft'}</span>;
+}
+
+function DossierStageSection({ stage, docs, completeness, projectId, onUploaded }: { stage: string; docs: DossierDocument[]; completeness: DossierCompletenessResult | null; projectId: string; onUploaded: () => void }) {
+  const [open, setOpen] = useState(true);
+  const [uploadTarget, setUploadTarget] = useState<{ category: string; subcategory: string } | null>(null);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadName, setUploadName] = useState('');
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const label = DOSSIER_STAGE_LABELS[stage] || stage;
+  const mandatoryCount = completeness?.total || 0;
+  const satisfiedCount = completeness?.satisfied_count || 0;
+  const missingCount = completeness?.missing_mandatory_count || 0;
+
+  const handleDossierUpload = async () => {
+    if (!uploadFile || !uploadTarget || !uploadName.trim()) return;
+    setUploadBusy(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', uploadFile);
+      formData.append('document_name', uploadName.trim());
+      formData.append('linked_project', projectId);
+      formData.append('category', uploadTarget.category);
+      formData.append('linked_stage', stage);
+      if (uploadTarget.subcategory) formData.append('document_subcategory', uploadTarget.subcategory);
+      formData.append('is_mandatory', '1');
+      const res = await fetch('/api/documents/upload', { method: 'POST', body: formData });
+      const payload = await res.json();
+      if (!res.ok || payload.success === false) return;
+      setUploadTarget(null);
+      setUploadFile(null);
+      setUploadName('');
+      onUploaded();
+    } finally {
+      setUploadBusy(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-[var(--border-subtle)] bg-white">
+      <button onClick={() => setOpen(!open)} className="flex w-full items-center justify-between px-5 py-3 text-left">
+        <div className="flex items-center gap-3">
+          {open ? <ChevronDown className="h-4 w-4 text-[var(--text-muted)]" /> : <AlertCircle className="h-4 w-4 text-[var(--text-muted)]" />}
+          <h3 className="text-sm font-semibold text-[var(--text-main)]">{label}</h3>
+          <span className="rounded-full bg-[var(--surface-raised)] px-2 py-0.5 text-[10px] font-medium text-[var(--text-muted)]">
+            {docs.length} doc{docs.length !== 1 ? 's' : ''}
+          </span>
+        </div>
+        {mandatoryCount > 0 && (
+          <div className="flex items-center gap-2 text-[10px]">
+            {missingCount > 0 ? (
+              <span className="flex items-center gap-1 text-rose-600"><AlertCircle className="h-3 w-3" />{missingCount} missing</span>
+            ) : (
+              <span className="flex items-center gap-1 text-emerald-600"><CheckCircle2 className="h-3 w-3" />{satisfiedCount}/{mandatoryCount} complete</span>
+            )}
+          </div>
+        )}
+      </button>
+      {open && (
+        <div className="border-t border-[var(--border-subtle)] px-5 py-3">
+          {docs.length === 0 ? (
+            <p className="text-xs text-[var(--text-muted)] italic">No documents for this stage</p>
+          ) : (
+            <div className="space-y-2">
+              {docs.map((doc) => (
+                <div key={doc.name} className="flex items-center justify-between rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-3 py-2">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <FileText className="h-4 w-4 text-[var(--text-muted)] shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-[var(--text-main)] truncate">{doc.document_name}</p>
+                      <div className="flex gap-2 mt-0.5 flex-wrap">
+                        <span className="text-[10px] text-[var(--text-muted)]">{doc.category}</span>
+                        {doc.document_subcategory && <span className="text-[10px] text-[var(--text-muted)]">/ {doc.document_subcategory}</span>}
+                        {doc.reference_doctype && <span className="text-[10px] text-purple-500">{doc.reference_doctype}: {doc.reference_name}</span>}
+                        {doc.is_mandatory ? <span className="text-[10px] text-rose-500 font-medium">Mandatory</span> : null}
+                        {doc.expiry_date && (
+                          <ExpiryBadge expiryDate={doc.expiry_date} />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <DossierStatusBadge status={doc.status} />
+                    <span className="text-[10px] text-[var(--text-muted)]">v{doc.version || 1}</span>
+                    {doc.file && (
+                      <a href={doc.file} target="_blank" rel="noreferrer" className="text-blue-500 hover:text-blue-700">
+                        <Download className="h-3.5 w-3.5" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {completeness && completeness.requirements.filter(r => r.mandatory && !r.satisfied).length > 0 && (
+            <div className="mt-3 rounded-lg border border-rose-100 bg-rose-50 p-3">
+              <p className="text-[10px] font-semibold text-rose-700 mb-1.5 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" /> Missing Mandatory Documents
+              </p>
+              <div className="space-y-1">
+                {completeness.requirements.filter(r => r.mandatory && !r.satisfied).map((r, i) => (
+                  <div key={i} className="flex items-center justify-between">
+                    <p className="text-[10px] text-rose-600">
+                      {r.category}{r.subcategory ? ` / ${r.subcategory}` : ''}
+                    </p>
+                    <button
+                      onClick={() => { setUploadTarget({ category: r.category, subcategory: r.subcategory || '' }); setUploadName(`${r.category}${r.subcategory ? ' - ' + r.subcategory : ''}`); }}
+                      className="inline-flex items-center gap-1 rounded bg-rose-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-rose-700"
+                    >
+                      <Upload className="h-2.5 w-2.5" /> Upload Now
+                    </button>
+                  </div>
+                ))}
+              </div>
+              {uploadTarget && (
+                <div className="mt-3 rounded-lg border border-rose-200 bg-white p-3 space-y-2">
+                  <p className="text-[10px] font-semibold text-[var(--text-main)]">Upload: {uploadTarget.category}{uploadTarget.subcategory ? ` / ${uploadTarget.subcategory}` : ''}</p>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <input type="text" value={uploadName} onChange={e => setUploadName(e.target.value)} placeholder="Document name" className="rounded-lg border border-[var(--border-subtle)] bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-[var(--brand-orange)]" />
+                    <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg" onChange={e => setUploadFile(e.target.files?.[0] || null)} className="rounded-lg border border-[var(--border-subtle)] bg-white px-2 py-1 text-xs file:mr-2 file:rounded file:border-0 file:bg-[var(--brand-orange)] file:px-2 file:py-0.5 file:text-[10px] file:font-medium file:text-white" />
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => setUploadTarget(null)} className="rounded px-2 py-1 text-[10px] text-[var(--text-muted)] hover:bg-gray-100">Cancel</button>
+                    <button onClick={handleDossierUpload} disabled={uploadBusy || !uploadFile || !uploadName.trim()} className="rounded bg-[var(--brand-orange)] px-3 py-1 text-[10px] font-medium text-white hover:opacity-90 disabled:opacity-50">
+                      {uploadBusy ? 'Uploading…' : 'Upload'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DossierTab({ projectId }: { projectId: string }) {
+  const [dossier, setDossier] = useState<DossierData | null>(null);
+  const [completenessMap, setCompletenessMap] = useState<Record<string, DossierCompletenessResult>>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const reload = useCallback(() => setRefreshKey(k => k + 1), []);
+
+  useEffect(() => {
+    if (!projectId) return;
+    setLoading(true);
+    callOps<DossierData>('get_project_dossier', { project: projectId })
+      .then((data) => setDossier(data))
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load dossier'))
+      .finally(() => setLoading(false));
+  }, [projectId, refreshKey]);
+
+  useEffect(() => {
+    if (!dossier) return;
+    const stages = DOSSIER_STAGE_ORDER.filter((s) => s !== 'Unclassified');
+    for (const stage of stages) {
+      callOps<DossierCompletenessResult>('check_stage_document_completeness', { project: projectId, stage })
+        .then((data) => setCompletenessMap((prev) => ({ ...prev, [stage]: data })))
+        .catch(() => {});
+    }
+  }, [dossier, projectId]);
+
+  if (loading) {
+    return <div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" /></div>;
+  }
+  if (error) {
+    return <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{error}</div>;
+  }
+
+  const sortedStages = DOSSIER_STAGE_ORDER.filter((stage) => {
+    if (stage === 'Unclassified') return Boolean(dossier?.stages[stage]?.length);
+    const docsCount = dossier?.stages[stage]?.length || 0;
+    const completeness = completenessMap[stage];
+    return docsCount > 0 || Boolean(completeness?.total) || Boolean(completeness?.missing_mandatory_count);
+  });
+
+  const totalDocs = dossier?.total_documents || 0;
+  const totalMissing = Object.values(completenessMap).reduce((sum, c) => sum + c.missing_mandatory_count, 0);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-lg font-bold text-[var(--text-main)] flex items-center gap-2">
+            <Shield className="h-5 w-5 text-[var(--accent-strong)]" />
+            Project Dossier
+          </h2>
+          <p className="mt-1 text-xs text-[var(--text-muted)]">Stage-wise document completeness and controlled document inventory</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="rounded-lg border border-[var(--border-subtle)] bg-white px-3 py-1.5 text-xs text-[var(--text-muted)]">
+            {totalDocs} document{totalDocs !== 1 ? 's' : ''}
+          </div>
+          {totalMissing > 0 && (
+            <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs text-rose-700 flex items-center gap-1">
+              <AlertCircle className="h-3 w-3" />{totalMissing} mandatory missing
+            </div>
+          )}
+        </div>
+      </div>
+      {sortedStages.length === 0 ? (
+        <div className="rounded-xl border border-[var(--border-subtle)] bg-white p-12 text-center">
+          <FileText className="mx-auto h-12 w-12 text-[var(--text-muted)] opacity-40" />
+          <p className="mt-3 text-sm text-[var(--text-muted)]">No documents uploaded yet</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {sortedStages.map((stage) => (
+            <DossierStageSection key={stage} stage={stage} docs={dossier?.stages[stage] || []} completeness={completenessMap[stage] || null} projectId={projectId} onUploaded={reload} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Accountability Tab (embedded accountability dashboard)
+   ═══════════════════════════════════════════════════════════ */
+
+function AccountabilityTab({ projectId }: { projectId: string }) {
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-lg font-bold text-[var(--text-main)] flex items-center gap-2">
+          <Scale className="h-5 w-5 text-[var(--accent-strong)]" />
+          Accountability &amp; RCA
+        </h2>
+        <p className="mt-1 text-xs text-[var(--text-muted)]">Full audit trail, blocked items, escalations, and rejection history</p>
+      </div>
+      <AccountabilityDashboard project={projectId} />
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Approvals Tab (PH Approval Queue)
+   ═══════════════════════════════════════════════════════════ */
+
+type PHApprovalItem = {
+  name: string;
+  source_type?: string;
+  source_name?: string;
+  project?: string;
+  status?: string;
+  submitted_by?: string;
+  submitted_at?: string;
+  approved_by?: string;
+  approved_at?: string;
+  rejected_by?: string;
+  rejected_at?: string;
+  remarks?: string;
+  amount?: number;
+  description?: string;
+  creation?: string;
+  modified?: string;
+};
+
+function ApprovalsTab({ projectId }: { projectId: string }) {
+  const [activeSubTab, setActiveSubTab] = useState<'po' | 'rma_po' | 'petty_cash'>('po');
+  const [items, setItems] = useState<PHApprovalItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [actionBusy, setActionBusy] = useState('');
+
+  const loadItems = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await callOps<PHApprovalItem[]>('get_ph_approval_items', {
+        tab: activeSubTab === 'po' ? 'PO' : activeSubTab === 'rma_po' ? 'RMA PO' : 'Petty Cash',
+        project: projectId,
+      });
+      setItems(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load approval items');
+    } finally {
+      setLoading(false);
+    }
+  }, [activeSubTab, projectId]);
+
+  useEffect(() => {
+    void loadItems();
+  }, [loadItems]);
+
+  const handleApprove = async (name: string) => {
+    setActionBusy(name);
+    try {
+      await callOps('ph_approve_item', { name });
+      await loadItems();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Approval failed');
+    }
+    setActionBusy('');
+  };
+
+  const handleReject = async (name: string) => {
+    setActionBusy(name);
+    try {
+      await callOps('ph_reject_item', { name });
+      await loadItems();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Rejection failed');
+    }
+    setActionBusy('');
+  };
+
+  const subTabs: { key: typeof activeSubTab; label: string }[] = [
+    { key: 'po', label: 'Purchase Orders' },
+    { key: 'rma_po', label: 'RMA POs' },
+    { key: 'petty_cash', label: 'Petty Cash' },
+  ];
+
+  const pendingItems = items.filter((i) => (i.status || '').toLowerCase().includes('submitted'));
+  const processedItems = items.filter((i) => !(i.status || '').toLowerCase().includes('submitted'));
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-bold text-[var(--text-main)] flex items-center gap-2">
+          <ClipboardList className="h-5 w-5 text-[var(--accent-strong)]" />
+          PH Approval Hub
+        </h2>
+        <p className="mt-1 text-xs text-[var(--text-muted)]">
+          Purchase Orders, RMA POs, and Petty Cash requests pending Project Head approval
+        </p>
+      </div>
+
+      {/* Sub-tab bar */}
+      <div className="flex gap-1 border-b border-[var(--border-subtle)]">
+        {subTabs.map((st) => (
+          <button
+            key={st.key}
+            onClick={() => setActiveSubTab(st.key)}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+              activeSubTab === st.key
+                ? 'border-[var(--accent)] text-[var(--accent-strong)]'
+                : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-main)]'
+            }`}
+          >
+            {st.label}
+          </button>
+        ))}
+      </div>
+
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-5 w-5 animate-spin text-[var(--text-muted)]" />
+        </div>
+      )}
+
+      {error && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{error}</div>
+      )}
+
+      {!loading && !error && items.length === 0 && (
+        <div className="rounded-xl border border-[var(--border-subtle)] bg-white p-12 text-center">
+          <ClipboardCheck className="mx-auto h-10 w-10 text-[var(--text-muted)] opacity-40" />
+          <p className="mt-3 text-sm text-[var(--text-muted)]">No approval items in this category</p>
+        </div>
+      )}
+
+      {!loading && !error && pendingItems.length > 0 && (
+        <div>
+          <SectionHeader title="Pending Approval" subtitle={`${pendingItems.length} item${pendingItems.length !== 1 ? 's' : ''} awaiting PH action`} />
+          <div className="space-y-3">
+            {pendingItems.map((item) => (
+              <div key={item.name} className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-semibold text-[var(--text-main)]">{item.source_name || item.name}</span>
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700">{item.status}</span>
+                      {item.source_type && (
+                        <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-700">{item.source_type}</span>
+                      )}
+                    </div>
+                    {item.description && <p className="mt-1 text-xs text-[var(--text-muted)]">{item.description}</p>}
+                    <div className="mt-2 flex gap-4 text-[11px] text-[var(--text-muted)]">
+                      {item.submitted_by && <span>By: {item.submitted_by}</span>}
+                      {item.submitted_at && <span>{new Date(item.submitted_at).toLocaleDateString('en-IN')}</span>}
+                      {item.amount != null && <span className="font-medium">₹{Number(item.amount).toLocaleString('en-IN')}</span>}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => handleApprove(item.name)}
+                      disabled={actionBusy === item.name}
+                      className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                    >
+                      {actionBusy === item.name ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Approve'}
+                    </button>
+                    <button
+                      onClick={() => handleReject(item.name)}
+                      disabled={actionBusy === item.name}
+                      className="rounded-lg border border-rose-300 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!loading && !error && processedItems.length > 0 && (
+        <div>
+          <SectionHeader title="Processed" subtitle="Previously approved or rejected items" />
+          <div className="space-y-2">
+            {processedItems.map((item) => {
+              const isApproved = (item.status || '').toLowerCase().includes('approved');
+              return (
+                <div key={item.name} className={`rounded-xl border p-3 ${isApproved ? 'border-emerald-200 bg-emerald-50/30' : 'border-rose-200 bg-rose-50/30'}`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-medium text-[var(--text-main)]">{item.source_name || item.name}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${isApproved ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                          {item.status}
+                        </span>
+                        {item.source_type && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-600">{item.source_type}</span>}
+                      </div>
+                      <div className="mt-1 flex gap-4 text-[11px] text-[var(--text-muted)]">
+                        {item.amount != null && <span>₹{Number(item.amount).toLocaleString('en-IN')}</span>}
+                        {isApproved && item.approved_by && <span>Approved: {item.approved_by}</span>}
+                        {!isApproved && item.rejected_by && <span>Rejected: {item.rejected_by}</span>}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Closeout Tab (Project Head closeout certificates)
+   ═══════════════════════════════════════════════════════════ */
+
+type CloseoutEligibility = {
+  contract_scope: string | null;
+  sequence: string[];
+  issued: string[];
+  next_eligible: string | null;
+  all_complete: boolean;
+  message?: string;
+};
+
+type CloseoutItem = {
+  name: string;
+  closeout_type: string;
+  project: string;
+  linked_tender?: string;
+  contract_scope?: string;
+  status: string;
+  issued_by?: string;
+  issued_on?: string;
+  certificate_date?: string;
+  remarks?: string;
+  kt_handover_plan?: string;
+  kt_completed_on?: string;
+  kt_completed_by?: string;
+  revoked_by?: string;
+  revoked_on?: string;
+  revocation_reason?: string;
+};
+
+function CloseoutTab({ projectId }: { projectId: string }) {
+  const [eligibility, setEligibility] = useState<CloseoutEligibility | null>(null);
+  const [items, setItems] = useState<CloseoutItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [actionBusy, setActionBusy] = useState(false);
+  const [issueRemarks, setIssueRemarks] = useState('');
+  const [ktPlan, setKtPlan] = useState('');
+  const [showRevokeFor, setShowRevokeFor] = useState<string | null>(null);
+  const [revokeReason, setRevokeReason] = useState('');
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const [eligRes, itemsRes] = await Promise.all([
+        callOps<CloseoutEligibility>('get_project_closeout_eligibility', { project: projectId }),
+        callOps<CloseoutItem[]>('get_project_closeout_items', { project: projectId }),
+      ]);
+      setEligibility(eligRes);
+      setItems(itemsRes);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load closeout data');
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId]);
+
+  useEffect(() => { void loadData(); }, [loadData]);
+
+  const handleIssue = async () => {
+    if (!eligibility?.next_eligible) return;
+    setActionBusy(true);
+    try {
+      await callOps('issue_closeout_certificate', {
+        project: projectId,
+        closeout_type: eligibility.next_eligible,
+        remarks: issueRemarks.trim() || undefined,
+        kt_handover_plan: eligibility.next_eligible === 'Exit Management KT' ? ktPlan.trim() || undefined : undefined,
+      });
+      setIssueRemarks('');
+      setKtPlan('');
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to issue certificate');
+    }
+    setActionBusy(false);
+  };
+
+  const handleRevoke = async (name: string) => {
+    if (!revokeReason.trim()) return;
+    setActionBusy(true);
+    try {
+      await callOps('revoke_closeout_certificate', { name, reason: revokeReason.trim() });
+      setShowRevokeFor(null);
+      setRevokeReason('');
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to revoke certificate');
+    }
+    setActionBusy(false);
+  };
+
+  const handleCompleteKt = async (name: string) => {
+    setActionBusy(true);
+    try {
+      await callOps('complete_exit_management_kt', { name });
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to mark KT as complete');
+    }
+    setActionBusy(false);
+  };
+
+  const stepStatusMap = useMemo(() => {
+    const map: Record<string, 'issued' | 'revoked' | 'pending' | 'locked'> = {};
+    if (!eligibility) return map;
+    const issuedItems = items.filter((i) => i.status === 'Issued');
+    const issuedTypes = new Set(issuedItems.map((i) => i.closeout_type));
+    const revokedTypes = new Set(items.filter((i) => i.status === 'Revoked').map((i) => i.closeout_type));
+    for (const step of eligibility.sequence) {
+      if (issuedTypes.has(step)) map[step] = 'issued';
+      else if (step === eligibility.next_eligible) map[step] = 'pending';
+      else if (revokedTypes.has(step)) map[step] = 'revoked';
+      else map[step] = 'locked';
+    }
+    return map;
+  }, [eligibility, items]);
+
+  const STEP_STYLES: Record<string, { bg: string; border: string; text: string; badge: string }> = {
+    issued:  { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', badge: 'bg-emerald-100 text-emerald-700' },
+    pending: { bg: 'bg-amber-50/50', border: 'border-amber-200', text: 'text-amber-700', badge: 'bg-amber-100 text-amber-700' },
+    revoked: { bg: 'bg-rose-50/30', border: 'border-rose-200', text: 'text-rose-600', badge: 'bg-rose-100 text-rose-700' },
+    locked:  { bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-400', badge: 'bg-gray-100 text-gray-500' },
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-bold text-[var(--text-main)] flex items-center gap-2">
+          <Award className="h-5 w-5 text-[var(--accent-strong)]" />
+          Project Closeout
+        </h2>
+        <p className="mt-1 text-xs text-[var(--text-muted)]">
+          Issue closeout certificates in strict sequence based on contract scope
+        </p>
+      </div>
+
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-5 w-5 animate-spin text-[var(--text-muted)]" />
+        </div>
+      )}
+
+      {error && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{error}</div>
+      )}
+
+      {!loading && !error && eligibility && !eligibility.contract_scope && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-center">
+          <FileWarning className="mx-auto h-10 w-10 text-amber-400" />
+          <p className="mt-3 text-sm font-medium text-amber-800">Contract scope not set</p>
+          <p className="mt-1 text-xs text-amber-600">
+            {eligibility.message || 'Set the Contract Scope on the linked tender (I&C Only or I&C + O&M) before issuing closeout certificates.'}
+          </p>
+        </div>
+      )}
+
+      {!loading && !error && eligibility && eligibility.contract_scope && (
+        <>
+          {/* Contract scope badge */}
+          <div className="flex items-center gap-3">
+            <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
+              {eligibility.contract_scope}
+            </span>
+            {eligibility.all_complete && (
+              <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
+                All certificates issued
+              </span>
+            )}
+          </div>
+
+          {/* Sequence pipeline */}
+          <div className="space-y-3">
+            {eligibility.sequence.map((step, idx) => {
+              const status = stepStatusMap[step] || 'locked';
+              const styles = STEP_STYLES[status];
+              const issuedItem = items.find((i) => i.closeout_type === step && i.status === 'Issued');
+              const revokedItem = items.find((i) => i.closeout_type === step && i.status === 'Revoked');
+
+              return (
+                <div key={step} className={`rounded-xl border ${styles.border} ${styles.bg} p-4`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-medium text-[var(--text-muted)]">Step {idx + 1}</span>
+                        <span className="text-sm font-semibold text-[var(--text-main)]">{step}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${styles.badge}`}>
+                          {status === 'issued' ? 'Issued' : status === 'pending' ? 'Next' : status === 'revoked' ? 'Revoked' : 'Locked'}
+                        </span>
+                      </div>
+
+                      {issuedItem && (
+                        <div className="mt-2 flex gap-4 text-[11px] text-[var(--text-muted)]">
+                          <span>Issued by: {issuedItem.issued_by}</span>
+                          {issuedItem.certificate_date && <span>Date: {issuedItem.certificate_date}</span>}
+                          {issuedItem.remarks && <span>{issuedItem.remarks}</span>}
+                        </div>
+                      )}
+
+                      {issuedItem && issuedItem.closeout_type === 'Exit Management KT' && (
+                        <div className="mt-2">
+                          {issuedItem.kt_completed_on ? (
+                            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+                              KT completed on {issuedItem.kt_completed_on}
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => handleCompleteKt(issuedItem.name)}
+                              disabled={actionBusy}
+                              className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                            >
+                              Mark KT Complete
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {revokedItem && (
+                        <div className="mt-2 text-[11px] text-rose-600">
+                          Revoked by {revokedItem.revoked_by} — {revokedItem.revocation_reason}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex gap-2 shrink-0">
+                      {status === 'issued' && issuedItem && (
+                        <>
+                          {showRevokeFor === issuedItem.name ? (
+                            <div className="flex items-center gap-2">
+                              <input
+                                value={revokeReason}
+                                onChange={(e) => setRevokeReason(e.target.value)}
+                                placeholder="Reason for revocation"
+                                className="rounded-lg border border-rose-300 px-2 py-1 text-xs w-48"
+                              />
+                              <button
+                                onClick={() => handleRevoke(issuedItem.name)}
+                                disabled={actionBusy || !revokeReason.trim()}
+                                className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-700 disabled:opacity-50"
+                              >
+                                Confirm
+                              </button>
+                              <button
+                                onClick={() => { setShowRevokeFor(null); setRevokeReason(''); }}
+                                className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs text-gray-600"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setShowRevokeFor(issuedItem.name)}
+                              className="rounded-lg border border-rose-300 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50"
+                            >
+                              Revoke
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Issue next certificate form */}
+          {eligibility.next_eligible && (
+            <div className="rounded-xl border border-[var(--border-subtle)] bg-white p-5">
+              <h3 className="text-sm font-bold text-[var(--text-main)]">
+                Issue: {eligibility.next_eligible}
+              </h3>
+              <div className="mt-3 space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">Remarks (optional)</label>
+                  <textarea
+                    value={issueRemarks}
+                    onChange={(e) => setIssueRemarks(e.target.value)}
+                    rows={2}
+                    className="w-full rounded-lg border border-[var(--border-subtle)] px-3 py-2 text-sm"
+                    placeholder="Add any notes..."
+                  />
+                </div>
+                {eligibility.next_eligible === 'Exit Management KT' && (
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">KT / Handover Plan</label>
+                    <textarea
+                      value={ktPlan}
+                      onChange={(e) => setKtPlan(e.target.value)}
+                      rows={3}
+                      className="w-full rounded-lg border border-[var(--border-subtle)] px-3 py-2 text-sm"
+                      placeholder="Describe knowledge transfer plan and handover activities..."
+                    />
+                  </div>
+                )}
+                <button
+                  onClick={handleIssue}
+                  disabled={actionBusy}
+                  className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                >
+                  {actionBusy ? <Loader2 className="h-4 w-4 animate-spin inline mr-2" /> : null}
+                  Issue {eligibility.next_eligible}
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
    Main Shell
    ═══════════════════════════════════════════════════════════ */
 
@@ -4062,6 +5003,10 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
       {activeTab === 'notes' && <NotesTab projectId={projectId} />}
       {activeTab === 'files' && <FilesTab projectId={projectId} currentStage={ps?.current_project_stage} wp={wp} />}
       {activeTab === 'activity' && <TabErrorBoundary><ActivityTab projectId={projectId} /></TabErrorBoundary>}
+      {activeTab === 'dossier' && <DossierTab projectId={projectId} />}
+      {activeTab === 'accountability' && <AccountabilityTab projectId={projectId} />}
+      {activeTab === 'approvals' && <ApprovalsTab projectId={projectId} />}
+      {activeTab === 'closeout' && <CloseoutTab projectId={projectId} />}
     </div>
   );
 }

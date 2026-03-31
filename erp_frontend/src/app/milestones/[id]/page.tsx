@@ -56,7 +56,7 @@ export default function MilestoneDetailPage() {
   const [completeModal, setCompleteModal] = useState(false);
 
   const hasRole = (...roles: string[]) => new Set(currentUser?.roles || []).size > 0 && roles.some(r => new Set(currentUser?.roles || []).has(r));
-  const canManage = hasRole('Director', 'System Manager', 'Project Manager', 'O&M Manager');
+  const canManage = hasRole('Director', 'System Manager', 'Project Manager', 'OM Operator');
 
   const loadData = useCallback(async () => {
     setLoading(true); setError('');

@@ -77,8 +77,8 @@ export default function DispatchChallanDetailPage() {
 
   /* ── role helpers ── */
   const currentRole = currentUser?.roles?.[0] || '';
-  const approvalRoles = new Set(['Store Manager', 'Store Approver', 'Project Head', 'Director']);
-  const writeRoles = new Set(['Store Keeper', 'Store Manager', 'Store Approver', 'Procurement Manager', 'Director']);
+  const approvalRoles = new Set(['Store Manager', 'Stores Logistics Head', 'Project Head', 'Director']);
+  const writeRoles = new Set(['Store Manager', 'Stores Logistics Head', 'Procurement Manager', 'Director']);
   const canApprove = approvalRoles.has(currentRole);
   const canWrite = writeRoles.has(currentRole);
 
@@ -295,6 +295,17 @@ export default function DispatchChallanDetailPage() {
         }}
         onCancel={() => setRejectModal(false)}
       />
+
+      {/* Next Step */}
+      <div className="card border-blue-200 bg-blue-50/50">
+        <div className="p-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-blue-700">Next Step in Workflow</p>
+            <p className="text-sm text-gray-600 mt-0.5">Dispatch Challan → <strong>GRN</strong> → Project Inventory</p>
+          </div>
+          <Link href="/grns" className="rounded-lg bg-blue-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-blue-700">Go to GRNs →</Link>
+        </div>
+      </div>
     </div>
   );
 }

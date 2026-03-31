@@ -57,7 +57,7 @@ export default function ClientSignoffDetailPage() {
     const set = new Set(currentUser?.roles || []);
     return roles.some((r) => set.has(r));
   };
-  const canManage = hasRole('Director', 'System Manager', 'I&C Manager', 'Project Manager');
+  const canManage = hasRole('Director', 'System Manager', 'Engineering Head', 'Project Manager');
 
   const loadData = useCallback(async () => {
     setLoading(true); setError('');

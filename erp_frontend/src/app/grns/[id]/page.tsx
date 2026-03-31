@@ -331,6 +331,17 @@ export default function GRNDetailPage() {
           />
         </div>
       </div>
+
+      {/* Next Step */}
+      <div className="card border-blue-200 bg-blue-50/50">
+        <div className="p-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-blue-700">Next Step in Workflow</p>
+            <p className="text-sm text-gray-600 mt-0.5">GRN → <strong>Project Inventory</strong></p>
+          </div>
+          <Link href="/inventory" className="rounded-lg bg-blue-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-blue-700">Go to Inventory →</Link>
+        </div>
+      </div>
     </div>
   );
 }

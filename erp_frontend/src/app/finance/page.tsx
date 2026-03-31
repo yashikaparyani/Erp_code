@@ -1,8 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Plus, IndianRupee, TrendingUp, Clock } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Filter, Plus, IndianRupee, TrendingUp, Clock, X } from 'lucide-react';
 
 interface Invoice {
   name: string;
@@ -40,10 +40,13 @@ function formatCurrency(val?: number): string {
 
 export default function FinancePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const projectParam = searchParams?.get('project') || '';
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [stats, setStats] = useState<InvoiceStats>({});
   const [loading, setLoading] = useState(true);
   const [busyInv, setBusyInv] = useState<string | null>(null);
+  const [projectFilter, setProjectFilter] = useState(projectParam);
 
   const handleInvoiceAction = async (name: string, method: string) => {
     setBusyInv(name);
@@ -80,6 +83,9 @@ export default function FinancePage() {
 
   const received = (stats.payment_received ?? 0);
   const pending = (stats.submitted ?? 0) + (stats.approved ?? 0);
+  const filteredInvoices = projectFilter
+    ? invoices.filter(inv => (inv.linked_project || '').toLowerCase().includes(projectFilter.toLowerCase()))
+    : invoices;
 
   return (
     <div>
@@ -95,6 +101,22 @@ export default function FinancePage() {
           <Link href="/finance/billing" className="btn btn-secondary">Billing</Link>
           <Link href="/finance/payment-receipts" className="btn btn-secondary">Payments</Link>
         </div>
+      </div>
+
+      {/* Project filter */}
+      <div className="flex items-center gap-2 mb-4 text-sm">
+        <Filter className="h-4 w-4 text-gray-400" />
+        <input
+          value={projectFilter}
+          onChange={(e) => setProjectFilter(e.target.value)}
+          placeholder="Filter by project..."
+          className="border rounded px-2 py-1 text-sm w-48"
+        />
+        {projectFilter && (
+          <button onClick={() => setProjectFilter('')} className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-0.5">
+            <X className="h-3 w-3" /> Clear
+          </button>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -175,16 +197,26 @@ export default function FinancePage() {
               </tr>
             </thead>
             <tbody>
-              {invoices.length === 0 ? (
+              {filteredInvoices.length === 0 ? (
                 <tr><td colSpan={8} className="text-center py-8 text-gray-500">No invoices found</td></tr>
-              ) : invoices.map(inv => (
+              ) : filteredInvoices.map(inv => (
                 <tr key={inv.name}>
                   <td>
                     <div className="font-medium text-gray-900">{inv.name}</div>
                   </td>
                   <td>
-                    <div className="text-sm text-gray-900">{inv.linked_project || '-'}</div>
-                    <div className="text-xs text-gray-500">{inv.linked_site || ''}</div>
+                    {inv.linked_project ? (
+                      <div>
+                        <Link href={`/projects/${encodeURIComponent(inv.linked_project)}`} className="text-sm font-medium text-blue-600 hover:text-blue-800">{inv.linked_project}</Link>
+                        <div className="flex gap-2 mt-0.5">
+                          <Link href={`/projects/${encodeURIComponent(inv.linked_project)}?tab=dossier`} className="text-[10px] text-gray-400 hover:text-blue-600">Dossier</Link>
+                          <Link href={`/projects/${encodeURIComponent(inv.linked_project)}?tab=accountability`} className="text-[10px] text-gray-400 hover:text-blue-600">Accountability</Link>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-sm text-gray-900">-</div>
+                    )}
+                    {inv.linked_site && <div className="text-xs text-gray-500">{inv.linked_site}</div>}
                   </td>
                   <td>
                     <span className="badge badge-info">{inv.invoice_type || '-'}</span>

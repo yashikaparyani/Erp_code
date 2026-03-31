@@ -67,8 +67,8 @@ export default function SlaPenaltyDetailPage() {
   const [waiveModal, setWaiveModal] = useState(false);
 
   const currentRole = currentUser?.roles?.[0] || '';
-  const approvalRoles = new Set(['O&M Manager', 'O&M Head', 'Director', 'Project Head']);
-  const canApprove = approvalRoles.has(currentRole);
+  const approvalRoles = new Set(['OM Operator', 'RMA Manager', 'Director', 'Project Head']);
+  const canApprove = (currentUser?.roles || []).some(r => approvalRoles.has(r));
 
   const reload = useCallback(async () => {
     setLoading(true);

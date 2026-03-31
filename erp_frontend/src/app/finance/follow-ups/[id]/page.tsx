@@ -71,7 +71,7 @@ export default function FollowUpDetailPage() {
     const set = new Set(currentUser?.roles || []);
     return roles.some(r => set.has(r));
   };
-  const canAct = hasRole('Finance Manager', 'Finance User', 'Billing Manager', 'Director', 'System Manager');
+  const canAct = hasRole('Accounts', 'Director', 'System Manager');
 
   const reload = useCallback(async () => {
     setLoading(true);

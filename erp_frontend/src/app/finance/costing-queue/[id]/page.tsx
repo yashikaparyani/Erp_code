@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import ActionModal from '@/components/ui/ActionModal';
 import { AccountabilityTimeline } from '@/components/accountability/AccountabilityTimeline';
+import { useAuth } from '@/context/AuthContext';
 
 interface QueueDetail {
   name: string;
@@ -58,6 +59,9 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 export default function CostingQueueDetailPage() {
   const params = useParams();
   const id = decodeURIComponent((params?.id as string) || '');
+  const { currentUser } = useAuth();
+  const costingRoles = new Set(['Accounts', 'Director', 'System Manager']);
+  const canDoCosting = (currentUser?.roles || []).some(r => costingRoles.has(r));
   const [data, setData] = useState<QueueDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -127,7 +131,7 @@ export default function CostingQueueDetailPage() {
 
   if (!data) return null;
 
-  const canAct = !data.disbursement_status || data.disbursement_status === 'Pending';
+  const canAct = canDoCosting && (!data.disbursement_status || data.disbursement_status === 'Pending');
 
   return (
     <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-6">

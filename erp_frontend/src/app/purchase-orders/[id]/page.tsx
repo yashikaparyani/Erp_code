@@ -413,9 +413,22 @@ export default function PurchaseOrderDetailPage() {
             </>
           )}
           {isSubmitted && (
-            <button onClick={() => handleAction('cancel')} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-100 disabled:opacity-50">
-              <Ban className="h-3.5 w-3.5" />{actionBusy === 'cancel' ? 'Cancelling...' : 'Cancel PO'}
-            </button>
+            <>
+              <button onClick={async () => {
+                setActionBusy('submit_po_to_ph');
+                try {
+                  await postOps('submit_po_to_ph', { name: poName });
+                  showSuccess('PO submitted to Project Head for approval');
+                  await loadData();
+                } catch (err) { setError(err instanceof Error ? err.message : 'Failed to submit to PH'); }
+                finally { setActionBusy(''); }
+              }} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
+                <Upload className="h-3.5 w-3.5" />{actionBusy === 'submit_po_to_ph' ? 'Sending…' : 'Submit to PH'}
+              </button>
+              <button onClick={() => handleAction('cancel')} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-100 disabled:opacity-50">
+                <Ban className="h-3.5 w-3.5" />{actionBusy === 'cancel' ? 'Cancelling...' : 'Cancel PO'}
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -881,6 +894,17 @@ export default function PurchaseOrderDetailPage() {
         }}
         onCancel={() => setShowTermsRejectModal(false)}
       />
+
+      {/* Next Step */}
+      <div className="card border-blue-200 bg-blue-50/50">
+        <div className="p-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-blue-700">Next Step in Workflow</p>
+            <p className="text-sm text-gray-600 mt-0.5">PO → <strong>Dispatch Challan</strong> → GRN → Inventory</p>
+          </div>
+          <Link href="/dispatch-challans" className="rounded-lg bg-blue-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-blue-700">Go to Dispatch Challans →</Link>
+        </div>
+      </div>
     </div>
   );
 }

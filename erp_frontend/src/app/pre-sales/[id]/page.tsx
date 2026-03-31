@@ -56,6 +56,14 @@ type Tender = {
   sla_holiday_to?: string;
   implementation_completion_date?: string;
   physical_completion_date?: string;
+  /* Fields returned by get_tender but previously untyped */
+  emd_amount?: number;
+  emd_required?: boolean | number;
+  pbg_required?: boolean | number;
+  pbg_amount?: number;
+  tender_owner?: string;
+  submission_status?: string;
+  finance_readiness?: string;
 };
 
 type TenderApproval = {

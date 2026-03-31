@@ -31,6 +31,7 @@ type AttendanceRow = {
   attendance_date?: string;
   attendance_status?: string;
   linked_site?: string;
+  linked_project?: string;
 };
 
 type TravelRow = {
@@ -41,6 +42,8 @@ type TravelRow = {
   from_location?: string;
   to_location?: string;
   expense_amount?: number;
+  linked_project?: string;
+  linked_site?: string;
 };
 
 type OvertimeRow = {
@@ -49,6 +52,7 @@ type OvertimeRow = {
   overtime_date?: string;
   overtime_hours?: number;
   overtime_status?: string;
+  linked_project?: string;
 };
 
 type StatutoryRow = {
@@ -66,6 +70,7 @@ type VisitRow = {
   visit_date?: string;
   visit_status?: string;
   linked_site?: string;
+  linked_project?: string;
   customer_location?: string;
 };
 
@@ -415,7 +420,7 @@ export default function HRPage() {
                 <tr>
                   <th>Employee</th>
                   <th>Date</th>
-                  <th>Site</th>
+                  <th>Project / Site</th>
                   <th>Status</th>
                 </tr>
               </thead>
@@ -426,7 +431,11 @@ export default function HRPage() {
                   <tr key={row.name}>
                     <td>{row.employee || '-'}</td>
                     <td>{row.attendance_date || '-'}</td>
-                    <td>{row.linked_site || '-'}</td>
+                    <td>
+                      {row.linked_project ? <div><Link href={`/projects/${encodeURIComponent(row.linked_project)}`} className="text-sm font-medium text-blue-600 hover:text-blue-800">{row.linked_project}</Link><div className="flex gap-2 mt-0.5"><Link href={`/projects/${encodeURIComponent(row.linked_project)}?tab=dossier`} className="text-[10px] text-indigo-500 hover:underline">Dossier</Link><Link href={`/projects/${encodeURIComponent(row.linked_project)}?tab=accountability`} className="text-[10px] text-amber-600 hover:underline">Accountability</Link></div></div> : null}
+                      {row.linked_site && <div className="text-xs text-gray-500">{row.linked_site}</div>}
+                      {!row.linked_project && !row.linked_site && '-'}
+                    </td>
                     <td><span className="badge badge-gray">{row.attendance_status || '-'}</span></td>
                   </tr>
                 ))}
@@ -454,6 +463,7 @@ export default function HRPage() {
                     <div>
                       <div className="text-sm font-medium text-gray-900">{row.employee || row.name}</div>
                       <div className="text-xs text-gray-500">{row.from_location || '-'} to {row.to_location || '-'}</div>
+                      {row.linked_project && <div><Link href={`/projects/${encodeURIComponent(row.linked_project)}`} className="text-[10px] font-medium text-blue-600 hover:text-blue-800">{row.linked_project}</Link><span className="ml-1"><Link href={`/projects/${encodeURIComponent(row.linked_project)}?tab=accountability`} className="text-[10px] text-amber-600 hover:underline">Acct</Link></span></div>}
                     </div>
                     <div className="text-right">
                       <div className="text-sm text-gray-900">{formatCurrency(row.expense_amount)}</div>
@@ -473,6 +483,7 @@ export default function HRPage() {
                     <div>
                       <div className="text-sm font-medium text-gray-900">{row.employee || row.name}</div>
                       <div className="text-xs text-gray-500">{row.overtime_date || '-'}</div>
+                      {row.linked_project && <div><Link href={`/projects/${encodeURIComponent(row.linked_project)}`} className="text-[10px] font-medium text-blue-600 hover:text-blue-800">{row.linked_project}</Link><span className="ml-1"><Link href={`/projects/${encodeURIComponent(row.linked_project)}?tab=accountability`} className="text-[10px] text-amber-600 hover:underline">Acct</Link></span></div>}
                     </div>
                     <div className="text-right">
                       <div className="text-sm text-gray-900">{row.overtime_hours ?? 0} hrs</div>
@@ -518,6 +529,7 @@ export default function HRPage() {
                     <div>
                       <div className="text-sm font-medium text-gray-900">{row.employee || row.name}</div>
                       <div className="text-xs text-gray-500">{row.linked_site || row.customer_location || '-'}</div>
+                      {row.linked_project && <div><Link href={`/projects/${encodeURIComponent(row.linked_project)}`} className="text-[10px] font-medium text-blue-600 hover:text-blue-800">{row.linked_project}</Link><span className="ml-1"><Link href={`/projects/${encodeURIComponent(row.linked_project)}?tab=accountability`} className="text-[10px] text-amber-600 hover:underline">Acct</Link></span></div>}
                     </div>
                     <div className="text-right">
                       <div className="text-sm text-gray-900">{row.visit_date || '-'}</div>

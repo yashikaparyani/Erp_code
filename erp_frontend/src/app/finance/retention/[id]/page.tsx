@@ -65,7 +65,7 @@ export default function RetentionDetailPage() {
     const set = new Set(currentUser?.roles || []);
     return roles.some(r => set.has(r));
   };
-  const canRelease = hasRole('Finance Manager', 'Billing Manager', 'Director', 'System Manager');
+  const canRelease = hasRole('Accounts', 'Director', 'System Manager');
 
   const reload = useCallback(async () => {
     setLoading(true);

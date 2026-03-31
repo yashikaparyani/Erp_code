@@ -335,7 +335,17 @@ export default function FinanceCostingPage() {
                       <div className="text-xs text-gray-500">v{row.version || 1} • {row.total_items || 0} items</div>
                     </td>
                     <td>
-                      <div className="text-gray-700">{row.linked_project || '-'}</div>
+                      {row.linked_project ? (
+                        <div>
+                          <Link href={`/projects/${encodeURIComponent(row.linked_project)}`} className="text-sm font-medium text-blue-600 hover:text-blue-800">{row.linked_project}</Link>
+                          <div className="flex gap-2 mt-0.5">
+                            <Link href={`/projects/${encodeURIComponent(row.linked_project)}?tab=dossier`} className="text-[10px] text-indigo-500 hover:underline">Dossier</Link>
+                            <Link href={`/projects/${encodeURIComponent(row.linked_project)}?tab=accountability`} className="text-[10px] text-amber-600 hover:underline">Accountability</Link>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-gray-700">-</div>
+                      )}
                       <div className="text-xs text-gray-400">{row.linked_tender || '-'}</div>
                     </td>
                     <td>

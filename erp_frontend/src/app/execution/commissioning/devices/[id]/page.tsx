@@ -67,7 +67,7 @@ export default function DeviceRegisterDetailPage() {
     const set = new Set(currentUser?.roles || []);
     return roles.some((r) => set.has(r));
   };
-  const canManage = hasRole('Director', 'System Manager', 'I&C Manager', 'Network Engineer');
+  const canManage = hasRole('Director', 'System Manager', 'Engineering Head', 'Engineer');
 
   const loadData = useCallback(async () => {
     setLoading(true); setError('');

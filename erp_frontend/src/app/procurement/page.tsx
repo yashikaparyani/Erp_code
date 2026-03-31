@@ -41,7 +41,7 @@ function formatCurrency(val?: number): string {
 
 function getProjectWorkspaceHref(project?: string): string | null {
   if (!project) return null;
-  return `/procurement/projects/${encodeURIComponent(project)}`;
+  return `/projects/${encodeURIComponent(project)}?tab=ops`;
 }
 
 export default function ProcurementPage() {
@@ -388,12 +388,18 @@ export default function ProcurementPage() {
                   </td>
                   <td>
                     {getProjectWorkspaceHref(vc.linked_project) ? (
-                      <Link
-                        href={getProjectWorkspaceHref(vc.linked_project)!}
-                        className="text-sm font-medium text-amber-700 hover:text-amber-900 hover:underline"
-                      >
-                        {vc.linked_project}
-                      </Link>
+                      <div>
+                        <Link
+                          href={getProjectWorkspaceHref(vc.linked_project)!}
+                          className="text-sm font-medium text-amber-700 hover:text-amber-900 hover:underline"
+                        >
+                          {vc.linked_project}
+                        </Link>
+                        <div className="flex gap-2 mt-0.5">
+                          <Link href={`/projects/${encodeURIComponent(vc.linked_project!)}?tab=dossier`} className="text-[10px] text-gray-400 hover:text-blue-600">Dossier</Link>
+                          <Link href={`/projects/${encodeURIComponent(vc.linked_project!)}?tab=accountability`} className="text-[10px] text-gray-400 hover:text-blue-600">Accountability</Link>
+                        </div>
+                      </div>
                     ) : (
                       <div className="text-sm text-gray-900">-</div>
                     )}

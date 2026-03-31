@@ -60,7 +60,7 @@ export default function TestReportDetailPage() {
     const set = new Set(currentUser?.roles || []);
     return roles.some((r) => set.has(r));
   };
-  const canManage = hasRole('Director', 'System Manager', 'I&C Manager', 'QA Manager');
+  const canManage = hasRole('Director', 'System Manager', 'Engineering Head', 'Engineer');
 
   const loadData = useCallback(async () => {
     setLoading(true); setError('');

@@ -9,6 +9,7 @@ import {
 import { AccountabilityTimeline } from '@/components/accountability/AccountabilityTimeline';
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
 import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
+import { useAuth } from '@/context/AuthContext';
 
 interface DprDetail {
   name: string;
@@ -27,6 +28,12 @@ interface DprDetail {
   work_activities?: string;
   issues_delays?: string;
   material_received?: string;
+  status?: string;
+  approved_by?: string;
+  approved_on?: string;
+  rejected_by?: string;
+  rejected_on?: string;
+  remarks?: string;
 }
 
 function formatDate(v?: string) {
@@ -37,10 +44,33 @@ function formatDate(v?: string) {
 export default function DprDetailPage() {
   const params = useParams();
   const dprName = decodeURIComponent((params?.id as string) || '');
+  const { currentUser } = useAuth();
+
+  const approverRoles = new Set(['Project Head', 'Department Head', 'Director', 'System Manager']);
+  const canApproveDpr = (currentUser?.roles || []).some(r => approverRoles.has(r));
 
   const [data, setData] = useState<DprDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [actionBusy, setActionBusy] = useState('');
+
+  const runDprAction = async (method: string, extraArgs?: Record<string, string>) => {
+    setActionBusy(method);
+    try {
+      const res = await fetch('/api/ops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ method, name: dprName, ...extraArgs }),
+      });
+      const payload = await res.json();
+      if (!payload.success) throw new Error(payload.message || 'Action failed');
+      reload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Action failed');
+    } finally {
+      setActionBusy('');
+    }
+  };
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -77,8 +107,36 @@ export default function DprDetailPage() {
         <Link href="/project-manager/dpr" className="mb-3 inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-900">
           <ArrowLeft className="h-3.5 w-3.5" />Back to DPRs
         </Link>
-        <h1 className="text-xl font-bold text-gray-900">{dprName}</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl font-bold text-gray-900">{dprName}</h1>
+          {d.status && (
+            <span className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${
+              d.status === 'Approved' ? 'bg-emerald-50 text-emerald-700'
+              : d.status === 'Rejected' ? 'bg-rose-50 text-rose-700'
+              : d.status === 'Submitted' ? 'bg-blue-50 text-blue-700'
+              : 'bg-gray-100 text-gray-600'
+            }`}>{d.status}</span>
+          )}
+        </div>
         <p className="text-sm text-gray-500 mt-1">Daily Progress Report — {formatDate(d.report_date)}</p>
+        {/* Workflow actions */}
+        <div className="mt-3 flex flex-wrap gap-2">
+          {(!d.status || d.status === 'Draft') && (
+            <button onClick={() => runDprAction('submit_dpr')} disabled={!!actionBusy} className="rounded-lg bg-blue-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50">
+              {actionBusy === 'submit_dpr' ? 'Submitting…' : 'Submit for Approval'}
+            </button>
+          )}
+          {d.status === 'Submitted' && canApproveDpr && (
+            <>
+              <button onClick={() => runDprAction('approve_dpr')} disabled={!!actionBusy} className="rounded-lg bg-emerald-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
+                {actionBusy === 'approve_dpr' ? 'Approving…' : 'Approve'}
+              </button>
+              <button onClick={() => runDprAction('reject_dpr')} disabled={!!actionBusy} className="rounded-lg bg-rose-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-rose-700 disabled:opacity-50">
+                {actionBusy === 'reject_dpr' ? 'Rejecting…' : 'Reject'}
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {error && <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700">{error}</div>}

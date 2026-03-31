@@ -1,0 +1,203 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-03-31 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "closeout_type",
+  "project",
+  "linked_tender",
+  "contract_scope",
+  "section_break_status",
+  "status",
+  "issued_by",
+  "issued_on",
+  "column_break_status2",
+  "revoked_by",
+  "revoked_on",
+  "revocation_reason",
+  "section_break_details",
+  "certificate_date",
+  "remarks",
+  "column_break_details2",
+  "kt_handover_plan",
+  "kt_completed_on",
+  "kt_completed_by"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "GPC-.#####",
+   "reqd": 1,
+   "set_only_once": 1,
+   "hidden": 1,
+   "default": "GPC-.#####"
+  },
+  {
+   "fieldname": "closeout_type",
+   "fieldtype": "Select",
+   "label": "Closeout Type",
+   "options": "\nGo Live Certificate\nLetter of Completion\nExit Management KT\nLetter of Handover",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "linked_tender",
+   "fieldtype": "Link",
+   "label": "Linked Tender",
+   "options": "GE Tender"
+  },
+  {
+   "fieldname": "contract_scope",
+   "fieldtype": "Select",
+   "label": "Contract Scope",
+   "options": "\nI&C Only\nI&C + O&M",
+   "read_only": 1,
+   "description": "Auto-populated from linked tender"
+  },
+  {
+   "fieldname": "section_break_status",
+   "fieldtype": "Section Break",
+   "label": "Status & Issuance"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Draft\nIssued\nRevoked",
+   "reqd": 1,
+   "default": "Draft",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "issued_by",
+   "fieldtype": "Link",
+   "label": "Issued By",
+   "options": "User"
+  },
+  {
+   "fieldname": "issued_on",
+   "fieldtype": "Datetime",
+   "label": "Issued On"
+  },
+  {
+   "fieldname": "column_break_status2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "revoked_by",
+   "fieldtype": "Link",
+   "label": "Revoked By",
+   "options": "User"
+  },
+  {
+   "fieldname": "revoked_on",
+   "fieldtype": "Datetime",
+   "label": "Revoked On"
+  },
+  {
+   "fieldname": "revocation_reason",
+   "fieldtype": "Small Text",
+   "label": "Revocation Reason"
+  },
+  {
+   "fieldname": "section_break_details",
+   "fieldtype": "Section Break",
+   "label": "Certificate Details"
+  },
+  {
+   "fieldname": "certificate_date",
+   "fieldtype": "Date",
+   "label": "Certificate Date",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "column_break_details2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "kt_handover_plan",
+   "fieldtype": "Small Text",
+   "label": "KT / Handover Plan",
+   "description": "Applicable only for Exit Management KT type"
+  },
+  {
+   "fieldname": "kt_completed_on",
+   "fieldtype": "Date",
+   "label": "KT Completed On"
+  },
+  {
+   "fieldname": "kt_completed_by",
+   "fieldtype": "Link",
+   "label": "KT Completed By",
+   "options": "User"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "modified": "2026-03-31 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE Project Closeout",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "write": 1,
+   "role": "Project Head"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Director"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Project Manager"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Presales Head"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

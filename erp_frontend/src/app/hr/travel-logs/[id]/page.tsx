@@ -66,7 +66,7 @@ export default function TravelLogDetailPage() {
     const set = new Set(currentUser?.roles || []);
     return roles.some((r) => set.has(r));
   };
-  const canSubmit = hasRole('Director', 'System Manager', 'HR Manager', 'HR User');
+  const canSubmit = hasRole('Director', 'System Manager', 'HR Manager');
   const canApproveReject = hasRole('Director', 'System Manager', 'HR Manager', 'Department Head');
 
   const loadData = useCallback(async () => {

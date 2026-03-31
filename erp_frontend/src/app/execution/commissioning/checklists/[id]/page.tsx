@@ -56,7 +56,7 @@ export default function ChecklistDetailPage() {
     const set = new Set(currentUser?.roles || []);
     return roles.some((r) => set.has(r));
   };
-  const canManage = hasRole('Director', 'System Manager', 'I&C Manager', 'Site Engineer');
+  const canManage = hasRole('Director', 'System Manager', 'Engineering Head', 'Field Technician');
 
   const loadData = useCallback(async () => {
     setLoading(true); setError('');

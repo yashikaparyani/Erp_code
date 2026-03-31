@@ -1,6 +1,7 @@
 'use client';
 
 import { type ComponentType, type ReactNode, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Box, Briefcase, Pencil, Plus, Trash2, Users, X } from 'lucide-react';
 
 interface TeamMember {
@@ -375,7 +376,7 @@ export default function ProjectStructurePage() {
                     </td>
                     <td><div className="text-sm text-gray-900">{m.role || '-'}</div></td>
                     <td><div className="text-sm text-gray-900">{m.designation || '-'}</div></td>
-                    <td><div className="text-sm text-gray-900">{m.linked_project || '-'}</div></td>
+                    <td>{m.linked_project ? <div><Link href={`/projects/${encodeURIComponent(m.linked_project)}`} className="text-sm font-medium text-blue-600 hover:text-blue-800">{m.linked_project}</Link><div className="flex gap-2 mt-0.5"><Link href={`/projects/${encodeURIComponent(m.linked_project)}?tab=dossier`} className="text-[10px] text-indigo-500 hover:underline">Dossier</Link><Link href={`/projects/${encodeURIComponent(m.linked_project)}?tab=accountability`} className="text-[10px] text-amber-600 hover:underline">Accountability</Link></div></div> : <div className="text-sm text-gray-900">-</div>}</td>
                     <td><div className="text-sm text-gray-500">{m.from_date || '-'}</div></td>
                     <td><span className={`badge ${m.is_active !== false ? 'badge-success' : 'badge-gray'}`}>{m.is_active !== false ? 'Active' : 'Inactive'}</span></td>
                   </tr>
@@ -405,8 +406,8 @@ export default function ProjectStructurePage() {
                     </td>
                     <td><div className="text-sm text-gray-900">{a.serial_no || '-'}</div></td>
                     <td>
-                      <div className="text-sm text-gray-900">{a.linked_project || '-'}</div>
-                      <div className="text-xs text-gray-500">{a.linked_site || ''}</div>
+                      {a.linked_project ? <div><Link href={`/projects/${encodeURIComponent(a.linked_project)}`} className="text-sm font-medium text-blue-600 hover:text-blue-800">{a.linked_project}</Link><div className="flex gap-2 mt-0.5"><Link href={`/projects/${encodeURIComponent(a.linked_project)}?tab=dossier`} className="text-[10px] text-indigo-500 hover:underline">Dossier</Link><Link href={`/projects/${encodeURIComponent(a.linked_project)}?tab=accountability`} className="text-[10px] text-amber-600 hover:underline">Accountability</Link></div></div> : <div className="text-sm text-gray-900">-</div>}
+                      {a.linked_site && <div className="text-xs text-gray-500">{a.linked_site}</div>}
                     </td>
                     <td><div className="text-sm text-gray-900">{a.quantity ?? 1}</div></td>
                     <td><span className={`badge ${ASSET_STATUS_BADGES[a.status || ''] || 'badge-gray'}`}>{a.status || '-'}</span></td>

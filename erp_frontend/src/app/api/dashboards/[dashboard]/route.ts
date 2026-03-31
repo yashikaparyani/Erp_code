@@ -8,6 +8,7 @@ const dashboardMethods: Record<string, string> = {
 	'engineering-head': 'get_engineering_head_dashboard',
 	execution: 'get_execution_dashboard',
 	'project-head': 'get_project_head_dashboard',
+	'project-manager': 'get_project_manager_dashboard',
 	procurement: 'get_procurement_dashboard',
 	stores: 'get_stores_dashboard',
 	executive: 'get_executive_dashboard',

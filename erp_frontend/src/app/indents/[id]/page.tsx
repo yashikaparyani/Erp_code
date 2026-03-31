@@ -640,6 +640,17 @@ export default function IndentDetailPage() {
         }}
         onCancel={() => setEscalateModal(false)}
       />
+
+      {/* Next Step */}
+      <div className="card border-blue-200 bg-blue-50/50">
+        <div className="p-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-blue-700">Next Step in Workflow</p>
+            <p className="text-sm text-gray-600 mt-0.5">Indent → <strong>Vendor Comparison</strong> → Purchase Order</p>
+          </div>
+          <Link href="/vendor-comparisons" className="rounded-lg bg-blue-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-blue-700">Go to Vendor Comparisons →</Link>
+        </div>
+      </div>
     </div>
   );
 }

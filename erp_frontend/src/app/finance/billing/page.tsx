@@ -504,8 +504,18 @@ export default function FinanceBillingPage() {
                       <div className="text-sm font-medium text-gray-900">{invoice.customer || '-'}</div>
                     </td>
                     <td>
-                      <div className="text-gray-700">{invoice.linked_project || '-'}</div>
-                      <div className="text-xs text-gray-400">{invoice.linked_site || '-'}</div>
+                      {invoice.linked_project ? (
+                        <div>
+                          <Link href={`/projects/${encodeURIComponent(invoice.linked_project)}`} className="text-sm font-medium text-blue-600 hover:text-blue-800">{invoice.linked_project}</Link>
+                          <div className="flex gap-2 mt-0.5">
+                            <Link href={`/projects/${encodeURIComponent(invoice.linked_project)}?tab=dossier`} className="text-[10px] text-indigo-500 hover:underline">Dossier</Link>
+                            <Link href={`/projects/${encodeURIComponent(invoice.linked_project)}?tab=accountability`} className="text-[10px] text-amber-600 hover:underline">Accountability</Link>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-gray-700">-</div>
+                      )}
+                      {invoice.linked_site && <div className="text-xs text-gray-400">{invoice.linked_site}</div>}
                     </td>
                     <td>{formatDate(invoice.invoice_date)}</td>
                     <td>{invoice.invoice_type || '-'}</td>

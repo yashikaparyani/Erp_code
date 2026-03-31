@@ -63,7 +63,7 @@ export default function PettyCashDetailPage() {
   const [rejectModal, setRejectModal] = useState(false);
 
   const hasRole = (...roles: string[]) => roles.some(r => new Set(currentUser?.roles || []).has(r));
-  const canApprove = hasRole('Director', 'System Manager', 'Finance Manager', 'Accounts Manager');
+  const canApprove = hasRole('Director', 'System Manager', 'Accounts');
 
   const loadData = useCallback(async () => {
     setLoading(true); setError('');
@@ -123,6 +123,24 @@ export default function PettyCashDetailPage() {
         <div className="flex gap-2">
           <button onClick={() => runAction('approve')} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"><CheckCircle2 className="h-3.5 w-3.5" /> Approve</button>
           <button onClick={() => setRejectModal(true)} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-700 disabled:opacity-50"><XCircle className="h-3.5 w-3.5" /> Reject</button>
+        </div>
+      )}
+
+      {(data.status || '').toUpperCase() === 'APPROVED' && (
+        <div className="flex gap-2">
+          <button onClick={async () => {
+            setActionBusy('submit_ph'); setError('');
+            try {
+              const res = await fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method: 'submit_petty_cash_to_ph', args: { name: entryName } }) });
+              const payload = await res.json();
+              if (!payload.success) throw new Error(payload.message || 'Failed to submit to PH');
+              showSuccess(payload.message || 'Submitted to Project Head');
+              await loadData();
+            } catch (err) { setError(err instanceof Error ? err.message : 'Failed to submit to PH'); }
+            finally { setActionBusy(''); }
+          }} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50">
+            {actionBusy === 'submit_ph' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />} Submit to Project Head
+          </button>
         </div>
       )}
 

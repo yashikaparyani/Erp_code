@@ -79,7 +79,7 @@ export default function DrawingDetailPage() {
     const set = new Set(currentUser?.roles || []);
     return roles.some((r) => set.has(r));
   };
-  const canSubmit = hasRole('Director', 'System Manager', 'Presales Tendering Head', 'Engineering Executive');
+  const canSubmit = hasRole('Director', 'System Manager', 'Presales Tendering Head', 'Engineer');
   const canApprove = hasRole('Director', 'System Manager', 'Department Head', 'Project Head');
 
   const loadData = useCallback(async () => {
@@ -324,6 +324,17 @@ export default function DrawingDetailPage() {
             compact={false}
             initialLimit={10}
           />
+        </div>
+      </div>
+
+      {/* Next Step */}
+      <div className="card border-blue-200 bg-blue-50/50">
+        <div className="p-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-blue-700">Next Step in Workflow</p>
+            <p className="text-sm text-gray-600 mt-0.5">Drawing → <strong>Material Indent</strong> → Vendor Comparison → PO</p>
+          </div>
+          <Link href="/indents" className="rounded-lg bg-blue-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-blue-700">Go to Indents →</Link>
         </div>
       </div>
     </div>

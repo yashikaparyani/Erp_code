@@ -1,7 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Package, CheckCircle2, AlertTriangle, Truck, Eye, Plus, X } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { Package, CheckCircle2, AlertTriangle, Truck, Eye, Filter, Plus, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 interface DispatchChallan {
@@ -39,10 +40,13 @@ interface StockBin {
 
 export default function InventoryPage() {
   const { currentUser } = useAuth();
+  const searchParams = useSearchParams();
+  const projectParam = searchParams?.get('project') || '';
   const [challans, setChallans] = useState<DispatchChallan[]>([]);
   const [stats, setStats] = useState<DCStats>({});
   const [stockBins, setStockBins] = useState<StockBin[]>([]);
   const [loading, setLoading] = useState(true);
+  const [projectFilter, setProjectFilter] = useState(projectParam);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [actionLoadingName, setActionLoadingName] = useState<string | null>(null);
@@ -172,6 +176,10 @@ export default function InventoryPage() {
     );
   }
 
+  const filteredChallans = projectFilter
+    ? challans.filter(ch => (ch.linked_project || '').toLowerCase().includes(projectFilter.toLowerCase()))
+    : challans;
+
   return (
     <div>
       {/* Header */}
@@ -184,6 +192,22 @@ export default function InventoryPage() {
           <Plus className="w-4 h-4" />
           New Challan
         </button>
+      </div>
+
+      {/* Project filter */}
+      <div className="flex items-center gap-2 mb-4 text-sm">
+        <Filter className="h-4 w-4 text-gray-400" />
+        <input
+          value={projectFilter}
+          onChange={(e) => setProjectFilter(e.target.value)}
+          placeholder="Filter by project..."
+          className="border rounded px-2 py-1 text-sm w-48"
+        />
+        {projectFilter && (
+          <button onClick={() => setProjectFilter('')} className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-0.5">
+            <X className="h-3 w-3" /> Clear
+          </button>
+        )}
       </div>
 
       {showCreateModal ? (
@@ -326,6 +350,7 @@ export default function InventoryPage() {
                 <th>Type</th>
                 <th>From</th>
                 <th>To</th>
+                <th>Project</th>
                 <th>Items</th>
                 <th>Qty</th>
                 <th>Status</th>
@@ -333,9 +358,9 @@ export default function InventoryPage() {
               </tr>
             </thead>
             <tbody>
-              {challans.length === 0 ? (
-                <tr><td colSpan={9} className="text-center py-8 text-gray-500">No dispatch challans found</td></tr>
-              ) : challans.map(ch => (
+              {filteredChallans.length === 0 ? (
+                <tr><td colSpan={10} className="text-center py-8 text-gray-500">No dispatch challans found</td></tr>
+              ) : filteredChallans.map(ch => (
                 <tr key={ch.name}>
                   <td>
                     <div className="font-medium text-gray-900">{ch.name}</div>
@@ -351,6 +376,13 @@ export default function InventoryPage() {
                   </td>
                   <td>
                     <div className="text-sm text-gray-900">{ch.to_warehouse || ch.target_site_name || '-'}</div>
+                  </td>
+                  <td>
+                    {ch.linked_project ? (
+                      <Link href={`/projects/${encodeURIComponent(ch.linked_project)}?tab=ops`} className="text-sm font-medium text-blue-600 hover:text-blue-800">{ch.linked_project}</Link>
+                    ) : (
+                      <div className="text-sm text-gray-400">-</div>
+                    )}
                   </td>
                   <td>
                     <div className="text-gray-600">{ch.total_items ?? 0}</div>

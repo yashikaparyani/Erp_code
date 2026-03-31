@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic';
 
 const CONNECTED_METHODS = new Set([
   'add_ticket_comment',
+  'add_project_sites',
   'advance_site_stage',
   'apply_penalty_deduction',
   'approve_boq',
@@ -260,8 +261,23 @@ const CONNECTED_METHODS = new Set([
   'get_statutory_ledgers',
   'get_sites',
   'get_leave_balances',
+  // HR Leave Application
+  'get_leave_applications',
+  'get_leave_application',
+  'create_leave_application',
+  'submit_leave_application',
+  'approve_leave_application',
+  'reject_leave_application',
   'get_holiday_list',
   'get_attendance_muster',
+  // Attendance Regularization
+  'get_attendance_regularizations',
+  'get_attendance_regularization',
+  'create_attendance_regularization',
+  'update_attendance_regularization',
+  'approve_attendance_regularization',
+  'reject_attendance_regularization',
+  'reopen_attendance_regularization',
   'get_expiring_documents',
   'get_stock_aging',
   'get_stock_position',
@@ -349,6 +365,9 @@ const CONNECTED_METHODS = new Set([
   'update_dispatch_challan',
   'update_document_folder',
   'update_dpr',
+  'submit_dpr',
+  'approve_dpr',
+  'reject_dpr',
   'update_drawing',
   'update_employee',
   'update_estimate',
@@ -461,6 +480,29 @@ const CONNECTED_METHODS = new Set([
   'reject_indent',
   'return_indent',
   'escalate_indent',
+  // PH Approval Hub
+  'get_ph_approval_items',
+  'ph_approve_item',
+  'ph_reject_item',
+  // PH Submission
+  'submit_po_to_ph',
+  'submit_rma_po_to_ph',
+  'submit_petty_cash_to_ph',
+  // Costing Queue
+  'get_costing_queue',
+  'get_costing_queue_item',
+  'costing_release_item',
+  'costing_hold_item',
+  'costing_reject_item',
+  // Project Closeout
+  'get_project_closeout_eligibility',
+  'get_project_closeout_items',
+  'issue_closeout_certificate',
+  'revoke_closeout_certificate',
+  'complete_exit_management_kt',
+  // Phase 5 – Reminders
+  'generate_system_reminders',
+  'process_due_reminders',
 ]);
 
 const METHOD_ALIASES: Record<string, string> = {

@@ -90,7 +90,7 @@ export default function TicketDetailPage() {
     const set = new Set(currentUser?.roles || []);
     return roles.some((r) => set.has(r));
   };
-  const canManage = hasRole('Director', 'System Manager', 'O&M Manager', 'Helpdesk Agent');
+  const canManage = hasRole('Director', 'System Manager', 'OM Operator');
 
   const loadData = useCallback(async () => {
     setLoading(true); setError('');

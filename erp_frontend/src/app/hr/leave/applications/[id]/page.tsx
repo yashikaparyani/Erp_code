@@ -65,9 +65,9 @@ export default function LeaveApplicationDetailPage() {
     const set = new Set(currentUser?.roles || []);
     return roles.some(r => set.has(r));
   };
-  const canSubmit = hasRole('HR Manager', 'HR User', 'System Manager', 'Director');
+  const canSubmit = hasRole('HR Manager', 'System Manager', 'Director');
   const canApprove = hasRole('HR Manager', 'Department Head', 'Director', 'System Manager');
-  const canReopen = hasRole('HR Manager', 'HR User', 'System Manager', 'Director');
+  const canReopen = hasRole('HR Manager', 'System Manager', 'Director');
 
   const reload = useCallback(async () => {
     setLoading(true);

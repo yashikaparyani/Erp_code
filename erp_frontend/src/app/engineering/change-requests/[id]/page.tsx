@@ -78,7 +78,7 @@ export default function ChangeRequestDetailPage() {
     const set = new Set(currentUser?.roles || []);
     return roles.some((r) => set.has(r));
   };
-  const canSubmit = hasRole('Director', 'System Manager', 'Presales Tendering Head', 'Engineering Executive', 'Project Head');
+  const canSubmit = hasRole('Director', 'System Manager', 'Presales Tendering Head', 'Engineer', 'Project Head');
   const canApproveReject = hasRole('Director', 'System Manager', 'Department Head');
 
   const loadData = useCallback(async () => {

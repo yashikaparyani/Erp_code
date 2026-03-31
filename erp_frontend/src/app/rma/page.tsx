@@ -246,7 +246,17 @@ export default function RMAPage() {
                     <div className="text-xs text-gray-500">{item.rma_reference_no || '-'}</div>
                   </td>
                   <td>
-                    <div className="text-sm text-gray-900">{item.linked_project || '-'}</div>
+                    {item.linked_project ? (
+                      <div>
+                        <Link href={`/projects/${encodeURIComponent(item.linked_project)}`} className="text-sm font-medium text-blue-600 hover:text-blue-800">{item.linked_project}</Link>
+                        <div className="flex gap-2 mt-0.5">
+                          <Link href={`/projects/${encodeURIComponent(item.linked_project)}?tab=dossier`} className="text-[10px] text-gray-400 hover:text-blue-600">Dossier</Link>
+                          <Link href={`/projects/${encodeURIComponent(item.linked_project)}?tab=accountability`} className="text-[10px] text-gray-400 hover:text-blue-600">Accountability</Link>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-sm text-gray-900">-</div>
+                    )}
                     <div className="text-xs text-gray-500">{item.linked_ticket || '-'}</div>
                   </td>
                   <td>

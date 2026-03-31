@@ -101,7 +101,7 @@ export default function DeviationDetailPage() {
     return roles.some((r) => set.has(r));
   };
   const canApproveReject = hasRole('Director', 'System Manager', 'Department Head', 'Project Head');
-  const canClose = hasRole('Director', 'System Manager', 'Department Head', 'Project Head', 'Engineering Executive');
+  const canClose = hasRole('Director', 'System Manager', 'Department Head', 'Project Head', 'Engineer');
 
   const loadData = useCallback(async () => {
     setLoading(true);

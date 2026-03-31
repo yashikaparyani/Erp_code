@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, useEffect, useId, useRef, useState } from 'react';
+import { ReactNode, RefObject, useEffect, useId, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { useAccessibleOverlay } from '@/lib/useAccessibleOverlay';
 
@@ -49,10 +49,14 @@ export default function ActionModal({
 }: ActionModalProps) {
   const titleId = useId();
   const closeRef = useRef<HTMLButtonElement>(null);
+  const firstFieldRef = useRef<HTMLElement | null>(null);
+  const initialFocusRef = (
+    fields.length ? firstFieldRef : closeRef
+  ) as unknown as RefObject<HTMLElement>;
   const { containerRef } = useAccessibleOverlay({
     isOpen: open,
     onClose: onCancel,
-    initialFocusRef: closeRef,
+    initialFocusRef,
   });
 
   const [values, setValues] = useState<Record<string, string>>({});
@@ -69,6 +73,12 @@ export default function ActionModal({
 
   const setValue = (name: string, value: string) =>
     setValues((prev) => ({ ...prev, [name]: value }));
+
+  const bindFirstField = (index: number) => (element: HTMLElement | null) => {
+    if (index === 0) {
+      firstFieldRef.current = element;
+    }
+  };
 
   const handleSubmit = () => {
     for (const field of fields) {
@@ -105,13 +115,14 @@ export default function ActionModal({
         <div className="px-5 py-4 space-y-4">
           {description && <p className="text-sm text-gray-600">{description}</p>}
           {children}
-          {fields.map((field) => (
+          {fields.map((field, index) => (
             <div key={field.name}>
               <label className="mb-1.5 block text-sm font-medium text-gray-700">
                 {field.label} {field.required && <span className="text-rose-500">*</span>}
               </label>
               {field.type === 'textarea' ? (
                 <textarea
+                  ref={bindFirstField(index)}
                   value={values[field.name] || ''}
                   onChange={(e) => setValue(field.name, e.target.value)}
                   placeholder={field.placeholder}
@@ -120,6 +131,7 @@ export default function ActionModal({
                 />
               ) : field.type === 'select' ? (
                 <select
+                  ref={bindFirstField(index)}
                   value={values[field.name] || ''}
                   onChange={(e) => setValue(field.name, e.target.value)}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -131,6 +143,7 @@ export default function ActionModal({
                 </select>
               ) : (
                 <input
+                  ref={bindFirstField(index)}
                   type="text"
                   value={values[field.name] || ''}
                   onChange={(e) => setValue(field.name, e.target.value)}

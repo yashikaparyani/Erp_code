@@ -18,6 +18,10 @@ interface Ticket {
   resolved_on?: string;
   is_rma?: boolean;
   sla_profile?: string;
+  due_date?: string;
+  impact_level?: string;
+  source_issue_id?: string;
+  closed_on?: string;
 }
 
 interface TicketStats {

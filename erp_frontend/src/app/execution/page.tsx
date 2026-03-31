@@ -162,7 +162,7 @@ export default function ExecutionPage() {
     commSummary && commSummary.ready_for_commissioning > 0 ? `${commSummary.ready_for_commissioning} site${commSummary.ready_for_commissioning > 1 ? 's are' : ' is'} ready to push into commissioning.` : null,
     (dprStats.total_reports || 0) === 0 ? 'No DPRs are visible yet. Field reporting should start before the lane drifts out of sync.' : null,
   ].filter(Boolean) as string[];
-  const roleFocus = currentUser?.role || currentUser?.roles?.[0] || 'Execution User';
+  const roleFocus = currentUser?.role || currentUser?.roles?.[0] || 'Engineer';
 
   return (
     <div>

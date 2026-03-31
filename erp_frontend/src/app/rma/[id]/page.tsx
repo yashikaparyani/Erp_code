@@ -87,7 +87,7 @@ export default function RMADetailPage() {
     const set = new Set(currentUser?.roles || []);
     return roles.some((r) => set.has(r));
   };
-  const canManage = hasRole('Director', 'System Manager', 'O&M Manager', 'RMA Manager');
+  const canManage = hasRole('Director', 'System Manager', 'OM Operator', 'RMA Manager');
 
   const loadData = useCallback(async () => {
     setLoading(true); setError('');

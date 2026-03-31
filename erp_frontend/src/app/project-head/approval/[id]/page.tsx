@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import ActionModal from '@/components/ui/ActionModal';
 import { AccountabilityTimeline } from '@/components/accountability/AccountabilityTimeline';
+import { useAuth } from '@/context/AuthContext';
 
 interface ApprovalDetail {
   name: string;
@@ -64,6 +65,9 @@ function DetailRow({ label, children }: { label: string; children: React.ReactNo
 export default function ApprovalDetailPage() {
   const params = useParams();
   const id = decodeURIComponent((params?.id as string) || '');
+  const { currentUser } = useAuth();
+  const phRoles = new Set(['Project Head', 'Director', 'Department Head', 'System Manager']);
+  const canApprove = (currentUser?.roles || []).some(r => phRoles.has(r));
   const [data, setData] = useState<ApprovalDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -153,7 +157,7 @@ export default function ApprovalDetailPage() {
               <span className={`badge ${STATUS_BADGE[data.status || ''] || 'badge-gray'}`}>
                 {data.status || '-'}
               </span>
-              {data.status === 'Submitted to PH' && (
+              {data.status === 'Submitted to PH' && canApprove && (
                 <div className="flex gap-2">
                   <button className="btn btn-sm btn-success" onClick={() => { setActionType('approve'); setRemarks(''); }}>
                     <CheckCircle2 className="w-4 h-4" /> Approve

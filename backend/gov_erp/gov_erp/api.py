@@ -1096,6 +1096,7 @@ def health_check():
 def get_tenders(filters=None, limit_page_length=50, limit_start=0):
 	"""Return list of tenders with pagination."""
 	_require_tender_read_access()
+	from gov_erp.presales_api import _get_funnel_color_key
 	parsed_filters = json.loads(filters) if isinstance(filters, str) and filters else filters
 	data = frappe.get_all(
 		"GE Tender",
@@ -1106,13 +1107,36 @@ def get_tenders(filters=None, limit_page_length=50, limit_start=0):
 			"pbg_amount", "estimated_value", "creation", "modified",
 			"go_no_go_status", "technical_readiness", "commercial_readiness",
 			"finance_readiness", "submission_status", "emd_required", "pbg_required",
+			"pbg_percent", "user_color_slot", "user_color_remarks",
+			"enquiry_pending", "pu_nzd_qualified",
+			"bid_opening_date", "latest_corrigendum_date",
+			"consultant_name", "closure_letter_received",
 		],
 		order_by="submission_date asc, creation desc",
 		start=int(limit_start),
 		page_length=int(limit_page_length),
 	)
 	total = frappe.db.count("GE Tender", filters=parsed_filters)
-	data = [_attach_computed_tender_funnel_status(row) for row in data]
+
+	# Attach computed fields expected by frontend FunnelTenderTable
+	tender_names = [t["name"] for t in data]
+	latest_bids = {}
+	if tender_names:
+		bid_rows = frappe.get_all(
+			"GE Bid",
+			filters={"linked_tender": ["in", tender_names]},
+			fields=["name", "linked_tender", "status", "bid_amount", "bid_date"],
+			order_by="creation desc",
+		)
+		for b in bid_rows:
+			if b.linked_tender not in latest_bids:
+				latest_bids[b.linked_tender] = b
+
+	for t in data:
+		_attach_computed_tender_funnel_status(t)
+		t["funnel_color_key"] = _get_funnel_color_key(t)
+		t["latest_bid"] = latest_bids.get(t["name"])
+
 	return {"success": True, "data": data, "total": total}
 
 
@@ -7010,6 +7034,85 @@ def delete_dpr(name):
 
 
 @frappe.whitelist()
+def submit_dpr(name=None):
+	"""Submit a DPR for approval."""
+	_require_execution_write_access()
+	name = _require_param(name, "name")
+	doc = frappe.get_doc("GE DPR", name)
+	assigned = _get_project_manager_assigned_projects()
+	if assigned and doc.linked_project not in assigned:
+		frappe.throw("Project Manager cannot submit DPR outside assigned projects", frappe.PermissionError)
+	if (doc.get("status") or "").strip().lower() not in ("", "draft"):
+		return {"success": False, "message": f"Cannot submit DPR in status '{doc.status}'"}
+	doc.status = "Submitted"
+	doc.submitted_by = frappe.session.user
+	doc.submitted_on = frappe.utils.now()
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "DPR submitted for approval"}
+
+
+@frappe.whitelist()
+def approve_dpr(name=None, remarks=None):
+	"""Approve a submitted DPR."""
+	_require_roles(ROLE_PROJECT_HEAD, ROLE_DEPARTMENT_HEAD, ROLE_DIRECTOR)
+	name = _require_param(name, "name")
+	doc = frappe.get_doc("GE DPR", name)
+	if (doc.get("status") or "").strip().lower() != "submitted":
+		return {"success": False, "message": f"Cannot approve DPR in status '{doc.status}'"}
+	if doc.get("submitted_by") == frappe.session.user:
+		frappe.throw("Cannot approve your own DPR submission", frappe.PermissionError)
+	doc.status = "Approved"
+	doc.approved_by = frappe.session.user
+	doc.approved_on = frappe.utils.now()
+	if remarks:
+		doc.remarks = (doc.get("remarks") or "") + f"\n[Approval] {remarks}"
+	doc.save()
+	frappe.db.commit()
+	try:
+		record_and_log(
+			event_type="APPROVED",
+			reference_doctype="GE DPR",
+			reference_name=name,
+			project=doc.linked_project,
+			description=f"DPR approved for site {doc.get('linked_site') or 'N/A'}",
+		)
+	except Exception:
+		pass
+	return {"success": True, "data": doc.as_dict(), "message": "DPR approved"}
+
+
+@frappe.whitelist()
+def reject_dpr(name=None, remarks=None):
+	"""Reject a submitted DPR."""
+	_require_roles(ROLE_PROJECT_HEAD, ROLE_DEPARTMENT_HEAD, ROLE_DIRECTOR)
+	name = _require_param(name, "name")
+	doc = frappe.get_doc("GE DPR", name)
+	if (doc.get("status") or "").strip().lower() != "submitted":
+		return {"success": False, "message": f"Cannot reject DPR in status '{doc.status}'"}
+	if doc.get("submitted_by") == frappe.session.user:
+		frappe.throw("Cannot reject your own DPR submission", frappe.PermissionError)
+	doc.status = "Rejected"
+	doc.rejected_by = frappe.session.user
+	doc.rejected_on = frappe.utils.now()
+	if remarks:
+		doc.remarks = (doc.get("remarks") or "") + f"\n[Rejection] {remarks}"
+	doc.save()
+	frappe.db.commit()
+	try:
+		record_and_log(
+			event_type="REJECTED",
+			reference_doctype="GE DPR",
+			reference_name=name,
+			project=doc.linked_project,
+			description=f"DPR rejected for site {doc.get('linked_site') or 'N/A'}",
+		)
+	except Exception:
+		pass
+	return {"success": True, "data": doc.as_dict(), "message": "DPR rejected"}
+
+
+@frappe.whitelist()
 def get_dpr_stats(project=None):
 	"""Aggregate DPR stats."""
 	_require_execution_read_access()
@@ -9649,12 +9752,23 @@ def check_progression_gate(project=None, target_stage=None, site=None):
 		existing_docs = frappe.get_all(
 			"GE Project Document",
 			filters=doc_filters,
-			fields=["category", "document_subcategory", "status"],
+			fields=["category", "document_subcategory", "status", "expiry_date"],
 		)
 		existing_set = set()
 		for d in existing_docs:
 			if (d.get("status") or "").strip().lower() == "rejected":
 				continue
+			# Expired mandatory documents do not satisfy the gate
+			exp = d.get("expiry_date")
+			if exp:
+				from datetime import date as _date
+				if isinstance(exp, str):
+					try:
+						exp = _date.fromisoformat(exp)
+					except Exception:
+						exp = None
+				if exp and exp < _date.today():
+					continue
 			existing_set.add((d.category, d.document_subcategory or ""))
 
 		for req in requirements:
@@ -10362,6 +10476,81 @@ def get_project_head_dashboard(project=None):
 			"manpower": {
 				"sites_without_today_log": sum(1 for row in sites if row.name not in logged_sites_today),
 				"sites_with_today_log": sum(1 for row in sites if row.name in logged_sites_today),
+			},
+		},
+	}
+
+
+@frappe.whitelist()
+def get_project_manager_dashboard():
+	"""Aggregate project-manager dashboard metrics scoped to assigned projects."""
+	_require_roles(ROLE_PROJECT_MANAGER, ROLE_PROJECT_HEAD, ROLE_DIRECTOR)
+	assigned = _get_project_manager_assigned_projects()
+	project_filters = {"project_manager_user": frappe.session.user} if assigned else {}
+	projects = frappe.get_all(
+		"Project",
+		filters=project_filters,
+		fields=["name", "project_name", "status", "current_project_stage", "current_stage_status",
+				"spine_blocked", "blocker_summary", "total_sites", "spine_progress_pct"],
+	)
+	project_names = [p.name for p in projects]
+	site_filters = {"linked_project": ["in", project_names]} if project_names else {}
+	sites = frappe.get_all("GE Site", filters=site_filters, fields=["name", "linked_project", "status", "current_site_stage"])
+	survey_filters = {"linked_project": ["in", project_names]} if project_names else {}
+	surveys = frappe.get_all("GE Survey", filters=survey_filters, fields=["name", "linked_project", "status"])
+	petty_cash_filters = {"linked_project": ["in", project_names]} if project_names else {}
+	petty_cash = frappe.get_all("GE Petty Cash", filters=petty_cash_filters, fields=["name", "status", "amount"])
+	ph_approval_filters = {"project": ["in", project_names]} if project_names else {}
+	ph_items = frappe.get_all("GE PH Approval Item", filters=ph_approval_filters, fields=["name", "status", "source_type", "amount"])
+	dpr_filters = {"linked_project": ["in", project_names]} if project_names else {}
+	dprs = frappe.get_all("GE DPR", filters=dpr_filters, fields=["name", "linked_project", "report_date"])
+	today_dprs = [d for d in dprs if cstr(d.report_date) == frappe.utils.nowdate()]
+	return {
+		"success": True,
+		"data": {
+			"projects": {
+				"total": len(projects),
+				"active": sum(1 for p in projects if (p.status or "").lower() not in ("completed", "cancelled")),
+				"blocked": sum(1 for p in projects if cint(p.spine_blocked)),
+				"avg_progress": round(sum(flt(p.spine_progress_pct) for p in projects) / max(len(projects), 1), 1),
+			},
+			"project_list": [
+				{
+					"name": p.name,
+					"project_name": p.project_name,
+					"status": p.status,
+					"stage": p.current_project_stage,
+					"stage_status": p.current_stage_status,
+					"blocked": cint(p.spine_blocked),
+					"blocker": p.blocker_summary,
+					"sites": p.total_sites,
+					"progress": flt(p.spine_progress_pct),
+				} for p in projects[:20]
+			],
+			"sites": {
+				"total": len(sites),
+				"active": sum(1 for s in sites if (s.status or "").lower() not in ("closed", "cancelled")),
+			},
+			"surveys": {
+				"total": len(surveys),
+				"pending": sum(1 for s in surveys if (s.status or "").upper() in ("DRAFT", "IN_PROGRESS", "PENDING")),
+				"completed": sum(1 for s in surveys if (s.status or "").upper() in ("COMPLETED", "APPROVED")),
+			},
+			"petty_cash": {
+				"total": len(petty_cash),
+				"pending": sum(1 for pc in petty_cash if (pc.status or "").lower() in ("draft", "pending")),
+				"approved": sum(1 for pc in petty_cash if (pc.status or "").lower() == "approved"),
+				"total_amount": sum(flt(pc.amount) for pc in petty_cash),
+			},
+			"approvals": {
+				"pending_ph": sum(1 for i in ph_items if i.status == "Submitted to PH"),
+				"approved": sum(1 for i in ph_items if i.status in ("Approved by PH", "Forwarded to Costing", "Disbursed / Released")),
+				"rejected": sum(1 for i in ph_items if i.status == "Rejected by PH"),
+			},
+			"dprs": {
+				"total": len(dprs),
+				"today": len(today_dprs),
+				"projects_with_today_dpr": len({d.linked_project for d in today_dprs}),
 			},
 		},
 	}
@@ -11306,6 +11495,8 @@ def approve_petty_cash_entry(name):
 	"""Approve a petty cash entry."""
 	_require_petty_cash_approval_access()
 	doc = frappe.get_doc("GE Petty Cash", name)
+	if (doc.status or "").upper() not in ("", "PENDING"):
+		frappe.throw(f"Cannot approve petty cash entry in status '{doc.status}'")
 	old_status = doc.status
 	doc.status = "Approved"
 	doc.approved_by = frappe.session.user
@@ -11342,6 +11533,8 @@ def reject_petty_cash_entry(name, reason=None):
 	if not (reason or "").strip():
 		frappe.throw("A rejection reason is required. Please provide remarks.")
 	doc = frappe.get_doc("GE Petty Cash", name)
+	if (doc.status or "").upper() not in ("", "PENDING"):
+		frappe.throw(f"Cannot reject petty cash entry in status '{doc.status}'")
 	old_status = doc.status
 	doc.status = "Rejected"
 	doc.rejection_reason = reason
@@ -11374,12 +11567,74 @@ def delete_petty_cash_entry(name):
 	"""Delete a draft petty cash entry."""
 	_require_petty_cash_write_access()
 	doc = frappe.get_doc("GE Petty Cash", name)
+	if (doc.status or "").upper() not in ("", "PENDING", "DRAFT"):
+		frappe.throw(f"Cannot delete petty cash entry in status '{doc.status}'")
 	assigned = _get_project_manager_assigned_projects()
 	if assigned and doc.linked_project not in assigned:
 		frappe.throw("Project Manager cannot delete petty cash outside assigned projects", frappe.PermissionError)
 	frappe.delete_doc("GE Petty Cash", name)
 	frappe.db.commit()
 	return {"success": True, "message": "Petty cash entry deleted"}
+
+
+@frappe.whitelist()
+def submit_petty_cash_to_ph(name=None, remarks=None):
+	"""Send an approved petty cash entry to PH approval queue for costing release."""
+	_require_petty_cash_write_access()
+	_require_project_head_workflow()
+	name = _require_param(name, "name")
+	doc = frappe.get_doc("GE Petty Cash", name)
+	if (doc.get("status") or "").strip().lower() != "approved":
+		frappe.throw("Only approved petty cash entries can be sent to Project Head")
+
+	existing_name = frappe.db.get_value(
+		"GE PH Approval Item",
+		{
+			"source_type": "Petty Cash",
+			"source_name": doc.name,
+			"status": ["not in", ["Rejected by PH", "Disbursed / Released"]],
+		},
+		"name",
+	)
+	if existing_name:
+		return {
+			"success": True,
+			"data": frappe.get_doc("GE PH Approval Item", existing_name).as_dict(),
+			"message": f"Petty cash {doc.name} is already in the Project Head approval chain",
+		}
+
+	ph_item = frappe.get_doc({
+		"doctype": "GE PH Approval Item",
+		"source_type": "Petty Cash",
+		"source_name": doc.name,
+		"source_id": doc.name,
+		"originating_module": "Finance",
+		"project": doc.linked_project,
+		"raised_by": frappe.session.user,
+		"raised_on": now_datetime(),
+		"amount": doc.amount,
+		"status": "Submitted to PH",
+		"linked_record": f"/petty-cash/{doc.name}",
+		"priority": "Medium",
+		"remarks": cstr(remarks).strip() or doc.get("description") or "",
+	})
+	ph_item.insert()
+	frappe.db.commit()
+
+	try:
+		from gov_erp.gov_erp.alert_dispatcher import emit_alert
+		emit_alert(
+			"approval_assigned",
+			f"Petty cash {doc.name} submitted for Project Head approval",
+			project=doc.linked_project,
+			reference_doctype="GE PH Approval Item",
+			reference_name=ph_item.name,
+			route_path=f"/projects/{doc.linked_project}?tab=approvals" if doc.linked_project else "/approvals",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Alert: submit_petty_cash_to_ph")
+
+	return {"success": True, "data": ph_item.as_dict(), "message": f"Petty cash {doc.name} submitted to Project Head for approval"}
 
 
 @frappe.whitelist()
@@ -11504,6 +11759,21 @@ def submit_po_to_ph(name, remarks=None):
 	})
 	doc.insert()
 	frappe.db.commit()
+
+	# Notify Project Head that a PO needs approval
+	try:
+		from gov_erp.gov_erp.alert_dispatcher import emit_alert
+		emit_alert(
+			"approval_assigned",
+			f"PO {po.name} submitted for Project Head approval",
+			project=po.project,
+			reference_doctype="GE PH Approval Item",
+			reference_name=doc.name,
+			route_path=f"/projects/{po.project}?tab=approvals" if po.project else "/approvals",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Alert: submit_po_to_ph")
+
 	return {"success": True, "data": doc.as_dict(), "message": f"PO {po.name} submitted to Project Head for approval"}
 
 
@@ -11548,6 +11818,21 @@ def submit_rma_po_to_ph(name, remarks=None):
 	})
 	doc.insert()
 	frappe.db.commit()
+
+	# Notify Project Head that an RMA PO needs approval
+	try:
+		from gov_erp.gov_erp.alert_dispatcher import emit_alert
+		emit_alert(
+			"approval_assigned",
+			f"RMA PO {doc.source_id} submitted for Project Head approval",
+			project=rma.linked_project,
+			reference_doctype="GE PH Approval Item",
+			reference_name=doc.name,
+			route_path=f"/projects/{rma.linked_project}?tab=approvals" if rma.linked_project else "/approvals",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Alert: submit_rma_po_to_ph")
+
 	return {"success": True, "data": doc.as_dict(), "message": f"RMA PO {doc.source_id} submitted to Project Head for approval"}
 
 
@@ -11628,6 +11913,41 @@ def ph_approve_item(name, remarks=None):
 	_sync_approval_with_costing_queue(doc, queue)
 	doc.save()
 	frappe.db.commit()
+
+	# Accountability ledger
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE PH Approval Item",
+			subject_name=doc.name,
+			event_type=EventType.APPROVED,
+			linked_project=doc.project,
+			from_status="Submitted to PH",
+			to_status="Approved by PH",
+			current_status="Approved by PH",
+			submitted_by=frappe.session.user,
+			submitted_on=now_datetime(),
+			current_owner_role="Project Head",
+			source_route=f"/projects/{doc.project}?tab=approvals" if doc.project else "/approvals",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: ph_approve_item")
+
+	# Alert the requester
+	try:
+		from gov_erp.gov_erp.alert_dispatcher import emit_alert
+		emit_alert(
+			"approval_acted",
+			f"{doc.source_type} {doc.source_id} approved by Project Head",
+			project=doc.project,
+			reference_doctype="GE PH Approval Item",
+			reference_name=doc.name,
+			route_path=f"/projects/{doc.project}?tab=approvals" if doc.project else "/approvals",
+			extra_recipients=[doc.raised_by] if doc.raised_by else None,
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Alert: ph_approve_item")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Request approved and forwarded to Costing"}
 
 
@@ -11645,6 +11965,41 @@ def ph_reject_item(name, remarks=None):
 	doc.status = "Rejected by PH"
 	doc.save()
 	frappe.db.commit()
+
+	# Accountability ledger
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="GE PH Approval Item",
+			subject_name=doc.name,
+			event_type=EventType.REJECTED,
+			linked_project=doc.project,
+			from_status="Submitted to PH",
+			to_status="Rejected by PH",
+			current_status="Rejected by PH",
+			submitted_by=frappe.session.user,
+			submitted_on=now_datetime(),
+			current_owner_role="Project Head",
+			source_route=f"/projects/{doc.project}?tab=approvals" if doc.project else "/approvals",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: ph_reject_item")
+
+	# Alert the requester
+	try:
+		from gov_erp.gov_erp.alert_dispatcher import emit_alert
+		emit_alert(
+			"approval_acted",
+			f"{doc.source_type} {doc.source_id} rejected by Project Head",
+			project=doc.project,
+			reference_doctype="GE PH Approval Item",
+			reference_name=doc.name,
+			route_path=f"/projects/{doc.project}?tab=approvals" if doc.project else "/approvals",
+			extra_recipients=[doc.raised_by] if doc.raised_by else None,
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Alert: ph_reject_item")
+
 	return {"success": True, "data": doc.as_dict(), "message": "Request rejected"}
 
 
@@ -11703,6 +12058,15 @@ def get_costing_queue_item(name):
 
 def _costing_queue_action(name, next_status, remarks=None):
 	queue = frappe.get_doc("GE Costing Queue", _require_param(name, "name"))
+	current = (queue.disbursement_status or "").strip()
+	VALID_TRANSITIONS = {
+		"Released": ("Pending", "Held", ""),
+		"Held": ("Pending", ""),
+		"Rejected": ("Pending", "Held", ""),
+	}
+	allowed_from = VALID_TRANSITIONS.get(next_status, ())
+	if current not in allowed_from:
+		frappe.throw(f"Cannot change costing queue status from '{current}' to '{next_status}'")
 	queue.disbursement_status = next_status
 	queue.costing_remarks = cstr(remarks).strip()
 	queue.disbursed_by = frappe.session.user
@@ -13193,6 +13557,16 @@ PROJECT_EDITABLE_FIELDS = {
 }
 
 
+def _get_tender_contract_scope(tender_name):
+        """Return contract_scope from linked GE Tender, or None."""
+        if not tender_name:
+                return None
+        try:
+                return frappe.db.get_value("GE Tender", tender_name, "contract_scope") or None
+        except Exception:
+                return None
+
+
 def _serialize_project_record(doc):
         return {
                 "name": doc.name,
@@ -13220,6 +13594,7 @@ def _serialize_project_record(doc):
                 "spine_progress_pct": getattr(doc, "spine_progress_pct", 0),
                 "spine_blocked": getattr(doc, "spine_blocked", 0),
                 "blocker_summary": getattr(doc, "blocker_summary", None),
+                "contract_scope": _get_tender_contract_scope(getattr(doc, "linked_tender", None)),
                 "creation": str(doc.creation) if doc.creation else None,
                 "modified": str(doc.modified) if doc.modified else None,
         }
@@ -13277,6 +13652,55 @@ def _normalize_project_payload(data, existing_doc=None):
         return values
 
 
+def _normalize_initial_sites(data):
+        sites = data.get("initial_sites") if isinstance(data, dict) else None
+        if not sites:
+                return []
+
+        normalized = []
+        for index, row in enumerate(sites, start=1):
+                if not isinstance(row, dict):
+                        continue
+                site_name = cstr(row.get("site_name") or "").strip()
+                site_code = cstr(row.get("site_code") or "").strip()
+                if not site_name:
+                        continue
+                normalized.append(
+                        {
+                                "site_name": site_name,
+                                "site_code": site_code or f"S{index:02d}",
+                        }
+                )
+        return normalized
+
+
+def _create_initial_sites_for_project(project_doc, initial_sites):
+        if not initial_sites:
+                return
+
+        for row in initial_sites:
+                site_doc = frappe.get_doc(_build_project_site_doc(project_doc, row))
+                site_doc.insert()
+
+        _refresh_project_spine(project_doc.name)
+
+
+def _build_project_site_doc(project_doc, row):
+        code_seed = cstr(row.get("site_code") or "").strip() or "SITE"
+        return {
+                "doctype": "GE Site",
+                "site_code": f"{project_doc.name}-{code_seed}",
+                "site_name": row.get("site_name"),
+                "status": "PLANNED",
+                "linked_project": project_doc.name,
+                "linked_tender": getattr(project_doc, "linked_tender", None),
+                "installation_stage": "Not Started",
+                "current_site_stage": getattr(project_doc, "current_project_stage", None) or "SURVEY",
+                "site_progress_pct": 0,
+                "location_progress_pct": 0,
+        }
+
+
 def _get_project_delete_dependencies(project_name):
         dependencies = []
         link_fields = frappe.get_all(
@@ -13315,13 +13739,33 @@ def get_project(name=None):
 def create_project(data):
         """Create a Project record with project-spine custom fields."""
         _require_project_workspace_write_access()
-        values = _normalize_project_payload(_parse_payload(data))
+        payload = _parse_payload(data)
+        values = _normalize_project_payload(payload)
+        initial_sites = _normalize_initial_sites(payload)
         doc = frappe.get_doc({"doctype": "Project", **values})
         _sync_project_workflow_fields(doc, reset_submission=True)
         _append_project_workflow_event(doc, "PROJECT_CREATED", doc.current_project_stage, remarks="Project created from workspace")
         doc.insert()
+        _create_initial_sites_for_project(doc, initial_sites)
+        doc.reload()
         frappe.db.commit()
         return {"success": True, "data": _serialize_project_record(doc), "message": "Project created"}
+
+
+@frappe.whitelist()
+def add_project_sites(project, data=None):
+        """Append new GE Site rows to an existing project from the project workspace."""
+        _require_project_workspace_write_access()
+        project = _require_param(project, "project")
+        project_doc = frappe.get_doc("Project", project)
+        payload = _parse_payload(data)
+        initial_sites = _normalize_initial_sites(payload)
+        if not initial_sites:
+                frappe.throw("At least one site name is required")
+        _create_initial_sites_for_project(project_doc, initial_sites)
+        project_doc.reload()
+        frappe.db.commit()
+        return {"success": True, "data": _serialize_project_record(project_doc), "message": "Sites added"}
 
 
 @frappe.whitelist()
@@ -14243,6 +14687,55 @@ def get_project_activity(project=None, limit=50):
                                 "summary": f"{entry.get('action', '?')} stage {entry.get('stage', '?')}" + (f" → {entry.get('next_stage', '')}" if entry.get("next_stage") else ""),
                                 "stage": entry.get("stage"),
                                 "action": entry.get("action"),
+                        })
+        except Exception:
+                pass
+
+        # 5. Project-scoped alerts (notifications, mentions, approval events)
+        try:
+                proj_alerts = frappe.get_all(
+                        "GE Alert",
+                        filters={"linked_project": project},
+                        fields=["name", "creation", "actor", "event_type", "summary", "detail",
+                                "reference_doctype", "reference_name", "route_path"],
+                        order_by="creation desc",
+                        limit_page_length=min(limit, 20),
+                )
+                for pa in proj_alerts:
+                        activities.append({
+                                "type": "alert",
+                                "ref_doctype": pa.reference_doctype or "GE Alert",
+                                "ref_name": pa.reference_name or pa.name,
+                                "actor": pa.actor or "System",
+                                "timestamp": str(pa.creation),
+                                "summary": pa.summary or pa.event_type,
+                                "event_type": pa.event_type,
+                                "route": pa.route_path,
+                        })
+        except Exception:
+                pass
+
+        # 6. Accountability events for this project
+        try:
+                acct_events = frappe.get_all(
+                        "GE Accountability Event",
+                        filters={"linked_project": project},
+                        fields=["name", "creation", "submitted_by", "event_type",
+                                "subject_doctype", "subject_name", "from_status", "to_status",
+                                "source_route"],
+                        order_by="creation desc",
+                        limit_page_length=min(limit, 20),
+                )
+                for ae in acct_events:
+                        activities.append({
+                                "type": "accountability",
+                                "ref_doctype": ae.subject_doctype or "GE Accountability Event",
+                                "ref_name": ae.subject_name or ae.name,
+                                "actor": ae.submitted_by or "System",
+                                "timestamp": str(ae.creation),
+                                "summary": f"{ae.event_type}: {ae.subject_doctype} {ae.subject_name}" + (f" ({ae.from_status} → {ae.to_status})" if ae.from_status and ae.to_status else ""),
+                                "event_type": ae.event_type,
+                                "route": ae.source_route,
                         })
         except Exception:
                 pass
@@ -16565,6 +17058,8 @@ def get_notification_center():
 		})
 
 	for r in due_reminders[:10]:
+		_reminder_project = r.get("linked_project")
+		_reminder_route = f"/projects/{_reminder_project}?tab=activity" if _reminder_project else None
 		feed.append({
 			"type": "reminder",
 			"subtype": "due",
@@ -16572,8 +17067,8 @@ def get_notification_center():
 			"detail": f"Due: {str(r.get('next_reminder_at') or '')[:16]}",
 			"ref_doctype": r.get("reference_doctype"),
 			"ref_name": r.get("reference_name"),
-			"route": None,
-			"project": r.get("linked_project"),
+			"route": _reminder_route,
+			"project": _reminder_project,
 			"is_read": 0,
 			"timestamp": r.get("next_reminder_at") or r.get("creation"),
 			"source_name": r.get("name"),
@@ -16595,6 +17090,7 @@ def get_notification_center():
 		})
 
 	for d in expiring_docs[:5]:
+		_doc_route = f"/projects/{d.linked_project}?tab=dossier" if d.linked_project else None
 		feed.append({
 			"type": "document",
 			"subtype": "expiring",
@@ -16602,7 +17098,7 @@ def get_notification_center():
 			"detail": f"Expires {d.expiry_date}",
 			"ref_doctype": "GE Project Document",
 			"ref_name": d.name,
-			"route": None,
+			"route": _doc_route,
 			"project": d.linked_project,
 			"is_read": 0,
 			"timestamp": str(d.expiry_date),
@@ -16637,6 +17133,21 @@ def get_notification_center():
 			"is_read": 0,
 			"timestamp": p.get("request_date"),
 			"source_name": p.get("id"),
+		})
+
+	for ms in overdue_milestones[:5]:
+		feed.append({
+			"type": "alert",
+			"subtype": "overdue_milestone",
+			"title": f"Overdue milestone: {ms.milestone_name}",
+			"detail": f"Was due {ms.planned_date} on {ms.linked_project or 'project'}",
+			"ref_doctype": "GE Milestone",
+			"ref_name": ms.name,
+			"route": f"/projects/{ms.linked_project}?tab=milestones" if ms.linked_project else None,
+			"project": ms.linked_project,
+			"is_read": 0,
+			"timestamp": str(ms.planned_date),
+			"source_name": ms.name,
 		})
 
 	# Sort feed by timestamp descending
@@ -17712,3 +18223,418 @@ def backfill_accountability_records(doctype=None, limit=100, dry_run=1):
 
 	report["dry_run"] = bool(dry_run)
 	return {"success": True, "data": report}
+
+
+# ── Project Closeout APIs ────────────────────────────────────────────────────
+
+# Business rules:
+#  - I&C Only  →  Go Live Certificate  →  Letter of Completion
+#  - I&C + O&M →  Go Live Certificate  →  Exit Management KT  →  Letter of Handover
+
+CLOSEOUT_IC_ONLY_SEQUENCE = ["Go Live Certificate", "Letter of Completion"]
+CLOSEOUT_IC_OM_SEQUENCE = ["Go Live Certificate", "Exit Management KT", "Letter of Handover"]
+
+
+def _get_closeout_sequence(contract_scope):
+        if contract_scope == "I&C + O&M":
+                return CLOSEOUT_IC_OM_SEQUENCE
+        return CLOSEOUT_IC_ONLY_SEQUENCE
+
+
+@frappe.whitelist()
+def get_project_closeout_items(project=None):
+        """List all closeout certificates for a project."""
+        _require_project_workspace_access()
+        project = _require_param(project, "project")
+        rows = frappe.get_all(
+                "GE Project Closeout",
+                filters={"project": project},
+                fields=[
+                        "name", "closeout_type", "project", "linked_tender",
+                        "contract_scope", "status", "issued_by", "issued_on",
+                        "certificate_date", "remarks",
+                        "kt_handover_plan", "kt_completed_on", "kt_completed_by",
+                        "revoked_by", "revoked_on", "revocation_reason",
+                        "creation", "modified",
+                ],
+                order_by="creation asc",
+        )
+        return {"success": True, "data": rows}
+
+
+@frappe.whitelist()
+def get_project_closeout_eligibility(project=None):
+        """Return which closeout types can be issued now, which are done, and which are blocked."""
+        _require_project_workspace_access()
+        project = _require_param(project, "project")
+        doc = frappe.get_doc("Project", project)
+        tender_name = getattr(doc, "linked_tender", None)
+        contract_scope = _get_tender_contract_scope(tender_name)
+        if not contract_scope:
+                return {
+                        "success": True,
+                        "data": {
+                                "contract_scope": None,
+                                "sequence": [],
+                                "issued": [],
+                                "next_eligible": None,
+                                "all_complete": False,
+                                "message": "Contract scope not set on linked tender. Set it before issuing closeout certificates.",
+                        },
+                }
+
+        sequence = _get_closeout_sequence(contract_scope)
+        existing = frappe.get_all(
+                "GE Project Closeout",
+                filters={"project": project, "status": "Issued"},
+                fields=["closeout_type"],
+        )
+        issued_types = {r["closeout_type"] for r in existing}
+
+        next_eligible = None
+        for step in sequence:
+                if step not in issued_types:
+                        next_eligible = step
+                        break
+
+        return {
+                "success": True,
+                "data": {
+                        "contract_scope": contract_scope,
+                        "sequence": sequence,
+                        "issued": list(issued_types),
+                        "next_eligible": next_eligible,
+                        "all_complete": next_eligible is None,
+                },
+        }
+
+
+@frappe.whitelist()
+def issue_closeout_certificate(project=None, closeout_type=None, certificate_date=None, remarks=None, kt_handover_plan=None):
+        """Issue a closeout certificate for a project following strict sequence rules."""
+        _require_roles(ROLE_PROJECT_HEAD, ROLE_DIRECTOR)
+        project = _require_param(project, "project")
+        closeout_type = _require_param(closeout_type, "closeout_type")
+        doc = frappe.get_doc("Project", project)
+        tender_name = getattr(doc, "linked_tender", None)
+        contract_scope = _get_tender_contract_scope(tender_name)
+        if not contract_scope:
+                frappe.throw("Contract scope is not set on the linked tender. Cannot issue closeout certificates.")
+
+        sequence = _get_closeout_sequence(contract_scope)
+        if closeout_type not in sequence:
+                frappe.throw(f"'{closeout_type}' is not valid for contract scope '{contract_scope}'")
+
+        existing = frappe.get_all(
+                "GE Project Closeout",
+                filters={"project": project, "status": "Issued"},
+                fields=["closeout_type"],
+        )
+        issued_types = {r["closeout_type"] for r in existing}
+
+        if closeout_type in issued_types:
+                frappe.throw(f"'{closeout_type}' has already been issued for this project")
+
+        for step in sequence:
+                if step == closeout_type:
+                        break
+                if step not in issued_types:
+                        frappe.throw(f"Cannot issue '{closeout_type}' — '{step}' must be issued first")
+
+        closeout_doc = frappe.get_doc({
+                "doctype": "GE Project Closeout",
+                "closeout_type": closeout_type,
+                "project": project,
+                "linked_tender": tender_name,
+                "contract_scope": contract_scope,
+                "status": "Issued",
+                "issued_by": frappe.session.user,
+                "issued_on": now_datetime(),
+                "certificate_date": certificate_date or frappe.utils.today(),
+                "remarks": cstr(remarks).strip() or None,
+                "kt_handover_plan": cstr(kt_handover_plan).strip() or None,
+        })
+        closeout_doc.insert()
+        frappe.db.commit()
+
+        try:
+                from gov_erp.accountability import record_and_log, EventType
+                record_and_log(
+                        subject_doctype="GE Project Closeout",
+                        subject_name=closeout_doc.name,
+                        event_type=EventType.APPROVED,
+                        linked_project=project,
+                        from_status="Draft",
+                        to_status="Issued",
+                        current_status="Issued",
+                        approved_by=frappe.session.user,
+                        approved_on=now_datetime(),
+                        remarks=f"{closeout_type} issued",
+                        current_owner_role=_detect_primary_role(),
+                        source_route=f"/projects/{project}",
+                )
+        except Exception:
+                frappe.log_error(frappe.get_traceback(), "Accountability: issue_closeout_certificate")
+
+        return {"success": True, "data": closeout_doc.as_dict(), "message": f"{closeout_type} issued successfully"}
+
+
+@frappe.whitelist()
+def revoke_closeout_certificate(name=None, reason=None):
+        """Revoke a previously issued closeout certificate."""
+        _require_roles(ROLE_PROJECT_HEAD, ROLE_DIRECTOR)
+        name = _require_param(name, "name")
+        if not (reason or "").strip():
+                frappe.throw("A revocation reason is required")
+        closeout_doc = frappe.get_doc("GE Project Closeout", name)
+        if closeout_doc.status != "Issued":
+                frappe.throw("Only issued certificates can be revoked")
+
+        later_issued = frappe.get_all(
+                "GE Project Closeout",
+                filters={"project": closeout_doc.project, "status": "Issued", "name": ["!=", name]},
+                fields=["closeout_type", "creation"],
+        )
+        sequence = _get_closeout_sequence(closeout_doc.contract_scope)
+        current_idx = sequence.index(closeout_doc.closeout_type) if closeout_doc.closeout_type in sequence else -1
+        for row in later_issued:
+                row_idx = sequence.index(row["closeout_type"]) if row["closeout_type"] in sequence else -1
+                if row_idx > current_idx:
+                        frappe.throw(f"Cannot revoke '{closeout_doc.closeout_type}' — later certificate '{row['closeout_type']}' is still issued")
+
+        closeout_doc.status = "Revoked"
+        closeout_doc.revoked_by = frappe.session.user
+        closeout_doc.revoked_on = now_datetime()
+        closeout_doc.revocation_reason = cstr(reason).strip()
+        closeout_doc.save()
+        frappe.db.commit()
+        return {"success": True, "data": closeout_doc.as_dict(), "message": f"{closeout_doc.closeout_type} revoked"}
+
+
+@frappe.whitelist()
+def complete_exit_management_kt(name=None, kt_completed_on=None, remarks=None):
+        """Mark an Exit Management KT closeout as completed."""
+        _require_roles(ROLE_PROJECT_HEAD, ROLE_DIRECTOR, ROLE_PROJECT_MANAGER)
+        name = _require_param(name, "name")
+        closeout_doc = frappe.get_doc("GE Project Closeout", name)
+        if closeout_doc.closeout_type != "Exit Management KT":
+                frappe.throw("This action is only valid for Exit Management KT certificates")
+        if closeout_doc.status != "Issued":
+                frappe.throw("Certificate must be in Issued state")
+        closeout_doc.kt_completed_on = kt_completed_on or frappe.utils.today()
+        closeout_doc.kt_completed_by = frappe.session.user
+        if remarks:
+                closeout_doc.remarks = (closeout_doc.remarks or "") + "\n" + cstr(remarks).strip()
+        closeout_doc.save()
+        frappe.db.commit()
+        return {"success": True, "data": closeout_doc.as_dict(), "message": "Exit Management KT marked as completed"}
+
+
+# ── Forwarded from rbac_api ──────────────────────────────────────────────────
+
+@frappe.whitelist()
+def get_workspace_permissions(project=None):
+	"""Forward to rbac_api.get_workspace_permissions (ops route resolves to gov_erp.api.*)."""
+	from gov_erp.rbac_api import get_workspace_permissions as _rbac_get_workspace_permissions
+	return _rbac_get_workspace_permissions(project=project)
+
+# ═══════════════════════════════════════════════════════════
+# Phase 5 – Auto-Reminder Generation & Due Reminder Processing
+# ═══════════════════════════════════════════════════════════
+
+@frappe.whitelist()
+def generate_system_reminders():
+	"""
+	Auto-generate system reminders from real business data:
+	- Milestones due within 3 days
+	- Documents expiring within 7 days
+	- PH approval items pending > 3 days
+	Idempotent: won't create duplicates for existing system reminders.
+	"""
+	from datetime import date, timedelta
+
+	today = date.today()
+	three_days = str(today + timedelta(days=3))
+	seven_days = str(today + timedelta(days=7))
+	three_days_ago = str(today - timedelta(days=3))
+	created = 0
+
+	# ── Milestone Reminders (due within 3 days) ──
+	milestones = frappe.get_all(
+		"GE Milestone",
+		filters=[
+			["status", "not in", ["COMPLETED", "CANCELLED"]],
+			["planned_date", ">=", str(today)],
+			["planned_date", "<=", three_days],
+		],
+		fields=["name", "milestone_name", "linked_project", "planned_date"],
+	)
+	for ms in milestones:
+		existing = frappe.db.exists("GE User Reminder", {
+			"reference_doctype": "GE Milestone",
+			"reference_name": ms.name,
+			"status": ["in", ["Active", "Snoozed"]],
+		})
+		if not existing:
+			project_team = frappe.get_all(
+				"GE Project Team Member",
+				filters={"linked_project": ms.linked_project},
+				pluck="user",
+			) if ms.linked_project else []
+			owner = project_team[0] if project_team else frappe.session.user
+			doc = frappe.get_doc({
+				"doctype": "GE User Reminder",
+				"title": f"Milestone due: {ms.milestone_name}",
+				"owner_user": owner,
+				"reminder_datetime": f"{ms.planned_date} 09:00:00",
+				"next_reminder_at": f"{ms.planned_date} 09:00:00",
+				"notes": f"Milestone '{ms.milestone_name}' is due on {ms.planned_date}",
+				"linked_project": ms.linked_project,
+				"reference_doctype": "GE Milestone",
+				"reference_name": ms.name,
+				"repeat_type": "None",
+				"status": "Active",
+				"is_system_generated": 1,
+			})
+			doc.flags.ignore_permissions = True
+			doc.insert()
+			created += 1
+
+	# ── Document Expiry Reminders (within 7 days) ──
+	docs = frappe.get_all(
+		"GE Project Document",
+		filters=[
+			["expiry_date", "is", "set"],
+			["expiry_date", ">=", str(today)],
+			["expiry_date", "<=", seven_days],
+		],
+		fields=["name", "document_name", "linked_project", "expiry_date"],
+	)
+	for d in docs:
+		existing = frappe.db.exists("GE User Reminder", {
+			"reference_doctype": "GE Project Document",
+			"reference_name": d.name,
+			"status": ["in", ["Active", "Snoozed"]],
+		})
+		if not existing:
+			project_team = frappe.get_all(
+				"GE Project Team Member",
+				filters={"linked_project": d.linked_project},
+				pluck="user",
+			) if d.linked_project else []
+			owner = project_team[0] if project_team else frappe.session.user
+			doc = frappe.get_doc({
+				"doctype": "GE User Reminder",
+				"title": f"Document expiring: {d.document_name}",
+				"owner_user": owner,
+				"reminder_datetime": f"{d.expiry_date} 09:00:00",
+				"next_reminder_at": f"{d.expiry_date} 09:00:00",
+				"notes": f"Document '{d.document_name}' expires on {d.expiry_date}",
+				"linked_project": d.linked_project,
+				"reference_doctype": "GE Project Document",
+				"reference_name": d.name,
+				"repeat_type": "None",
+				"status": "Active",
+				"is_system_generated": 1,
+			})
+			doc.flags.ignore_permissions = True
+			doc.insert()
+			created += 1
+
+	# ── Stale PH Approval Reminders (pending > 3 days) ──
+	stale_approvals = frappe.get_all(
+		"GE PH Approval Item",
+		filters=[
+			["status", "=", "Submitted to PH"],
+			["raised_on", "<=", three_days_ago],
+		],
+		fields=["name", "source_type", "source_id", "project", "raised_on"],
+	)
+	for sa in stale_approvals:
+		existing = frappe.db.exists("GE User Reminder", {
+			"reference_doctype": "GE PH Approval Item",
+			"reference_name": sa.name,
+			"status": ["in", ["Active", "Snoozed"]],
+		})
+		if not existing:
+			ph_users = frappe.get_all(
+				"Has Role",
+				filters={"role": "GE Project Head", "parenttype": "User"},
+				pluck="parent",
+			)
+			owner = ph_users[0] if ph_users else frappe.session.user
+			doc = frappe.get_doc({
+				"doctype": "GE User Reminder",
+				"title": f"{sa.source_type} {sa.source_id} awaiting PH approval",
+				"owner_user": owner,
+				"reminder_datetime": now_datetime(),
+				"next_reminder_at": now_datetime(),
+				"notes": f"{sa.source_type} {sa.source_id} has been waiting for Project Head approval since {sa.raised_on}",
+				"linked_project": sa.project,
+				"reference_doctype": "GE PH Approval Item",
+				"reference_name": sa.name,
+				"repeat_type": "None",
+				"status": "Active",
+				"is_system_generated": 1,
+			})
+			doc.flags.ignore_permissions = True
+			doc.insert()
+			created += 1
+
+	frappe.db.commit()
+	return {"success": True, "created": created, "message": f"Generated {created} system reminders"}
+
+
+@frappe.whitelist()
+def process_due_reminders():
+	"""
+	Process due reminders: find active reminders whose next_reminder_at has
+	passed and emit an alert for each, then mark them as sent.
+	Designed to be called from a scheduler hook.
+	"""
+	from datetime import datetime
+
+	now_str = str(now_datetime())
+	due = frappe.get_all(
+		"GE User Reminder",
+		filters=[
+			["status", "=", "Active"],
+			["is_sent", "=", 0],
+			["next_reminder_at", "<=", now_str],
+		],
+		fields=["name", "title", "owner_user", "linked_project", "reference_doctype",
+			"reference_name", "notes"],
+		limit_page_length=50,
+	)
+
+	processed = 0
+	for r in due:
+		try:
+			from gov_erp.gov_erp.alert_dispatcher import emit_alert
+			_route = None
+			if r.linked_project:
+				_route = f"/projects/{r.linked_project}?tab=milestones"
+			if r.reference_doctype == "GE Project Document" and r.linked_project:
+				_route = f"/projects/{r.linked_project}?tab=dossier"
+			elif r.reference_doctype == "GE PH Approval Item" and r.linked_project:
+				_route = f"/projects/{r.linked_project}?tab=approvals"
+			emit_alert(
+				"reminder_due",
+				r.title or "Reminder due",
+				project=r.linked_project,
+				reference_doctype=r.reference_doctype,
+				reference_name=r.reference_name,
+				detail=r.notes or "",
+				route_path=_route,
+				extra_recipients=[r.owner_user] if r.owner_user else None,
+			)
+			reminder_doc = frappe.get_doc("GE User Reminder", r.name)
+			reminder_doc.is_sent = 1
+			reminder_doc.save(ignore_permissions=True)
+			processed += 1
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), f"process_due_reminders: {r.name}")
+
+	if processed:
+		frappe.db.commit()
+	return {"success": True, "processed": processed}

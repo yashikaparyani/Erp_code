@@ -73,7 +73,7 @@ export default function OnboardingDetailPage() {
     return roles.some(r => set.has(r));
   };
 
-  const canSubmit = hasRole('HR Manager', 'HR User', 'System Manager');
+  const canSubmit = hasRole('HR Manager', 'System Manager');
   const canReview = hasRole('HR Manager', 'System Manager');
   const canApprove = hasRole('HR Manager', 'Department Head', 'Director', 'System Manager');
   const canMap = hasRole('HR Manager', 'System Manager');

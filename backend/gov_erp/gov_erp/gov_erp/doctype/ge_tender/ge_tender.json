@@ -476,6 +476,16 @@
    "label": "Contract Lifecycle"
   },
   {
+   "fieldname": "contract_scope",
+   "fieldtype": "Select",
+   "label": "Contract Scope",
+   "options": "\nI&C Only\nI&C + O&M",
+   "description": "Whether this contract covers only Installation & Commissioning, or also includes Operations & Maintenance.",
+   "in_list_view": 0,
+   "in_standard_filter": 1,
+   "reqd": 0
+  },
+  {
    "fieldname": "loa_date",
    "fieldtype": "Date",
    "label": "LOA / Letter of Award Date"
@@ -537,7 +547,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-03-30 12:00:00.000000",
+ "modified": "2026-03-31 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Gov ERP",
  "name": "GE Tender",
