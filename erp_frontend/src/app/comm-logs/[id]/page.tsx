@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft, Loader2, AlertCircle, Calendar, User, Building2,
-  MapPin, MessageSquare, Hash, ArrowUpRight, ArrowDownLeft, Tag,
+  MapPin, Hash, ArrowUpRight, ArrowDownLeft, Tag, Download, MessageSquareQuote,
 } from 'lucide-react';
 import { AccountabilityTimeline } from '@/components/accountability/AccountabilityTimeline';
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
@@ -18,6 +18,11 @@ interface CommLogDetail {
   communication_type?: string;
   direction?: string;
   subject?: string;
+  reference_number?: string;
+  issue_summary?: string;
+  response_status?: string;
+  response_detail?: string;
+  attachment?: string;
   counterparty_name?: string;
   counterparty_role?: string;
   follow_up_required?: number;
@@ -43,12 +48,19 @@ function formatDateTime(v?: string) {
 function TypeBadge({ type }: { type?: string }) {
   const map: Record<string, string> = {
     Email: 'bg-blue-50 text-blue-700 border-blue-200',
-    Phone: 'bg-green-50 text-green-700 border-green-200',
+    Call: 'bg-green-50 text-green-700 border-green-200',
     Meeting: 'bg-purple-50 text-purple-700 border-purple-200',
     Letter: 'bg-amber-50 text-amber-700 border-amber-200',
     WhatsApp: 'bg-teal-50 text-teal-700 border-teal-200',
+    'Site Visit': 'bg-purple-50 text-purple-700 border-purple-200',
   };
   return <span className={`inline-flex items-center rounded-lg border px-3 py-1 text-xs font-semibold ${map[type || ''] || 'bg-gray-50 text-gray-600 border-gray-200'}`}>{type || 'Other'}</span>;
+}
+
+function flowLabel(direction?: string) {
+  if (direction === 'Outbound') return 'Outward';
+  if (direction === 'Inbound') return 'Inward';
+  return direction || '-';
 }
 
 export default function CommLogDetailPage() {
@@ -87,9 +99,9 @@ export default function CommLogDetailPage() {
           <p className="mt-1 text-sm text-gray-500">{data.name} · {formatDateTime(data.communication_date)}</p>
         </div>
         <div className="flex items-center gap-2">
-          {data.direction === 'Outgoing'
-            ? <span className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700"><ArrowUpRight className="h-3.5 w-3.5" /> Outgoing</span>
-            : <span className="inline-flex items-center gap-1 rounded-lg border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700"><ArrowDownLeft className="h-3.5 w-3.5" /> Incoming</span>}
+          {data.direction === 'Outbound'
+            ? <span className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700"><ArrowUpRight className="h-3.5 w-3.5" /> Outward</span>
+            : <span className="inline-flex items-center gap-1 rounded-lg border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700"><ArrowDownLeft className="h-3.5 w-3.5" /> {flowLabel(data.direction)}</span>}
           <TypeBadge type={data.communication_type} />
         </div>
       </div>
@@ -108,12 +120,15 @@ export default function CommLogDetailPage() {
               {[
                 [<Hash key="n" className="h-3.5 w-3.5" />, 'Log ID', data.name],
                 [<Tag key="t" className="h-3.5 w-3.5" />, 'Type', data.communication_type],
+                [<MessageSquareQuote key="flow" className="h-3.5 w-3.5" />, 'Letter Flow', flowLabel(data.direction)],
                 [<Building2 key="p" className="h-3.5 w-3.5" />, 'Project', data.linked_project],
                 [<MapPin key="s" className="h-3.5 w-3.5" />, 'Site', data.linked_site],
                 [<User key="cp" className="h-3.5 w-3.5" />, 'Counterparty', data.counterparty_name],
                 [<User key="cr" className="h-3.5 w-3.5" />, 'Their Role', data.counterparty_role],
+                [<Hash key="ref" className="h-3.5 w-3.5" />, 'Reference', data.reference_number],
                 [<User key="lb" className="h-3.5 w-3.5" />, 'Logged By', data.logged_by || data.owner],
                 [<Calendar key="dt" className="h-3.5 w-3.5" />, 'Date', formatDateTime(data.communication_date)],
+                [<Tag key="status" className="h-3.5 w-3.5" />, 'Response Status', data.response_status],
                 ...(data.follow_up_required ? [[<Calendar key="fu" className="h-3.5 w-3.5" />, 'Follow-up', formatDate(data.follow_up_date)]] : []),
               ].map(([icon, label, value]) => (
                 <div key={String(label)} className="flex items-center gap-2">
@@ -127,8 +142,14 @@ export default function CommLogDetailPage() {
         </div>
 
         <div className="card lg:col-span-2">
-          <div className="card-header"><h3 className="font-semibold text-gray-900">Summary & Notes</h3></div>
+          <div className="card-header"><h3 className="font-semibold text-gray-900">Letter Context</h3></div>
           <div className="card-body space-y-4">
+            {data.issue_summary && (
+              <div><p className="text-xs font-medium text-gray-500 mb-1">Issue / Matter Raised</p><p className="text-sm text-gray-700 whitespace-pre-wrap">{data.issue_summary}</p></div>
+            )}
+            {data.response_detail && (
+              <div><p className="text-xs font-medium text-gray-500 mb-1">Response / Resolution</p><p className="text-sm text-gray-700 whitespace-pre-wrap">{data.response_detail}</p></div>
+            )}
             {data.summary ? (
               <div><p className="text-xs font-medium text-gray-500 mb-1">Summary</p><p className="text-sm text-gray-700 whitespace-pre-wrap">{data.summary}</p></div>
             ) : (
@@ -137,13 +158,25 @@ export default function CommLogDetailPage() {
             {data.notes && (
               <div className="pt-3 border-t border-gray-100"><p className="text-xs font-medium text-gray-500 mb-1">Internal Notes</p><p className="text-sm text-gray-700 whitespace-pre-wrap">{data.notes}</p></div>
             )}
+            {data.attachment && (
+              <div className="pt-3 border-t border-gray-100">
+                <p className="text-xs font-medium text-gray-500 mb-2">Attached File</p>
+                <a
+                  href={`/api/files/download?url=${encodeURIComponent(data.attachment)}&filename=${encodeURIComponent(data.subject || data.name)}`}
+                  className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
+                >
+                  <Download className="h-4 w-4" />
+                  Download attachment
+                </a>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      <RecordDocumentsPanel referenceDoctype="GE Comm Log" referenceName={logName} title="Linked Documents" initialLimit={5} />
+      <RecordDocumentsPanel referenceDoctype="GE Project Communication Log" referenceName={logName} title="Linked Documents" initialLimit={5} />
 
-      <div className="card"><div className="card-header"><h3 className="font-semibold text-gray-900">Accountability Trail</h3></div><div className="card-body"><AccountabilityTimeline subjectDoctype="GE Comm Log" subjectName={logName} compact={false} initialLimit={10} /></div></div>
+      <div className="card"><div className="card-header"><h3 className="font-semibold text-gray-900">Accountability Trail</h3></div><div className="card-body"><AccountabilityTimeline subjectDoctype="GE Project Communication Log" subjectName={logName} compact={false} initialLimit={10} /></div></div>
     </div>
   );
 }

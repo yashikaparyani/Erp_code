@@ -27,6 +27,7 @@ type Tender = {
   name: string;
   tender_number: string;
   title: string;
+  linked_project?: string;
   client?: string;
   organization?: string;
   submission_date?: string;
@@ -43,6 +44,18 @@ type Tender = {
   bid_denied_reason?: string;
   tender_document?: string;
   rfp_document?: string;
+  /* Contract lifecycle fields */
+  loa_date?: string;
+  work_order_date?: string;
+  work_order_no?: string;
+  agreement_date?: string;
+  awarded_value?: number;
+  go_live_date?: string;
+  om_start_date?: string;
+  sla_holiday_from?: string;
+  sla_holiday_to?: string;
+  implementation_completion_date?: string;
+  physical_completion_date?: string;
 };
 
 type TenderApproval = {
@@ -242,6 +255,10 @@ export default function TenderWorkspacePage() {
     bank_name: '',
     issue_date: '',
     expiry_date: '',
+    linked_project: '',
+    linked_agreement_no: '',
+    beneficiary_name: '',
+    release_condition: '',
     remarks: '',
   });
   const [showInstrumentModal, setShowInstrumentModal] = useState(false);
@@ -466,6 +483,10 @@ export default function TenderWorkspacePage() {
           bank_name: instrumentForm.bank_name,
           issue_date: instrumentForm.issue_date,
           expiry_date: instrumentForm.expiry_date,
+          linked_project: instrumentForm.linked_project,
+          linked_agreement_no: instrumentForm.linked_agreement_no,
+          beneficiary_name: instrumentForm.beneficiary_name,
+          release_condition: instrumentForm.release_condition,
           remarks: instrumentForm.remarks,
         }),
       });
@@ -489,6 +510,10 @@ export default function TenderWorkspacePage() {
         bank_name: '',
         issue_date: '',
         expiry_date: '',
+        linked_project: workspace?.tender?.linked_project || '',
+        linked_agreement_no: '',
+        beneficiary_name: '',
+        release_condition: '',
         remarks: '',
       });
       setInstrumentFile(null);
@@ -849,6 +874,26 @@ export default function TenderWorkspacePage() {
         </section>
       </div>
 
+      {(tender.loa_date || tender.work_order_date || tender.agreement_date || tender.awarded_value || tender.go_live_date || tender.om_start_date || tender.implementation_completion_date || tender.physical_completion_date) ? (
+        <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-2">
+            <FileText className="h-5 w-5 text-[#0f5164]" />
+            <h2 className="text-base font-semibold text-gray-900">Contract Lifecycle</h2>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {tender.loa_date ? <div className="rounded-2xl border border-gray-200 p-4"><div className="text-xs uppercase tracking-wide text-gray-500">LOA Date</div><div className="mt-2 text-sm font-semibold text-gray-900">{formatDate(tender.loa_date)}</div></div> : null}
+            {tender.work_order_date ? <div className="rounded-2xl border border-gray-200 p-4"><div className="text-xs uppercase tracking-wide text-gray-500">Work Order Date</div><div className="mt-2 text-sm font-semibold text-gray-900">{formatDate(tender.work_order_date)}</div>{tender.work_order_no ? <div className="mt-1 text-xs text-gray-500">#{tender.work_order_no}</div> : null}</div> : null}
+            {tender.agreement_date ? <div className="rounded-2xl border border-gray-200 p-4"><div className="text-xs uppercase tracking-wide text-gray-500">Agreement Date</div><div className="mt-2 text-sm font-semibold text-gray-900">{formatDate(tender.agreement_date)}</div></div> : null}
+            {tender.awarded_value ? <div className="rounded-2xl border border-gray-200 p-4"><div className="text-xs uppercase tracking-wide text-gray-500">Awarded Value</div><div className="mt-2 text-sm font-semibold text-gray-900">{formatCurrency(tender.awarded_value)}</div></div> : null}
+            {tender.go_live_date ? <div className="rounded-2xl border border-gray-200 p-4"><div className="text-xs uppercase tracking-wide text-gray-500">Go-Live Date</div><div className="mt-2 text-sm font-semibold text-gray-900">{formatDate(tender.go_live_date)}</div></div> : null}
+            {tender.om_start_date ? <div className="rounded-2xl border border-gray-200 p-4"><div className="text-xs uppercase tracking-wide text-gray-500">O&amp;M Start Date</div><div className="mt-2 text-sm font-semibold text-gray-900">{formatDate(tender.om_start_date)}</div></div> : null}
+            {(tender.sla_holiday_from || tender.sla_holiday_to) ? <div className="rounded-2xl border border-gray-200 p-4"><div className="text-xs uppercase tracking-wide text-gray-500">SLA Holiday Period</div><div className="mt-2 text-sm font-semibold text-gray-900">{formatDate(tender.sla_holiday_from)} – {formatDate(tender.sla_holiday_to)}</div></div> : null}
+            {tender.implementation_completion_date ? <div className="rounded-2xl border border-gray-200 p-4"><div className="text-xs uppercase tracking-wide text-gray-500">Implementation Completion</div><div className="mt-2 text-sm font-semibold text-gray-900">{formatDate(tender.implementation_completion_date)}</div></div> : null}
+            {tender.physical_completion_date ? <div className="rounded-2xl border border-gray-200 p-4"><div className="text-xs uppercase tracking-wide text-gray-500">Physical Completion</div><div className="mt-2 text-sm font-semibold text-gray-900">{formatDate(tender.physical_completion_date)}</div></div> : null}
+          </div>
+        </section>
+      ) : null}
+
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
         <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2">
@@ -1066,6 +1111,9 @@ export default function TenderWorkspacePage() {
             <select className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm" value={instrumentForm.instrument_type} onChange={(event) => setInstrumentForm((prev) => ({ ...prev, instrument_type: event.target.value }))}>
               <option value="EMD">EMD</option>
               <option value="PBG">PBG</option>
+              <option value="ADDITIONAL_PBG">Additional PBG</option>
+              <option value="SECURITY_DEPOSIT">Security Deposit</option>
+              <option value="RETENTION_BG">Retention BG</option>
             </select>
           </label>
           <label className="text-sm text-gray-600">Amount
@@ -1082,6 +1130,18 @@ export default function TenderWorkspacePage() {
           </label>
           <label className="text-sm text-gray-600">Expiry Date
             <input type="date" className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm" value={instrumentForm.expiry_date} onChange={(event) => setInstrumentForm((prev) => ({ ...prev, expiry_date: event.target.value }))} />
+          </label>
+          <label className="text-sm text-gray-600">Linked Project
+            <input className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm" value={instrumentForm.linked_project} onChange={(event) => setInstrumentForm((prev) => ({ ...prev, linked_project: event.target.value }))} placeholder={workspace?.tender?.linked_project || 'Project ID'} />
+          </label>
+          <label className="text-sm text-gray-600">Agreement Number
+            <input className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm" value={instrumentForm.linked_agreement_no} onChange={(event) => setInstrumentForm((prev) => ({ ...prev, linked_agreement_no: event.target.value }))} />
+          </label>
+          <label className="sm:col-span-2 text-sm text-gray-600">Beneficiary Name
+            <input className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm" value={instrumentForm.beneficiary_name} onChange={(event) => setInstrumentForm((prev) => ({ ...prev, beneficiary_name: event.target.value }))} />
+          </label>
+          <label className="sm:col-span-2 text-sm text-gray-600">Release Condition
+            <textarea rows={3} className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm" value={instrumentForm.release_condition} onChange={(event) => setInstrumentForm((prev) => ({ ...prev, release_condition: event.target.value }))} />
           </label>
           <label className="sm:col-span-2 text-sm text-gray-600">Remarks
             <textarea rows={4} className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm" value={instrumentForm.remarks} onChange={(event) => setInstrumentForm((prev) => ({ ...prev, remarks: event.target.value }))} />

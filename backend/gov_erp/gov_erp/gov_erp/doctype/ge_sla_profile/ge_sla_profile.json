@@ -19,7 +19,14 @@
   "sb_escalation",
   "escalation_enabled",
   "escalation_user",
-  "is_active"
+  "is_active",
+  "section_break_category",
+  "sla_category",
+  "linked_tender",
+  "column_break_category",
+  "target_value",
+  "target_unit",
+  "measurement_period"
  ],
  "fields": [
   {
@@ -110,11 +117,53 @@
    "label": "Is Active",
    "reqd": 0,
    "default": "1"
+  },
+  {
+   "fieldname": "section_break_category",
+   "fieldtype": "Section Break",
+   "label": "SLA Scope"
+  },
+  {
+   "fieldname": "sla_category",
+   "fieldtype": "Select",
+   "label": "SLA Category",
+   "options": "\nTICKET_RESPONSE\nDEVICE_UPTIME\nMANPOWER_DEPLOYMENT\nMILESTONE_ADHERENCE\nPREVENTIVE_MAINTENANCE\nSPARE_AVAILABILITY\nCUSTOM",
+   "description": "Category of service-level commitment this profile covers"
+  },
+  {
+   "fieldname": "linked_tender",
+   "fieldtype": "Link",
+   "label": "Linked Tender",
+   "options": "GE Tender"
+  },
+  {
+   "fieldname": "column_break_category",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "target_value",
+   "fieldtype": "Float",
+   "label": "Target Value",
+   "description": "e.g., 99.5 for 99.5% uptime, or 30 for 30-min response"
+  },
+  {
+   "fieldname": "target_unit",
+   "fieldtype": "Select",
+   "label": "Target Unit",
+   "options": "\nPERCENT\nMINUTES\nHOURS\nDAYS\nCOUNT",
+   "description": "Unit for the target value"
+  },
+  {
+   "fieldname": "measurement_period",
+   "fieldtype": "Select",
+   "label": "Measurement Period",
+   "options": "\nDAILY\nWEEKLY\nMONTHLY\nQUARTERLY\nYEARLY",
+   "description": "How often this SLA is measured"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-03-13 15:00:00.000000",
+ "modified": "2026-03-23 18:30:00.000000",
  "modified_by": "Administrator",
  "module": "Gov ERP",
  "name": "GE SLA Profile",

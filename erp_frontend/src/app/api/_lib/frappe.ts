@@ -271,6 +271,13 @@ async function getAuthHeaders(request?: NextRequest, needsCsrf = false): Promise
   return headers;
 }
 
+export async function getFrappeAuthHeaders(
+  request?: NextRequest,
+  needsCsrf = false,
+): Promise<Record<string, string>> {
+  return getAuthHeaders(request, needsCsrf);
+}
+
 export async function callFrappeMethod<T = any>(
   method: string,
   args?: Record<string, any>,

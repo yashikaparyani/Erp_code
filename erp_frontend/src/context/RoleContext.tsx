@@ -62,6 +62,7 @@ export const roleAccess: Record<Role, string[]> = {
     '/',
     '/notifications',
     '/projects',
+    '/project-head',
     '/settings',
     '/hr',
     '/purchase-orders',
@@ -136,6 +137,7 @@ export const roleAccess: Record<Role, string[]> = {
     '/',
     '/notifications',
     '/projects',
+    '/project-head',
     '/milestones',
     '/manpower',
     '/survey',
@@ -264,6 +266,7 @@ export const roleAccess: Record<Role, string[]> = {
     '/project-manager/inventory',
     '/project-manager/petty-cash',
     '/project-manager/requests',
+    '/comm-logs',
   ],
   'Accounts': [
     '/',

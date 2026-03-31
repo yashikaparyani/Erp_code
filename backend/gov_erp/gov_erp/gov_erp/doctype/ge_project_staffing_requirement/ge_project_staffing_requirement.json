@@ -1,0 +1,198 @@
+{
+ "actions": [],
+ "creation": "2026-03-23 18:20:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "linked_project",
+  "linked_tender",
+  "column_break_role",
+  "position",
+  "required_count",
+  "section_break_phase",
+  "deployment_phase",
+  "from_date",
+  "to_date",
+  "column_break_type",
+  "deployment_type",
+  "shift_pattern",
+  "section_break_contract",
+  "contractual_clause",
+  "penalty_for_shortfall",
+  "column_break_fulfillment",
+  "fulfilled_count",
+  "fulfillment_pct",
+  "is_active",
+  "section_break_remarks",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "PSR-.#####"
+  },
+  {
+   "fieldname": "linked_project",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Project",
+   "options": "Project",
+   "reqd": 1
+  },
+  {
+   "fieldname": "linked_tender",
+   "fieldtype": "Link",
+   "label": "Tender",
+   "options": "GE Tender"
+  },
+  {
+   "fieldname": "column_break_role",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "position",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Position / Role",
+   "options": "Project Manager\nEngineer\nTechnician\nSite Supervisor\nInspector\nOperator\nDriver\nNetwork Engineer\nTechnical Executive\nFloor Incharge\nOther",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "required_count",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Required Count",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_phase",
+   "fieldtype": "Section Break",
+   "label": "Deployment Phase"
+  },
+  {
+   "fieldname": "deployment_phase",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Deployment Phase",
+   "options": "\nIMPLEMENTATION\nO_AND_M\nBOTH"
+  },
+  {
+   "fieldname": "from_date",
+   "fieldtype": "Date",
+   "label": "Required From"
+  },
+  {
+   "fieldname": "to_date",
+   "fieldtype": "Date",
+   "label": "Required Until"
+  },
+  {
+   "fieldname": "column_break_type",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "deployment_type",
+   "fieldtype": "Select",
+   "label": "Deployment Type",
+   "options": "\nFULL_TIME\nPART_TIME\nROTATIONAL"
+  },
+  {
+   "fieldname": "shift_pattern",
+   "fieldtype": "Data",
+   "label": "Shift Pattern",
+   "description": "e.g. 8x5, 24x7, 12-hour rotation"
+  },
+  {
+   "fieldname": "section_break_contract",
+   "fieldtype": "Section Break",
+   "label": "Contractual Terms"
+  },
+  {
+   "fieldname": "contractual_clause",
+   "fieldtype": "Small Text",
+   "label": "Contractual Clause",
+   "description": "Reference to the BOQ/contract clause mandating this staffing"
+  },
+  {
+   "fieldname": "penalty_for_shortfall",
+   "fieldtype": "Small Text",
+   "label": "Penalty for Shortfall",
+   "description": "Penalty clause if required headcount is not deployed"
+  },
+  {
+   "fieldname": "column_break_fulfillment",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "fulfilled_count",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Fulfilled Count",
+   "read_only": 1,
+   "description": "Auto-computed from active staffing assignments"
+  },
+  {
+   "default": "0",
+   "fieldname": "fulfillment_pct",
+   "fieldtype": "Percent",
+   "in_list_view": 1,
+   "label": "Fulfillment %",
+   "read_only": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Active"
+  },
+  {
+   "fieldname": "section_break_remarks",
+   "fieldtype": "Section Break",
+   "label": "Notes"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [
+  {
+   "link_doctype": "GE Project Staffing Assignment",
+   "link_fieldname": "linked_project"
+  }
+ ],
+ "modified": "2026-03-23 18:20:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE Project Staffing Requirement",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

@@ -15,6 +15,10 @@
   "direction",
   "sb_details",
   "subject",
+  "reference_number",
+  "issue_summary",
+  "response_status",
+  "response_detail",
   "sb_parties",
   "counterparty_name",
   "cb_parties",
@@ -89,6 +93,28 @@
    "in_list_view": 1,
    "label": "Subject",
    "reqd": 1
+  },
+  {
+   "fieldname": "reference_number",
+   "fieldtype": "Data",
+   "label": "Reference / Reply To"
+  },
+  {
+   "fieldname": "issue_summary",
+   "fieldtype": "Small Text",
+   "label": "Issue / Matter Raised"
+  },
+  {
+   "default": "Pending",
+   "fieldname": "response_status",
+   "fieldtype": "Select",
+   "label": "Response Status",
+   "options": "Pending\nResponded\nClosed"
+  },
+  {
+   "fieldname": "response_detail",
+   "fieldtype": "Small Text",
+   "label": "Response / Resolution Note"
   },
   {
    "fieldname": "sb_parties",

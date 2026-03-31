@@ -777,6 +777,118 @@ def _ensure_project_manager_project_scope(project):
 	return project
 
 
+def _project_head_workflow_ready():
+	return bool(frappe.db.exists("DocType", "GE PH Approval Item")) and bool(
+		frappe.db.exists("DocType", "GE Costing Queue")
+	)
+
+
+def _require_project_head_workflow():
+	if not _project_head_workflow_ready():
+		frappe.throw(
+			"Project Head approval workflow is not available yet. Please run bench migrate first.",
+			frappe.DoesNotExistError,
+		)
+
+
+def _source_route_for_project_head_item(source_type, source_name):
+	if not source_name:
+		return ""
+	if source_type == "PO":
+		return f"/purchase-orders/{source_name}"
+	if source_type == "RMA PO":
+		return f"/rma/{source_name}"
+	if source_type == "Petty Cash":
+		return "/petty-cash"
+	return ""
+
+
+def _latest_project_head_status_by_source(source_type, source_names):
+	if not source_names or not _project_head_workflow_ready():
+		return {}
+	rows = frappe.get_all(
+		"GE PH Approval Item",
+		filters={
+			"source_type": source_type,
+			"source_name": ["in", list(source_names)],
+		},
+		fields=["source_name", "status", "disbursement_status", "modified"],
+		order_by="modified desc",
+	)
+	status_map = {}
+	for row in rows:
+		if row.source_name in status_map:
+			continue
+		status_map[row.source_name] = row.disbursement_status or row.status
+	return status_map
+
+
+def _approval_supporting_docs(source_type, source_name):
+	doctype_map = {
+		"PO": "Purchase Order",
+		"RMA PO": "GE RMA Tracker",
+	}
+	source_doctype = doctype_map.get(source_type)
+	if not source_doctype or not source_name:
+		return []
+	return frappe.get_all(
+		"File",
+		filters={
+			"attached_to_doctype": source_doctype,
+			"attached_to_name": source_name,
+		},
+		fields=["name", "file_url", "file_name"],
+		order_by="creation desc",
+		page_length=10,
+	)
+
+
+def _create_costing_queue_entry(approval_doc):
+	existing_name = approval_doc.costing_queue_ref or frappe.db.get_value(
+		"GE Costing Queue",
+		{"approval_item": approval_doc.name},
+		"name",
+	)
+	if existing_name:
+		return frappe.get_doc("GE Costing Queue", existing_name)
+
+	vendor_beneficiary = ""
+	if approval_doc.source_type == "PO" and approval_doc.source_name:
+		vendor_beneficiary = frappe.db.get_value("Purchase Order", approval_doc.source_name, "supplier") or ""
+	elif approval_doc.source_type == "RMA PO" and approval_doc.source_name:
+		vendor_beneficiary = frappe.db.get_value("GE RMA Tracker", approval_doc.source_name, "service_partner_name") or ""
+	elif approval_doc.source_type == "Petty Cash":
+		vendor_beneficiary = approval_doc.raised_by or ""
+
+	queue = frappe.get_doc({
+		"doctype": "GE Costing Queue",
+		"approval_item": approval_doc.name,
+		"source_type": approval_doc.source_type,
+		"source_name": approval_doc.source_name,
+		"source_id": approval_doc.source_id,
+		"entry_label": f"{approval_doc.source_type} • {approval_doc.source_id or approval_doc.name}",
+		"project": approval_doc.project,
+		"amount": approval_doc.amount,
+		"vendor_beneficiary": vendor_beneficiary,
+		"linked_record": approval_doc.linked_record,
+		"ph_approver": approval_doc.ph_approver,
+		"ph_approval_date": approval_doc.ph_approval_date,
+		"ph_remarks": approval_doc.ph_remarks,
+		"disbursement_status": "Pending",
+	})
+	queue.insert()
+	return queue
+
+
+def _sync_approval_with_costing_queue(approval_doc, queue_doc):
+	approval_doc.costing_queue_ref = queue_doc.name
+	approval_doc.disbursement_status = queue_doc.disbursement_status
+	if queue_doc.disbursement_status == "Released":
+		approval_doc.status = "Disbursed / Released"
+	elif approval_doc.status != "Rejected by PH":
+		approval_doc.status = "Forwarded to Costing"
+
+
 def _enforce_accountability_project_scope(project=None, require_project_for_pm=False):
 	"""Enforce PM assigned-project scope for accountability APIs."""
 	assigned = _get_project_manager_assigned_projects()
@@ -3608,6 +3720,10 @@ def get_purchase_orders(project=None, status=None, supplier=None, limit_page_len
 		page_length=int(limit_page_length),
 	)
 	total = frappe.db.count("Purchase Order", filters=filters)
+	if data and _project_head_workflow_ready():
+		status_map = _latest_project_head_status_by_source("PO", [row.name for row in data])
+		for row in data:
+			row["ph_status"] = status_map.get(row.name)
 	return {"success": True, "data": data, "total": total}
 
 
@@ -8406,6 +8522,10 @@ def get_rma_trackers(project=None, status=None, ticket=None):
 		],
 		order_by="creation desc",
 	)
+	if data and _project_head_workflow_ready():
+		status_map = _latest_project_head_status_by_source("RMA PO", [row.name for row in data])
+		for row in data:
+			row["ph_status"] = status_map.get(row.name)
 	return {"success": True, "data": data}
 
 
@@ -10910,11 +11030,13 @@ def get_comm_logs(project=None, site=None, comm_type=None, direction=None):
 		fields=[
 			"name", "linked_project", "linked_site",
 			"communication_date", "communication_type", "direction",
-			"subject", "counterparty_name", "counterparty_role",
+			"subject", "reference_number", "issue_summary",
+			"response_status", "response_detail", "attachment",
+			"counterparty_name", "counterparty_role",
 			"follow_up_required", "follow_up_date", "logged_by",
 			"creation", "modified",
 		],
-		order_by="communication_date desc",
+		order_by="communication_date desc, modified desc",
 	)
 	return {"success": True, "data": data}
 
@@ -10950,13 +11072,14 @@ def create_comm_log(data):
 	if comm_type in type_map:
 		values["communication_type"] = type_map[comm_type]
 	direction = cstr(values.get("direction") or "").strip().lower()
-	if direction == "incoming":
+	if direction in {"incoming", "inward", "inbound"}:
 		values["direction"] = "Inbound"
-	elif direction == "outgoing":
+	elif direction in {"outgoing", "outward", "outbound"}:
 		values["direction"] = "Outbound"
 	elif direction == "internal":
 		values["direction"] = "Internal"
 	values.setdefault("summary", values.get("subject"))
+	values.setdefault("response_status", "Pending")
 	values.setdefault("communication_date", frappe.utils.today())
 	values.setdefault("logged_by", frappe.session.user)
 	doc = frappe.get_doc({"doctype": "GE Project Communication Log", **values})
@@ -10987,9 +11110,9 @@ def update_comm_log(name, data):
 	if comm_type in type_map:
 		values["communication_type"] = type_map[comm_type]
 	direction = cstr(values.get("direction") or "").strip().lower()
-	if direction == "incoming":
+	if direction in {"incoming", "inward", "inbound"}:
 		values["direction"] = "Inbound"
-	elif direction == "outgoing":
+	elif direction in {"outgoing", "outward", "outbound"}:
 		values["direction"] = "Outbound"
 	elif direction == "internal":
 		values["direction"] = "Internal"
@@ -11257,6 +11380,370 @@ def delete_petty_cash_entry(name):
 	frappe.delete_doc("GE Petty Cash", name)
 	frappe.db.commit()
 	return {"success": True, "message": "Petty cash entry deleted"}
+
+
+@frappe.whitelist()
+def create_petty_cash_fund_request(data):
+	"""Create a PH-bound petty cash fund request."""
+	_require_petty_cash_write_access()
+	_require_project_head_workflow()
+	values = _parse_payload(data)
+	project = _ensure_project_manager_project_scope(values.get("project"))
+	amount = flt(values.get("amount"))
+	purpose = cstr(values.get("purpose")).strip()
+	if amount <= 0:
+		frappe.throw("Amount must be greater than zero")
+	if not purpose:
+		frappe.throw("Purpose is required")
+
+	doc = frappe.get_doc({
+		"doctype": "GE PH Approval Item",
+		"source_type": "Petty Cash",
+		"source_name": "",
+		"source_id": "",
+		"originating_module": "Project Management",
+		"project": project,
+		"raised_by": frappe.session.user,
+		"raised_on": values.get("requested_on") or now_datetime(),
+		"amount": amount,
+		"status": "Submitted to PH",
+		"linked_record": "/petty-cash",
+		"priority": values.get("priority") or "Medium",
+		"remarks": purpose,
+	})
+	doc.insert()
+	doc.source_name = doc.name
+	doc.source_id = doc.name
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Fund request submitted to Project Head"}
+
+
+@frappe.whitelist()
+def get_petty_cash_fund_requests(project=None, status=None):
+	"""List petty cash fund requests that move through PH approval."""
+	_require_petty_cash_read_access()
+	_require_project_head_workflow()
+	filters = {"source_type": "Petty Cash"}
+	_apply_project_manager_project_filter(filters, project=project, project_field="project")
+	if status:
+		filters["status"] = status
+	rows = frappe.get_all(
+		"GE PH Approval Item",
+		filters=filters,
+		fields=[
+			"name", "project", "raised_by", "raised_on", "amount",
+			"remarks", "status", "ph_approver", "ph_remarks",
+		],
+		order_by="raised_on desc, creation desc",
+	)
+	return {
+		"success": True,
+		"data": [
+			{
+				"name": row.name,
+				"project": row.project,
+				"requested_by": row.raised_by,
+				"requested_on": row.raised_on,
+				"amount": row.amount,
+				"purpose": row.remarks,
+				"status": row.status,
+				"ph_approver": row.ph_approver,
+				"ph_remarks": row.ph_remarks,
+			}
+			for row in rows
+		],
+		"stats": {
+			"pending": sum(1 for row in rows if row.status == "Submitted to PH"),
+			"approved": sum(1 for row in rows if row.status == "Forwarded to Costing"),
+			"rejected": sum(1 for row in rows if row.status == "Rejected by PH"),
+		},
+	}
+
+
+@frappe.whitelist()
+def submit_po_to_ph(name, remarks=None):
+	"""Send a submitted purchase order to the PH approval queue."""
+	_require_procurement_write_access()
+	_require_project_head_workflow()
+	name = _require_param(name, "name")
+	po = frappe.get_doc("Purchase Order", name)
+	if po.docstatus != 1:
+		frappe.throw("Only submitted Purchase Orders can be sent to Project Head")
+
+	existing_name = frappe.db.get_value(
+		"GE PH Approval Item",
+		{
+			"source_type": "PO",
+			"source_name": po.name,
+			"status": ["not in", ["Rejected by PH", "Disbursed / Released"]],
+		},
+		"name",
+	)
+	if existing_name:
+		return {
+			"success": True,
+			"data": frappe.get_doc("GE PH Approval Item", existing_name).as_dict(),
+			"message": f"PO {po.name} is already in the Project Head approval chain",
+		}
+
+	doc = frappe.get_doc({
+		"doctype": "GE PH Approval Item",
+		"source_type": "PO",
+		"source_name": po.name,
+		"source_id": po.name,
+		"originating_module": "Procurement",
+		"project": po.project,
+		"raised_by": frappe.session.user,
+		"raised_on": now_datetime(),
+		"amount": po.grand_total or po.rounded_total,
+		"status": "Submitted to PH",
+		"linked_record": _source_route_for_project_head_item("PO", po.name),
+		"priority": "Medium",
+		"remarks": cstr(remarks).strip(),
+	})
+	doc.insert()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": f"PO {po.name} submitted to Project Head for approval"}
+
+
+@frappe.whitelist()
+def submit_rma_po_to_ph(name, remarks=None):
+	"""Send an RMA-linked PO spend request to the PH approval queue."""
+	_require_rma_write_access()
+	_require_project_head_workflow()
+	name = _require_param(name, "name")
+	rma = frappe.get_doc("GE RMA Tracker", name)
+
+	existing_name = frappe.db.get_value(
+		"GE PH Approval Item",
+		{
+			"source_type": "RMA PO",
+			"source_name": rma.name,
+			"status": ["not in", ["Rejected by PH", "Disbursed / Released"]],
+		},
+		"name",
+	)
+	if existing_name:
+		return {
+			"success": True,
+			"data": frappe.get_doc("GE PH Approval Item", existing_name).as_dict(),
+			"message": f"RMA PO {rma.rma_purchase_order_no or rma.name} is already in the Project Head approval chain",
+		}
+
+	doc = frappe.get_doc({
+		"doctype": "GE PH Approval Item",
+		"source_type": "RMA PO",
+		"source_name": rma.name,
+		"source_id": rma.rma_purchase_order_no or rma.name,
+		"originating_module": "RMA",
+		"project": rma.linked_project,
+		"raised_by": frappe.session.user,
+		"raised_on": now_datetime(),
+		"amount": rma.repair_invoice_amount or rma.repair_cost,
+		"status": "Submitted to PH",
+		"linked_record": _source_route_for_project_head_item("RMA PO", rma.name),
+		"priority": "Medium",
+		"remarks": cstr(remarks).strip() or cstr(rma.remarks).strip(),
+	})
+	doc.insert()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": f"RMA PO {doc.source_id} submitted to Project Head for approval"}
+
+
+@frappe.whitelist()
+def get_ph_approval_items(tab=None, project=None, status=None, limit_page_length=50, limit_start=0):
+	"""List Project Head approval items by lane."""
+	_require_roles(ROLE_PROJECT_HEAD, ROLE_DIRECTOR)
+	_require_project_head_workflow()
+	filters = {}
+	tab_map = {"po": "PO", "rma_po": "RMA PO", "petty_cash": "Petty Cash"}
+	if tab:
+		filters["source_type"] = tab_map.get(tab, tab)
+	if project:
+		filters["project"] = project
+	if status:
+		filters["status"] = status
+	rows = frappe.get_all(
+		"GE PH Approval Item",
+		filters=filters,
+		fields=[
+			"name", "source_type", "source_name", "source_id", "originating_module",
+			"project", "raised_by", "raised_on", "amount", "status", "linked_record",
+			"priority", "remarks", "ph_approver", "ph_approval_date",
+			"costing_queue_ref", "disbursement_status",
+		],
+		order_by="raised_on desc, creation desc",
+		start=int(limit_start),
+		page_length=int(limit_page_length),
+	)
+	stats_filters = {k: v for k, v in filters.items() if k != "status"}
+	stats_rows = frappe.get_all(
+		"GE PH Approval Item",
+		filters=stats_filters,
+		fields=["status"],
+		page_length=0,
+	)
+	return {
+		"success": True,
+		"data": rows,
+		"stats": {
+			"pending": sum(1 for row in stats_rows if row.status == "Submitted to PH"),
+			"approved": sum(1 for row in stats_rows if row.status == "Approved by PH"),
+			"rejected": sum(1 for row in stats_rows if row.status == "Rejected by PH"),
+			"forwarded": sum(1 for row in stats_rows if row.status in {"Forwarded to Costing", "Disbursed / Released"}),
+		},
+	}
+
+
+@frappe.whitelist()
+def get_ph_approval_item(name):
+	"""Return one PH approval item with source attachments."""
+	_require_roles(ROLE_PROJECT_HEAD, ROLE_DIRECTOR, ROLE_ACCOUNTS)
+	_require_project_head_workflow()
+	name = _require_param(name, "name")
+	doc = frappe.get_doc("GE PH Approval Item", name)
+	data = doc.as_dict()
+	data["supporting_docs"] = _approval_supporting_docs(doc.source_type, doc.source_name)
+	return {"success": True, "data": data}
+
+
+@frappe.whitelist()
+def ph_approve_item(name, remarks=None):
+	"""Approve a PH approval item and forward it to costing."""
+	_require_roles(ROLE_PROJECT_HEAD, ROLE_DIRECTOR)
+	_require_project_head_workflow()
+	doc = frappe.get_doc("GE PH Approval Item", _require_param(name, "name"))
+	if doc.status != "Submitted to PH":
+		frappe.throw(f"Only submitted items can be approved (current: {doc.status})")
+	doc.ph_approver = frappe.session.user
+	doc.ph_approval_date = now_datetime()
+	doc.ph_remarks = cstr(remarks).strip()
+	doc.status = "Approved by PH"
+	if doc.source_type == "RMA PO" and doc.source_name and frappe.db.exists("GE RMA Tracker", doc.source_name):
+		rma = frappe.get_doc("GE RMA Tracker", doc.source_name)
+		rma.approved_by_project_head = frappe.session.user
+		rma.save()
+	queue = _create_costing_queue_entry(doc)
+	_sync_approval_with_costing_queue(doc, queue)
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Request approved and forwarded to Costing"}
+
+
+@frappe.whitelist()
+def ph_reject_item(name, remarks=None):
+	"""Reject a PH approval item."""
+	_require_roles(ROLE_PROJECT_HEAD, ROLE_DIRECTOR)
+	_require_project_head_workflow()
+	doc = frappe.get_doc("GE PH Approval Item", _require_param(name, "name"))
+	if doc.status != "Submitted to PH":
+		frappe.throw(f"Only submitted items can be rejected (current: {doc.status})")
+	doc.ph_approver = frappe.session.user
+	doc.ph_approval_date = now_datetime()
+	doc.ph_remarks = cstr(remarks).strip()
+	doc.status = "Rejected by PH"
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Request rejected"}
+
+
+@frappe.whitelist()
+def get_costing_queue(project=None, status=None, source_type=None, limit_page_length=50, limit_start=0):
+	"""List PH-approved items awaiting costing action."""
+	_require_roles(ROLE_ACCOUNTS, ROLE_DIRECTOR, ROLE_PROJECT_HEAD)
+	_require_project_head_workflow()
+	filters = {}
+	if project:
+		filters["project"] = project
+	if status:
+		filters["disbursement_status"] = status
+	if source_type:
+		filters["source_type"] = source_type
+	rows = frappe.get_all(
+		"GE Costing Queue",
+		filters=filters,
+		fields=[
+			"name", "source_type", "source_name", "source_id", "entry_label",
+			"ph_approver", "ph_approval_date", "amount", "project",
+			"vendor_beneficiary", "disbursement_status", "linked_record",
+		],
+		order_by="creation desc",
+		start=int(limit_start),
+		page_length=int(limit_page_length),
+	)
+	stats_filters = {k: v for k, v in filters.items() if k != "disbursement_status"}
+	stats_rows = frappe.get_all(
+		"GE Costing Queue",
+		filters=stats_filters,
+		fields=["disbursement_status"],
+		page_length=0,
+	)
+	return {
+		"success": True,
+		"data": rows,
+		"stats": {
+			"pending": sum(1 for row in stats_rows if (row.disbursement_status or "Pending") == "Pending"),
+			"released": sum(1 for row in stats_rows if row.disbursement_status == "Released"),
+			"held": sum(1 for row in stats_rows if row.disbursement_status == "Held"),
+			"rejected": sum(1 for row in stats_rows if row.disbursement_status == "Rejected"),
+		},
+	}
+
+
+@frappe.whitelist()
+def get_costing_queue_item(name):
+	"""Return one costing queue entry."""
+	_require_roles(ROLE_ACCOUNTS, ROLE_DIRECTOR, ROLE_PROJECT_HEAD)
+	_require_project_head_workflow()
+	name = _require_param(name, "name")
+	doc = frappe.get_doc("GE Costing Queue", name)
+	return {"success": True, "data": doc.as_dict()}
+
+
+def _costing_queue_action(name, next_status, remarks=None):
+	queue = frappe.get_doc("GE Costing Queue", _require_param(name, "name"))
+	queue.disbursement_status = next_status
+	queue.costing_remarks = cstr(remarks).strip()
+	queue.disbursed_by = frappe.session.user
+	queue.disbursed_on = now_datetime()
+	queue.save()
+	if queue.approval_item and frappe.db.exists("GE PH Approval Item", queue.approval_item):
+		approval_doc = frappe.get_doc("GE PH Approval Item", queue.approval_item)
+		_sync_approval_with_costing_queue(approval_doc, queue)
+		approval_doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": queue.as_dict()}
+
+
+@frappe.whitelist()
+def costing_release_item(name, remarks=None):
+	"""Release / disburse a costing queue item."""
+	_require_roles(ROLE_ACCOUNTS, ROLE_DIRECTOR)
+	_require_project_head_workflow()
+	result = _costing_queue_action(name, "Released", remarks)
+	result["message"] = "Costing item released"
+	return result
+
+
+@frappe.whitelist()
+def costing_hold_item(name, remarks=None):
+	"""Put a costing queue item on hold."""
+	_require_roles(ROLE_ACCOUNTS, ROLE_DIRECTOR)
+	_require_project_head_workflow()
+	result = _costing_queue_action(name, "Held", remarks)
+	result["message"] = "Costing item held"
+	return result
+
+
+@frappe.whitelist()
+def costing_reject_item(name, remarks=None):
+	"""Reject a costing queue item."""
+	_require_roles(ROLE_ACCOUNTS, ROLE_DIRECTOR)
+	_require_project_head_workflow()
+	result = _costing_queue_action(name, "Rejected", remarks)
+	result["message"] = "Costing item rejected"
+	return result
 
 
 def _require_project_inventory_read_access():

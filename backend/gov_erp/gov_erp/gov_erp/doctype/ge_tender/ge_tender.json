@@ -71,7 +71,20 @@
   "column_break_closure",
   "closure_letter_received",
   "presales_closure_date",
-  "presales_closure_by"
+  "presales_closure_by",
+  "section_break_contract_lifecycle",
+  "loa_date",
+  "work_order_date",
+  "work_order_no",
+  "agreement_date",
+  "awarded_value",
+  "column_break_lifecycle2",
+  "go_live_date",
+  "om_start_date",
+  "sla_holiday_from",
+  "sla_holiday_to",
+  "implementation_completion_date",
+  "physical_completion_date"
  ],
  "fields": [
   {
@@ -456,11 +469,75 @@
    "fieldtype": "Link",
    "label": "Closed By",
    "options": "User"
+  },
+  {
+   "fieldname": "section_break_contract_lifecycle",
+   "fieldtype": "Section Break",
+   "label": "Contract Lifecycle"
+  },
+  {
+   "fieldname": "loa_date",
+   "fieldtype": "Date",
+   "label": "LOA / Letter of Award Date"
+  },
+  {
+   "fieldname": "work_order_date",
+   "fieldtype": "Date",
+   "label": "Work Order Date"
+  },
+  {
+   "fieldname": "work_order_no",
+   "fieldtype": "Data",
+   "label": "Work Order Number"
+  },
+  {
+   "fieldname": "agreement_date",
+   "fieldtype": "Date",
+   "label": "Agreement Date"
+  },
+  {
+   "fieldname": "awarded_value",
+   "fieldtype": "Currency",
+   "label": "Awarded Contract Value"
+  },
+  {
+   "fieldname": "column_break_lifecycle2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "go_live_date",
+   "fieldtype": "Date",
+   "label": "Go-Live Date"
+  },
+  {
+   "fieldname": "om_start_date",
+   "fieldtype": "Date",
+   "label": "O&M Start Date"
+  },
+  {
+   "fieldname": "sla_holiday_from",
+   "fieldtype": "Date",
+   "label": "SLA Holiday From"
+  },
+  {
+   "fieldname": "sla_holiday_to",
+   "fieldtype": "Date",
+   "label": "SLA Holiday To"
+  },
+  {
+   "fieldname": "implementation_completion_date",
+   "fieldtype": "Date",
+   "label": "Implementation Completion Date"
+  },
+  {
+   "fieldname": "physical_completion_date",
+   "fieldtype": "Date",
+   "label": "Physical Completion Date"
   }
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-03-21 10:00:00.000000",
+ "modified": "2026-03-30 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Gov ERP",
  "name": "GE Tender",

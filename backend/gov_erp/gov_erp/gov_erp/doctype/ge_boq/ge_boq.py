@@ -30,7 +30,20 @@ def validate_status_transition(old_status, new_status):
 		raise ValueError(f"Cannot change BOQ status from {old_status} to {new_status}")
 
 
-def validate_survey_gate(tender_name, survey_statuses):
+def validate_survey_gate(tender_name, survey_statuses, bypass=False):
+	"""Ensure all surveys for a tender are completed before BOQ approval.
+
+	Args:
+		tender_name: The linked tender name.
+		survey_statuses: List of survey status strings.
+		bypass: If True, skip the gate (for historical imports). An audit log is created.
+	"""
+	if bypass:
+		frappe.logger("boq").info(
+			f"Survey gate bypassed for tender {tender_name} by {frappe.session.user}"
+		)
+		return
+
 	if not survey_statuses:
 		raise ValueError(
 			f"No surveys found for tender {tender_name}. "
@@ -67,14 +80,23 @@ class GEBOQ(Document):
 		self.total_items = totals["total_items"]
 
 	def _enforce_survey_gate(self):
-		"""Block approval submission unless all surveys for the linked tender are completed."""
+		"""Block approval submission unless all surveys for the linked tender are completed.
+
+		Set self.bypass_survey_gate = 1 (or pass via flags) for historical imports.
+		Bypass is logged for audit.
+		"""
+		bypass = getattr(self, "bypass_survey_gate", 0) or self.flags.get("bypass_survey_gate")
 		surveys = frappe.get_all(
 			"GE Survey",
 			filters={"linked_tender": self.linked_tender},
 			fields=["status"],
 		)
 		try:
-			validate_survey_gate(self.linked_tender, [survey.status for survey in surveys])
+			validate_survey_gate(
+				self.linked_tender,
+				[survey.status for survey in surveys],
+				bypass=bool(bypass),
+			)
 		except ValueError as exc:
 			frappe.throw(str(exc))
 

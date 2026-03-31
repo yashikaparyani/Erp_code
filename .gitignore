@@ -6,5 +6,10 @@ dist
 build
 erp_frontend/.next
 erp_frontend/.env.local
+erp_frontend/tsconfig.tsbuildinfo
+backend/.venv/
+.agent-pids/
+logs/
+Project Overview.xlsx
 backend/gov_erp/**/__pycache__
 *.zip

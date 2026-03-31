@@ -14,15 +14,41 @@ class GETender(Document):
 		if self.pbg_required and not self.pbg_amount:
 			frappe.throw("PBG Amount is required when PBG is marked as required")
 
-	def _convert_to_project(self):
-		"""Create an ERPNext Project from this WON tender and link it back."""
+	def _convert_to_project(self, historical_start_date=None, historical_end_date=None):
+		"""Create an ERPNext Project from this WON tender and link it back.
+
+		Args:
+			historical_start_date: Override the project start date (for historical imports).
+				Falls back to: loa_date → agreement_date → work_order_date → today()
+			historical_end_date: Override the expected end date.
+				Falls back to: physical_completion_date → implementation_completion_date
+				→ tenure_end_date.
+		"""
 		stage_config = get_workflow_stage("SURVEY")
+
+		# Derive best-guess start date for the project
+		start_date = (
+			historical_start_date
+			or getattr(self, "loa_date", None)
+			or getattr(self, "agreement_date", None)
+			or getattr(self, "work_order_date", None)
+			or frappe.utils.today()
+		)
+		end_date = (
+			historical_end_date
+			or getattr(self, "physical_completion_date", None)
+			or getattr(self, "implementation_completion_date", None)
+			or getattr(self, "tenure_end_date", None)
+			or None
+		)
+
 		project = frappe.get_doc(
 			{
 				"doctype": "Project",
 				"project_name": f"{self.tender_number} - {self.title}",
 				"status": "Open",
-				"expected_start_date": frappe.utils.today(),
+				"expected_start_date": start_date,
+				"expected_end_date": end_date,
 				"company": frappe.defaults.get_defaults().get("company"),
 				"estimated_costing": self.estimated_value or 0,
 				"notes": f"Auto-created from Tender {self.tender_number}",

@@ -17,7 +17,6 @@
   "issue_date",
   "column_break_expiry",
   "expiry_date",
-  "instrument_document",
   "remarks"
  ],
  "fields": [
@@ -34,7 +33,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Instrument Type",
-   "options": "EMD\nPBG",
+   "options": "EMD\nPBG\nADDITIONAL_PBG\nSECURITY_DEPOSIT\nRETENTION_BG",
    "reqd": 1
   },
   {
@@ -104,11 +103,44 @@
    "fieldname": "remarks",
    "fieldtype": "Small Text",
    "label": "Remarks"
+  },
+  {
+   "fieldname": "section_break_project",
+   "fieldtype": "Section Break",
+   "label": "Project & Agreement"
+  },
+  {
+   "fieldname": "linked_project",
+   "fieldtype": "Link",
+   "label": "Linked Project",
+   "options": "Project"
+  },
+  {
+   "fieldname": "linked_agreement_no",
+   "fieldtype": "Data",
+   "label": "Agreement Number",
+   "description": "Contract or agreement reference this instrument covers"
+  },
+  {
+   "fieldname": "column_break_project",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "beneficiary_name",
+   "fieldtype": "Data",
+   "label": "Beneficiary Name",
+   "description": "Client or authority to whom the guarantee is issued"
+  },
+  {
+   "fieldname": "release_condition",
+   "fieldtype": "Small Text",
+   "label": "Release Condition",
+   "description": "Condition under which the instrument can be released"
   }
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-03-13 12:00:00.000000",
+ "modified": "2026-03-23 18:10:00.000000",
  "modified_by": "Administrator",
  "module": "Gov ERP",
  "name": "GE EMD PBG Instrument",

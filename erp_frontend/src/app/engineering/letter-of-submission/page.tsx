@@ -39,7 +39,7 @@ async function postJson(url: string, body?: Record<string, unknown>) {
   return response.json();
 }
 
-export default function LetterOfSubmissionPage() {
+export default function LetterOfCompletionPage() {
   const { currentRole } = useRole();
   const [rows, setRows] = useState<SubmissionRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -94,10 +94,10 @@ export default function LetterOfSubmissionPage() {
         <div>
           <h1 className="text-2xl font-bold text-[var(--text-main)] flex items-center gap-2">
             <ScrollText className="w-6 h-6 text-[var(--accent)]" />
-            Letter of Submission
+            Letter of Completion
           </h1>
           <p className="text-xs text-[var(--text-soft)] mt-0.5">
-            Project Head submission desk for LOC requests raised from in-process bids
+            Project Head completion desk for LOC requests raised when the applicable tender phase nears completion
           </p>
         </div>
         <button
@@ -110,9 +110,13 @@ export default function LetterOfSubmissionPage() {
 
       {currentRole !== 'Project Head' && currentRole !== 'Director' ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
-          This workspace is intended for Project Head submissions.
+          This workspace is intended for Project Head completion handling.
         </div>
       ) : null}
+
+      <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-800">
+        Depending on tender terms, Letter of Completion can apply at I&amp;C, O&amp;M, or both phases. This desk handles the Project Head request and submission cycle once the applicable scope is nearing completion.
+      </div>
 
       {error ? (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{error}</div>
@@ -139,7 +143,7 @@ export default function LetterOfSubmissionPage() {
             ) : rows.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-3 py-10 text-center text-[var(--text-soft)]">
-                  No LOC submission requests are available
+                  No Letter of Completion requests are available
                 </td>
               </tr>
             ) : (
@@ -172,7 +176,7 @@ export default function LetterOfSubmissionPage() {
                           disabled={busyBid === row.bid_id}
                           className="inline-flex items-center gap-1 rounded-lg bg-[var(--accent)] px-2.5 py-1.5 text-[10px] font-medium text-white disabled:opacity-60"
                         >
-                          Submit LOC
+                          Submit Letter of Completion
                         </button>
                       ) : null}
                       {currentRole === 'Director' || currentRole === 'Presales Tendering Head' ? (
@@ -193,9 +197,9 @@ export default function LetterOfSubmissionPage() {
       </div>
       <ActionModal
         open={locSubmitTarget !== null}
-        title="Submit LOC"
+        title="Submit Letter of Completion"
         description={`Submit Letter of Completion for bid ${locSubmitTarget}`}
-        confirmLabel="Submit LOC"
+        confirmLabel="Submit Completion"
         variant="default"
         fields={[
           { name: 'submission_date', label: 'Submission Date (YYYY-MM-DD)', type: 'text', defaultValue: new Date().toISOString().slice(0, 10) },

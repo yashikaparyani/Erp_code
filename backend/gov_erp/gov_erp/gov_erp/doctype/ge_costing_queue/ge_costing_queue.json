@@ -1,0 +1,172 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-03-28 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "approval_item",
+  "source_type",
+  "source_name",
+  "source_id",
+  "entry_label",
+  "project",
+  "amount",
+  "vendor_beneficiary",
+  "linked_record",
+  "ph_approver",
+  "ph_approval_date",
+  "ph_remarks",
+  "disbursement_status",
+  "costing_remarks",
+  "disbursed_by",
+  "disbursed_on"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "GCQ-.#####"
+  },
+  {
+   "fieldname": "approval_item",
+   "fieldtype": "Link",
+   "label": "Approval Item",
+   "options": "GE PH Approval Item",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "source_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Source Type",
+   "options": "\nPO\nRMA PO\nPetty Cash",
+   "reqd": 1
+  },
+  {
+   "fieldname": "source_name",
+   "fieldtype": "Data",
+   "label": "Source Name"
+  },
+  {
+   "fieldname": "source_id",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Source ID"
+  },
+  {
+   "fieldname": "entry_label",
+   "fieldtype": "Data",
+   "label": "Entry Label"
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Project",
+   "options": "Project"
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "label": "Amount"
+  },
+  {
+   "fieldname": "vendor_beneficiary",
+   "fieldtype": "Data",
+   "label": "Vendor / Beneficiary"
+  },
+  {
+   "fieldname": "linked_record",
+   "fieldtype": "Data",
+   "label": "Linked Record"
+  },
+  {
+   "fieldname": "ph_approver",
+   "fieldtype": "Link",
+   "label": "PH Approver",
+   "options": "User"
+  },
+  {
+   "fieldname": "ph_approval_date",
+   "fieldtype": "Datetime",
+   "label": "PH Approval Date"
+  },
+  {
+   "fieldname": "ph_remarks",
+   "fieldtype": "Small Text",
+   "label": "PH Remarks"
+  },
+  {
+   "default": "Pending",
+   "fieldname": "disbursement_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Disbursement Status",
+   "options": "Pending\nReleased\nHeld\nRejected",
+   "reqd": 1
+  },
+  {
+   "fieldname": "costing_remarks",
+   "fieldtype": "Small Text",
+   "label": "Costing Remarks"
+  },
+  {
+   "fieldname": "disbursed_by",
+   "fieldtype": "Link",
+   "label": "Disbursed By",
+   "options": "User"
+  },
+  {
+   "fieldname": "disbursed_on",
+   "fieldtype": "Datetime",
+   "label": "Disbursed On"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "modified": "2026-03-28 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gov ERP",
+ "name": "GE Costing Queue",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Project Head"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Director"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Accounts",
+   "write": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

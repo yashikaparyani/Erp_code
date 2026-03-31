@@ -10,7 +10,7 @@ Read this first after a context reset.
 Read these in this order:
 
 1. `Erp_code/backend_execution_guide.md`
-2. `Erp_code/backend_todo.md`
+2. `Erp_code/all mds/remaining_todo.md`
 3. `Erp_code/backend_role_matrix.md`
 4. `Erp_code/backend_org_mapping.md`
 5. `Erp_code/backend_architecture_note.md`

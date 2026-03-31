@@ -372,7 +372,7 @@ export default function InventoryPage() {
                   <td>
                     <div className="flex flex-wrap gap-2 items-center">
                       <Link
-                        href={`/inventory/${encodeURIComponent(ch.name)}`}
+                        href={`/dispatch-challans/${encodeURIComponent(ch.name)}`}
                         className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1"
                       >
                         <Eye className="w-4 h-4" />

@@ -112,7 +112,7 @@ export default function CommissioningDevicesPage() {
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || !payload.success) throw new Error(payload.message || 'Action failed');
       await loadData();
-    } catch (err) { alert(err instanceof Error ? err.message : 'Action failed'); }
+    } catch (err) { setError(err instanceof Error ? err.message : 'Action failed'); }
   };
 
   const handleIPAction = async (action: string, name: string) => {
@@ -123,7 +123,7 @@ export default function CommissioningDevicesPage() {
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || !payload.success) throw new Error(payload.message || 'Action failed');
       await loadData();
-    } catch (err) { alert(err instanceof Error ? err.message : 'Action failed'); }
+    } catch (err) { setError(err instanceof Error ? err.message : 'Action failed'); }
   };
 
   if (loading) {

@@ -95,7 +95,7 @@ export default function TechnicalDeviationsPage() {
       if (!response.ok || !payload.success) throw new Error(payload.message || 'Action failed');
       await loadData();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Action failed');
+      setError(err instanceof Error ? err.message : 'Action failed');
     }
   };
 

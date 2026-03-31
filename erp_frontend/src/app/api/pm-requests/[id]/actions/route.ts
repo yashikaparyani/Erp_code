@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { callFrappeMethod, jsonErrorResponse } from '../../../../_lib/frappe';
+import { callFrappeMethod, jsonErrorResponse } from '@/app/api/_lib/frappe';
 
 const ACTION_METHODS: Record<string, string> = {
   submit: 'submit_pm_request',

@@ -8,7 +8,7 @@ This document isolates the remaining work for the `Master Data` surface so it ca
 
 Use this after:
 
-- `frontend_100_percent_closure_log.md`
+- `frontend_depth_closeout_plan.md`
 - `reports_rbac_closeout_plan.md`
 
 ## Current Reality

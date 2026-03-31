@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, FileCheck2, Plus, RefreshCcw, ShieldCheck, Truck, Wrench, X } from 'lucide-react';
+import { AlertTriangle, FileCheck2, Plus, RefreshCcw, ShieldCheck, Truck, Wrench, X, CheckSquare } from 'lucide-react';
 import ActionModal from '@/components/ui/ActionModal';
 
 interface RMATracker {
@@ -23,6 +23,7 @@ interface RMATracker {
   aging_days?: number;
   rma_status?: string;
   repair_cost?: number;
+  ph_status?: string;
 }
 
 interface TicketOption {
@@ -155,7 +156,7 @@ export default function RMAPage() {
     }
   };
 
-  const runRmaAction = async (name: string, action: 'approve' | 'reject' | 'close' | 'status', newStatus?: string, extra?: Record<string, string>) => {
+  const runRmaAction = async (name: string, action: 'approve' | 'reject' | 'close' | 'status' | 'submit_to_ph', newStatus?: string, extra?: Record<string, string>) => {
     const response = await fetch('/api/rma-trackers', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -168,7 +169,7 @@ export default function RMAPage() {
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok || !payload.success) {
-      alert(payload.message || `Failed to ${action} RMA`);
+      setError(payload.message || `Failed to ${action} RMA`);
       return;
     }
     await loadData();
@@ -205,6 +206,13 @@ export default function RMAPage() {
         <StatCard icon={FileCheck2} color="rose" label="Awaiting Approval" value={stats.awaiting_approval ?? 0} hint={`${stats.repaired ?? 0} repaired`} />
         <StatCard icon={AlertTriangle} color="slate" label="Rejected" value={stats.rejected ?? 0} hint="Scrap or rejected cases" />
       </div>
+
+      {error && !showCreateModal && (
+        <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700 flex items-center justify-between">
+          {error}
+          <button onClick={() => setError('')} className="ml-2 font-medium underline">Dismiss</button>
+        </div>
+      )}
 
       <div className="card">
         <div className="card-header">
@@ -271,6 +279,15 @@ export default function RMAPage() {
                       {item.rma_status === 'PENDING' ? <button className="text-xs font-medium text-green-600" onClick={() => void runRmaAction(item.name, 'approve')}>Approve</button> : null}
                       {item.rma_status === 'PENDING' ? <button className="text-xs font-medium text-red-600" onClick={() => setRejectTarget(item.name)}>Reject</button> : null}
                       {item.rma_status === 'APPROVED' ? <button className="text-xs font-medium text-amber-600" onClick={() => void runRmaAction(item.name, 'status', 'IN_TRANSIT')}>In Transit</button> : null}
+                      {item.rma_status === 'APPROVED' && !item.ph_status ? (
+                        <button
+                          className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800"
+                          onClick={() => void runRmaAction(item.name, 'submit_to_ph')}
+                          title="Submit RMA PO to Project Head for approval"
+                        >
+                          <CheckSquare className="w-3 h-3" />Submit RMA PO to PH
+                        </button>
+                      ) : null}
                       {(item.rma_status === 'REPAIRED' || item.rma_status === 'REPLACED' || item.rma_status === 'REJECTED') ? <button className="text-xs font-medium text-blue-600" onClick={() => void runRmaAction(item.name, 'close')}>Close</button> : null}
                     </div>
                   </td>
