@@ -6,6 +6,8 @@
  "engine": "InnoDB",
  "field_order": [
   "naming_series",
+  "linked_site",
+  "linked_project",
   "linked_tender",
   "site_name",
   "column_break_status",
@@ -30,13 +32,29 @@
    "options": "SURV-.#####"
   },
   {
+   "fieldname": "linked_site",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Linked Site",
+   "options": "GE Site",
+   "reqd": 1
+  },
+  {
+   "fieldname": "linked_project",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Linked Project",
+   "options": "Project",
+   "read_only": 1
+  },
+  {
    "fieldname": "linked_tender",
    "fieldtype": "Link",
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Linked Tender",
-   "options": "GE Tender",
-   "reqd": 1
+   "options": "GE Tender"
   },
   {
    "fieldname": "site_name",

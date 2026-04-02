@@ -1,13 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowUpRight, Boxes, ClipboardList, FileText, FolderTree, MapPinned, Send, Wallet } from 'lucide-react';
+import { Boxes, ClipboardList, FileText, FolderTree, MapPinned, Send } from 'lucide-react';
 import { DashboardShell, MetricList, SectionCard, StatCard, formatPercent, useApiData } from './shared';
 
 type PMDashboardData = {
   projects: { total: number; active: number; blocked: number; avg_progress: number };
   project_list: { name: string; project_name: string; status: string; stage: string; stage_status: string; blocked: number; blocker: string; sites: number; progress: number }[];
   sites: { total: number; active: number };
+  site_list: { name: string; site_code?: string; site_name?: string; linked_project?: string; project_name?: string; status?: string; stage?: string; progress?: number }[];
   surveys: { total: number; pending: number; completed: number };
   petty_cash: { total: number; pending: number; approved: number; total_amount: number };
   approvals: { pending_ph: number; approved: number; rejected: number };
@@ -18,18 +19,12 @@ const initialData: PMDashboardData = {
   projects: { total: 0, active: 0, blocked: 0, avg_progress: 0 },
   project_list: [],
   sites: { total: 0, active: 0 },
+  site_list: [],
   surveys: { total: 0, pending: 0, completed: 0 },
   petty_cash: { total: 0, pending: 0, approved: 0, total_amount: 0 },
   approvals: { pending_ph: 0, approved: 0, rejected: 0 },
   dprs: { total: 0, today: 0, projects_with_today_dpr: 0 },
 };
-
-const quickLinks = [
-  { label: 'Submit Survey', href: '/survey', helper: 'Push fresh survey truth to Engineering.' },
-  { label: 'Project Inventory / GRN', href: '/project-manager/inventory', helper: 'Maintain project-side receiving and consumption.' },
-  { label: 'Project Petty Cash', href: '/project-manager/petty-cash', helper: 'Keep petty cash entries tied to assigned projects.' },
-  { label: 'DPR / Progress', href: '/project-manager/dpr', helper: 'Submit project progress upward.' },
-];
 
 export default function ProjectManagerDashboard() {
   const { data, loading, error, lastUpdated, refresh } = useApiData<PMDashboardData>('/api/dashboards/project-manager', initialData);
@@ -155,26 +150,64 @@ export default function ProjectManagerDashboard() {
       <div className="mt-6 card">
         <div className="card-header">
           <div>
-            <div className="workspace-kicker mb-1">Quick Actions</div>
-            <h3 className="font-semibold text-[var(--text-main)]">Open The Right Project-Side Surface</h3>
+            <div className="workspace-kicker mb-1">Assigned Sites</div>
+            <h3 className="font-semibold text-[var(--text-main)]">Sites From Your Allotted Projects</h3>
+            <p className="mt-1 text-xs text-[var(--text-muted)]">Live site register for the projects currently assigned to you.</p>
           </div>
         </div>
-        <div className="card-body grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-          {quickLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="group rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-4 py-4 transition hover:-translate-y-0.5 hover:shadow-sm"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-sm font-semibold text-[var(--text-main)]">{link.label}</div>
-                  <div className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{link.helper}</div>
-                </div>
-                <ArrowUpRight className="mt-0.5 h-4 w-4 flex-shrink-0 text-[var(--text-muted)] transition group-hover:text-[var(--accent)]" />
-              </div>
-            </Link>
-          ))}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-[var(--border-subtle)] text-left text-xs font-medium text-[var(--text-muted)]">
+                <th className="px-4 py-3">Site</th>
+                <th className="px-4 py-3">Project</th>
+                <th className="px-4 py-3">Stage</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Progress</th>
+                <th className="px-4 py-3"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.site_list.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-sm text-[var(--text-muted)]">
+                    No sites found for your allotted projects.
+                  </td>
+                </tr>
+              ) : data.site_list.map((site) => (
+                <tr key={site.name} className="border-b border-[var(--border-subtle)] last:border-0 hover:bg-[var(--surface-raised)]">
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-[var(--text-main)]">{site.site_name || site.name}</div>
+                    <div className="text-[10px] text-[var(--text-muted)]">{site.site_code || site.name}</div>
+                  </td>
+                  <td className="px-4 py-3 text-[var(--text-muted)]">{site.project_name || site.linked_project || '-'}</td>
+                  <td className="px-4 py-3">
+                    <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-700">
+                      {(site.stage || 'Unspecified').replace(/_/g, ' ')}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-700">
+                      {(site.status || 'Unknown').replace(/_/g, ' ')}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="h-1.5 w-16 rounded-full bg-gray-200">
+                        <div className="h-1.5 rounded-full bg-blue-500" style={{ width: `${Math.min(site.progress || 0, 100)}%` }} />
+                      </div>
+                      <span className="text-xs text-[var(--text-muted)]">{formatPercent(site.progress)}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <Link href={`/execution/sites/${site.name}`} className="text-xs font-medium text-blue-600 hover:text-blue-800">
+                      Open
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </DashboardShell>

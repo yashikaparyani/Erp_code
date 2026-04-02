@@ -8,6 +8,8 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const result = await callFrappeMethod('get_surveys', {
       tender: searchParams.get('tender') || '',
+      project: searchParams.get('project') || '',
+      site: searchParams.get('site') || '',
       status: searchParams.get('status') || '',
     }, request);
 

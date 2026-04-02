@@ -13,6 +13,7 @@
   "source_id",
   "entry_label",
   "project",
+  "linked_site",
   "amount",
   "vendor_beneficiary",
   "linked_record",
@@ -70,6 +71,12 @@
    "in_list_view": 1,
    "label": "Project",
    "options": "Project"
+  },
+  {
+   "fieldname": "linked_site",
+   "fieldtype": "Link",
+   "label": "Linked Site",
+   "options": "GE Site"
   },
   {
    "fieldname": "amount",

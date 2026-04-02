@@ -118,6 +118,158 @@ def _parse_json_list(raw_value):
 	return parsed if isinstance(parsed, list) else []
 
 
+def _derive_project_from_tender(linked_tender):
+	linked_tender = cstr(linked_tender or "").strip()
+	if not linked_tender:
+		return ""
+	return cstr(frappe.db.get_value("GE Tender", linked_tender, "linked_project") or "").strip()
+
+
+def _derive_tender_from_project(linked_project):
+	linked_project = cstr(linked_project or "").strip()
+	if not linked_project:
+		return ""
+	return cstr(
+		frappe.db.get_value(
+			"GE Tender",
+			{"linked_project": linked_project},
+			"name",
+			order_by="modified desc",
+		)
+		or ""
+	).strip()
+
+
+def _resolve_site_context(linked_site=None, site_name=None, linked_project=None, linked_tender=None, require_site=False):
+	linked_site = cstr(linked_site or "").strip()
+	site_name = cstr(site_name or "").strip()
+	linked_project = cstr(linked_project or "").strip()
+	linked_tender = cstr(linked_tender or "").strip()
+	site_doc = None
+	context_status = "resolved"
+	context_note = ""
+
+	if linked_site:
+		if not frappe.db.exists("GE Site", linked_site):
+			frappe.throw(f"GE Site {linked_site} was not found")
+		site_doc = frappe.get_doc("GE Site", linked_site)
+	elif site_name:
+		filters = {"site_name": site_name}
+		if linked_project:
+			filters["linked_project"] = linked_project
+		if linked_tender:
+			filters["linked_tender"] = linked_tender
+		matches = frappe.get_all("GE Site", filters=filters, fields=["name"], limit_page_length=2)
+		if not matches and (linked_project or linked_tender):
+			matches = frappe.get_all("GE Site", filters={"site_name": site_name}, fields=["name"], limit_page_length=2)
+		if len(matches) == 1:
+			site_doc = frappe.get_doc("GE Site", matches[0].name)
+		elif len(matches) > 1 and require_site:
+			frappe.throw(f"Multiple sites matched '{site_name}'. Please select a specific site.")
+		elif len(matches) > 1:
+			context_status = "needs_site_relink"
+			context_note = f"Multiple sites matched '{site_name}'"
+
+	if require_site and not site_doc:
+		frappe.throw("Linked site is required")
+
+	if site_doc:
+		if linked_project and site_doc.linked_project and cstr(site_doc.linked_project) != linked_project:
+			frappe.throw(f"Site {site_doc.name} does not belong to project {linked_project}")
+		if linked_tender and site_doc.linked_tender and cstr(site_doc.linked_tender) != linked_tender:
+			frappe.throw(f"Site {site_doc.name} does not belong to tender {linked_tender}")
+		linked_site = cstr(site_doc.name).strip()
+		site_name = cstr(site_doc.site_name or site_name).strip()
+		linked_project = cstr(site_doc.linked_project or linked_project).strip()
+		linked_tender = cstr(site_doc.linked_tender or linked_tender).strip()
+		if not linked_project:
+			context_status = "needs_site_relink"
+			context_note = f"Site {linked_site} is not linked to a project"
+
+	if not linked_project and linked_tender:
+		linked_project = _derive_project_from_tender(linked_tender)
+	if not linked_tender and linked_project:
+		linked_tender = _derive_tender_from_project(linked_project)
+	if not linked_site:
+		context_status = "missing_site"
+		context_note = context_note or "No linked site was supplied or resolved"
+
+	return {
+		"linked_site": linked_site,
+		"site_name": site_name,
+		"linked_project": linked_project,
+		"linked_tender": linked_tender,
+		"site_doc": site_doc,
+		"context_status": context_status,
+		"context_note": context_note,
+	}
+
+
+def _ensure_site_belongs_to_project(project, linked_site, allow_blank=True):
+	linked_site = cstr(linked_site or "").strip()
+	if not linked_site:
+		if allow_blank:
+			return ""
+		frappe.throw("linked_site is required")
+	context = _resolve_site_context(linked_site=linked_site, linked_project=project, require_site=True)
+	return context["linked_site"]
+
+
+def _get_reference_context(reference_doctype=None, reference_name=None):
+	reference_doctype = cstr(reference_doctype or "").strip()
+	reference_name = cstr(reference_name or "").strip()
+	if not reference_doctype or not reference_name:
+		return {}
+	if not frappe.db.exists(reference_doctype, reference_name):
+		return {}
+	if reference_doctype == "Project":
+		return {"linked_project": reference_name}
+	if reference_doctype == "GE Site":
+		return _resolve_site_context(linked_site=reference_name)
+
+	meta = frappe.get_meta(reference_doctype)
+	linked_project = ""
+	linked_site = ""
+	linked_tender = ""
+	site_name = ""
+	if meta.has_field("linked_project"):
+		linked_project = cstr(frappe.db.get_value(reference_doctype, reference_name, "linked_project") or "").strip()
+	if meta.has_field("linked_site"):
+		linked_site = cstr(frappe.db.get_value(reference_doctype, reference_name, "linked_site") or "").strip()
+	if meta.has_field("linked_tender"):
+		linked_tender = cstr(frappe.db.get_value(reference_doctype, reference_name, "linked_tender") or "").strip()
+	if meta.has_field("site_name"):
+		site_name = cstr(frappe.db.get_value(reference_doctype, reference_name, "site_name") or "").strip()
+	if linked_site or site_name or linked_project or linked_tender:
+		return _resolve_site_context(
+			linked_site=linked_site,
+			site_name=site_name,
+			linked_project=linked_project,
+			linked_tender=linked_tender,
+			require_site=False,
+		)
+	return {}
+
+
+def _serialize_survey_record(record):
+	data = record.as_dict() if hasattr(record, "as_dict") else dict(record)
+	context = _resolve_site_context(
+		linked_site=data.get("linked_site"),
+		site_name=data.get("site_name"),
+		linked_project=data.get("linked_project"),
+		linked_tender=data.get("linked_tender"),
+		require_site=False,
+	)
+	data["linked_site"] = context["linked_site"] or cstr(data.get("linked_site") or "").strip()
+	data["site_name"] = context["site_name"] or cstr(data.get("site_name") or "").strip()
+	data["linked_project"] = context["linked_project"] or cstr(data.get("linked_project") or "").strip()
+	data["linked_tender"] = context["linked_tender"] or cstr(data.get("linked_tender") or "").strip()
+	data["needs_site_relink"] = not bool(data.get("linked_site"))
+	data["context_status"] = context.get("context_status")
+	data["context_note"] = context.get("context_note")
+	return data
+
+
 def _derive_tender_funnel_status(values):
 	"""Compute tender funnel status from workflow/readiness signals."""
 	status = cstr(values.get("status") or "")
@@ -868,6 +1020,7 @@ def _create_costing_queue_entry(approval_doc):
 		"source_id": approval_doc.source_id,
 		"entry_label": f"{approval_doc.source_type} • {approval_doc.source_id or approval_doc.name}",
 		"project": approval_doc.project,
+		"linked_site": approval_doc.linked_site,
 		"amount": approval_doc.amount,
 		"vendor_beneficiary": vendor_beneficiary,
 		"linked_record": approval_doc.linked_record,
@@ -2187,46 +2340,91 @@ def get_competitor_stats():
 
 # ── Survey APIs ──────────────────────────────────────────────
 
+def _serialize_survey_row(row):
+	data = _serialize_survey_record(row)
+	resolved = _resolve_site_context(
+		linked_site=data.get("linked_site"),
+		site_name=data.get("site_name"),
+		linked_project=data.get("linked_project"),
+		linked_tender=data.get("linked_tender"),
+	)
+	data.update({
+		"linked_site": resolved.get("linked_site") or "",
+		"linked_project": resolved.get("linked_project") or "",
+		"linked_tender": resolved.get("linked_tender") or "",
+		"site_name": resolved.get("site_name") or data.get("site_name") or "",
+		"context_status": resolved.get("context_status"),
+		"context_note": resolved.get("context_note") or data.get("context_note") or "",
+		"needs_site_relink": resolved.get("context_status") != "resolved",
+	})
+	return data
+
+
+def _normalize_survey_payload(values):
+	resolved = _resolve_site_context(
+		linked_site=values.get("linked_site"),
+		site_name=values.get("site_name"),
+		linked_project=values.get("linked_project"),
+		linked_tender=values.get("linked_tender"),
+		require_site=True,
+	)
+	values["linked_site"] = _require_param(resolved.get("linked_site"), "linked_site")
+	values["linked_project"] = resolved.get("linked_project") or ""
+	values["site_name"] = resolved.get("site_name") or values.get("site_name")
+	values["linked_tender"] = resolved.get("linked_tender") or ""
+	return values
+
+
 @frappe.whitelist()
-def get_surveys(tender=None, status=None):
-	"""Return surveys, optionally filtered by tender and/or status."""
+def get_surveys(tender=None, project=None, site=None, status=None):
+	"""Return normalized surveys scoped by project/site/tender/status."""
 	_require_survey_read_access()
 	filters = {}
+	_apply_project_manager_project_filter(filters, project=project, project_field="linked_project")
 	if tender:
 		filters["linked_tender"] = tender
+	if site:
+		filters["linked_site"] = site
 	if status:
 		filters["status"] = status
 	data = frappe.get_all(
 		"GE Survey",
 		filters=filters,
 		fields=[
-			"name", "linked_tender", "site_name", "status",
+			"name", "linked_site", "linked_project", "linked_tender", "site_name", "status",
 			"survey_date", "surveyed_by", "coordinates", "summary",
 			"creation", "modified",
 		],
 		order_by="creation desc",
 	)
-	return {"success": True, "data": data}
+	serialized = [_serialize_survey_row(row) for row in data]
+	return {"success": True, "data": serialized, "total": len(serialized)}
 
 
 @frappe.whitelist()
 def get_survey(name=None):
-	"""Return a single survey with all fields."""
+	"""Return a single normalized survey with all fields."""
 	_require_survey_read_access()
 	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Survey", name)
-	return {"success": True, "data": doc.as_dict()}
+	serialized = _serialize_survey_row(doc)
+	if _get_project_manager_assigned_projects() and serialized.get("linked_project"):
+		_ensure_project_manager_project_scope(serialized.get("linked_project"))
+	return {"success": True, "data": serialized}
 
 
 @frappe.whitelist()
 def create_survey(data):
-	"""Create a new survey."""
+	"""Create a new site-linked survey."""
 	_require_survey_write_access()
 	values = json.loads(data) if isinstance(data, str) else data
+	values = _normalize_survey_payload(values)
+	if _get_project_manager_assigned_projects():
+		_ensure_project_manager_project_scope(values.get("linked_project"))
 	doc = frappe.get_doc({"doctype": "GE Survey", **values})
 	doc.insert()
 	frappe.db.commit()
-	return {"success": True, "data": doc.as_dict(), "message": "Survey created"}
+	return {"success": True, "data": _serialize_survey_row(doc), "message": "Survey created"}
 
 
 @frappe.whitelist()
@@ -2235,26 +2433,45 @@ def update_survey(name, data):
 	_require_survey_write_access()
 	values = json.loads(data) if isinstance(data, str) else data
 	doc = frappe.get_doc("GE Survey", name)
+	if _get_project_manager_assigned_projects():
+		serialized = _serialize_survey_row(doc)
+		if serialized.get("linked_project"):
+			_ensure_project_manager_project_scope(serialized.get("linked_project"))
+	if any(field in values for field in ("linked_site", "linked_project", "linked_tender", "site_name")):
+		merged_values = doc.as_dict()
+		merged_values.update(values)
+		values = _normalize_survey_payload(merged_values)
 	doc.update(values)
 	doc.save()
 	frappe.db.commit()
-	return {"success": True, "data": doc.as_dict(), "message": "Survey updated"}
+	return {"success": True, "data": _serialize_survey_row(doc), "message": "Survey updated"}
 
 
 @frappe.whitelist()
 def delete_survey(name):
 	"""Delete a survey."""
 	_require_survey_write_access()
+	doc = frappe.get_doc("GE Survey", name)
+	if _get_project_manager_assigned_projects():
+		serialized = _serialize_survey_row(doc)
+		if serialized.get("linked_project"):
+			_ensure_project_manager_project_scope(serialized.get("linked_project"))
 	frappe.delete_doc("GE Survey", name)
 	frappe.db.commit()
 	return {"success": True, "message": "Survey deleted"}
 
 
 @frappe.whitelist()
-def get_survey_stats():
-	"""Aggregate survey stats for the dashboard."""
+def get_survey_stats(tender=None, project=None, site=None):
+	"""Aggregate normalized survey stats for the dashboard."""
 	_require_survey_read_access()
-	surveys = frappe.get_all("GE Survey", fields=["status"])
+	filters = {}
+	_apply_project_manager_project_filter(filters, project=project, project_field="linked_project")
+	if tender:
+		filters["linked_tender"] = tender
+	if site:
+		filters["linked_site"] = site
+	surveys = frappe.get_all("GE Survey", filters=filters, fields=["status"])
 	total = len(surveys)
 	completed = sum(1 for s in surveys if s.status == "Completed")
 	in_progress = sum(1 for s in surveys if s.status == "In Progress")
@@ -2271,16 +2488,26 @@ def get_survey_stats():
 
 
 @frappe.whitelist()
-def check_survey_complete(tender):
-	"""Check if all surveys for a tender are completed (gate for BOQ)."""
+def check_survey_complete(tender=None, project=None, site=None):
+	"""Check if all surveys for a tender/project/site are completed (gate for BOQ)."""
 	_require_boq_read_access()
+	filters = {}
+	_apply_project_manager_project_filter(filters, project=project, project_field="linked_project")
+	if site:
+		filters["linked_site"] = site
+	elif tender:
+		filters["linked_tender"] = tender
+	elif project:
+		filters["linked_project"] = project
+	else:
+		frappe.throw("tender, project, or site is required")
 	surveys = frappe.get_all(
 		"GE Survey",
-		filters={"linked_tender": tender},
+		filters=filters,
 		fields=["status"],
 	)
 	if not surveys:
-		return {"success": True, "complete": False, "reason": "No surveys found for this tender"}
+		return {"success": True, "complete": False, "reason": "No surveys found for this scope"}
 	incomplete = [s for s in surveys if s.status != "Completed"]
 	return {
 		"success": True,
@@ -2288,6 +2515,52 @@ def check_survey_complete(tender):
 		"total": len(surveys),
 		"completed": len(surveys) - len(incomplete),
 		"pending": len(incomplete),
+	}
+
+
+@frappe.whitelist()
+def backfill_survey_context(dry_run=1):
+	"""Backfill linked_site/project/tender on legacy surveys where resolution is safe."""
+	_require_survey_write_access()
+	dry_run = cint(dry_run)
+	rows = frappe.get_all(
+		"GE Survey",
+		fields=["name", "linked_site", "linked_project", "linked_tender", "site_name"],
+		limit_page_length=1000,
+	)
+	updated = []
+	unresolved = []
+	for row in rows:
+		serialized = _serialize_survey_row(row)
+		changes = {}
+		for field in ("linked_site", "linked_project", "linked_tender", "site_name"):
+			if serialized.get(field) and serialized.get(field) != row.get(field):
+				changes[field] = serialized.get(field)
+		if changes:
+			updated.append({"name": row.get("name"), **changes})
+			if not dry_run:
+				for fieldname, value in changes.items():
+					frappe.db.set_value("GE Survey", row.get("name"), fieldname, value, update_modified=False)
+		if serialized.get("needs_site_relink"):
+			unresolved.append({
+				"name": row.get("name"),
+				"site_name": row.get("site_name"),
+				"linked_tender": row.get("linked_tender"),
+				"linked_project": row.get("linked_project"),
+				"context_status": serialized.get("context_status"),
+				"context_note": serialized.get("context_note"),
+			})
+	if not dry_run and updated:
+		frappe.db.commit()
+	return {
+		"success": True,
+		"data": {
+			"dry_run": bool(dry_run),
+			"updated_count": len(updated),
+			"unresolved_count": len(unresolved),
+			"updated": updated,
+			"unresolved": unresolved,
+		},
 	}
 
 
@@ -3300,6 +3573,7 @@ def create_project_indent(data):
 	_require_project_inventory_write_access()
 	values = _parse_payload(data)
 	project = _ensure_project_manager_project_scope(values.get("project") or values.get("linked_project"))
+	values["linked_site"] = _ensure_site_belongs_to_project(project, values.get("linked_site"), allow_blank=True)
 	item_code = _require_param(values.get("item_code"), "item_code")
 	required_qty = flt(values.get("qty") or values.get("required_qty"))
 	if required_qty <= 0:
@@ -9307,12 +9581,29 @@ def upload_project_document(data):
 	"""Create a custom GE Project Document record."""
 	_require_document_write_access()
 	values = _parse_payload(data)
+	reference_context = _get_reference_context(values.get("reference_doctype"), values.get("reference_name"))
+	if reference_context.get("linked_site") and not values.get("linked_site"):
+		values["linked_site"] = reference_context.get("linked_site")
+	if reference_context.get("linked_project") and not values.get("linked_project"):
+		values["linked_project"] = reference_context.get("linked_project")
+	context = _resolve_site_context(
+		linked_site=values.get("linked_site"),
+		linked_project=values.get("linked_project"),
+		linked_tender=values.get("linked_tender"),
+		site_name=values.get("site_name"),
+		require_site=False,
+	)
+	if context.get("linked_site"):
+		values["linked_site"] = context.get("linked_site")
+	if context.get("linked_project"):
+		values["linked_project"] = context.get("linked_project")
 	values.setdefault("uploaded_by", frappe.session.user)
 	values.setdefault("uploaded_on", frappe.utils.now_datetime())
 	values.setdefault("submitted_by", frappe.session.user)
 	values.setdefault("submitted_on", frappe.utils.now_datetime())
 	values.setdefault("status", "Submitted")
 	values["file"] = _require_param(values.get("file"), "file")
+	values["linked_project"] = _require_param(values.get("linked_project"), "linked_project")
 	if not values.get("version"):
 		latest_version = (
 			frappe.db.sql(
@@ -10494,10 +10785,18 @@ def get_project_manager_dashboard():
 				"spine_blocked", "blocker_summary", "total_sites", "spine_progress_pct"],
 	)
 	project_names = [p.name for p in projects]
+	project_name_map = {p.name: p.project_name for p in projects}
 	site_filters = {"linked_project": ["in", project_names]} if project_names else {}
-	sites = frappe.get_all("GE Site", filters=site_filters, fields=["name", "linked_project", "status", "current_site_stage"])
+	sites = frappe.get_all(
+		"GE Site",
+		filters=site_filters,
+		fields=["name", "site_code", "site_name", "linked_project", "status", "installation_stage", "current_site_stage", "location_progress_pct"],
+	)
+	site_names = [s.name for s in sites]
 	survey_filters = {"linked_project": ["in", project_names]} if project_names else {}
-	surveys = frappe.get_all("GE Survey", filters=survey_filters, fields=["name", "linked_project", "status"])
+	if site_names:
+		survey_filters["linked_site"] = ["in", site_names]
+	surveys = frappe.get_all("GE Survey", filters=survey_filters, fields=["name", "linked_project", "linked_site", "status"])
 	petty_cash_filters = {"linked_project": ["in", project_names]} if project_names else {}
 	petty_cash = frappe.get_all("GE Petty Cash", filters=petty_cash_filters, fields=["name", "status", "amount"])
 	ph_approval_filters = {"project": ["in", project_names]} if project_names else {}
@@ -10531,6 +10830,19 @@ def get_project_manager_dashboard():
 				"total": len(sites),
 				"active": sum(1 for s in sites if (s.status or "").lower() not in ("closed", "cancelled")),
 			},
+			"site_list": [
+				{
+					"name": site.name,
+					"site_code": site.site_code,
+					"site_name": site.site_name,
+					"linked_project": site.linked_project,
+					"project_name": project_name_map.get(site.linked_project, site.linked_project),
+					"status": site.status,
+					"stage": site.current_site_stage or site.installation_stage,
+					"progress": flt(site.location_progress_pct),
+				}
+				for site in sites[:30]
+			],
 			"surveys": {
 				"total": len(surveys),
 				"pending": sum(1 for s in surveys if (s.status or "").upper() in ("DRAFT", "IN_PROGRESS", "PENDING")),
@@ -11644,6 +11956,7 @@ def create_petty_cash_fund_request(data):
 	_require_project_head_workflow()
 	values = _parse_payload(data)
 	project = _ensure_project_manager_project_scope(values.get("project"))
+	linked_site = _ensure_site_belongs_to_project(project, values.get("linked_site"), allow_blank=True)
 	amount = flt(values.get("amount"))
 	purpose = cstr(values.get("purpose")).strip()
 	if amount <= 0:
@@ -11658,6 +11971,7 @@ def create_petty_cash_fund_request(data):
 		"source_id": "",
 		"originating_module": "Project Management",
 		"project": project,
+		"linked_site": linked_site or None,
 		"raised_by": frappe.session.user,
 		"raised_on": values.get("requested_on") or now_datetime(),
 		"amount": amount,
@@ -11675,19 +11989,21 @@ def create_petty_cash_fund_request(data):
 
 
 @frappe.whitelist()
-def get_petty_cash_fund_requests(project=None, status=None):
+def get_petty_cash_fund_requests(project=None, site=None, status=None):
 	"""List petty cash fund requests that move through PH approval."""
 	_require_petty_cash_read_access()
 	_require_project_head_workflow()
 	filters = {"source_type": "Petty Cash"}
 	_apply_project_manager_project_filter(filters, project=project, project_field="project")
+	if site:
+		filters["linked_site"] = site
 	if status:
 		filters["status"] = status
 	rows = frappe.get_all(
 		"GE PH Approval Item",
 		filters=filters,
 		fields=[
-			"name", "project", "raised_by", "raised_on", "amount",
+			"name", "project", "linked_site", "raised_by", "raised_on", "amount",
 			"remarks", "status", "ph_approver", "ph_remarks",
 		],
 		order_by="raised_on desc, creation desc",
@@ -11698,6 +12014,7 @@ def get_petty_cash_fund_requests(project=None, status=None):
 			{
 				"name": row.name,
 				"project": row.project,
+				"linked_site": row.linked_site,
 				"requested_by": row.raised_by,
 				"requested_on": row.raised_on,
 				"amount": row.amount,
@@ -11854,7 +12171,7 @@ def get_ph_approval_items(tab=None, project=None, status=None, limit_page_length
 		filters=filters,
 		fields=[
 			"name", "source_type", "source_name", "source_id", "originating_module",
-			"project", "raised_by", "raised_on", "amount", "status", "linked_record",
+			"project", "linked_site", "raised_by", "raised_on", "amount", "status", "linked_record",
 			"priority", "remarks", "ph_approver", "ph_approval_date",
 			"costing_queue_ref", "disbursement_status",
 		],
@@ -12020,7 +12337,7 @@ def get_costing_queue(project=None, status=None, source_type=None, limit_page_le
 		filters=filters,
 		fields=[
 			"name", "source_type", "source_name", "source_id", "entry_label",
-			"ph_approver", "ph_approval_date", "amount", "project",
+			"ph_approver", "ph_approval_date", "amount", "project", "linked_site",
 			"vendor_beneficiary", "disbursement_status", "linked_record",
 		],
 		order_by="creation desc",
@@ -12154,6 +12471,7 @@ def record_project_inventory_receipt(data):
 	_require_project_inventory_write_access()
 	values = _parse_payload(data)
 	project = _ensure_project_manager_project_scope(values.get("linked_project"))
+	values["linked_site"] = _ensure_site_belongs_to_project(project, values.get("linked_site"), allow_blank=True)
 	item_code = _require_param(values.get("item_code"), "item_code")
 	received_qty = flt(values.get("received_qty"))
 	if received_qty <= 0:
@@ -12230,6 +12548,7 @@ def create_material_consumption_report(data):
 	_require_project_inventory_write_access()
 	values = _parse_payload(data)
 	project = _ensure_project_manager_project_scope(values.get("linked_project"))
+	values["linked_site"] = _ensure_site_belongs_to_project(project, values.get("linked_site"), allow_blank=True)
 	item_code = _require_param(values.get("item_code"), "item_code")
 	consumed_qty = flt(values.get("consumed_qty"))
 	if consumed_qty <= 0:
@@ -17560,7 +17879,10 @@ def create_pm_request(data):
 	# Enforce PM can only create requests for their assigned projects
 	linked = values.get("linked_project")
 	if linked:
-		_ensure_project_manager_project_scope(linked)
+		linked = _ensure_project_manager_project_scope(linked)
+	if values.get("linked_site"):
+		values["linked_site"] = _ensure_site_belongs_to_project(linked, values.get("linked_site"), allow_blank=False)
+	values["linked_project"] = linked
 	values["status"] = cstr(values.get("status") or "Draft").strip() or "Draft"
 	if values["status"] not in ("Draft", "Pending"):
 		frappe.throw("New PM requests can only be saved as Draft or Pending")

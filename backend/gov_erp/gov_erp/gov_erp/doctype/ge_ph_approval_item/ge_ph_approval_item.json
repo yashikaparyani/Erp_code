@@ -12,6 +12,7 @@
   "source_id",
   "originating_module",
   "project",
+  "linked_site",
   "raised_by",
   "raised_on",
   "amount",
@@ -63,6 +64,12 @@
    "in_list_view": 1,
    "label": "Project",
    "options": "Project"
+  },
+  {
+   "fieldname": "linked_site",
+   "fieldtype": "Link",
+   "label": "Linked Site",
+   "options": "GE Site"
   },
   {
    "fieldname": "raised_by",

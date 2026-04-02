@@ -38,6 +38,8 @@ export async function POST(request: NextRequest) {
     const approvedRejectedBy = incomingForm.get('approved_rejected_by')?.toString() || '';
     const closureNote = incomingForm.get('closure_note')?.toString() || '';
     const remarks = incomingForm.get('remarks')?.toString() || '';
+    const referenceDoctype = incomingForm.get('reference_doctype')?.toString() || '';
+    const referenceName = incomingForm.get('reference_name')?.toString() || '';
     const extension = getExtension(file.name);
 
     if (!documentName) {
@@ -47,9 +49,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!linkedProject) {
+    if (!linkedProject && !linkedSite && !(referenceDoctype && referenceName)) {
       return NextResponse.json(
-        { success: false, message: 'Linked project is required' },
+        { success: false, message: 'Linked project, linked site, or a reference record is required' },
         { status: 400 },
       );
     }
@@ -98,6 +100,8 @@ export async function POST(request: NextRequest) {
     };
     if (linkedProject) docData.linked_project = linkedProject;
     if (linkedSite) docData.linked_site = linkedSite;
+    if (referenceDoctype) docData.reference_doctype = referenceDoctype;
+    if (referenceName) docData.reference_name = referenceName;
     if (folder) docData.folder = folder;
     if (category) docData.category = category;
     if (expiryDate) docData.expiry_date = expiryDate;

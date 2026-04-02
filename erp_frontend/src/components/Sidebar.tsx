@@ -181,7 +181,6 @@ const navLinks: NavLink[] = [
       { name: 'Vendor Comparisons', href: '/vendor-comparisons', icon: ClipboardList },
       { name: 'Indents', href: '/indents', icon: FileText },
       { name: 'Purchase Orders', href: '/purchase-orders', icon: ShoppingCart },
-      { name: 'Petty Cash', href: '/petty-cash', icon: CreditCard },
     ],
   },
   {

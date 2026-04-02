@@ -5,7 +5,12 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    const result = await callFrappeMethod('get_survey_stats', undefined, request);
+    const searchParams = request.nextUrl.searchParams;
+    const result = await callFrappeMethod('get_survey_stats', {
+      tender: searchParams.get('tender') || '',
+      project: searchParams.get('project') || '',
+      site: searchParams.get('site') || '',
+    }, request);
     return NextResponse.json({ success: true, data: result.data || {} });
   } catch (error) {
     return NextResponse.json(

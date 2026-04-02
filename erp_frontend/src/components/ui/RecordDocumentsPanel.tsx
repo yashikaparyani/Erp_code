@@ -47,6 +47,7 @@ interface RecordDocumentsPanelProps {
   compact?: boolean;
   initialLimit?: number;
   linkedProject?: string;
+  linkedSite?: string;
 }
 
 /* ─── Helpers ──────────────────────────────────────────── */
@@ -100,6 +101,7 @@ export default function RecordDocumentsPanel({
   compact = false,
   initialLimit = 5,
   linkedProject,
+  linkedSite,
 }: RecordDocumentsPanelProps) {
   const [docs, setDocs] = useState<RecordDocument[]>([]);
   const [loading, setLoading] = useState(false);
@@ -160,6 +162,7 @@ export default function RecordDocumentsPanel({
       formData.append('reference_name', referenceName);
       formData.append('category', 'Other');
       if (linkedProject) formData.append('linked_project', linkedProject);
+      if (linkedSite) formData.append('linked_site', linkedSite);
       const res = await fetch('/api/documents/upload', { method: 'POST', body: formData });
       const payload = await res.json();
       if (!res.ok || payload.success === false) {

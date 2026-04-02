@@ -1,8 +1,14 @@
 'use client';
-import { useEffect, useState } from 'react';
+
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, FileCheck2, Plus, RefreshCcw, ShieldCheck, Truck, Wrench, X, CheckSquare } from 'lucide-react';
+import RegisterPage, { StatItem } from '@/components/shells/RegisterPage';
+import FormModal from '@/components/shells/FormModal';
 import ActionModal from '@/components/ui/ActionModal';
+import {
+  callApi, formatCurrency, formatDate, badge, hasAnyRole, useAuth,
+  RMA_BADGES, WARRANTY_BADGES,
+} from '@/components/om/om-helpers';
 
 interface RMATracker {
   name: string;
@@ -26,198 +32,93 @@ interface RMATracker {
   ph_status?: string;
 }
 
-interface TicketOption {
-  name: string;
-  title?: string;
-  linked_project?: string;
-  asset_serial_no?: string;
-  is_rma?: boolean;
-}
-
 interface RMAStats {
-  total?: number;
-  pending?: number;
-  in_transit?: number;
-  under_repair?: number;
-  repaired?: number;
-  rejected?: number;
-  under_warranty?: number;
-  non_warranty?: number;
-  repairable?: number;
-  non_repairable?: number;
-  awaiting_approval?: number;
-}
-
-type RMAFormData = {
-  linked_ticket: string;
-  linked_project: string;
-  item_link: string;
-  asset_serial_number: string;
-  qty: number;
-  faulty_date: string;
-  failure_reason: string;
-  field_rca: string;
-  dispatch_destination: string;
-  service_partner_name: string;
-  warranty_status: string;
-  repairability_status: string;
-};
-
-const initialFormData: RMAFormData = {
-  linked_ticket: '',
-  linked_project: '',
-  item_link: '',
-  asset_serial_number: '',
-  qty: 1,
-  faulty_date: '',
-  failure_reason: '',
-  field_rca: '',
-  dispatch_destination: 'OEM',
-  service_partner_name: '',
-  warranty_status: 'UNDER_WARRANTY',
-  repairability_status: 'REPAIRABLE',
-};
-
-function formatCurrency(value?: number) {
-  if (!value) return 'Rs 0';
-  return `Rs ${value.toLocaleString('en-IN')}`;
+  total?: number; pending?: number; in_transit?: number;
+  under_repair?: number; repaired?: number; rejected?: number;
+  under_warranty?: number; non_warranty?: number;
+  repairable?: number; non_repairable?: number; awaiting_approval?: number;
 }
 
 export default function RMAPage() {
+  const { currentUser } = useAuth();
   const [items, setItems] = useState<RMATracker[]>([]);
-  const [tickets, setTickets] = useState<TicketOption[]>([]);
   const [stats, setStats] = useState<RMAStats>({});
+  const [tickets, setTickets] = useState<{ name: string; title?: string; linked_project?: string; asset_serial_no?: string; is_rma?: boolean }[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [formData, setFormData] = useState<RMAFormData>(initialFormData);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [busyName, setBusyName] = useState<string | null>(null);
-  const [workflowTarget, setWorkflowTarget] = useState<{ name: string; method: string; label: string } | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [createBusy, setCreateBusy] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
   const [rejectTarget, setRejectTarget] = useState<string | null>(null);
 
-  const handleWorkflow = async (rmaName: string, method: string, label: string) => {
-    setBusyName(rmaName);
+  const load = useCallback(async () => {
+    setLoading(true); setError('');
     try {
-      await fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method, args: { name: rmaName } }) });
-      await loadData();
-    } catch (e) { console.error(`${label} failed:`, e); }
-    setBusyName(null);
-  };
-
-  const loadData = async () => {
-    setLoading(true);
-    const [listResponse, statsResponse, ticketResponse] = await Promise.all([
-      fetch('/api/rma-trackers').then((response) => response.json()).catch(() => ({ data: [] })),
-      fetch('/api/rma-trackers/stats').then((response) => response.json()).catch(() => ({ data: {} })),
-      fetch('/api/tickets').then((response) => response.json()).catch(() => ({ data: [] })),
-    ]);
-    setItems(listResponse.data || []);
-    setStats(statsResponse.data || {});
-    setTickets((ticketResponse.data || []).filter((ticket: TicketOption) => !ticket.is_rma));
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    loadData();
+      const [listRes, statsRes, ticketRes] = await Promise.all([
+        fetch('/api/rma-trackers').then(r => r.json()).catch(() => ({ data: [] })),
+        fetch('/api/rma-trackers/stats').then(r => r.json()).catch(() => ({ data: {} })),
+        fetch('/api/tickets').then(r => r.json()).catch(() => ({ data: [] })),
+      ]);
+      setItems(listRes.data || []);
+      setStats(statsRes.data || {});
+      setTickets((ticketRes.data || []).filter((t: any) => !t.is_rma));
+    } catch (e) { setError(e instanceof Error ? e.message : 'Failed to load'); }
+    finally { setLoading(false); }
   }, []);
 
-  const onTicketChange = (ticketName: string) => {
-    const selectedTicket = tickets.find((ticket) => ticket.name === ticketName);
-    setFormData((current) => ({
-      ...current,
-      linked_ticket: ticketName,
-      linked_project: selectedTicket?.linked_project || current.linked_project,
-      asset_serial_number: selectedTicket?.asset_serial_no || current.asset_serial_number,
-      failure_reason: selectedTicket?.title || current.failure_reason,
-    }));
-  };
+  useEffect(() => { load(); }, [load]);
 
-  const handleCreate = async () => {
-    setError('');
-    setIsSubmitting(true);
+  const canManage = hasAnyRole(currentUser?.roles, 'Director', 'System Manager', 'OM Operator', 'RMA Manager');
+
+  const statItems: StatItem[] = [
+    { label: 'Total RMA', value: stats.total ?? items.length },
+    { label: 'In Transit', value: stats.in_transit ?? 0, variant: 'warning' },
+    { label: 'Under Warranty', value: stats.under_warranty ?? 0, variant: 'success' },
+    { label: 'Awaiting Approval', value: stats.awaiting_approval ?? 0, variant: 'error' },
+    { label: 'Rejected', value: stats.rejected ?? 0, variant: 'error' },
+  ];
+
+  const rmaAction = async (name: string, action: string, extra?: Record<string, string>) => {
+    setBusyId(name);
     try {
-      const response = await fetch('/api/rma-trackers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok || !payload.success) {
-        throw new Error(payload.message || 'Failed to create RMA');
-      }
-      setShowCreateModal(false);
-      setFormData(initialFormData);
-      await loadData();
-    } catch (creationError) {
-      setError(creationError instanceof Error ? creationError.message : 'Failed to create RMA');
-    } finally {
-      setIsSubmitting(false);
-    }
+      await callApi('/api/rma-trackers', { method: 'PATCH', body: { name, action, reason: extra?.reason || '', new_status: extra?.new_status || '' } });
+      await load();
+    } catch (e) { setError(e instanceof Error ? e.message : 'Action failed'); }
+    setBusyId(null);
   };
 
-  const runRmaAction = async (name: string, action: 'approve' | 'reject' | 'close' | 'status' | 'submit_to_ph', newStatus?: string, extra?: Record<string, string>) => {
-    const response = await fetch('/api/rma-trackers', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name,
-        action,
-        reason: action === 'reject' ? (extra?.reason || '') : '',
-        new_status: newStatus || '',
-      }),
-    });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok || !payload.success) {
-      setError(payload.message || `Failed to ${action} RMA`);
-      return;
-    }
-    await loadData();
+  const submitToPH = async (name: string) => {
+    setBusyId(name);
+    try {
+      await callApi('/api/rma-trackers', { method: 'PATCH', body: { name, action: 'submit_to_ph' } });
+      await load();
+    } catch { /* ignore */ }
+    setBusyId(null);
   };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full" />
-      </div>
-    );
-  }
 
   return (
-    <div>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">RMA Department</h1>
-          <p className="text-xs sm:text-sm text-gray-500 mt-1">
-            Field fault to dispatch, RCA, warranty approval, repair, and return-to-location tracking.
-          </p>
-        </div>
-        <button className="btn btn-primary w-full sm:w-auto" onClick={() => setShowCreateModal(true)}>
-          <Plus className="w-4 h-4" />
-          Create RMA
-        </button>
-      </div>
+    <>
+      <RegisterPage
+        title="RMA Department"
+        description="Field fault to dispatch, RCA, warranty approval, repair, and return-to-location tracking"
+        loading={loading}
+        error={error}
+        empty={!loading && items.length === 0}
+        emptyTitle="No RMA records"
+        emptyDescription="No RMA trackers found"
+        onRetry={load}
+        stats={statItems}
+        headerActions={
+          canManage ? <button className="btn btn-primary" onClick={() => setShowCreate(true)}>Create RMA</button> : undefined
+        }
+      >
+        {error && !showCreate && (
+          <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700 flex items-center justify-between">
+            {error}
+            <button onClick={() => setError('')} className="ml-2 font-medium underline">Dismiss</button>
+          </div>
+        )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4 mb-4 sm:mb-6">
-        <StatCard icon={RefreshCcw} color="blue" label="Total RMA" value={stats.total ?? items.length} hint={`${stats.pending ?? 0} pending`} />
-        <StatCard icon={Truck} color="amber" label="In Transit" value={stats.in_transit ?? 0} hint={`${stats.under_repair ?? 0} under repair`} />
-        <StatCard icon={ShieldCheck} color="green" label="Warranty" value={stats.under_warranty ?? 0} hint={`${stats.non_warranty ?? 0} non warranty`} />
-        <StatCard icon={Wrench} color="violet" label="Repairability" value={stats.repairable ?? 0} hint={`${stats.non_repairable ?? 0} non repairable`} />
-        <StatCard icon={FileCheck2} color="rose" label="Awaiting Approval" value={stats.awaiting_approval ?? 0} hint={`${stats.repaired ?? 0} repaired`} />
-        <StatCard icon={AlertTriangle} color="slate" label="Rejected" value={stats.rejected ?? 0} hint="Scrap or rejected cases" />
-      </div>
-
-      {error && !showCreateModal && (
-        <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700 flex items-center justify-between">
-          {error}
-          <button onClick={() => setError('')} className="ml-2 font-medium underline">Dismiss</button>
-        </div>
-      )}
-
-      <div className="card">
-        <div className="card-header">
-          <h3 className="font-semibold text-gray-900">RMA Tracker</h3>
-        </div>
         <div className="overflow-x-auto">
           <table className="data-table">
             <thead>
@@ -229,198 +130,101 @@ export default function RMAPage() {
                 <th>Warranty</th>
                 <th>Repairability</th>
                 <th>Approval / PO</th>
-                <th>Repair Status</th>
+                <th>Status</th>
                 <th>Aging</th>
-                <th>Actions</th>
+                {canManage && <th>Actions</th>}
               </tr>
             </thead>
             <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={10} className="text-center py-8 text-gray-500">No RMA records found</td>
-                </tr>
-              ) : items.map((item) => (
-                <tr key={item.name}>
-                  <td>
-                    <Link href={`/rma/${encodeURIComponent(item.name)}`} className="font-medium text-blue-700 hover:text-blue-900 hover:underline">{item.name}</Link>
-                    <div className="text-xs text-gray-500">{item.rma_reference_no || '-'}</div>
-                  </td>
-                  <td>
-                    {item.linked_project ? (
-                      <div>
-                        <Link href={`/projects/${encodeURIComponent(item.linked_project)}`} className="text-sm font-medium text-blue-600 hover:text-blue-800">{item.linked_project}</Link>
-                        <div className="flex gap-2 mt-0.5">
-                          <Link href={`/projects/${encodeURIComponent(item.linked_project)}?tab=dossier`} className="text-[10px] text-gray-400 hover:text-blue-600">Dossier</Link>
-                          <Link href={`/projects/${encodeURIComponent(item.linked_project)}?tab=accountability`} className="text-[10px] text-gray-400 hover:text-blue-600">Accountability</Link>
+              {items.map(item => {
+                const st = item.rma_status || 'PENDING';
+                return (
+                  <tr key={item.name}>
+                    <td>
+                      <Link href={`/rma/${encodeURIComponent(item.name)}`} className="font-medium text-blue-700 hover:underline">{item.name}</Link>
+                      <div className="text-xs text-gray-500">{item.rma_reference_no || '-'}</div>
+                    </td>
+                    <td>
+                      {item.linked_project ? <Link href={`/projects/${encodeURIComponent(item.linked_project)}`} className="text-sm text-blue-600 hover:underline">{item.linked_project}</Link> : <span className="text-gray-400">-</span>}
+                      <div className="text-xs text-gray-500">{item.linked_ticket || '-'}</div>
+                    </td>
+                    <td>
+                      <div className="text-sm">{item.item_link || '-'}</div>
+                      <div className="text-xs text-gray-500">{item.asset_serial_number || '-'}</div>
+                    </td>
+                    <td>
+                      <div className="text-sm">{item.dispatch_destination || '-'}</div>
+                      <div className="text-xs text-gray-500">{item.service_partner_name || '-'}</div>
+                    </td>
+                    <td><span className={`badge ${badge(WARRANTY_BADGES, item.warranty_status)}`}>{(item.warranty_status || '-').replace(/_/g, ' ')}</span></td>
+                    <td>
+                      <div className="text-sm">{item.repairability_status || '-'}</div>
+                      <div className="text-xs text-gray-500">Qty {item.qty ?? 1}</div>
+                    </td>
+                    <td>
+                      <div className="text-sm">{item.approval_status || '-'}</div>
+                      <div className="text-xs text-gray-500">{item.rma_purchase_order_no || '-'}</div>
+                    </td>
+                    <td><span className={`badge ${badge(RMA_BADGES, st)}`}>{st.replace(/_/g, ' ')}</span></td>
+                    <td className="font-medium">{item.aging_days ?? 0} days</td>
+                    {canManage && (
+                      <td>
+                        <div className="flex flex-wrap gap-1">
+                          {st === 'PENDING' && <button onClick={() => rmaAction(item.name, 'approve')} disabled={busyId === item.name} className="px-2 py-1 text-xs font-medium text-green-700 bg-green-50 rounded hover:bg-green-100 disabled:opacity-50">Approve</button>}
+                          {st === 'PENDING' && <button onClick={() => setRejectTarget(item.name)} className="px-2 py-1 text-xs font-medium text-red-700 bg-red-50 rounded hover:bg-red-100">Reject</button>}
+                          {st === 'APPROVED' && <button onClick={() => rmaAction(item.name, 'status', { new_status: 'IN_TRANSIT' })} disabled={busyId === item.name} className="px-2 py-1 text-xs font-medium text-amber-700 bg-amber-50 rounded hover:bg-amber-100 disabled:opacity-50">In Transit</button>}
+                          {st === 'APPROVED' && !item.ph_status && <button onClick={() => submitToPH(item.name)} disabled={busyId === item.name} className="px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 rounded hover:bg-blue-100 disabled:opacity-50">Submit PO to PH</button>}
+                          {['REPAIRED', 'REPLACED', 'REJECTED'].includes(st) && <button onClick={() => rmaAction(item.name, 'close')} disabled={busyId === item.name} className="px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50">Close</button>}
                         </div>
-                      </div>
-                    ) : (
-                      <div className="text-sm text-gray-900">-</div>
+                      </td>
                     )}
-                    <div className="text-xs text-gray-500">{item.linked_ticket || '-'}</div>
-                  </td>
-                  <td>
-                    <div className="text-sm text-gray-900">{item.item_link || '-'}</div>
-                    <div className="text-xs text-gray-500">{item.asset_serial_number || '-'}</div>
-                  </td>
-                  <td>
-                    <div className="text-sm text-gray-900">{item.dispatch_destination || '-'}</div>
-                    <div className="text-xs text-gray-500">{item.service_partner_name || '-'}</div>
-                  </td>
-                  <td>
-                    <div className="text-sm text-gray-900">{item.warranty_status || '-'}</div>
-                    <div className="text-xs text-gray-500">{formatCurrency(item.repair_cost)}</div>
-                  </td>
-                  <td>
-                    <div className="text-sm text-gray-900">{item.repairability_status || '-'}</div>
-                    <div className="text-xs text-gray-500">Qty {item.qty ?? 1}</div>
-                  </td>
-                  <td>
-                    <div className="text-sm text-gray-900">{item.approval_status || '-'}</div>
-                    <div className="text-xs text-gray-500">{item.rma_purchase_order_no || '-'}</div>
-                  </td>
-                  <td>
-                    <div className="text-sm text-gray-900">{item.repairing_status || item.rma_status || '-'}</div>
-                    <div className="text-xs text-gray-500">{item.faulty_date || '-'}</div>
-                  </td>
-                  <td><div className="font-medium text-gray-900">{item.aging_days ?? 0} days</div></td>
-                  <td>
-                    <div className="flex flex-wrap gap-2">
-                      {item.rma_status === 'PENDING' ? <button className="text-xs font-medium text-green-600" onClick={() => void runRmaAction(item.name, 'approve')}>Approve</button> : null}
-                      {item.rma_status === 'PENDING' ? <button className="text-xs font-medium text-red-600" onClick={() => setRejectTarget(item.name)}>Reject</button> : null}
-                      {item.rma_status === 'APPROVED' ? <button className="text-xs font-medium text-amber-600" onClick={() => void runRmaAction(item.name, 'status', 'IN_TRANSIT')}>In Transit</button> : null}
-                      {item.rma_status === 'APPROVED' && !item.ph_status ? (
-                        <button
-                          className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800"
-                          onClick={() => void runRmaAction(item.name, 'submit_to_ph')}
-                          title="Submit RMA PO to Project Head for approval"
-                        >
-                          <CheckSquare className="w-3 h-3" />Submit RMA PO to PH
-                        </button>
-                      ) : null}
-                      {(item.rma_status === 'REPAIRED' || item.rma_status === 'REPLACED' || item.rma_status === 'REJECTED') ? <button className="text-xs font-medium text-blue-600" onClick={() => void runRmaAction(item.name, 'close')}>Close</button> : null}
-                    </div>
-                  </td>
-                  <td>
-                    <div className="flex flex-wrap gap-1">
-                      {(!item.approval_status || item.approval_status === 'PENDING') && (
-                        <>
-                          <button onClick={() => setWorkflowTarget({ name: item.name, method: 'approve_rma', label: 'Approve' })} disabled={busyName === item.name} className="px-2 py-1 text-xs font-medium text-green-700 bg-green-50 rounded hover:bg-green-100 disabled:opacity-50">Approve</button>
-                          <button onClick={() => setWorkflowTarget({ name: item.name, method: 'reject_rma', label: 'Reject' })} disabled={busyName === item.name} className="px-2 py-1 text-xs font-medium text-red-700 bg-red-50 rounded hover:bg-red-100 disabled:opacity-50">Reject</button>
-                        </>
-                      )}
-                      {item.rma_status !== 'CLOSED' && (
-                        <button onClick={() => setWorkflowTarget({ name: item.name, method: 'close_rma', label: 'Close' })} disabled={busyName === item.name} className="px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50">Close</button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
-      </div>
+      </RegisterPage>
 
-      {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">Create RMA</h2>
-                <p className="text-sm text-gray-500 mt-1">Raise a fresh RMA record or link it to an existing helpdesk ticket.</p>
-              </div>
-              <button className="p-2 rounded-lg hover:bg-gray-100" onClick={() => setShowCreateModal(false)}>
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Field label="Linked Ticket">
-                <select
-                  className="input"
-                  value={formData.linked_ticket}
-                  onChange={(event) => onTicketChange(event.target.value)}
-                >
-                  <option value="">Select ticket</option>
-                  {tickets.map((ticket) => (
-                    <option key={ticket.name} value={ticket.name}>
-                      {ticket.name} - {ticket.title || 'Untitled'}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Project">
-                <input className="input" value={formData.linked_project} onChange={(event) => setFormData({ ...formData, linked_project: event.target.value })} />
-              </Field>
-              <Field label="Item">
-                <input className="input" value={formData.item_link} onChange={(event) => setFormData({ ...formData, item_link: event.target.value })} />
-              </Field>
-              <Field label="Asset Serial">
-                <input className="input" value={formData.asset_serial_number} onChange={(event) => setFormData({ ...formData, asset_serial_number: event.target.value })} />
-              </Field>
-              <Field label="Qty">
-                <input className="input" type="number" min="1" value={formData.qty} onChange={(event) => setFormData({ ...formData, qty: Number(event.target.value || 1) })} />
-              </Field>
-              <Field label="Faulty Date">
-                <input className="input" type="date" value={formData.faulty_date} onChange={(event) => setFormData({ ...formData, faulty_date: event.target.value })} />
-              </Field>
-              <Field label="Dispatch Destination">
-                <select className="input" value={formData.dispatch_destination} onChange={(event) => setFormData({ ...formData, dispatch_destination: event.target.value })}>
-                  <option value="OEM">OEM</option>
-                  <option value="VENDOR">Vendor</option>
-                  <option value="HEAD_OFFICE">Head Office</option>
-                  <option value="CENTRAL_TEAM">Central Team</option>
-                  <option value="THIRD_PARTY_REPAIR">Third Party Repair</option>
-                </select>
-              </Field>
-              <Field label="Partner Name">
-                <input className="input" value={formData.service_partner_name} onChange={(event) => setFormData({ ...formData, service_partner_name: event.target.value })} />
-              </Field>
-              <Field label="Warranty Status">
-                <select className="input" value={formData.warranty_status} onChange={(event) => setFormData({ ...formData, warranty_status: event.target.value })}>
-                  <option value="UNDER_WARRANTY">Under Warranty</option>
-                  <option value="NON_WARRANTY">Non Warranty</option>
-                </select>
-              </Field>
-              <Field label="Repairability">
-                <select className="input" value={formData.repairability_status} onChange={(event) => setFormData({ ...formData, repairability_status: event.target.value })}>
-                  <option value="REPAIRABLE">Repairable</option>
-                  <option value="NON_REPAIRABLE">Non Repairable</option>
-                </select>
-              </Field>
-              <Field label="Failure Reason" full>
-                <textarea className="input min-h-[88px]" value={formData.failure_reason} onChange={(event) => setFormData({ ...formData, failure_reason: event.target.value })} />
-              </Field>
-              <Field label="Field RCA" full>
-                <textarea className="input min-h-[88px]" value={formData.field_rca} onChange={(event) => setFormData({ ...formData, field_rca: event.target.value })} />
-              </Field>
-            </div>
-
-            <div className="px-6 pb-6">
-              {error ? <div className="mb-4 text-sm text-red-600">{error}</div> : null}
-              <div className="flex justify-end gap-3">
-                <button className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>Cancel</button>
-                <button className="btn btn-primary" onClick={handleCreate} disabled={isSubmitting}>
-                  {isSubmitting ? 'Creating...' : 'Create RMA'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <ActionModal
-        open={workflowTarget !== null}
-        title={`${workflowTarget?.label} RMA`}
-        description={`${workflowTarget?.label} RMA "${workflowTarget?.name}"?`}
-        confirmLabel={workflowTarget?.label || 'Confirm'}
-        variant={workflowTarget?.label === 'Reject' ? 'danger' : 'default'}
-        fields={[]}
-        onCancel={() => setWorkflowTarget(null)}
-        onConfirm={async () => {
-          if (workflowTarget) await handleWorkflow(workflowTarget.name, workflowTarget.method, workflowTarget.label);
-          setWorkflowTarget(null);
+      <FormModal
+        open={showCreate}
+        title="Create RMA"
+        description="Raise a fresh RMA record or link to an existing helpdesk ticket"
+        size="lg"
+        busy={createBusy}
+        confirmLabel="Create RMA"
+        fields={[
+          { name: 'linked_ticket', label: 'Linked Ticket', type: 'select', options: tickets.map(t => ({ value: t.name, label: `${t.name} - ${t.title || 'Untitled'}` })) },
+          { name: 'linked_project', label: 'Project', type: 'text' },
+          { name: 'item_link', label: 'Item', type: 'text' },
+          { name: 'asset_serial_number', label: 'Asset Serial', type: 'text' },
+          { name: 'qty', label: 'Quantity', type: 'number', defaultValue: '1' },
+          { name: 'faulty_date', label: 'Faulty Date', type: 'date' },
+          { name: 'dispatch_destination', label: 'Dispatch Destination', type: 'select', defaultValue: 'OEM', options: [
+            { value: 'OEM', label: 'OEM' }, { value: 'VENDOR', label: 'Vendor' },
+            { value: 'HEAD_OFFICE', label: 'Head Office' }, { value: 'CENTRAL_TEAM', label: 'Central Team' },
+            { value: 'THIRD_PARTY_REPAIR', label: 'Third Party Repair' },
+          ]},
+          { name: 'service_partner_name', label: 'Partner Name', type: 'text' },
+          { name: 'warranty_status', label: 'Warranty Status', type: 'select', defaultValue: 'UNDER_WARRANTY', options: [
+            { value: 'UNDER_WARRANTY', label: 'Under Warranty' }, { value: 'NON_WARRANTY', label: 'Non Warranty' },
+          ]},
+          { name: 'repairability_status', label: 'Repairability', type: 'select', defaultValue: 'REPAIRABLE', options: [
+            { value: 'REPAIRABLE', label: 'Repairable' }, { value: 'NON_REPAIRABLE', label: 'Non Repairable' },
+          ]},
+          { name: 'failure_reason', label: 'Failure Reason', type: 'textarea' },
+          { name: 'field_rca', label: 'Field RCA', type: 'textarea' },
+        ]}
+        onConfirm={async (values) => {
+          setCreateBusy(true);
+          try {
+            await callApi('/api/rma-trackers', { method: 'POST', body: { ...values, qty: Number(values.qty) || 1 } });
+            setShowCreate(false);
+            await load();
+          } catch { /* handled */ }
+          finally { setCreateBusy(false); }
         }}
+        onCancel={() => setShowCreate(false)}
       />
 
       <ActionModal
@@ -432,65 +236,10 @@ export default function RMAPage() {
         fields={[{ name: 'reason', label: 'Reject Reason', type: 'textarea' }]}
         onCancel={() => setRejectTarget(null)}
         onConfirm={async (values) => {
-          if (rejectTarget) await runRmaAction(rejectTarget, 'reject', undefined, { reason: values.reason || '' });
+          if (rejectTarget) await rmaAction(rejectTarget, 'reject', { reason: values.reason || '' });
           setRejectTarget(null);
         }}
       />
-    </div>
-  );
-}
-
-function StatCard({
-  icon: Icon,
-  color,
-  label,
-  value,
-  hint,
-}: {
-  icon: any;
-  color: 'blue' | 'amber' | 'green' | 'violet' | 'rose' | 'slate';
-  label: string;
-  value: number;
-  hint: string;
-}) {
-  const colors = {
-    blue: 'bg-blue-100 text-blue-600',
-    amber: 'bg-amber-100 text-amber-600',
-    green: 'bg-green-100 text-green-600',
-    violet: 'bg-violet-100 text-violet-600',
-    rose: 'bg-rose-100 text-rose-600',
-    slate: 'bg-slate-100 text-slate-600',
-  };
-
-  return (
-    <div className="stat-card">
-      <div className="flex items-center gap-3">
-        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${colors[color]}`}>
-          <Icon className="w-5 h-5" />
-        </div>
-        <div>
-          <div className="stat-value">{value}</div>
-          <div className="stat-label">{label}</div>
-        </div>
-      </div>
-      <div className="text-xs text-gray-500 mt-2">{hint}</div>
-    </div>
-  );
-}
-
-function Field({
-  label,
-  children,
-  full = false,
-}: {
-  label: string;
-  children: React.ReactNode;
-  full?: boolean;
-}) {
-  return (
-    <label className={full ? 'md:col-span-2' : ''}>
-      <div className="text-sm font-medium text-gray-700 mb-2">{label}</div>
-      {children}
-    </label>
+    </>
   );
 }

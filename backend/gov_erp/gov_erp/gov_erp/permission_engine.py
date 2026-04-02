@@ -179,9 +179,26 @@ class PermissionEngine:
             return set()
         return {v.strip() for v in value.split(",") if v.strip()}
 
+    def _project_manager_fallback_projects(self):
+        if "Project Manager" not in self.user_roles:
+            return set()
+        return {
+            row.name
+            for row in frappe.get_all(
+                "Project",
+                filters={"project_manager_user": self.user},
+                fields=["name"],
+                limit_page_length=0,
+            )
+            if row.name
+        }
+
     @property
     def assigned_projects(self):
-        return self._parse_csv(self.user_context.get("assigned_projects", ""))
+        assigned = self._parse_csv(self.user_context.get("assigned_projects", ""))
+        if assigned:
+            return assigned
+        return self._project_manager_fallback_projects()
 
     @property
     def assigned_sites(self):

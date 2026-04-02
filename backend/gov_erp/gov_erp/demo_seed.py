@@ -1303,6 +1303,125 @@ def seed_demo_operational_data():
         _teardown()
 
 
+def _pluck_names(doctype, filter_sets):
+    names = set()
+    for filters in filter_sets:
+        for name in frappe.get_all(doctype, filters=filters, pluck="name", limit_page_length=0):
+            names.add(name)
+    return list(names)
+
+
+def _delete_doc_safely(doctype, name):
+    if not frappe.db.exists(doctype, name):
+        return False
+
+    doc = frappe.get_doc(doctype, name)
+    meta = frappe.get_meta(doctype)
+
+    if meta.is_submittable and getattr(doc, "docstatus", 0) == 1:
+        doc.cancel()
+
+    frappe.delete_doc(doctype, name, ignore_permissions=True, force=1)
+    return True
+
+
+def purge_seeded_data():
+    """Delete demo/sample records created by demo_seed and bookkeeping demo helpers."""
+    _bootstrap()
+    summary = {"deleted": {}}
+
+    site_codes = [row["site_code"] for row in SITE_BLUEPRINTS]
+    demo_item_codes = [row["item_code"] for row in REALISTIC_ITEMS]
+    demo_file_names = [
+        "demo-pphc-drawing-rev1.txt",
+        "demo-commissioning-test-report.txt",
+        "demo-handover-note.txt",
+    ]
+    exact_subjects = [
+        "Site readiness confirmation",
+        "NOC document follow-up",
+        "Weekly progress review",
+    ]
+    exact_ticket_titles = [
+        "NVR storage alarm at Rajwada control room",
+        "Fiber patch fluctuation at Rajwada junction cabinet",
+    ]
+
+    delete_plan = [
+        ("Task", [{"subject": ["like", f"{DEMO_MARKER}%"]}]),
+        ("GE Payment Receipt", [{"remarks": ["like", "%bookkeeping demo%"]}]),
+        ("GE Invoice", [{"remarks": ["like", f"%{DEMO_MARKER}%"]}, {"remarks": ["like", "%bookkeeping demo%"]}]),
+        ("GE Proforma Invoice", [{"remarks": ["like", "%bookkeeping demo%"]}]),
+        ("GE Estimate", [{"remarks": ["like", "%bookkeeping demo%"]}]),
+        ("GE RMA Tracker", [{"remarks": ["like", f"%{DEMO_MARKER}%"]}, {"rma_reference_no": "PPHC-RMA-001"}]),
+        ("GE Ticket", [{"title": ["in", exact_ticket_titles]}]),
+        ("GE Device Uptime Log", [{"remarks": ["like", f"%{DEMO_MARKER}%"]}]),
+        ("GE Client Signoff", [{"remarks": ["like", f"%{DEMO_MARKER}%"]}]),
+        ("GE Test Report", [{"remarks": ["like", f"%{DEMO_MARKER}%"]}, {"report_name": "Rajwada SAT Report"}]),
+        ("GE Commissioning Checklist", [{"remarks": ["like", f"%{DEMO_MARKER}%"]}, {"checklist_name": "Rajwada SAT Checklist"}]),
+        ("GE IP Allocation", [{"remarks": ["like", f"%{DEMO_MARKER}%"]}]),
+        ("GE Device Register", [{"remarks": ["like", f"%{DEMO_MARKER}%"]}, {"serial_no": ["in", ["ANPR-PPHC-001", "PTZ-PPHC-001", "NVR-PPHC-001"]]}]),
+        ("GE IP Pool", [{"remarks": ["like", f"%{DEMO_MARKER}%"]}, {"network_name": "Rajwada Surveillance VLAN 101"}]),
+        ("GE SLA Profile", [{"profile_name": "PPHC 24x7 Critical Surveillance SLA"}]),
+        ("GE Project Document", [{"remarks": ["like", f"%{DEMO_MARKER}%"]}]),
+        ("GE Document Folder", [{"description": ["like", f"%{DEMO_MARKER}%"]}]),
+        ("GE Change Request", [{"remarks": ["like", f"%{DEMO_MARKER}%"]}, {"cr_number": "PPHC-CR-001"}]),
+        ("GE Technical Deviation", [{"remarks": ["like", f"%{DEMO_MARKER}%"]}, {"deviation_id": "PPHC-TD-001"}]),
+        ("GE Drawing", [{"remarks": ["like", f"%{DEMO_MARKER}%"]}, {"drawing_number": "PPHC-DWG-EL-001"}]),
+        ("GE Manpower Log", [{"remarks": ["like", f"%{DEMO_MARKER}%"]}]),
+        ("GE Petty Cash", [{"voucher_ref": ["like", f"{DEMO_MARKER}%"]}, {"remarks": ["like", f"%{DEMO_MARKER}%"]}]),
+        ("GE Project Communication Log", [{"subject": ["in", exact_subjects]}]),
+        ("GE Project Asset", [{"remarks": ["like", f"%{DEMO_MARKER}%"]}]),
+        ("GE Project Team Member", [{"remarks": ["like", f"%{DEMO_MARKER}%"]}]),
+        ("GE Dispatch Challan", [{"tracking_reference": ["like", f"{DEMO_MARKER}%"]}, {"remarks": ["like", f"%{DEMO_MARKER}%"]}]),
+        ("GE Milestone", [{"remarks": ["like", f"%{DEMO_MARKER}%"]}]),
+        ("GE Vendor Comparison", [{"notes": ["like", f"%{DEMO_MARKER}%"]}]),
+        ("Material Request", [{"title": ["like", f"{DEMO_MARKER}%"]}]),
+        ("GE Budget Allocation", [{"remarks": ["like", f"%{DEMO_MARKER}%"]}]),
+        ("GE Cost Sheet", [{"notes": ["like", f"%{DEMO_MARKER}%"]}]),
+        ("GE BOQ", [{"notes": ["like", f"%{DEMO_MARKER}%"]}]),
+        ("GE Site", [{"site_code": ["in", site_codes]}, {"remarks": ["like", f"%{DEMO_MARKER}%"]}]),
+        ("GE PDC Instrument", [{"cheque_number": "PDC-PPHC-260316-01"}, {"remarks": ["like", f"%{DEMO_MARKER}%"]}]),
+        ("GE Organization", [{"email": ["like", "%@hikvision-demo.example.com"]}, {"organization_name": "Hikvision Systems India Pvt Ltd", "email": "support@hikvision-demo.example.com"}]),
+        ("GE Party", [{"party_name": "DEMO CUSTOMER - COMMERCIAL"}, {"party_name": "Punjab Police Housing Corporation", "email": "projects@pphc.example.com"}]),
+        ("Item", [{"item_code": ["in", demo_item_codes]}]),
+        ("File", [{"file_name": ["in", demo_file_names]}]),
+    ]
+
+    try:
+        task_names = _pluck_names("Task", [{"subject": ["like", f"{DEMO_MARKER}%"]}])
+        dep_rule_names = _pluck_names("GE Dependency Rule", [{"linked_task": ["in", task_names]}]) if task_names else []
+
+        if dep_rule_names:
+            deleted_overrides = 0
+            for name in _pluck_names("GE Dependency Override", [{"dependency_rule": ["in", dep_rule_names]}]):
+                deleted_overrides += int(_delete_doc_safely("GE Dependency Override", name))
+            if deleted_overrides:
+                summary["deleted"]["GE Dependency Override"] = deleted_overrides
+
+            deleted_rules = 0
+            for name in dep_rule_names:
+                deleted_rules += int(_delete_doc_safely("GE Dependency Rule", name))
+            if deleted_rules:
+                summary["deleted"]["GE Dependency Rule"] = deleted_rules
+
+        for doctype, filter_sets in delete_plan:
+            names = _pluck_names(doctype, filter_sets)
+            deleted = 0
+            for name in names:
+                deleted += int(_delete_doc_safely(doctype, name))
+            if deleted:
+                summary["deleted"][doctype] = deleted
+
+        frappe.db.commit()
+        return summary
+    except Exception:
+        frappe.db.rollback()
+        raise
+    finally:
+        _teardown()
+
+
 if __name__ == "__main__":
     result = seed_demo_operational_data()
     print(json.dumps(result, indent=2, sort_keys=True, default=str))

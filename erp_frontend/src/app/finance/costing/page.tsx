@@ -1,406 +1,160 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Calculator, CircleDollarSign, Eye, FileSpreadsheet, Plus, TrendingDown, X } from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
+import { Eye, Plus, X } from 'lucide-react';
+import RegisterPage from '@/components/shells/RegisterPage';
 import ActionModal from '@/components/ui/ActionModal';
+import {
+  callApi, formatCurrency, badge, COST_SHEET_BADGES, hasAnyRole,
+} from '@/components/finance/fin-helpers';
+import { useAuth } from '@/context/AuthContext';
 
-type CostSheet = {
-  name: string;
-  linked_tender?: string;
-  linked_project?: string;
-  linked_boq?: string;
-  version?: number;
-  status?: string;
-  margin_percent?: number;
-  base_cost?: number;
-  sell_value?: number;
-  total_items?: number;
-  created_by_user?: string;
-  approved_by?: string;
-};
-
-type CostSheetStats = {
-  total?: number;
-  draft?: number;
-  pending_approval?: number;
-  approved?: number;
-  rejected?: number;
-  total_base_cost?: number;
-  total_sell_value?: number;
-};
-
-function formatCurrency(value?: number) {
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 0,
-  }).format(value || 0);
+interface CostSheet {
+  name: string; linked_tender?: string; linked_project?: string; linked_boq?: string;
+  version?: number; status?: string; margin_percent?: number; base_cost?: number;
+  sell_value?: number; total_items?: number; created_by_user?: string; approved_by?: string;
 }
+interface Stats {
+  total?: number; draft?: number; pending_approval?: number; approved?: number;
+  rejected?: number; total_base_cost?: number; total_sell_value?: number;
+}
+
+const INIT = { linked_tender: '', linked_boq: '', description: '', cost_type: 'Material', quantity: 1, rate: 0, remarks: '' };
 
 export default function FinanceCostingPage() {
   const { currentUser } = useAuth();
   const [rows, setRows] = useState<CostSheet[]>([]);
-  const [stats, setStats] = useState<CostSheetStats>({});
+  const [stats, setStats] = useState<Stats>({});
   const [loading, setLoading] = useState(true);
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
-  const [actionLoadingName, setActionLoadingName] = useState<string | null>(null);
+  const [busyName, setBusyName] = useState<string | null>(null);
   const [reasonTarget, setReasonTarget] = useState<{ name: string; action: 'reject' | 'revise' } | null>(null);
-  const [createForm, setCreateForm] = useState({
-    linked_tender: '',
-    linked_boq: '',
-    description: '',
-    cost_type: 'Material',
-    quantity: 1,
-    rate: 0,
-    remarks: '',
-  });
+  const [form, setForm] = useState(INIT);
 
-  const hasAnyRole = (...roles: string[]) => {
-    const assigned = new Set(currentUser?.roles || []);
-    return roles.some((role) => assigned.has(role));
-  };
+  const canSubmit = hasAnyRole(currentUser?.roles, 'Director', 'System Manager', 'Accounts', 'Department Head');
+  const canApprove = hasAnyRole(currentUser?.roles, 'Director', 'System Manager', 'Department Head');
 
-  const canCreateOrSubmit = hasAnyRole('Director', 'System Manager', 'Accounts', 'Department Head');
-  const canApproveReject = hasAnyRole('Director', 'System Manager', 'Department Head');
-
-  const loadData = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
-    Promise.all([
-      fetch('/api/cost-sheets').then((response) => response.json()).catch(() => ({ data: [] })),
-      fetch('/api/cost-sheets/stats').then((response) => response.json()).catch(() => ({ data: {} })),
-    ])
-      .then(([sheetRes, statsRes]) => {
-        setRows(sheetRes.data || []);
-        setStats(statsRes.data || {});
-      })
-      .finally(() => setLoading(false));
-  };
-
-  useEffect(() => {
-    loadData();
+    try {
+      const [s, st] = await Promise.all([callApi<CostSheet[]>('/api/cost-sheets'), callApi<Stats>('/api/cost-sheets/stats')]);
+      setRows(s || []); setStats(st || {});
+    } catch { /* swallow */ }
+    setLoading(false);
   }, []);
 
-  const handleCreateCostSheet = async () => {
-    if (!createForm.linked_tender.trim()) {
-      setError('Linked Tender is required.');
-      return;
-    }
-    if (!createForm.description.trim()) {
-      setError('Description is required.');
-      return;
-    }
+  useEffect(() => { load(); }, [load]);
 
-    setCreating(true);
-    setError('');
+  const handleCreate = async () => {
+    if (!form.linked_tender.trim() || !form.description.trim()) { setError('Tender and Description required.'); return; }
+    setCreating(true); setError('');
     try {
-      const payload = {
-        linked_tender: createForm.linked_tender,
-        linked_boq: createForm.linked_boq || undefined,
-        notes: createForm.remarks || undefined,
-        items: [
-          {
-            description: createForm.description.trim(),
-            cost_type: createForm.cost_type,
-            qty: Number(createForm.quantity) || 1,
-            base_rate: Number(createForm.rate) || 0,
-            remarks: createForm.remarks || undefined,
-          },
-        ],
-      };
-
-      const response = await fetch('/api/cost-sheets', {
+      await callApi('/api/cost-sheets', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: {
+          linked_tender: form.linked_tender, linked_boq: form.linked_boq || undefined,
+          notes: form.remarks || undefined,
+          items: [{ description: form.description, cost_type: form.cost_type, qty: form.quantity, base_rate: form.rate, remarks: form.remarks }],
+        },
       });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok || !result.success) {
-        throw new Error(result.message || 'Failed to create cost sheet');
-      }
-
-      setShowCreateModal(false);
-      setCreateForm({
-        linked_tender: '',
-        linked_boq: '',
-        description: '',
-        cost_type: 'Material',
-        quantity: 1,
-        rate: 0,
-        remarks: '',
-      });
-      await loadData();
-    } catch (createError) {
-      setError(createError instanceof Error ? createError.message : 'Failed to create cost sheet');
-    } finally {
-      setCreating(false);
-    }
+      setShowCreate(false); setForm(INIT); await load();
+    } catch (e) { setError(e instanceof Error ? e.message : 'Failed'); }
+    setCreating(false);
   };
 
-  const runAction = async (name: string, action: 'submit' | 'approve' | 'reject' | 'revise', extra?: Record<string, string>) => {
-    setError('');
-    setActionLoadingName(name);
+  const runAction = async (name: string, action: string, extra?: Record<string, string>) => {
+    setBusyName(name); setError('');
     try {
-      const payload: Record<string, unknown> = { action };
-      if (action === 'reject' || action === 'revise') {
-        payload.reason = extra?.reason || '';
-      }
-
-      const response = await fetch(`/api/cost-sheets/${encodeURIComponent(name)}/actions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok || !result.success) {
-        throw new Error(result.message || `Failed to ${action}`);
-      }
-      await loadData();
-    } catch (actionError) {
-      setError(actionError instanceof Error ? actionError.message : `Failed to ${action}`);
-    } finally {
-      setActionLoadingName(null);
-    }
+      await callApi(`/api/cost-sheets/${encodeURIComponent(name)}/actions`, { method: 'POST', body: { action, ...(extra || {}) } });
+      await load();
+    } catch (e) { setError(e instanceof Error ? e.message : 'Failed'); }
+    setBusyName(null);
   };
 
   const variance = (stats.total_sell_value || 0) - (stats.total_base_cost || 0);
 
-  const getBlocker = (row: CostSheet) => {
-    if (row.status === 'DRAFT') return 'Submit for approval';
-    if (row.status === 'PENDING_APPROVAL' || row.status === 'SUBMITTED') return 'Waiting for department head review';
-    if (row.status === 'REJECTED') return 'Revise pricing or costing assumptions';
-    if (row.status === 'APPROVED') return 'Ready for quote / proforma / invoice';
-    return 'Review status';
-  };
+  const blocker = (r: CostSheet) =>
+    r.status === 'DRAFT' ? 'Submit for approval'
+    : r.status === 'PENDING_APPROVAL' || r.status === 'SUBMITTED' ? 'Waiting department head review'
+    : r.status === 'REJECTED' ? 'Revise pricing or assumptions'
+    : r.status === 'APPROVED' ? 'Ready for quote / proforma'
+    : 'Review status';
 
   return (
-    <div>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Finance Costing</h1>
-          <p className="text-xs sm:text-sm text-gray-500 mt-1">Live cost sheets, base cost, sell value, and approval tracking.</p>
-        </div>
-        <button className="btn btn-primary w-full sm:w-auto" onClick={() => setShowCreateModal(true)}>
-          <Plus className="w-4 h-4" />
-          New Cost Sheet
-        </button>
-      </div>
-
-      {showCreateModal ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-900">Create Cost Sheet</h2>
-              <button className="p-2 rounded-lg hover:bg-gray-100" onClick={() => setShowCreateModal(false)}>
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Linked Tender *</label>
-                <input className="input" value={createForm.linked_tender} onChange={(e) => setCreateForm((p) => ({ ...p, linked_tender: e.target.value }))} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Linked BOQ</label>
-                <input className="input" value={createForm.linked_boq} onChange={(e) => setCreateForm((p) => ({ ...p, linked_boq: e.target.value }))} />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
-                <textarea
-                  className="input min-h-24"
-                  value={createForm.description}
-                  onChange={(e) => setCreateForm((p) => ({ ...p, description: e.target.value }))}
-                  placeholder="Cost item description"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Cost Type *</label>
-                <select
-                  className="input"
-                  value={createForm.cost_type}
-                  onChange={(e) => setCreateForm((p) => ({ ...p, cost_type: e.target.value }))}
-                >
-                  <option value="Material">Material</option>
-                  <option value="Service">Service</option>
-                  <option value="Labour">Labour</option>
-                  <option value="Overhead">Overhead</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Quantity *</label>
-                <input className="input" type="number" min={1} step={1} value={createForm.quantity} onChange={(e) => setCreateForm((p) => ({ ...p, quantity: Number(e.target.value) || 1 }))} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Rate *</label>
-                <input className="input" type="number" min={0} step={0.01} value={createForm.rate} onChange={(e) => setCreateForm((p) => ({ ...p, rate: Number(e.target.value) || 0 }))} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Remarks</label>
-                <input className="input" value={createForm.remarks} onChange={(e) => setCreateForm((p) => ({ ...p, remarks: e.target.value }))} />
-              </div>
-            </div>
-            {error ? <p className="px-6 pb-2 text-sm text-red-600">{error}</p> : null}
-            <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
-              <button className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleCreateCostSheet} disabled={creating}>{creating ? 'Creating...' : 'Create Cost Sheet'}</button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
-        <div className="stat-card">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Calculator className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <div className="stat-value">{formatCurrency(stats.total_base_cost)}</div>
-              <div className="stat-label">Planned Cost</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
-              <CircleDollarSign className="w-5 h-5 text-emerald-600" />
-            </div>
-            <div>
-              <div className="stat-value">{formatCurrency(stats.total_sell_value)}</div>
-              <div className="stat-label">Sell Value</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
-              <TrendingDown className="w-5 h-5 text-amber-600" />
-            </div>
-            <div>
-              <div className="stat-value">{formatCurrency(variance)}</div>
-              <div className="stat-label">Gross Margin Pool</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-violet-100 rounded-lg flex items-center justify-center">
-              <FileSpreadsheet className="w-5 h-5 text-violet-600" />
-            </div>
-            <div>
-              <div className="stat-value">{stats.total ?? rows.length}</div>
-              <div className="stat-label">Cost Sheets</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
+    <RegisterPage
+      title="Finance Costing" description="Cost sheets, base cost, sell value, and approval tracking"
+      loading={loading} error={error} onRetry={load} empty={!rows.length && !loading}
+      stats={[
+        { label: 'Planned Cost', value: formatCurrency(stats.total_base_cost), variant: 'info' },
+        { label: 'Sell Value', value: formatCurrency(stats.total_sell_value), variant: 'success' },
+        { label: 'Gross Margin', value: formatCurrency(variance), variant: variance >= 0 ? 'success' : 'error' },
+        { label: 'Cost Sheets', value: stats.total ?? rows.length },
+      ]}
+      headerActions={<button className="btn btn-primary" onClick={() => { setForm(INIT); setShowCreate(true); }}><Plus className="w-4 h-4" /> New Cost Sheet</button>}
+    >
       <div className="card">
-        <div className="card-header">
-          <h3 className="font-semibold text-gray-900">Cost Sheet Register</h3>
-        </div>
+        <div className="card-header"><h3 className="font-semibold text-gray-900">Cost Sheet Register</h3></div>
         <div className="overflow-x-auto">
-          {loading ? (
-            <div className="flex items-center justify-center py-12 text-gray-500">Loading cost sheets...</div>
-          ) : rows.length === 0 ? (
-            <div className="py-12 text-center text-gray-500">No cost sheets found.</div>
-          ) : (
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Cost Sheet</th>
-                  <th>Tender / Project</th>
-                  <th>Owner</th>
-                  <th>Linked BOQ</th>
-                  <th>Base Cost</th>
-                  <th>Sell Value</th>
-                  <th>Margin %</th>
-                  <th>Status</th>
-                  <th>Blocker / Next Step</th>
-                  <th>Actions</th>
+          <table className="data-table">
+            <thead><tr><th>Sheet</th><th>Tender / Project</th><th>Owner</th><th>Base Cost</th><th>Sell Value</th><th>Margin %</th><th>Status</th><th>Next Step</th><th>Actions</th></tr></thead>
+            <tbody>
+              {rows.map(r => (
+                <tr key={r.name}>
+                  <td><Link href={`/finance/costing/${encodeURIComponent(r.name)}`} className="font-medium text-blue-600 hover:underline">{r.name}</Link>
+                    <div className="text-xs text-gray-500">v{r.version || 1} · {r.total_items || 0} items</div></td>
+                  <td>{r.linked_project ? <Link href={`/projects/${encodeURIComponent(r.linked_project)}`} className="text-sm text-blue-600 hover:underline">{r.linked_project}</Link> : '-'}
+                    <div className="text-xs text-gray-400">{r.linked_tender || '-'}</div></td>
+                  <td className="text-sm">{r.created_by_user || '-'}<div className="text-xs text-gray-400">{r.approved_by ? `Approved by ${r.approved_by}` : 'Not approved'}</div></td>
+                  <td>{formatCurrency(r.base_cost)}</td>
+                  <td className="font-medium">{formatCurrency(r.sell_value)}</td>
+                  <td>{r.margin_percent || 0}%</td>
+                  <td><span className={`badge ${badge(COST_SHEET_BADGES, r.status)}`}>{r.status || 'Unknown'}</span></td>
+                  <td className="text-sm text-gray-700">{blocker(r)}</td>
+                  <td>
+                    <div className="flex flex-wrap gap-1 items-center">
+                      <Link href={`/finance/costing/${encodeURIComponent(r.name)}`} className="text-blue-600 text-sm font-medium flex items-center gap-1"><Eye className="w-3.5 h-3.5" />View</Link>
+                      {r.status === 'DRAFT' && canSubmit && <button disabled={busyName===r.name} onClick={() => runAction(r.name,'submit')} className="text-indigo-600 text-sm font-medium">Submit</button>}
+                      {r.status === 'SUBMITTED' && canApprove && <>
+                        <button disabled={busyName===r.name} onClick={() => runAction(r.name,'approve')} className="text-green-600 text-sm font-medium">Approve</button>
+                        <button disabled={busyName===r.name} onClick={() => setReasonTarget({ name: r.name, action: 'reject' })} className="text-red-600 text-sm font-medium">Reject</button>
+                      </>}
+                      {(r.status === 'APPROVED' || r.status === 'REJECTED') && canSubmit && <button disabled={busyName===r.name} onClick={() => setReasonTarget({ name: r.name, action: 'revise' })} className="text-orange-600 text-sm font-medium">Revise</button>}
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {rows.map((row) => (
-                  <tr key={row.name}>
-                    <td>
-                      <Link href={`/finance/costing/${encodeURIComponent(row.name)}`} className="font-medium text-blue-600 hover:underline">{row.name}</Link>
-                      <div className="text-xs text-gray-500">v{row.version || 1} • {row.total_items || 0} items</div>
-                    </td>
-                    <td>
-                      {row.linked_project ? (
-                        <div>
-                          <Link href={`/projects/${encodeURIComponent(row.linked_project)}`} className="text-sm font-medium text-blue-600 hover:text-blue-800">{row.linked_project}</Link>
-                          <div className="flex gap-2 mt-0.5">
-                            <Link href={`/projects/${encodeURIComponent(row.linked_project)}?tab=dossier`} className="text-[10px] text-indigo-500 hover:underline">Dossier</Link>
-                            <Link href={`/projects/${encodeURIComponent(row.linked_project)}?tab=accountability`} className="text-[10px] text-amber-600 hover:underline">Accountability</Link>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="text-gray-700">-</div>
-                      )}
-                      <div className="text-xs text-gray-400">{row.linked_tender || '-'}</div>
-                    </td>
-                    <td>
-                      <div className="text-sm text-gray-900">{row.created_by_user || '-'}</div>
-                      <div className="text-xs text-gray-400">{row.approved_by ? `Approved by ${row.approved_by}` : 'Not approved yet'}</div>
-                    </td>
-                    <td>{row.linked_boq || '-'}</td>
-                    <td>{formatCurrency(row.base_cost)}</td>
-                    <td className="font-medium text-gray-900">{formatCurrency(row.sell_value)}</td>
-                    <td>{row.margin_percent || 0}%</td>
-                    <td>
-                      <span className={`badge ${
-                        row.status === 'APPROVED'
-                          ? 'badge-success'
-                          : row.status === 'PENDING_APPROVAL'
-                            ? 'badge-warning'
-                            : row.status === 'REJECTED'
-                              ? 'badge-error'
-                              : 'badge-gray'
-                      }`}>
-                        {row.status || 'Unknown'}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="text-sm text-gray-700">{getBlocker(row)}</div>
-                    </td>
-                    <td>
-                      <div className="flex flex-wrap gap-2 items-center">
-                        <Link href={`/finance/costing/${encodeURIComponent(row.name)}`} className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1">
-                          <Eye className="w-4 h-4" />
-                          View
-                        </Link>
-                        {row.status === 'DRAFT' && canCreateOrSubmit ? (
-                          <button className="text-indigo-600 hover:text-indigo-800 text-sm font-medium" disabled={actionLoadingName === row.name} onClick={() => runAction(row.name, 'submit')}>Submit</button>
-                        ) : null}
-                        {row.status === 'SUBMITTED' && canApproveReject ? (
-                          <>
-                            <button className="text-green-600 hover:text-green-800 text-sm font-medium" disabled={actionLoadingName === row.name} onClick={() => runAction(row.name, 'approve')}>Approve</button>
-                            <button className="text-red-600 hover:text-red-800 text-sm font-medium" disabled={actionLoadingName === row.name} onClick={() => setReasonTarget({ name: row.name, action: 'reject' })}>Reject</button>
-                          </>
-                        ) : null}
-                        {(row.status === 'APPROVED' || row.status === 'REJECTED') && canCreateOrSubmit ? (
-                          <button className="text-orange-600 hover:text-orange-800 text-sm font-medium" disabled={actionLoadingName === row.name} onClick={() => setReasonTarget({ name: row.name, action: 'revise' })}>Revise</button>
-                        ) : null}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
+
+      {showCreate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b"><h2 className="text-lg font-semibold">Create Cost Sheet</h2><button className="p-2 rounded-lg hover:bg-gray-100" onClick={() => setShowCreate(false)}><X className="w-5 h-5" /></button></div>
+            <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Linked Tender *</label><input className="input" value={form.linked_tender} onChange={e => setForm(p => ({...p, linked_tender: e.target.value}))} /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Linked BOQ</label><input className="input" value={form.linked_boq} onChange={e => setForm(p => ({...p, linked_boq: e.target.value}))} /></div>
+              <div className="sm:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Description *</label><textarea className="input min-h-24" value={form.description} onChange={e => setForm(p => ({...p, description: e.target.value}))} /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Cost Type</label><select className="input" value={form.cost_type} onChange={e => setForm(p => ({...p, cost_type: e.target.value}))}><option>Material</option><option>Service</option><option>Labour</option><option>Overhead</option><option>Other</option></select></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Qty</label><input className="input" type="number" min={1} value={form.quantity} onChange={e => setForm(p => ({...p, quantity: Number(e.target.value)||1}))} /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Rate</label><input className="input" type="number" min={0} step={0.01} value={form.rate} onChange={e => setForm(p => ({...p, rate: Number(e.target.value)||0}))} /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Remarks</label><input className="input" value={form.remarks} onChange={e => setForm(p => ({...p, remarks: e.target.value}))} /></div>
+            </div>
+            {error && <p className="px-6 pb-2 text-sm text-red-600">{error}</p>}
+            <div className="flex justify-end gap-2 px-6 py-4 border-t">
+              <button className="btn btn-secondary" onClick={() => setShowCreate(false)}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleCreate} disabled={creating}>{creating ? 'Creating...' : 'Create'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <ActionModal
-        open={reasonTarget !== null}
+        open={!!reasonTarget}
         title={reasonTarget?.action === 'reject' ? 'Reject Cost Sheet' : 'Revise Cost Sheet'}
         description={`${reasonTarget?.action === 'reject' ? 'Reject' : 'Revise'} ${reasonTarget?.name}?`}
         confirmLabel={reasonTarget?.action === 'reject' ? 'Reject' : 'Revise'}
@@ -412,6 +166,6 @@ export default function FinanceCostingPage() {
           setReasonTarget(null);
         }}
       />
-    </div>
+    </RegisterPage>
   );
 }

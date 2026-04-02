@@ -1,96 +1,153 @@
 'use client';
-import { useEffect, useState } from 'react';
+
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Plus, MapPin, CheckCircle2, Clock, FileText, Eye, Trash2 } from 'lucide-react';
+import { Eye, MapPin, Plus, Trash2 } from 'lucide-react';
+import RegisterPage from '@/components/shells/RegisterPage';
+import type { StatItem } from '@/components/shells/RegisterPage';
 import ActionModal from '@/components/ui/ActionModal';
+import { usePermissions } from '@/context/PermissionContext';
+import {
+  type SiteRecord,
+  type SiteSurveyRow,
+  type SurveyCreateForm,
+  EMPTY_CREATE_FORM,
+  buildSiteSurveyRows,
+  computeSurveyStats,
+  prefillFromSite,
+} from '@/components/survey/survey-types';
 
-interface Survey {
-  name: string;
-  site_name?: string;
-  linked_tender?: string;
-  coordinates?: string;
-  surveyed_by?: string;
-  survey_date?: string;
-  summary?: string;
-  status?: string;
-}
-
-interface SurveyStats {
-  total?: number;
-  completed?: number;
-  in_progress?: number;
-  pending?: number;
-}
+// ── Page ───────────────────────────────────────────────────────────────────
 
 export default function SurveyPage() {
-  const [surveys, setSurveys] = useState<Survey[]>([]);
-  const [stats, setStats] = useState<SurveyStats>({});
+  const { permissions, isLoaded: isPermissionLoaded } = usePermissions();
+  const assignedProjects = permissions?.user_context.assigned_projects ?? [];
+  const assignedSiteNames = permissions?.user_context.assigned_sites ?? [];
+
+  const [rows, setRows] = useState<SiteSurveyRow[]>([]);
+  const [sites, setSites] = useState<SiteRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string>('');
+  const [error, setError] = useState('');
+
+  // ── Create form state ──
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [completionTender, setCompletionTender] = useState('');
-  const [completionResult, setCompletionResult] = useState<string>('');
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const [createForm, setCreateForm] = useState({
-    linked_tender: '',
-    site_name: '',
-    status: 'Pending',
-    survey_date: '',
-    coordinates: '',
-    summary: '',
-  });
+  const [createForm, setCreateForm] = useState<SurveyCreateForm>(EMPTY_CREATE_FORM);
 
-  const loadSurveyData = async () => {
+  // ── Delete confirm ──
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+
+  // ── Data loading ─────────────────────────────────────────────────────────
+
+  const loadData = async () => {
+    if (!assignedProjects.length) {
+      setRows([]);
+      setSites([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
-      const [surveyRes, statsRes] = await Promise.all([
-        fetch('/api/surveys').then(r => r.json()).catch(() => ({ data: [] })),
-        fetch('/api/surveys/stats').then(r => r.json()).catch(() => ({ data: {} })),
+      const [surveyResults, siteResults] = await Promise.all([
+        Promise.all(
+          assignedProjects.map((project) =>
+            fetch(`/api/surveys?project=${encodeURIComponent(project)}`)
+              .then((r) => r.json())
+              .catch(() => ({ data: [] })),
+          ),
+        ),
+        Promise.all(
+          assignedProjects.map((project) =>
+            fetch(`/api/sites?project=${encodeURIComponent(project)}`)
+              .then((r) => r.json())
+              .catch(() => ({ data: [] })),
+          ),
+        ),
       ]);
 
-      setSurveys(surveyRes.data || []);
-      setStats(statsRes.data || {});
+      const rawSites: SiteRecord[] = siteResults.flatMap((r) =>
+        Array.isArray(r.data) ? r.data : [],
+      );
+      const filteredSites = assignedSiteNames.length
+        ? rawSites.filter(
+            (s) =>
+              assignedSiteNames.includes(s.name) ||
+              assignedSiteNames.includes(s.site_name || ''),
+          )
+        : rawSites;
+
+      const allowedSiteIds = new Set(filteredSites.map((s) => s.name));
+      const allowedProjects = new Set(
+        filteredSites.map((s) => s.linked_project).filter(Boolean),
+      );
+
+      const allSurveys = surveyResults.flatMap((r) =>
+        Array.isArray(r.data) ? r.data : [],
+      );
+      const filteredSurveys = allSurveys.filter(
+        (sv) =>
+          (sv.linked_site && allowedSiteIds.has(sv.linked_site)) ||
+          (sv.linked_project && allowedProjects.has(sv.linked_project)) ||
+          (sv.needs_site_relink &&
+            filteredSites.some(
+              (site) =>
+                (site.site_name || '').trim().toLowerCase() ===
+                (sv.site_name || '').trim().toLowerCase(),
+            )),
+      );
+
+      setSites(filteredSites);
+      setRows(buildSiteSurveyRows(filteredSites, filteredSurveys));
+      setError('');
+    } catch (err) {
+      setSites([]);
+      setRows([]);
+      setError(err instanceof Error ? err.message : 'Failed to load survey scope');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadSurveyData();
-  }, []);
+    if (isPermissionLoaded) void loadData();
+  }, [isPermissionLoaded, assignedProjects.join(','), assignedSiteNames.join(',')]);
 
-  const handleCreateSurvey = async () => {
-    if (!createForm.linked_tender.trim() || !createForm.site_name.trim()) {
-      setErrorMessage('Linked Tender and Site Name are required.');
+  // ── Derived stats ────────────────────────────────────────────────────────
+
+  const stats = useMemo(() => computeSurveyStats(rows), [rows]);
+
+  const statItems: StatItem[] = [
+    { label: 'Total Sites', value: stats.total, variant: 'info' },
+    { label: 'Completed', value: stats.completed, variant: 'success' },
+    { label: 'In Progress', value: stats.inProgress, variant: 'warning' },
+    { label: 'Pending', value: stats.pending, variant: 'default' },
+  ];
+
+  // ── Actions ──────────────────────────────────────────────────────────────
+
+  const handleCreate = async () => {
+    if (!createForm.linked_site.trim() || !createForm.site_name.trim()) {
+      setError('Please select an allotted site first.');
       return;
     }
-
-    setErrorMessage('');
+    setError('');
     setIsSubmitting(true);
     try {
-      const response = await fetch('/api/surveys', {
+      const res = await fetch('/api/surveys', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(createForm),
       });
-      const result = await response.json();
-      if (!result.success) {
+      const result = await res.json();
+      if (!res.ok || !result.success) {
         throw new Error(result.message || 'Failed to create survey');
       }
-
       setIsCreateOpen(false);
-      setCreateForm({
-        linked_tender: '',
-        site_name: '',
-        status: 'Pending',
-        survey_date: '',
-        coordinates: '',
-        summary: '',
-      });
-      await loadSurveyData();
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to create survey');
+      setCreateForm(EMPTY_CREATE_FORM);
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create survey');
     } finally {
       setIsSubmitting(false);
     }
@@ -98,229 +155,155 @@ export default function SurveyPage() {
 
   const handleStatusUpdate = async (name: string, status: string) => {
     try {
-      const response = await fetch(`/api/surveys/${encodeURIComponent(name)}`, {
+      const res = await fetch(`/api/surveys/${encodeURIComponent(name)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
       });
-      const result = await response.json();
-      if (!result.success) {
+      const result = await res.json();
+      if (!res.ok || !result.success) {
         throw new Error(result.message || 'Failed to update survey');
       }
-      setErrorMessage('');
-      await loadSurveyData();
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to update survey');
+      setError('');
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update survey');
     }
   };
 
-  const handleDeleteSurvey = async (name: string) => {
+  const handleDelete = async (name: string) => {
     try {
-      const response = await fetch(`/api/surveys/${encodeURIComponent(name)}`, {
+      const res = await fetch(`/api/surveys/${encodeURIComponent(name)}`, {
         method: 'DELETE',
       });
-      const result = await response.json();
-      if (!result.success) {
+      const result = await res.json();
+      if (!res.ok || !result.success) {
         throw new Error(result.message || 'Failed to delete survey');
       }
-      setErrorMessage('');
-      await loadSurveyData();
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to delete survey');
+      setError('');
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete survey');
     }
   };
 
-  const handleCheckCompletion = async () => {
-    if (!completionTender.trim()) {
-      setErrorMessage('Enter tender id/name first.');
-      return;
-    }
-
-    try {
-      const response = await fetch(`/api/surveys/check-complete?tender=${encodeURIComponent(completionTender)}`);
-      const result = await response.json();
-      if (!result.success) {
-        throw new Error(result.message || 'Failed to check completion');
-      }
-
-      const data = result.data || {};
-      setErrorMessage('');
-      setCompletionResult(
-        data.complete
-          ? `Complete: ${data.completed}/${data.total} surveys done`
-          : `Not complete: ${data.completed}/${data.total || 0} done, ${data.pending || 0} pending`
-      );
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to check completion');
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full" />
-      </div>
-    );
-  }
+  // ── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div>
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Survey</h1>
-          <p className="text-xs sm:text-sm text-gray-500 mt-1">Site survey forms, photography, and feasibility reports</p>
-        </div>
-        <button className="btn btn-primary w-full sm:w-auto" onClick={() => setIsCreateOpen(true)}>
-          <Plus className="w-4 h-4" />
-          New Survey
-        </button>
-      </div>
+    <>
+      <RegisterPage
+        title="Survey"
+        description="Survey submission against the sites allotted to your project portfolio"
+        loading={loading}
+        error={error || undefined}
+        empty={rows.length === 0 && !loading && !error}
+        onRetry={loadData}
+        emptyTitle="No allotted sites"
+        emptyDescription="You have no projects or sites assigned yet."
+        emptyIcon={<MapPin className="h-10 w-10" />}
+        stats={statItems}
+        headerActions={
+          <button className="btn btn-primary" onClick={() => setIsCreateOpen(true)}>
+            <Plus className="h-4 w-4" />
+            New Survey
+          </button>
+        }
+        filterBar={
+          <>
+            <span className="text-sm text-[var(--text-muted)]">
+              Projects: <strong className="text-[var(--text-main)]">{assignedProjects.length ? assignedProjects.join(', ') : 'None'}</strong>
+            </span>
+            <span className="text-sm text-[var(--text-muted)]">
+              Sites: <strong className="text-[var(--text-main)]">{rows.length}</strong>
+            </span>
+          </>
+        }
+      >
+        {/* ── Create form (inline) ── */}
+        {isCreateOpen && (
+          <div className="border-b border-[var(--border-subtle)] px-5 py-4">
+            <h3 className="mb-3 text-sm font-semibold text-[var(--text-main)]">Create Survey</h3>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <select
+                value={createForm.linked_site}
+                onChange={(e) => {
+                  const selected = sites.find((s) => s.name === e.target.value);
+                  if (selected) {
+                    setCreateForm(prefillFromSite(selected));
+                  } else {
+                    setCreateForm(EMPTY_CREATE_FORM);
+                  }
+                }}
+                className="input"
+              >
+                <option value="">Select allotted site</option>
+                {sites.map((s) => (
+                  <option key={s.name} value={s.name}>
+                    {s.site_name || s.name}
+                    {s.linked_project ? ` (${s.linked_project})` : ''}
+                  </option>
+                ))}
+              </select>
+              <input
+                value={createForm.linked_tender}
+                readOnly
+                placeholder="Tender auto-fills from site"
+                className="input bg-gray-50 text-gray-500"
+              />
+              <input
+                value={createForm.site_name}
+                readOnly
+                placeholder="Site Name"
+                className="input bg-gray-50 text-gray-500"
+              />
+              <input
+                type="date"
+                value={createForm.survey_date}
+                onChange={(e) => setCreateForm((p) => ({ ...p, survey_date: e.target.value }))}
+                className="input"
+              />
+              <select
+                value={createForm.status}
+                onChange={(e) => setCreateForm((p) => ({ ...p, status: e.target.value }))}
+                className="input"
+              >
+                <option value="Pending">Pending</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Completed">Completed</option>
+              </select>
+              <input
+                value={createForm.coordinates}
+                onChange={(e) => setCreateForm((p) => ({ ...p, coordinates: e.target.value }))}
+                placeholder="Coordinates"
+                className="input"
+              />
+              <textarea
+                value={createForm.summary}
+                onChange={(e) => setCreateForm((p) => ({ ...p, summary: e.target.value }))}
+                placeholder="Summary"
+                className="input min-h-20 sm:col-span-2"
+              />
+              <div className="flex justify-end gap-2 sm:col-span-2">
+                <button className="btn btn-secondary" onClick={() => setIsCreateOpen(false)}>
+                  Cancel
+                </button>
+                <button className="btn btn-primary" onClick={handleCreate} disabled={isSubmitting}>
+                  {isSubmitting ? 'Creating\u2026' : 'Create Survey'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
-      {errorMessage && (
-        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {errorMessage}
-        </div>
-      )}
-
-      {isCreateOpen && (
-        <div className="card mb-4 sm:mb-6">
-          <div className="card-header">
-            <h3 className="font-semibold text-gray-900">Create Survey</h3>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4">
-            <input
-              value={createForm.linked_tender}
-              onChange={(e) => setCreateForm(prev => ({ ...prev, linked_tender: e.target.value }))}
-              placeholder="Linked Tender (required)"
-              className="px-3 py-2 border border-gray-300 rounded"
-            />
-            <input
-              value={createForm.site_name}
-              onChange={(e) => setCreateForm(prev => ({ ...prev, site_name: e.target.value }))}
-              placeholder="Site Name (required)"
-              className="px-3 py-2 border border-gray-300 rounded"
-            />
-            <input
-              type="date"
-              value={createForm.survey_date}
-              onChange={(e) => setCreateForm(prev => ({ ...prev, survey_date: e.target.value }))}
-              className="px-3 py-2 border border-gray-300 rounded"
-            />
-            <select
-              value={createForm.status}
-              onChange={(e) => setCreateForm(prev => ({ ...prev, status: e.target.value }))}
-              className="px-3 py-2 border border-gray-300 rounded"
-            >
-              <option value="Pending">Pending</option>
-              <option value="In Progress">In Progress</option>
-              <option value="Completed">Completed</option>
-            </select>
-            <input
-              value={createForm.coordinates}
-              onChange={(e) => setCreateForm(prev => ({ ...prev, coordinates: e.target.value }))}
-              placeholder="Coordinates"
-              className="px-3 py-2 border border-gray-300 rounded sm:col-span-2"
-            />
-            <textarea
-              value={createForm.summary}
-              onChange={(e) => setCreateForm(prev => ({ ...prev, summary: e.target.value }))}
-              placeholder="Summary"
-              className="px-3 py-2 border border-gray-300 rounded sm:col-span-2"
-            />
-            <div className="sm:col-span-2 flex justify-end gap-2">
-              <button className="px-3 py-2 border border-gray-300 rounded" onClick={() => setIsCreateOpen(false)}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleCreateSurvey} disabled={isSubmitting}>
-                {isSubmitting ? 'Creating...' : 'Create Survey'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="card mb-4 sm:mb-6">
-        <div className="card-header">
-          <h3 className="font-semibold text-gray-900">Check Survey Completion By Tender</h3>
-        </div>
-        <div className="p-4 flex flex-col sm:flex-row gap-2">
-          <input
-            value={completionTender}
-            onChange={(e) => setCompletionTender(e.target.value)}
-            placeholder="Enter tender id/name"
-            className="px-3 py-2 border border-gray-300 rounded flex-1"
-          />
-          <button className="btn btn-primary" onClick={handleCheckCompletion}>Check</button>
-        </div>
-        {completionResult && <div className="px-4 pb-4 text-sm text-gray-700">{completionResult}</div>}
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
-        <div className="stat-card">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <MapPin className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <div className="stat-value">{stats.total ?? surveys.length}</div>
-              <div className="stat-label">Total Surveys</div>
-            </div>
-          </div>
-          <div className="text-xs text-gray-500 mt-2">All sites</div>
-        </div>
-        
-        <div className="stat-card">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-              <CheckCircle2 className="w-5 h-5 text-green-600" />
-            </div>
-            <div>
-              <div className="stat-value">{stats.completed ?? 0}</div>
-              <div className="stat-label">Completed</div>
-            </div>
-          </div>
-          <div className="text-xs text-green-600 mt-2">Ready for engineering</div>
-        </div>
-        
-        <div className="stat-card">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-              <Clock className="w-5 h-5 text-yellow-600" />
-            </div>
-            <div>
-              <div className="stat-value">{stats.in_progress ?? 0}</div>
-              <div className="stat-label">In Progress</div>
-            </div>
-          </div>
-          <div className="text-xs text-gray-500 mt-2">Survey in progress</div>
-        </div>
-        
-        <div className="stat-card">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-              <FileText className="w-5 h-5 text-gray-600" />
-            </div>
-            <div>
-              <div className="stat-value">{stats.pending ?? 0}</div>
-              <div className="stat-label">Pending</div>
-            </div>
-          </div>
-          <div className="text-xs text-gray-500 mt-2">Awaiting action</div>
-        </div>
-      </div>
-
-      {/* Survey Records Table */}
-      <div className="card">
-        <div className="card-header">
-          <h3 className="font-semibold text-gray-900">Survey Records</h3>
-        </div>
+        {/* ── Table ── */}
         <div className="overflow-x-auto">
           <table className="data-table">
             <thead>
               <tr>
-                <th>Survey ID</th>
+                <th>Site</th>
+                <th>Project</th>
                 <th>Tender</th>
-                <th>Site Name</th>
+                <th>Latest Survey</th>
                 <th>Coordinates</th>
                 <th>Surveyor</th>
                 <th>Date</th>
@@ -330,65 +313,92 @@ export default function SurveyPage() {
               </tr>
             </thead>
             <tbody>
-              {surveys.length === 0 ? (
-                <tr><td colSpan={9} className="text-center py-8 text-gray-500">No surveys found</td></tr>
-              ) : surveys.map(survey => (
-                <tr key={survey.name}>
+              {rows.map(({ site, latestSurvey }) => (
+                <tr key={site.name}>
                   <td>
-                    <div className="font-medium text-gray-900">{survey.name}</div>
-                    <div className="text-xs text-gray-500">{survey.site_name}</div>
+                    <div className="font-medium text-gray-900">{site.site_name || site.name}</div>
+                    <div className="text-xs text-gray-500">{site.site_code || site.name}</div>
+                  </td>
+                  <td className="text-sm text-gray-900">{site.linked_project || '-'}</td>
+                  <td className="text-sm text-gray-900">{site.linked_tender || '-'}</td>
+                  <td>
+                    <div className="font-medium text-gray-900">
+                      {latestSurvey?.name || 'Not started'}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {latestSurvey?.needs_site_relink
+                        ? 'Legacy survey needs site relink'
+                        : latestSurvey
+                          ? 'Survey record present'
+                          : 'Create first survey'}
+                    </div>
+                  </td>
+                  <td className="font-mono text-sm text-gray-600">
+                    {latestSurvey?.coordinates || '-'}
+                  </td>
+                  <td className="text-gray-900">{latestSurvey?.surveyed_by || '-'}</td>
+                  <td className="text-gray-600">{latestSurvey?.survey_date || '-'}</td>
+                  <td>
+                    <div className="max-w-xs truncate text-sm text-gray-900">
+                      {latestSurvey?.summary || '-'}
+                    </div>
                   </td>
                   <td>
-                    <div className="text-sm text-gray-900">{survey.linked_tender || '-'}</div>
+                    {latestSurvey ? (
+                      <select
+                        value={latestSurvey.status || 'Pending'}
+                        onChange={(e) => handleStatusUpdate(latestSurvey.name, e.target.value)}
+                        className="input py-1 text-xs"
+                      >
+                        <option value="Pending">Pending</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Completed">Completed</option>
+                      </select>
+                    ) : (
+                      <span className="inline-flex rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-600">
+                        Pending
+                      </span>
+                    )}
                   </td>
                   <td>
-                    <div className="font-medium text-gray-900">{survey.site_name || '-'}</div>
-                  </td>
-                  <td>
-                    <div className="text-sm text-gray-600 font-mono">{survey.coordinates}</div>
-                  </td>
-                  <td>
-                    <div className="text-gray-900">{survey.surveyed_by || '-'}</div>
-                  </td>
-                  <td>
-                    <div className="text-gray-600">{survey.survey_date || '-'}</div>
-                  </td>
-                  <td>
-                    <div className="text-sm text-gray-900 max-w-xs truncate">{survey.summary || '-'}</div>
-                  </td>
-                  <td>
-                    <select
-                      value={survey.status || 'Pending'}
-                      onChange={(e) => handleStatusUpdate(survey.name, e.target.value)}
-                      className="px-2 py-1 border border-gray-300 rounded text-xs"
-                    >
-                      <option value="Pending">Pending</option>
-                      <option value="In Progress">In Progress</option>
-                      <option value="Completed">Completed</option>
-                    </select>
-                  </td>
-                  <td>
-                    <Link
-                      href={`/survey/${encodeURIComponent(survey.name)}`}
-                      className="text-blue-600 hover:text-blue-800 text-sm font-medium inline-flex items-center gap-1 mr-3"
-                    >
-                      <Eye className="w-4 h-4" />
-                      View
-                    </Link>
-                    <button
-                      className="text-red-600 hover:text-red-800 text-sm font-medium inline-flex items-center gap-1"
-                      onClick={() => setDeleteTarget(survey.name)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      Delete
-                    </button>
+                    {latestSurvey ? (
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/survey/${encodeURIComponent(latestSurvey.name)}`}
+                          className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800"
+                        >
+                          <Eye className="h-4 w-4" />
+                          View
+                        </Link>
+                        <button
+                          className="inline-flex items-center gap-1 text-sm font-medium text-red-600 hover:text-red-800"
+                          onClick={() => setDeleteTarget(latestSurvey.name)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Delete
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800"
+                        onClick={() => {
+                          setCreateForm(prefillFromSite(site));
+                          setIsCreateOpen(true);
+                        }}
+                      >
+                        <Plus className="h-4 w-4" />
+                        Create
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      </div>
+      </RegisterPage>
+
+      {/* ── Delete confirm ── */}
       <ActionModal
         open={deleteTarget !== null}
         title="Delete Survey"
@@ -398,10 +408,10 @@ export default function SurveyPage() {
         fields={[]}
         onCancel={() => setDeleteTarget(null)}
         onConfirm={async () => {
-          if (deleteTarget) await handleDeleteSurvey(deleteTarget);
+          if (deleteTarget) await handleDelete(deleteTarget);
           setDeleteTarget(null);
         }}
       />
-    </div>
+    </>
   );
 }

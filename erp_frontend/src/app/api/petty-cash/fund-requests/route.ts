@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
     const sp = request.nextUrl.searchParams;
     const args: Record<string, string> = {};
     if (sp.get('project')) args.project = sp.get('project')!;
+    if (sp.get('site')) args.site = sp.get('site')!;
     if (sp.get('status')) args.status = sp.get('status')!;
 
     const result = await callFrappeMethod('get_petty_cash_fund_requests', args, request);

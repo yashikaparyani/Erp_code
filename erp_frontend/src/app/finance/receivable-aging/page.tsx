@@ -1,95 +1,66 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Download, TimerReset } from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
+import { Download } from 'lucide-react';
+import RegisterPage from '@/components/shells/RegisterPage';
+import { callOps, formatCurrency } from '@/components/finance/fin-helpers';
 
-async function fetchAging() {
-  const response = await fetch('/api/ops', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ method: 'get_receivable_aging' }),
-  });
-  const payload = await response.json();
-  if (!response.ok || payload.success === false) throw new Error(payload.message || 'Failed to load receivable aging');
-  return payload.data || [];
-}
+type Row = { customer?: string; current?: number; '30'?: number; '60'?: number; '90'?: number; above_90?: number; total?: number };
 
 export default function ReceivableAgingPage() {
-  const [rows, setRows] = useState<any[]>([]);
+  const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    fetchAging()
-      .then((data) => setRows(data))
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load receivable aging'))
-      .finally(() => setLoading(false));
+  const load = useCallback(async () => {
+    setLoading(true); setError('');
+    try { setRows(await callOps<Row[]>('get_receivable_aging')); }
+    catch (e) { setError(e instanceof Error ? e.message : 'Failed'); }
+    setLoading(false);
   }, []);
 
-  const exportCsv = () => {
-    const lines = [
-      ['Customer', '0-30', '31-60', '61-90', '90+', 'Total'],
-      ...rows.map((row) => [row.customer, row.bucket_0_30 || 0, row.bucket_31_60 || 0, row.bucket_61_90 || 0, row.bucket_90_plus || 0, row.total || 0]),
-    ];
-    const csv = lines.map((line) => line.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'receivable-aging.csv';
-    link.click();
-    URL.revokeObjectURL(url);
+  useEffect(() => { load(); }, [load]);
+
+  const sum = (k: keyof Row) => rows.reduce((t, r) => t + Number(r[k] || 0), 0);
+
+  const exportCSV = () => {
+    const hdr = 'Customer,Current,30 Days,60 Days,90 Days,>90 Days,Total';
+    const csv = [hdr, ...rows.map(r => [r.customer, r.current, r['30'], r['60'], r['90'], r.above_90, r.total].join(','))].join('\n');
+    const a = document.createElement('a'); a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv); a.download = `receivable_aging_${new Date().toISOString().slice(0,10)}.csv`; a.click();
   };
 
   return (
-    <div>
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Receivable Aging</h1>
-        <button className="btn btn-secondary" onClick={exportCsv} disabled={!rows.length}>
-          <Download className="h-4 w-4" />
-          Export CSV
-        </button>
-      </div>
-      <p className="mb-6 mt-1 text-sm text-gray-500">Customer-wise outstanding aging from approved and submitted invoices.</p>
-
-      {error ? <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
-
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {[
-          ['Customers', rows.length],
-          ['0-30', rows.reduce((sum, row) => sum + (row.bucket_0_30 || 0), 0)],
-          ['31-60', rows.reduce((sum, row) => sum + (row.bucket_31_60 || 0), 0)],
-          ['90+', rows.reduce((sum, row) => sum + (row.bucket_90_plus || 0), 0)],
-        ].map(([label, value]) => (
-          <div key={String(label)} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              <TimerReset className="h-4 w-4" />
-              {label}
-            </div>
-            <div className="mt-2 text-2xl font-semibold text-gray-900">{Number(value).toLocaleString('en-IN')}</div>
-          </div>
-        ))}
-      </div>
-
-      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
+    <RegisterPage
+      title="Receivable Aging" description="Outstanding exposure by customer and aging bucket"
+      loading={loading} error={error} onRetry={load} empty={!loading && !rows.length}
+      stats={[
+        { label: 'Current', value: formatCurrency(sum('current')) },
+        { label: '30 Days', value: formatCurrency(sum('30')) },
+        { label: '60 Days', value: formatCurrency(sum('60')), variant: 'warning' },
+        { label: '90+ Days', value: formatCurrency(sum('90') + sum('above_90')), variant: 'error' },
+      ]}
+      headerActions={<button className="btn btn-secondary" onClick={exportCSV}><Download className="h-4 w-4" />Export CSV</button>}
+    >
+      <div className="card">
         <div className="overflow-x-auto">
           <table className="data-table">
-            <thead><tr><th>Customer</th><th>0-30</th><th>31-60</th><th>61-90</th><th>90+</th><th>Total</th></tr></thead>
+            <thead><tr><th>Customer</th><th className="text-right">Current</th><th className="text-right">30 Days</th><th className="text-right">60 Days</th><th className="text-right">90 Days</th><th className="text-right">&gt;90 Days</th><th className="text-right">Total</th></tr></thead>
             <tbody>
-              {loading ? <tr><td colSpan={6} className="py-8 text-center text-gray-500">Loading aging...</td></tr> : !rows.length ? <tr><td colSpan={6} className="py-8 text-center text-gray-500">No aging rows found</td></tr> : rows.map((row) => (
-                <tr key={row.customer}>
-                  <td>{row.customer}</td>
-                  <td>{row.bucket_0_30 || 0}</td>
-                  <td>{row.bucket_31_60 || 0}</td>
-                  <td>{row.bucket_61_90 || 0}</td>
-                  <td>{row.bucket_90_plus || 0}</td>
-                  <td>{row.total || 0}</td>
+              {rows.map((r, i) => (
+                <tr key={`${r.customer}-${i}`}>
+                  <td>{r.customer || '-'}</td>
+                  <td className="text-right">{formatCurrency(r.current)}</td>
+                  <td className="text-right">{formatCurrency(r['30'])}</td>
+                  <td className="text-right">{formatCurrency(r['60'])}</td>
+                  <td className="text-right">{formatCurrency(r['90'])}</td>
+                  <td className="text-right">{formatCurrency(r.above_90)}</td>
+                  <td className="text-right font-semibold">{formatCurrency(r.total)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
-    </div>
+    </RegisterPage>
   );
 }
