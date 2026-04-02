@@ -13,3 +13,4 @@ logs/
 Project Overview.xlsx
 backend/gov_erp/**/__pycache__
 *.zip
+*.bak
