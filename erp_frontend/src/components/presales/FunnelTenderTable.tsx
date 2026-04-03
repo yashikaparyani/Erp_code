@@ -43,14 +43,18 @@ type SortableColumn = 'submission_date' | 'estimated_value' | 'emd_amount' | 'cr
 
 const STATUS_BADGE: Record<string, { bg: string; text: string; label: string }> = {
   DRAFT: { bg: '#e5e7eb', text: '#374151', label: 'Draft' },
-  SUBMITTED: { bg: '#ffd60a20', text: '#b45309', label: 'Submitted' },
+  GO_NO_GO_PENDING: { bg: '#dbeafe', text: '#1d4ed8', label: 'GO/NO-GO Pending' },
+  NO_GO: { bg: '#fce7f3', text: '#9d174d', label: 'No-Go' },
+  QUALIFIED: { bg: '#fef3c7', text: '#92400e', label: 'Qualified' },
+  TECHNICAL_IN_PROGRESS: { bg: '#e0e7ff', text: '#4338ca', label: 'Technical In Progress' },
+  TECHNICAL_NOT_QUALIFIED: { bg: '#ffedd5', text: '#c2410c', label: 'Technical Not Qualified' },
+  BID_READY: { bg: '#dcfce7', text: '#166534', label: 'Bid Ready' },
+  SUBMITTED: { bg: '#ffd60a20', text: '#b45309', label: 'Bid Submitted' },
   UNDER_EVALUATION: { bg: '#e0e7ff', text: '#4338ca', label: 'Evaluation' },
   WON: { bg: '#dcfce7', text: '#166534', label: 'Won' },
   LOST: { bg: '#fee2e2', text: '#991b1b', label: 'Lost' },
-  DROPPED: { bg: '#f3f4f6', text: '#6b7280', label: 'Dropped' },
   CANCELLED: { bg: '#fee2e2', text: '#7c2d12', label: 'Cancelled' },
-  BID_READY: { bg: '#dcfce7', text: '#166534', label: 'Bid Ready' },
-  QUALIFIED: { bg: '#dbeafe', text: '#1e40af', label: 'Qualified' },
+  CONVERTED_TO_PROJECT: { bg: '#dcfce7', text: '#166534', label: 'Converted to Project' },
 };
 
 const BID_STATUS_BADGE: Record<string, { bg: string; text: string }> = {
@@ -62,6 +66,13 @@ const BID_STATUS_BADGE: Record<string, { bg: string; text: string }> = {
   CANCEL: { bg: '#f1f5f9', text: '#475569' },
   RETENDER: { bg: '#fce7f3', text: '#9d174d' },
 };
+
+function getBidStatusLabel(status?: string) {
+  if (!status) return '';
+  if (status === 'UNDER_EVALUATION') return 'Under Clarification';
+  if (status === 'CANCEL') return 'Cancelled';
+  return status.replace(/_/g, ' ');
+}
 
 function formatDate(d?: string) {
   if (!d) return '—';
@@ -206,7 +217,7 @@ export default function FunnelTenderTable({ tenders, filters, onSortChange, isLo
                       className="px-2 py-0.5 rounded-full text-[10px] font-bold"
                       style={{ backgroundColor: bidMeta?.bg ?? '#f3f4f6', color: bidMeta?.text ?? '#374151' }}
                     >
-                      {tender.latest_bid.status}
+                      {getBidStatusLabel(tender.latest_bid.status)}
                     </span>
                   ) : <span className="text-[var(--text-muted)]">—</span>}
                 </td>
@@ -214,10 +225,10 @@ export default function FunnelTenderTable({ tenders, filters, onSortChange, isLo
                 {/* Closing Date */}
                 <td className="px-3 py-3">
                   <div className="flex items-center gap-1">
-                    {overdue && !['WON', 'LOST', 'DROPPED', 'CANCELLED'].includes(tender.status) && (
+                    {overdue && !['WON', 'LOST', 'CANCELLED', 'CONVERTED_TO_PROJECT'].includes(tender.status) && (
                       <AlertCircle className="w-3 h-3 text-red-500" />
                     )}
-                    <span className={overdue && !['WON', 'LOST', 'DROPPED', 'CANCELLED'].includes(tender.status) ? 'text-red-600 font-semibold' : 'text-[var(--text-main)]'}>
+                    <span className={overdue && !['WON', 'LOST', 'CANCELLED', 'CONVERTED_TO_PROJECT'].includes(tender.status) ? 'text-red-600 font-semibold' : 'text-[var(--text-main)]'}>
                       {formatDate(tender.submission_date)}
                     </span>
                   </div>

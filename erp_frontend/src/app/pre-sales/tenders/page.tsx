@@ -38,17 +38,23 @@ async function callOps<T>(method: string, args?: Record<string, unknown>): Promi
 }
 
 const statusColor: Record<string, string> = {
-  INITIAL: 'bg-gray-100 text-gray-700',
-  IDENTIFIED: 'bg-sky-100 text-sky-700',
-  DOCUMENT_PURCHASED: 'bg-blue-100 text-blue-700',
-  PREPARING_BID: 'bg-violet-100 text-violet-700',
-  BID_SUBMITTED: 'bg-amber-100 text-amber-700',
-  TECHNICAL_OPENED: 'bg-indigo-100 text-indigo-700',
-  FINANCIAL_OPENED: 'bg-cyan-100 text-cyan-700',
+  GO_NO_GO_PENDING: 'bg-sky-100 text-sky-700',
+  NO_GO: 'bg-pink-100 text-pink-700',
+  QUALIFIED: 'bg-amber-100 text-amber-700',
+  TECHNICAL_IN_PROGRESS: 'bg-indigo-100 text-indigo-700',
+  TECHNICAL_NOT_QUALIFIED: 'bg-orange-100 text-orange-700',
+  BID_READY: 'bg-emerald-100 text-emerald-700',
+  SUBMITTED: 'bg-yellow-100 text-yellow-700',
   WON: 'bg-emerald-100 text-emerald-700',
   LOST: 'bg-rose-100 text-rose-700',
   CANCELLED: 'bg-red-100 text-red-600',
+  CONVERTED_TO_PROJECT: 'bg-emerald-100 text-emerald-700',
 };
+
+function getTenderStatusLabel(status: string) {
+  if (status === 'SUBMITTED') return 'BID SUBMITTED';
+  return (status || '').replace(/_/g, ' ');
+}
 
 export default function TendersListPage() {
   const [tenders, setTenders] = useState<Tender[]>([]);
@@ -88,7 +94,7 @@ export default function TendersListPage() {
     URL.revokeObjectURL(url);
   };
 
-  const statuses = ['INITIAL', 'IDENTIFIED', 'DOCUMENT_PURCHASED', 'PREPARING_BID', 'BID_SUBMITTED', 'TECHNICAL_OPENED', 'FINANCIAL_OPENED', 'WON', 'LOST', 'CANCELLED'];
+  const statuses = ['GO_NO_GO_PENDING', 'NO_GO', 'QUALIFIED', 'TECHNICAL_IN_PROGRESS', 'TECHNICAL_NOT_QUALIFIED', 'BID_READY', 'SUBMITTED', 'WON', 'LOST', 'CANCELLED', 'CONVERTED_TO_PROJECT'];
 
   return (
     <div>
@@ -107,7 +113,7 @@ export default function TendersListPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
         {[
           { label: 'Total', value: tenders.length, color: 'text-gray-900' },
-          { label: 'Active Pipeline', value: tenders.filter((t) => !['WON', 'LOST', 'CANCELLED'].includes(t.status)).length, color: 'text-blue-600' },
+          { label: 'Active Pipeline', value: tenders.filter((t) => !['WON', 'LOST', 'CANCELLED', 'CONVERTED_TO_PROJECT'].includes(t.status)).length, color: 'text-blue-600' },
           { label: 'Won', value: tenders.filter((t) => t.status === 'WON').length, color: 'text-emerald-600' },
           { label: 'Total Value', value: formatCurrency(tenders.reduce((s, t) => s + (t.estimated_value || 0), 0)), color: 'text-violet-600' },
         ].map((s) => (
@@ -127,7 +133,7 @@ export default function TendersListPage() {
         </div>
         <select value={fStatus} onChange={(e) => setFStatus(e.target.value)} className="border rounded px-2 py-1 text-sm">
           <option value="">All Statuses</option>
-          {statuses.map((s) => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
+          {statuses.map((s) => <option key={s} value={s}>{getTenderStatusLabel(s)}</option>)}
         </select>
         {(search || fStatus) && (
           <button onClick={() => { setSearch(''); setFStatus(''); }} className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-0.5">
@@ -170,7 +176,7 @@ export default function TendersListPage() {
                     <td className="px-4 py-3 text-gray-700">{t.client || '-'}</td>
                     <td className="px-4 py-3">
                       <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${statusColor[t.status] || 'bg-gray-100 text-gray-700'}`}>
-                        {(t.status || '').replace(/_/g, ' ')}
+                        {getTenderStatusLabel(t.status || '')}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-gray-700">{formatCurrency(t.estimated_value)}</td>

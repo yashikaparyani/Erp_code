@@ -37,7 +37,7 @@ const initialFormData: TenderFormData = {
   title: '',
   client: '',
   submission_date: '',
-  status: 'DRAFT',
+  status: 'GO_NO_GO_PENDING',
   estimated_value: 0,
   emd_required: false,
   emd_amount: 0,
@@ -416,21 +416,19 @@ export default function CreateTenderModal({ isOpen, onClose, onSuccess }: Create
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Status
+                  Starting Status
                 </label>
                 <select
                   value={formData.status}
                   onChange={(e) => updateFormData('status', e.target.value)}
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled
                 >
-                  <option value="DRAFT">Draft</option>
-                  <option value="SUBMITTED">Submitted</option>
-                  <option value="UNDER_EVALUATION">Under Evaluation</option>
-                  <option value="WON">Won</option>
-                  <option value="LOST">Lost</option>
-                  <option value="CANCELLED">Cancelled</option>
-                  <option value="DROPPED">Dropped</option>
+                  <option value="GO_NO_GO_PENDING">GO/NO-GO Pending</option>
                 </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  New tenders always start from GO/NO-GO. Later lifecycle stages come from the existing approval flow.
+                </p>
               </div>
             </div>
           )}

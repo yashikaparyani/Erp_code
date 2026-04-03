@@ -17,12 +17,20 @@ type BidRow = {
 };
 
 const BID_STATUS_COLORS: Record<string, { bg: string; text: string }> = {
+  SUBMITTED: { bg: '#fef3c7', text: '#854d0e' },
   UNDER_EVALUATION: { bg: '#e0e7ff', text: '#4338ca' },
   WON: { bg: '#dcfce7', text: '#166534' },
   LOST: { bg: '#fee2e2', text: '#991b1b' },
   CANCEL: { bg: '#f1f5f9', text: '#475569' },
   RETENDER: { bg: '#fce7f3', text: '#9d174d' },
 };
+
+function getBidStatusLabel(status?: string) {
+  if (!status) return '-';
+  if (status === 'UNDER_EVALUATION') return 'UNDER CLARIFICATION';
+  if (status === 'CANCEL') return 'CANCELLED';
+  return status.replace(/_/g, ' ');
+}
 
 function formatDate(value?: string) {
   if (!value) return '-';
@@ -106,7 +114,7 @@ export default function BidsPage() {
           <option value="">All Statuses</option>
           {Object.keys(BID_STATUS_COLORS).map((status) => (
             <option key={status} value={status}>
-              {status}
+              {getBidStatusLabel(status)}
             </option>
           ))}
         </select>
@@ -177,7 +185,7 @@ export default function BidsPage() {
                         className="px-2 py-0.5 rounded-full text-[10px] font-bold"
                         style={{ backgroundColor: statusColors.bg, color: statusColors.text }}
                       >
-                        {bid.status || '-'}
+                        {getBidStatusLabel(bid.status)}
                       </span>
                     </td>
                     <td className="px-3 py-3 text-[var(--text-muted)]">

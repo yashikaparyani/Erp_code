@@ -1443,7 +1443,7 @@ TENDER_APPROVAL_TYPE_CONFIG = {
 		"rejected_value": "REJECTED",
 		"status_on_submit": "TECHNICAL_IN_PROGRESS",
 		"status_on_approve": "BID_READY",
-		"status_on_reject": "TECHNICAL_IN_PROGRESS",
+		"status_on_reject": "TECHNICAL_NOT_QUALIFIED",
 	},
 	"COMMERCIAL": {
 		"fieldname": "commercial_readiness",

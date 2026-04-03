@@ -952,6 +952,7 @@ def mark_bid_cancelled(name, reason=None):
     doc.cancel_reason = reason
     doc.save()
     tender_doc = frappe.get_doc("GE Tender", doc.tender)
+    tender_doc.status = "CANCELLED"
     tender_doc.bid_denied_by_presales = 1
     tender_doc.bid_denied_reason = reason
     tender_doc.save()
@@ -974,7 +975,7 @@ def mark_bid_retender(name, reason=None):
     doc.save()
     # Full reset of tender for new cycle
     tender_doc = frappe.get_doc("GE Tender", doc.tender)
-    tender_doc.status = "DRAFT"
+    tender_doc.status = "GO_NO_GO_PENDING"
     tender_doc.go_no_go_status = "PENDING"
     tender_doc.technical_readiness = "NOT_STARTED"
     tender_doc.commercial_readiness = "NOT_STARTED"
@@ -1027,7 +1028,7 @@ def decide_won_bid_loi(name, decision=None, reason=None):
     if decision == "REJECT":
         tender_doc.bid_denied_by_presales = 1
         tender_doc.bid_denied_reason = reason
-        tender_doc.status = "DROPPED"
+        tender_doc.status = "CANCELLED"
     tender_doc.save()
     frappe.db.commit()
     return {

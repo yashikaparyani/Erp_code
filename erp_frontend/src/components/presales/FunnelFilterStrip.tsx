@@ -253,13 +253,17 @@ export default function FunnelFilterStrip({
         <MultiSelectPill
           label="Status"
           options={[
-            { value: 'DRAFT', label: 'Draft' },
-            { value: 'SUBMITTED', label: 'Submitted' },
-            { value: 'UNDER_EVALUATION', label: 'Under Evaluation' },
+            { value: 'GO_NO_GO_PENDING', label: 'GO/NO-GO Pending' },
+            { value: 'NO_GO', label: 'No-Go' },
+            { value: 'QUALIFIED', label: 'Qualified' },
+            { value: 'TECHNICAL_IN_PROGRESS', label: 'Technical In Progress' },
+            { value: 'TECHNICAL_NOT_QUALIFIED', label: 'Technical Not Qualified' },
+            { value: 'BID_READY', label: 'Bid Ready' },
+            { value: 'SUBMITTED', label: 'Bid Submitted' },
             { value: 'WON', label: 'Won' },
             { value: 'LOST', label: 'Lost' },
-            { value: 'DROPPED', label: 'Dropped' },
             { value: 'CANCELLED', label: 'Cancelled' },
+            { value: 'CONVERTED_TO_PROJECT', label: 'Converted to Project' },
           ]}
           selected={filters.status}
           onChange={(v) => onChange({ status: v })}
@@ -339,7 +343,7 @@ export default function FunnelFilterStrip({
               <option value="NOT_STARTED">Not Started</option>
               <option value="PENDING_APPROVAL">Pending Approval</option>
               <option value="APPROVED">Approved</option>
-              <option value="REJECTED">Rejected</option>
+              <option value="REJECTED">Technical Not Qualified</option>
             </select>
           </div>
 
@@ -353,8 +357,8 @@ export default function FunnelFilterStrip({
             >
               <option value="">All</option>
               <option value="DRAFT">Draft</option>
-              <option value="SUBMITTED">Submitted</option>
-              <option value="UNDER_EVALUATION">Under Evaluation</option>
+              <option value="SUBMITTED">Bid Submitted</option>
+              <option value="UNDER_EVALUATION">Under Clarification</option>
               <option value="WON">Won</option>
               <option value="LOST">Lost</option>
               <option value="CANCEL">Cancelled</option>

@@ -59,12 +59,20 @@ type BidDetail = {
 };
 
 const STATUS_STYLES: Record<string, string> = {
+  SUBMITTED: 'bg-amber-50 text-amber-700 border-amber-200',
   UNDER_EVALUATION: 'bg-indigo-50 text-indigo-700 border-indigo-200',
   WON: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   LOST: 'bg-rose-50 text-rose-700 border-rose-200',
   CANCEL: 'bg-slate-100 text-slate-700 border-slate-200',
   RETENDER: 'bg-pink-50 text-pink-700 border-pink-200',
 };
+
+function getBidStatusLabel(status?: string) {
+  if (!status) return '';
+  if (status === 'UNDER_EVALUATION') return 'UNDER CLARIFICATION';
+  if (status === 'CANCEL') return 'CANCELLED';
+  return status.replace(/_/g, ' ');
+}
 
 const formatDate = (value?: string) => {
   if (!value) return '—';
@@ -207,7 +215,7 @@ export default function BidWorkspacePage() {
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-2xl font-bold text-[var(--text-main)]">{bid.name}</h1>
               <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${STATUS_STYLES[bid.status || ''] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
-                {bid.status}
+                {getBidStatusLabel(bid.status)}
               </span>
               {inProcess ? (
                 <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">

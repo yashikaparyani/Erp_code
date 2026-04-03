@@ -31,11 +31,13 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
+    const allowedCreationStatuses = new Set(['GO_NO_GO_PENDING']);
+    const requestedStatus = typeof data.status === 'string' ? data.status.trim().toUpperCase() : '';
     const tenderData = {
       tender_number: data.tender_number,
       title: data.title,
       submission_date: data.submission_date,
-      status: data.status || 'DRAFT',
+      status: allowedCreationStatuses.has(requestedStatus) ? requestedStatus : 'GO_NO_GO_PENDING',
       emd_required: data.emd_required ? 1 : 0,
       pbg_required: data.pbg_required ? 1 : 0,
       emd_amount: data.emd_amount || 0,
