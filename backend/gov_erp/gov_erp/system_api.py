@@ -3,6 +3,11 @@ from gov_erp.api_utils import *  # noqa: F401,F403 — shared utilities
 
 # ── Forwarded from rbac_api ──────────────────────────────────────────────────
 
+
+def _require_scheduler_admin_access():
+	_require_roles(ROLE_SYSTEM_MANAGER, ROLE_DIRECTOR)
+
+
 @frappe.whitelist()
 def get_workspace_permissions(project=None):
 	"""Forward to rbac_api.get_workspace_permissions (ops route resolves to gov_erp.api.*)."""
@@ -22,6 +27,7 @@ def generate_system_reminders():
 	- PH approval items pending > 3 days
 	Idempotent: won't create duplicates for existing system reminders.
 	"""
+	_require_scheduler_admin_access()
 	from datetime import date, timedelta
 
 	today = date.today()
@@ -172,6 +178,7 @@ def process_due_reminders():
 	passed and emit an alert for each, then mark them as sent.
 	Designed to be called from a scheduler hook.
 	"""
+	_require_scheduler_admin_access()
 	from datetime import datetime
 
 	now_str = str(now_datetime())

@@ -1212,7 +1212,7 @@ def get_project_notes(project=None):
 @frappe.whitelist()
 def create_project_note(data):
 	"""Create a project note."""
-	_require_spine_read_access()
+	_require_spine_write_access()
 	values = json.loads(data) if isinstance(data, str) else data
 	values["doctype"] = "GE Project Note"
 	_require_param(values.get("linked_project"), "linked_project")
@@ -1225,7 +1225,7 @@ def create_project_note(data):
 @frappe.whitelist()
 def update_project_note(name, data):
 	"""Update a project note. Only the owner can update."""
-	_require_spine_read_access()
+	_require_spine_write_access()
 	doc = frappe.get_doc("GE Project Note", name)
 	if doc.owner != frappe.session.user:
 		frappe.throw("Only the note creator can edit this note", frappe.PermissionError)
@@ -1241,7 +1241,7 @@ def update_project_note(name, data):
 @frappe.whitelist()
 def delete_project_note(name):
 	"""Delete a project note. Only the owner can delete."""
-	_require_spine_read_access()
+	_require_spine_write_access()
 	doc = frappe.get_doc("GE Project Note", name)
 	if doc.owner != frappe.session.user:
 		frappe.throw("Only the note creator can delete this note", frappe.PermissionError)
@@ -1284,7 +1284,7 @@ def get_project_tasks(project=None, status=None, parent_task=None):
 @frappe.whitelist()
 def create_project_task(data):
 	"""Create a new project task."""
-	_require_spine_read_access()
+	_require_spine_write_access()
 	if isinstance(data, str):
 		data = frappe.parse_json(data)
 	if not data.get("linked_project") or not data.get("title"):
@@ -1303,7 +1303,7 @@ def create_project_task(data):
 @frappe.whitelist()
 def update_project_task(name, data):
 	"""Update an existing project task."""
-	_require_spine_read_access()
+	_require_spine_write_access()
 	if isinstance(data, str):
 		data = frappe.parse_json(data)
 	doc = frappe.get_doc("GE Project Task", name)
@@ -1320,7 +1320,7 @@ def update_project_task(name, data):
 @frappe.whitelist()
 def delete_project_task(name):
 	"""Delete a project task and its subtasks."""
-	_require_spine_read_access()
+	_require_spine_write_access()
 	# delete subtasks first
 	subtasks = frappe.get_all("GE Project Task", filters={"parent_task": name}, pluck="name", ignore_permissions=True)
 	for st in subtasks:
@@ -2018,5 +2018,4 @@ def complete_exit_management_kt(name=None, kt_completed_on=None, remarks=None):
         closeout_doc.save()
         frappe.db.commit()
         return {"success": True, "data": closeout_doc.as_dict(), "message": "Exit Management KT marked as completed"}
-
 

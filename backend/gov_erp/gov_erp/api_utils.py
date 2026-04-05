@@ -1485,6 +1485,17 @@ def _get_stock_age_bucket(age_days):
 
 @frappe.whitelist(allow_guest=True)
 def health_check():
+	try:
+		session_user = frappe.session.user
+	except Exception:
+		session_user = "Guest"
+
+	if session_user == "Guest":
+		return {
+			"success": True,
+			"app": "gov_erp",
+			"message": "Gov ERP backend is reachable",
+		}
 	return get_health_payload()
 
 

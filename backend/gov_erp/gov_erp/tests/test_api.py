@@ -1,5 +1,6 @@
 import ast
 import json
+import re
 from pathlib import Path
 
 from gov_erp.api import get_health_payload
@@ -28,6 +29,11 @@ def test_health_check_shape():
 	assert "message" in result
 
 
+def test_health_check_guest_payload_is_lightweight():
+	api_utils = (APP_ROOT / "api_utils.py").read_text()
+	assert '"message": "Gov ERP backend is reachable"' in api_utils
+
+
 def test_only_health_check_allows_guest():
 	tree = _load_api_tree()
 	guest_enabled = []
@@ -48,6 +54,40 @@ def test_only_health_check_allows_guest():
 					guest_enabled.append(node.name)
 
 	assert guest_enabled == ["health_check"]
+
+
+def test_project_workspace_mutations_require_spine_write_access():
+	project_api = (APP_ROOT / "project_api.py").read_text()
+
+	for func_name in [
+		"create_project_note",
+		"update_project_note",
+		"delete_project_note",
+		"create_project_task",
+		"update_project_task",
+		"delete_project_task",
+	]:
+		pattern = rf"def {func_name}\([^\)]*\):.*?_require_spine_write_access\(\)"
+		assert re.search(pattern, project_api, re.S), f"{func_name} must require spine write access"
+
+
+def test_scheduler_endpoints_require_scheduler_admin_access():
+	system_api = (APP_ROOT / "system_api.py").read_text()
+
+	assert "def _require_scheduler_admin_access():" in system_api
+	for func_name in ["generate_system_reminders", "process_due_reminders"]:
+		pattern = rf"def {func_name}\([^\)]*\):.*?_require_scheduler_admin_access\(\)"
+		assert re.search(pattern, system_api, re.S), f"{func_name} must require scheduler admin access"
+
+
+def test_health_check_keeps_guest_response_lightweight():
+	api_utils = (APP_ROOT / "api_utils.py").read_text()
+	assert '"message": "Gov ERP backend is reachable"' in api_utils
+	assert re.search(
+		r"def health_check\(\):.*?session.*?Guest.*?return \{.*?Gov ERP backend is reachable.*?\}.*?return get_health_payload\(\)",
+		api_utils,
+		re.S,
+	)
 
 
 def test_business_doctypes_do_not_grant_guest_permissions():
