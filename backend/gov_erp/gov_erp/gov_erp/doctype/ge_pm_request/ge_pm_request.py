@@ -5,9 +5,17 @@ from frappe.utils import cstr, date_diff, getdate, today
 
 class GEPMRequest(Document):
 	def validate(self):
+		self._derive_project_from_site()
 		self._default_request_metadata()
 		self._normalize_type_specific_fields()
 		self._validate_workflow_payload()
+
+	def _derive_project_from_site(self):
+		"""If linked_site is provided but linked_project is missing, derive it."""
+		if self.linked_site and not self.linked_project:
+			site_project = frappe.db.get_value("GE Site", self.linked_site, "linked_project")
+			if site_project:
+				self.linked_project = site_project
 
 	def _default_request_metadata(self):
 		if not self.requested_by:

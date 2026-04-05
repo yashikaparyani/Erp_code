@@ -13,6 +13,7 @@ import { AccountabilityTimeline } from '@/components/accountability/Accountabili
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
 import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
 import { useAuth } from '@/context/AuthContext';
+import { useRole } from '@/context/RoleContext';
 import { formatCurrency, formatDate } from '@/components/pm/pm-helpers';
 
 interface PmRequestDetail {
@@ -55,6 +56,7 @@ export default function PmRequestDetailPage() {
   const params = useParams();
   const reqName = decodeURIComponent((params?.id as string) || '');
   const { currentUser } = useAuth();
+  const { currentRole } = useRole();
 
   const [data, setData] = useState<PmRequestDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -70,6 +72,7 @@ export default function PmRequestDetailPage() {
   const canSubmit = hasRole('Project Manager', 'Project Head');
   const canReview = hasRole('Project Head', 'Department Head', 'Director');
   const canWithdraw = hasRole('Project Manager', 'Project Head');
+  const isProjectHeadView = currentRole === 'Project Head' || currentRole === 'Director' || currentRole === 'Department Head';
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -111,8 +114,8 @@ export default function PmRequestDetailPage() {
       <DetailPage
         title={reqName}
         kicker={d ? `${d.request_type || 'Request'} — ${d.subject || ''}` : 'PM Request'}
-        backHref="/project-manager/requests"
-        backLabel="Back to PM Requests"
+        backHref={isProjectHeadView ? '/project-head/requests' : '/project-manager/requests'}
+        backLabel={isProjectHeadView ? 'Back to Requests from PM' : 'Back to PM Requests'}
         loading={loading}
         error={error}
         onRetry={reload}

@@ -368,4 +368,28 @@ def bootstrap_contract(payload, mode="dry_run"):
         result.add_step("Instruments", "skipped", "No instruments in payload")
 
     result.finalize()
+
+    # ── GE Import Log audit trail ──────────────────────────────────────────
+    try:
+        log_doc = frappe.get_doc({
+            "doctype": "GE Import Log",
+            "import_type": "Historical Bootstrap",
+            "source_file": cstr(payload.get("tender_number", "unknown")),
+            "import_mode": mode,
+            "started_at": str(result.started_at),
+            "finished_at": str(result.finished_at) if result.finished_at else None,
+            "total_rows": len(result.steps),
+            "success_count": sum(1 for s in result.steps if s["status"] == "ok"),
+            "error_count": len(result.errors),
+            "skip_count": sum(1 for s in result.steps if s["status"] == "skipped"),
+            "run_by": frappe.session.user,
+            "summary": result.summary(),
+        })
+        log_doc.flags.ignore_mandatory = True
+        log_doc.insert(ignore_permissions=True)
+        if is_commit:
+            frappe.db.commit()
+    except Exception:
+        frappe.log_error(frappe.get_traceback(), "historical_bootstrap: GE Import Log")
+
     return result

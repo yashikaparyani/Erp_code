@@ -49,17 +49,25 @@ MODULE_ROUTE_MAP = {
     "project":     ["/projects", "/milestones", "/project-manager", "/project-head", "/comm-logs"],
     "presales":    ["/pre-sales", "/survey"],
     "engineering": ["/engineering", "/survey", "/drawings", "/change-requests"],
-    "procurement": ["/procurement", "/indents", "/purchase-orders", "/petty-cash"],
-    "execution":   ["/execution", "/manpower", "/technician-visits"],
+    "procurement": ["/procurement", "/indents", "/purchase-orders", "/petty-cash", "/vendor-comparisons"],
+    "execution":   ["/execution", "/manpower", "/technician-visits", "/dispatch-challans", "/sites"],
     "inventory":   ["/inventory", "/grns", "/stock-position", "/stock-aging"],
     "finance":     ["/finance", "/payment-receipts", "/retention", "/penalties"],
     "hr":          ["/hr"],
-    "om":          ["/om-helpdesk", "/rma", "/sla", "/sla-profiles", "/device-uptime"],
+    "om":          ["/om-helpdesk", "/rma", "/sla", "/sla-profiles", "/device-uptime", "/sla-penalties"],
     "dms":         ["/documents"],
-    "reports":     ["/reports"],
+    "reports":     ["/reports", "/accountability"],
     "master_data": ["/master-data"],
     "approval":    [],
     "settings":    ["/settings"],
+}
+
+# ── Public routes (accessible to any authenticated user) ────────────────────
+# These are NOT gated by any module — they serve cross-cutting user needs.
+PUBLIC_ROUTES = {
+    "/login",
+    "/profile",
+    "/notifications",
 }
 
 # All module-gated route prefixes (flat set for fast lookup)
@@ -74,6 +82,7 @@ ROLE_ROUTE_DENY_MAP = {
         "/petty-cash",
         "/documents",
         "/reports",
+        "/accountability",
         "/execution",
         "/engineering",
         "/milestones",
@@ -85,6 +94,9 @@ ROLE_ROUTE_DENY_MAP = {
         "/technician-visits",
         "/stock-position",
         "/stock-aging",
+        "/vendor-comparisons",
+        "/dispatch-challans",
+        "/sites",
     ],
 }
 
@@ -445,18 +457,29 @@ class PermissionEngine:
         """
         Check if user can access a frontend route path.
 
+        Fail-closed: routes not in MODULE_ROUTE_MAP or PUBLIC_ROUTES are denied.
+
         Args:
             route_path: e.g. "/engineering/projects/PROJ-001"
         """
+        # System Manager / Director bypass
+        if self.is_system_manager or self.is_director:
+            return True
+        # Explicit deny-list per role
         for role, denied_prefixes in ROLE_ROUTE_DENY_MAP.items():
             if role in self.user_roles and any(_matches_route_prefix(route_path, prefix) for prefix in denied_prefixes):
                 return False
+        # Public routes — any authenticated user
+        for pub in PUBLIC_ROUTES:
+            if _matches_route_prefix(route_path, pub):
+                return True
+        # Module-gated routes
         for module_key, routes in MODULE_ROUTE_MAP.items():
             for prefix in routes:
                 if _matches_route_prefix(route_path, prefix):
                     return self.can_access_module(module_key)
-        # Routes not in the map are allowed by default
-        return True
+        # Fail-closed: unmapped routes are denied
+        return False
 
     def get_accessible_modules(self):
         """Return list of module_keys the user can access."""

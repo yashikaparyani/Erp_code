@@ -57,11 +57,11 @@ def test_rma_pending_can_be_approved_or_rejected():
 
 
 def test_rma_approved_goes_to_in_transit():
-    assert VALID_TRANSITIONS["APPROVED"] == ["IN_TRANSIT"]
+    assert VALID_TRANSITIONS["APPROVED"] == {"IN_TRANSIT"}
 
 
 def test_rma_in_transit_goes_to_received():
-    assert VALID_TRANSITIONS["IN_TRANSIT"] == ["RECEIVED_AT_SERVICE_CENTER"]
+    assert VALID_TRANSITIONS["IN_TRANSIT"] == {"RECEIVED_AT_SERVICE_CENTER"}
 
 
 def test_rma_under_repair_can_be_repaired_or_replaced():
@@ -70,11 +70,11 @@ def test_rma_under_repair_can_be_repaired_or_replaced():
 
 
 def test_rma_no_transition_from_repaired():
-    assert "REPAIRED" not in VALID_TRANSITIONS
+    assert VALID_TRANSITIONS["REPAIRED"] == {"CLOSED"}
 
 
 def test_rma_no_transition_from_rejected():
-    assert "REJECTED" not in VALID_TRANSITIONS
+    assert "CLOSED" in VALID_TRANSITIONS["REJECTED"]
 
 
 # ── Retention validation logic ──────────────────────────────

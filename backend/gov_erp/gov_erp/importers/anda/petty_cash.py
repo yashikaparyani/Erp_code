@@ -36,8 +36,13 @@ class PettyCashImporter(BaseImporter):
 
         raw_status = cstr(row.get("status") or row.get("Status") or "").strip().upper()
 
+        linked_site = normalize_name(
+            row.get("linked_site") or row.get("site") or row.get("Site") or row.get("site_name")
+        )
+
         return {
             "linked_project": project,
+            "linked_site": linked_site,
             "petty_cash_id": cstr(
                 row.get("petty_cash_id") or row.get("Petty Cash ID") or ""
             ).strip(),
@@ -93,9 +98,9 @@ class PettyCashImporter(BaseImporter):
     def commit_row(self, parsed):
         doc = frappe.new_doc("GE Petty Cash")
         for field in [
-            "linked_project", "petty_cash_id", "transaction_date", "transaction_type",
-            "amount", "currency", "description", "expense_category",
-            "incurred_by", "approved_by", "status",
+            "linked_project", "linked_site", "petty_cash_id", "transaction_date",
+            "transaction_type", "amount", "currency", "description",
+            "expense_category", "incurred_by", "approved_by", "status",
         ]:
             if parsed.get(field) is not None:
                 doc.set(field, parsed[field])

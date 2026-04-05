@@ -9,6 +9,9 @@ DOCTYPE_ROOT = APP_ROOT / "gov_erp" / "doctype"
 
 
 def _read(path: Path) -> str:
+    if path.name == "api.py":
+        from api_test_utils import combined_api_source
+        return combined_api_source(path.parent)
     return path.read_text()
 
 
@@ -70,9 +73,9 @@ def test_comm_log_create_flow_has_summary_and_direction_normalization():
     for expected in [
         '"client call": "Call"',
         '"site visit": "Site Visit"',
-        'if direction == "incoming":',
+        'if direction in {"incoming", "inward", "inbound"}:',
         'values["direction"] = "Inbound"',
-        'elif direction == "outgoing":',
+        'elif direction in {"outgoing", "outward", "outbound"}:',
         'values["direction"] = "Outbound"',
         'values.setdefault("summary", values.get("subject"))',
         'values.setdefault("communication_date", frappe.utils.today())',

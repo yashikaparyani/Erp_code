@@ -1,12 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   AlertCircle, ArrowUpRight, CheckCircle2, Clock, Loader2, Plus,
   RefreshCcw, Send, X, XCircle,
 } from 'lucide-react';
 import RegisterPage from '@/components/shells/RegisterPage';
 import { usePmContext, callOps, siteLabel } from '@/components/pm/pm-helpers';
+import { useRole } from '@/context/RoleContext';
 
 /* ── Types & Constants ────────────────────────────────────────────────── */
 
@@ -69,6 +71,8 @@ const EMPTY_FORM: FormState = {
 /* ── Page ──────────────────────────────────────────────────────────────── */
 
 export default function ProjectManagerRequestsPage() {
+  const router = useRouter();
+  const { currentRole } = useRole();
   const { assignedProjects, selectedProject, setSelectedProject, sites } = usePmContext();
 
   const [requests, setRequests] = useState<PMRequest[]>([]);
@@ -80,6 +84,12 @@ export default function ProjectManagerRequestsPage() {
   const [detail, setDetail] = useState<PMRequest | null>(null);
   const [actionLoading, setActionLoading] = useState('');
   const [form, setForm] = useState(EMPTY_FORM);
+
+  useEffect(() => {
+    if (currentRole && currentRole !== 'Project Manager') {
+      router.replace('/project-head/requests');
+    }
+  }, [currentRole, router]);
 
   const load = useCallback(async () => {
     if (!selectedProject) return;
@@ -160,6 +170,18 @@ export default function ProjectManagerRequestsPage() {
   };
 
   /* ── Render ─────────────────────────────────────────────────────────── */
+
+  if (currentRole && currentRole !== 'Project Manager') {
+    return (
+      <RegisterPage
+        title="Redirecting to Project Head Requests"
+        description="This screen belongs to the Project Manager workspace. Taking you to the Project Head review queue."
+        loading={true}
+      >
+        <div />
+      </RegisterPage>
+    );
+  }
 
   if (!assignedProjects.length) {
     return (

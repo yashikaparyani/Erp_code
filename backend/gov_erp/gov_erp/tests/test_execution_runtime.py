@@ -2,7 +2,6 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import today
 
-from erpnext.projects.doctype.project.test_project import make_project
 from gov_erp.api import (
 	approve_dependency_override,
 	create_dependency_override,
@@ -94,6 +93,7 @@ class TestExecutionRuntime(FrappeTestCase):
 		return task
 
 	def _make_project(self):
+		from erpnext.projects.doctype.project.test_project import make_project
 		company = frappe.defaults.get_defaults().get("company") or frappe.get_all(
 			"Company", fields=["name"], limit=1
 		)[0].name
@@ -133,16 +133,31 @@ class TestExecutionRuntime(FrappeTestCase):
 		return party
 
 	def _make_survey(self, tender_name, status):
+		site = self._make_site()
 		survey = frappe.get_doc(
 			{
 				"doctype": "GE Survey",
 				"linked_tender": tender_name,
-				"site_name": self._unique("Survey Site"),
+				"linked_site": site.name,
 				"status": status,
 			}
 		).insert()
 		self.addCleanup(self._delete_if_exists, "GE Survey", survey.name)
 		return survey
+
+	def _make_site(self):
+		project = self._make_project()
+		site = frappe.get_doc(
+			{
+				"doctype": "GE Site",
+				"site_code": self._unique("SITE"),
+				"site_name": self._unique("Dependency Site"),
+				"status": "PLANNED",
+				"linked_project": project.name,
+			}
+		).insert()
+		self.addCleanup(self._delete_if_exists, "GE Site", site.name)
+		return site
 
 	def _unique(self, prefix):
 		return f"{prefix}-{frappe.generate_hash(length=8)}"

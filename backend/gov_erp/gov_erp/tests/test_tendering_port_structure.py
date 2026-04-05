@@ -13,16 +13,8 @@ def _load_doctype_json(slug):
 
 
 def _load_api_whitelist_names():
-	api_path = APP_ROOT / "api.py"
-	tree = ast.parse(api_path.read_text())
-	names = []
-	for node in ast.walk(tree):
-		if isinstance(node, ast.FunctionDef):
-			for dec in node.decorator_list:
-				if "whitelist" in ast.dump(dec):
-					names.append(node.name)
-					break
-	return set(names)
+	from api_test_utils import combined_api_whitelist_names
+	return combined_api_whitelist_names(APP_ROOT)
 
 
 def test_organization_doctype_exists():

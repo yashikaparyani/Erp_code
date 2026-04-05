@@ -9,6 +9,9 @@ DOCTYPE_ROOT = APP_ROOT / "gov_erp" / "doctype"
 
 
 def _read(path: Path) -> str:
+    if path.name == "api.py":
+        from api_test_utils import combined_api_source
+        return combined_api_source(path.parent)
     return path.read_text()
 
 

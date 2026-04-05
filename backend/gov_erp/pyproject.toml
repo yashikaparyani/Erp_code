@@ -23,6 +23,17 @@ build-backend = "flit_core.buildapi"
 line-length = 110
 target-version = "py310"
 
+[tool.pytest.ini_options]
+testpaths = ["gov_erp/tests"]
+pythonpath = ["gov_erp/tests"]
+markers = [
+    "structural: pure source-level checks (no Frappe context needed)",
+    "service: service smoke tests needing Frappe import but not full site",
+    "runtime: full integration tests requiring Frappe site context",
+    "frontend: frontend-scope tests (skipped in backend gate)",
+]
+addopts = "--strict-markers"
+
 [tool.ruff.lint]
 select = [
     "F",

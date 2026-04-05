@@ -9,6 +9,22 @@ from frappe.utils.file_manager import save_file
 from gov_erp.gov_erp.doctype.ge_cost_sheet.ge_cost_sheet import map_boq_items_to_cost_sheet_items
 
 
+def _assert_dev_environment():
+	"""Refuse to seed demo data unless running in a development environment."""
+	site = frappe.local.site
+	if site and "dev" not in site and "localhost" not in site and "test" not in site:
+		frappe.throw(
+			f"demo_seed is blocked on production-like site '{site}'. "
+			"Set FRAPPE_SITE to a dev/test site or pass --force.",
+			title="Demo Seed Safety Guard",
+		)
+	if os.environ.get("FRAPPE_ENV") == "production":
+		frappe.throw(
+			"demo_seed is blocked when FRAPPE_ENV=production.",
+			title="Demo Seed Safety Guard",
+		)
+
+
 SITE_NAME = os.environ.get("FRAPPE_SITE", "dev.localhost")
 SITES_DIR = "/workspace/development/frappe-bench/sites"
 DEMO_MARKER = "DEMO-20260316"
@@ -1228,6 +1244,7 @@ def _ensure_commissioning_and_support(project, sites, items, drawing_ctx, summar
 
 
 def seed_demo_operational_data():
+    _assert_dev_environment()
     _bootstrap()
     summary = {
         "project": None,
@@ -1327,6 +1344,7 @@ def _delete_doc_safely(doctype, name):
 
 def purge_seeded_data():
     """Delete demo/sample records created by demo_seed and bookkeeping demo helpers."""
+    _assert_dev_environment()
     _bootstrap()
     summary = {"deleted": {}}
 

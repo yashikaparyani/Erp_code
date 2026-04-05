@@ -39,6 +39,21 @@ ALLOWED_DMS_STATUSES = {
 	"Closed",
 }
 
+# ── Status transition enforcement ──────────────────────────────────────
+# Each key maps to the set of statuses it is allowed to move TO.
+VALID_DMS_TRANSITIONS = {
+	"Draft":      {"Submitted"},
+	"Submitted":  {"Assigned", "In Review", "Rejected", "Draft"},
+	"Assigned":   {"Accepted", "In Review", "Rejected", "Submitted"},
+	"Accepted":   {"In Review", "Blocked", "Escalated"},
+	"In Review":  {"Approved", "Rejected", "Blocked", "Escalated"},
+	"Blocked":    {"In Review", "Submitted", "Escalated"},
+	"Escalated":  {"In Review", "Submitted", "Blocked"},
+	"Approved":   {"Closed"},
+	"Rejected":   {"Draft", "Submitted"},
+	"Closed":     set(),
+}
+
 
 def _get_file_extension(file_url):
 	file_url = (file_url or "").split("?", 1)[0].strip().lower()
@@ -65,6 +80,7 @@ def _get_latest_version(document_name, linked_project, linked_site=None):
 
 class GEProjectDocument(Document):
 	def validate(self):
+		self._derive_project_from_site()
 		self._validate_required_fields()
 		self._validate_linked_project()
 		self._validate_category()
@@ -78,6 +94,13 @@ class GEProjectDocument(Document):
 		self._validate_supersedes_scope()
 		self._validate_date_range()
 		self._apply_workflow_defaults()
+
+	def _derive_project_from_site(self):
+		"""If linked_site is provided but linked_project is missing, derive it."""
+		if self.linked_site and not self.linked_project:
+			site_project = frappe.db.get_value("GE Site", self.linked_site, "linked_project")
+			if site_project:
+				self.linked_project = site_project
 
 	def before_insert(self):
 		if not self.uploaded_by:
@@ -126,6 +149,16 @@ class GEProjectDocument(Document):
 		if self.status not in ALLOWED_DMS_STATUSES:
 			allowed = ", ".join(sorted(ALLOWED_DMS_STATUSES))
 			frappe.throw(f"Status must be one of: {allowed}")
+		# ── Enforce transition map (skip for new documents) ────────────────
+		if not self.is_new():
+			old_status = self.db_get("status") or "Draft"
+			if old_status != self.status:
+				allowed_next = VALID_DMS_TRANSITIONS.get(old_status, set())
+				if self.status not in allowed_next:
+					frappe.throw(
+						f"Cannot change document status from '{old_status}' to '{self.status}'. "
+						f"Allowed transitions: {', '.join(sorted(allowed_next)) or 'none'}"
+					)
 		if self.status == "Blocked" and not self.blocker_reason:
 			frappe.throw("Blocker reason is required when status is Blocked")
 		if self.status == "Closed" and not self.closure_note:

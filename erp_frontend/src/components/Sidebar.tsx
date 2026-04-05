@@ -153,7 +153,7 @@ const navLinks: NavLink[] = [
     icon: Briefcase,
     children: [
       { name: 'Project Workspace', href: '/projects', icon: Layers3 },
-      { name: 'Requests from PM', href: '/project-manager/requests', icon: Send },
+      { name: 'Requests from PM', href: '/project-head/requests', icon: Send },
       { name: 'Communication Log', href: '/comm-logs', icon: ClipboardList },
       { name: 'Approval', href: '/project-head/approval', icon: CheckSquare },
       { name: 'Letter of Completion', href: '/project-head/letter-of-completion', icon: ScrollText },

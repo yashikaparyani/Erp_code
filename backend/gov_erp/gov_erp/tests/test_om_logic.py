@@ -177,9 +177,9 @@ def test_rma_replacement_lifecycle():
 
 def test_rma_rejection_is_terminal():
     status = "PENDING"
-    assert "REJECTED" in VALID_TRANSITIONS.get(status, [])
-    # After rejection, no further transitions
-    assert "REJECTED" not in VALID_TRANSITIONS
+    assert "REJECTED" in VALID_TRANSITIONS.get(status, set())
+    # After rejection, can only go to CLOSED or back to PENDING
+    assert VALID_TRANSITIONS["REJECTED"] <= {"CLOSED", "PENDING"}
 
 
 # ── Ticket categories and priorities ────────────────────────

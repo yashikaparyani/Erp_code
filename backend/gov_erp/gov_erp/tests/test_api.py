@@ -12,7 +12,8 @@ DOCTYPE_ROOT = APP_ROOT / "gov_erp" / "doctype"
 
 
 def _load_api_tree():
-	return ast.parse(API_PATH.read_text())
+	from api_test_utils import combined_api_source
+	return ast.parse(combined_api_source(APP_ROOT))
 
 
 def _iter_doctype_json():
@@ -70,8 +71,8 @@ def test_hooks_enable_role_bootstrap_and_remove_guest_rw_config():
 	assert 'after_install = "gov_erp.install.after_install"' in hooks_text
 	assert 'after_migrate = ["gov_erp.install.after_migrate"]' in hooks_text
 	assert "guest_rw_doctypes" not in hooks_text
-	assert "grant_director_full_access" in install_text
-	assert "grant_presales_head_project_flow_access" in install_text
+	assert "seed_rbac" in install_text
+	assert "sync_rbac_doc_permissions" in install_text
 
 
 def test_business_role_list_matches_backend_plan():
@@ -108,7 +109,7 @@ def test_priority9_doctypes_drop_generic_department_head_permissions():
 		"GE Petty Cash": {"System Manager", "Project Head", "Project Manager", "Accounts", "Director"},
 		"GE Manpower Log": {"System Manager", "Project Head", "Project Manager", "HR Manager", "Director"},
 		"GE RMA Tracker": {"System Manager", "Project Head", "Project Manager", "RMA Manager", "Procurement Manager", "Director"},
-		"GE Device Uptime Log": {"System Manager", "Project Head", "Project Manager", "RMA Manager", "Engineering Head", "Director"},
+		"GE Device Uptime Log": {"System Manager", "Project Head", "Project Manager", "RMA Manager", "Engineering Head", "Director", "OM Operator"},
 	}
 
 	for path in _iter_doctype_json():
@@ -188,7 +189,8 @@ def test_rbac_phase1_artifacts_exist_and_seed_flow_is_hooked():
 
 def test_rbac_phase2_permission_engine_surface_exists():
 	engine_text = (APP_ROOT / "permission_engine.py").read_text()
-	api_text = API_PATH.read_text()
+	from api_test_utils import combined_api_source
+	api_text = combined_api_source(APP_ROOT)
 
 	for snippet in [
 		"class PermissionEngine",

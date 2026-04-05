@@ -10,7 +10,7 @@ type Comment = {
   comment_email?: string;
   content: string;
   creation: string;
-  owner: string;
+  owner?: string;
 };
 
 type Assignment = {
@@ -41,11 +41,22 @@ function timeAgo(iso: string): string {
   return `${days}d ago`;
 }
 
-function userInitials(email: string): string {
-  const local = email.split('@')[0] || '';
+function safeUserLabel(comment: Comment): string {
+  return comment.owner?.trim() || comment.comment_email?.trim() || 'Unknown user';
+}
+
+function userInitials(value?: string): string {
+  const raw = (value || '').trim();
+  if (!raw) return '??';
+
+  const local = raw.split('@')[0] || '';
   const parts = local.split(/[._-]/);
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-  return local.slice(0, 2).toUpperCase();
+  if (parts.length >= 2 && parts[0] && parts[1]) return (parts[0][0] + parts[1][0]).toUpperCase();
+
+  const compact = local.replace(/\s+/g, '');
+  if (compact) return compact.slice(0, 2).toUpperCase();
+
+  return raw.slice(0, 2).toUpperCase() || '??';
 }
 
 /** Render @mentions as highlighted spans */
@@ -248,11 +259,11 @@ export default function RecordComments({ referenceDoctype, referenceName, compac
         {comments.map((c) => (
           <div key={c.name} className="flex items-start gap-2.5">
             <div className="flex-shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-[#aeb0ff] to-[var(--brand-orange)] flex items-center justify-center text-[10px] font-semibold text-white mt-0.5">
-              {userInitials(c.owner)}
+              {userInitials(c.owner || c.comment_email)}
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-[var(--text-main)]">{c.owner}</span>
+                <span className="text-xs font-medium text-[var(--text-main)]">{safeUserLabel(c)}</span>
                 <span className="text-[10px] text-[var(--text-muted)]">{timeAgo(c.creation)}</span>
               </div>
               <div className="mt-0.5 text-sm text-[var(--text-main)] whitespace-pre-wrap break-words">
