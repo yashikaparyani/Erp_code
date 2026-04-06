@@ -49,7 +49,6 @@ class GETender(Document):
 				"status": "Open",
 				"expected_start_date": start_date,
 				"expected_end_date": end_date,
-				"company": frappe.defaults.get_defaults().get("company"),
 				"estimated_costing": self.estimated_value or 0,
 				"notes": f"Auto-created from Tender {self.tender_number}",
 				"linked_tender": self.name,

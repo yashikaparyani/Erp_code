@@ -196,8 +196,8 @@ scheduler_events = {
 			"gov_erp.gov_erp.doctype.ge_user_reminder.ge_user_reminder.process_due_reminders"
 		],
 		"0 6 * * *": [
-			"gov_erp.dms_api._process_expiring_documents",
-			"gov_erp.system_api.generate_system_reminders"
+			"gov_erp.api._process_expiring_documents",
+			"gov_erp.api.generate_system_reminders"
 		]
 	}
 }

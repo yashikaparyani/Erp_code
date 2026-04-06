@@ -584,7 +584,18 @@ export default function BidWorkspacePage() {
       </section>
 
       <LinkedRecordsPanel links={[
-        { label: 'EMD Instruments', doctype: 'GE EMD Instrument', href: (name: string) => `/pre-sales/emd/${encodeURIComponent(name)}`, method: 'frappe.client.get_list', args: { doctype: 'GE EMD Instrument', filters: JSON.stringify({ linked_bid: bidId }), fields: JSON.stringify(['name', 'instrument_type', 'amount', 'status']), limit_page_length: '10' } },
+        {
+          label: 'EMD Instruments',
+          doctype: 'GE EMD PBG Instrument',
+          href: (name: string) => `/pre-sales/emd/${encodeURIComponent(name)}`,
+          method: 'frappe.client.get_list',
+          args: {
+            doctype: 'GE EMD PBG Instrument',
+            filters: JSON.stringify({ linked_tender: bid.tender }),
+            fields: JSON.stringify(['name', 'instrument_type', 'amount', 'status']),
+            limit_page_length: '10',
+          },
+        },
       ]} />
 
       <RecordDocumentsPanel referenceDoctype="GE Bid" referenceName={bidId || ''} title="Linked Documents" initialLimit={5} />

@@ -514,7 +514,14 @@ export async function POST(request: NextRequest) {
     const payload = await request.json();
     const requestedMethod = String(payload?.method || '').trim();
     const method = METHOD_ALIASES[requestedMethod] || requestedMethod;
-    const args = payload?.args && typeof payload.args === 'object' ? payload.args : {};
+    const fallbackArgs = payload && typeof payload === 'object'
+      ? Object.fromEntries(
+        Object.entries(payload as Record<string, unknown>).filter(
+          ([key]) => key !== 'method' && key !== 'args',
+        ),
+      )
+      : {};
+    const args = payload?.args && typeof payload.args === 'object' ? payload.args : fallbackArgs;
 
     if (!method) {
       return NextResponse.json({ success: false, message: 'method is required' }, { status: 400 });

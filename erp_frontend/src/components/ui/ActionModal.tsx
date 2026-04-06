@@ -98,7 +98,7 @@ export default function ActionModal({
         aria-labelledby={titleId}
         tabIndex={-1}
         onMouseDown={(e) => e.stopPropagation()}
-        className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl focus:outline-none"
+        className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl focus:outline-none"
       >
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3.5">
           <h2 id={titleId} className="text-base font-semibold text-gray-900">{title}</h2>
@@ -112,7 +112,7 @@ export default function ActionModal({
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="px-5 py-4 space-y-4">
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 space-y-4">
           {description && <p className="text-sm text-gray-600">{description}</p>}
           {children}
           {fields.map((field, index) => (
