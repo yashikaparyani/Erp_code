@@ -8,6 +8,7 @@
   "naming_series",
   "dispatch_type",
   "dispatch_date",
+  "challan_reference",
   "column_break_header",
   "status",
   "linked_project",
@@ -34,6 +35,7 @@
   "sb_issuance",
   "requested_by",
   "received_by",
+  "issued_to_name",
   "cb_issuance_right",
   "purpose_of_issuance",
   "condition_on_receipt",
@@ -64,6 +66,11 @@
    "in_list_view": 1,
    "label": "Dispatch Date",
    "reqd": 1
+  },
+  {
+   "fieldname": "challan_reference",
+   "fieldtype": "Data",
+   "label": "Challan Reference"
   },
   {
    "fieldname": "column_break_header",
@@ -218,6 +225,11 @@
    "fieldtype": "Link",
    "label": "Received By",
    "options": "User"
+  },
+  {
+   "fieldname": "issued_to_name",
+   "fieldtype": "Data",
+   "label": "Issued To Name"
   },
   {
    "fieldname": "cb_issuance_right",

@@ -6,6 +6,8 @@
  "field_order": [
   "item_link",
   "description",
+  "make",
+  "model_no",
   "column_break_qty",
   "qty",
   "uom",
@@ -27,6 +29,16 @@
    "in_list_view": 1,
    "label": "Description",
    "reqd": 1
+  },
+  {
+   "fieldname": "make",
+   "fieldtype": "Data",
+   "label": "Make"
+  },
+  {
+   "fieldname": "model_no",
+   "fieldtype": "Data",
+   "label": "Model No"
   },
   {
    "fieldname": "column_break_qty",

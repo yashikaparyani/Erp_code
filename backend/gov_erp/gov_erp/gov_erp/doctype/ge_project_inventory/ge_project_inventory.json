@@ -12,11 +12,20 @@
   "cb_meta",
   "item_code",
   "item_name",
+  "hsn_code",
+  "make",
+  "model_no",
+  "serial_no",
   "unit",
   "sb_qty",
   "received_qty",
   "consumed_qty",
   "balance_qty",
+  "last_received_on",
+  "source_reference",
+  "invoice_no",
+  "purchase_order",
+  "purchase_cost",
   "last_grn_ref",
   "last_receipt_note"
  ],
@@ -60,6 +69,26 @@
    "label": "Item Name"
   },
   {
+   "fieldname": "hsn_code",
+   "fieldtype": "Data",
+   "label": "HSN Code"
+  },
+  {
+   "fieldname": "make",
+   "fieldtype": "Data",
+   "label": "Make"
+  },
+  {
+   "fieldname": "model_no",
+   "fieldtype": "Data",
+   "label": "Model No"
+  },
+  {
+   "fieldname": "serial_no",
+   "fieldtype": "Data",
+   "label": "Serial No"
+  },
+  {
    "fieldname": "unit",
    "fieldtype": "Data",
    "label": "Unit"
@@ -91,6 +120,31 @@
    "in_list_view": 1,
    "label": "Balance Qty",
    "read_only": 1
+  },
+  {
+   "fieldname": "last_received_on",
+   "fieldtype": "Date",
+   "label": "Last Received On"
+  },
+  {
+   "fieldname": "source_reference",
+   "fieldtype": "Data",
+   "label": "Source Reference"
+  },
+  {
+   "fieldname": "invoice_no",
+   "fieldtype": "Data",
+   "label": "Invoice No"
+  },
+  {
+   "fieldname": "purchase_order",
+   "fieldtype": "Data",
+   "label": "Purchase Order"
+  },
+  {
+   "fieldname": "purchase_cost",
+   "fieldtype": "Currency",
+   "label": "Purchase Cost"
   },
   {
    "fieldname": "last_grn_ref",

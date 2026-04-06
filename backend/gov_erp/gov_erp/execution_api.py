@@ -1,7 +1,231 @@
 """Auto-extracted domain module. All public functions are re-exported by api.py."""
+import json
+from pathlib import Path
+
+from frappe.utils.csvutils import read_csv_content
+from frappe.utils.xlsxutils import build_xlsx_response, read_xlsx_file_from_attached_file
+
 from gov_erp.api_utils import *  # noqa: F401,F403 — shared utilities
 
 # ── Execution APIs ──────────────────────────────────────────
+
+SITE_BULK_UPLOAD_FIELDS = [
+	"site_code",
+	"site_name",
+	"status",
+	"linked_project",
+	"linked_tender",
+	"address",
+	"latitude",
+	"longitude",
+	"location_id",
+	"survey_completion_date",
+	"tower_count",
+	"fiber_length_m",
+	"backhaul_type",
+	"feasibility_status",
+	"power_source",
+	"power_availability",
+	"road_accessibility",
+	"installation_stage",
+	"location_progress_pct",
+	"remarks",
+	"current_site_stage",
+	"site_blocked",
+	"blocker_reason",
+]
+
+SITE_BULK_UPLOAD_SAMPLE_ROW = {
+	"site_code": "SITE-001",
+	"site_name": "Sector 17 Control Room",
+	"status": "PLANNED",
+	"linked_project": "PROJ-0001",
+	"linked_tender": "",
+	"address": "Sector 17, Chandigarh",
+	"latitude": 30.7415,
+	"longitude": 76.7681,
+	"location_id": "LOC-001",
+	"survey_completion_date": "2026-04-06",
+	"tower_count": 1,
+	"fiber_length_m": 250.0,
+	"backhaul_type": "Fiber",
+	"feasibility_status": "Pending",
+	"power_source": "Grid",
+	"power_availability": 1,
+	"road_accessibility": 1,
+	"installation_stage": "Not Started",
+	"location_progress_pct": 0,
+	"remarks": "Sample row. Replace with real values.",
+	"current_site_stage": "SURVEY",
+	"site_blocked": 0,
+	"blocker_reason": "",
+}
+
+
+def _get_site_doctype_fields():
+	doctype_path = (
+		Path(__file__).resolve().parent
+		/ "gov_erp"
+		/ "doctype"
+		/ "ge_site"
+		/ "ge_site.json"
+	)
+	data = json.loads(doctype_path.read_text())
+	fields_by_name = {}
+	for field in data.get("fields", []):
+		fieldname = field.get("fieldname")
+		if fieldname:
+			fields_by_name[fieldname] = field
+	return fields_by_name
+
+
+def _normalize_site_header(value):
+	if value is None:
+		return ""
+	return cstr(value).strip().lower().replace(" ", "_")
+
+
+def _site_header_aliases():
+	fields_by_name = _get_site_doctype_fields()
+	aliases = {}
+	for fieldname in SITE_BULK_UPLOAD_FIELDS:
+		field = fields_by_name.get(fieldname, {})
+		for value in [fieldname, field.get("label")]:
+			normalized = _normalize_site_header(value)
+			if normalized:
+				aliases[normalized] = fieldname
+	return aliases
+
+
+def _coerce_site_import_value(fieldtype, value):
+	if value in (None, ""):
+		return None
+	if fieldtype in {"Int", "Check"}:
+		return cint(value)
+	if fieldtype in {"Float", "Percent"}:
+		return flt(value)
+	if fieldtype == "Date":
+		return getdate(value)
+	return value
+
+
+def _read_site_upload_rows(file_url):
+	file_doc = frappe.get_doc("File", {"file_url": file_url})
+	file_name = cstr(file_doc.file_name or file_doc.file_url or "").lower()
+	if file_name.endswith(".xlsx"):
+		return read_xlsx_file_from_attached_file(file_url=file_url)
+	if file_name.endswith(".csv"):
+		return read_csv_content(file_doc.get_content())
+	frappe.throw("Only .xlsx and .csv site upload files are supported")
+
+
+def _map_site_upload_row(headers, row):
+	aliases = _site_header_aliases()
+	mapped = {}
+	for header, value in zip(headers, row):
+		fieldname = aliases.get(_normalize_site_header(header))
+		if fieldname:
+			mapped[fieldname] = value
+	return mapped
+
+
+def _prepare_site_upload_doc(mapped, default_project=None, default_tender=None):
+	fields_by_name = _get_site_doctype_fields()
+	values = {}
+	for fieldname in SITE_BULK_UPLOAD_FIELDS:
+		field = fields_by_name.get(fieldname, {})
+		coerced = _coerce_site_import_value(field.get("fieldtype"), mapped.get(fieldname))
+		if coerced not in (None, ""):
+			values[fieldname] = coerced
+
+	if default_project and not values.get("linked_project"):
+		values["linked_project"] = default_project
+	if default_tender and not values.get("linked_tender"):
+		values["linked_tender"] = default_tender
+
+	values.setdefault("status", "PLANNED")
+	values.setdefault("installation_stage", "Not Started")
+	values.setdefault("current_site_stage", "SURVEY")
+	values.setdefault("site_blocked", 0)
+	values.setdefault("power_availability", 0)
+	values.setdefault("road_accessibility", 0)
+	values.setdefault("location_progress_pct", 0)
+
+	if not cstr(values.get("site_code") or "").strip():
+		frappe.throw("site_code is required")
+	if not cstr(values.get("site_name") or "").strip():
+		frappe.throw("site_name is required")
+	if not cstr(values.get("linked_project") or "").strip():
+		frappe.throw("linked_project is required")
+
+	return values
+
+
+@frappe.whitelist()
+def download_site_bulk_upload_template():
+	"""Download an XLSX template for bulk GE Site creation."""
+	_require_execution_write_access()
+	header_row = SITE_BULK_UPLOAD_FIELDS
+	build_xlsx_response([header_row], "ge_site_bulk_upload_template")
+
+
+@frappe.whitelist()
+def bulk_upload_sites(file_url, default_project=None, default_tender=None, dry_run=0):
+	"""Create GE Site records from an attached XLSX/CSV file."""
+	_require_execution_write_access()
+	file_url = _require_param(file_url, "file_url")
+	rows = _read_site_upload_rows(file_url)
+	if not rows or len(rows) < 2:
+		frappe.throw("Upload file must contain a header row and at least one data row")
+
+	headers = rows[0]
+	created = []
+	skipped = []
+	errors = []
+	dry_run = cint(dry_run)
+
+	for row_idx, row in enumerate(rows[1:], start=2):
+		if not any(value not in (None, "") for value in row):
+			continue
+
+		try:
+			mapped = _map_site_upload_row(headers, row)
+			values = _prepare_site_upload_doc(
+				mapped,
+				default_project=default_project,
+				default_tender=default_tender,
+			)
+			if frappe.db.exists("GE Site", values["site_code"]):
+				skipped.append({"row": row_idx, "site_code": values["site_code"], "reason": "already exists"})
+				continue
+
+			doc = frappe.get_doc({"doctype": "GE Site", **values})
+			if dry_run:
+				doc.run_method("validate")
+			else:
+				doc.insert()
+			created.append({"row": row_idx, "site_code": values["site_code"], "site_name": values["site_name"]})
+		except Exception as exc:
+			errors.append({"row": row_idx, "message": cstr(exc)})
+
+	if created and not dry_run:
+		frappe.db.commit()
+
+	return {
+		"success": len(errors) == 0,
+		"data": {
+			"dry_run": bool(dry_run),
+			"created_count": len(created),
+			"skipped_count": len(skipped),
+			"error_count": len(errors),
+			"created": created,
+			"skipped": skipped,
+			"errors": errors,
+			"headers": SITE_BULK_UPLOAD_FIELDS,
+		},
+		"message": "Site upload validated" if dry_run else "Site upload processed",
+	}
+
 
 @frappe.whitelist()
 def get_sites(project=None, status=None):
@@ -2131,4 +2355,3 @@ def supersede_drawing(name, superseded_by=None):
 		frappe.log_error(frappe.get_traceback(), "Accountability: supersede_drawing")
 
 	return {"success": True, "data": doc.as_dict(), "message": "Drawing superseded"}
-

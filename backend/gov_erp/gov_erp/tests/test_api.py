@@ -103,6 +103,30 @@ def test_business_doctypes_do_not_grant_guest_permissions():
 	assert guest_roles == {}
 
 
+def test_dispatch_and_project_inventory_doctypes_capture_workbook_reference_fields():
+	dispatch_json = json.loads((DOCTYPE_ROOT / "ge_dispatch_challan" / "ge_dispatch_challan.json").read_text())
+	dispatch_item_json = json.loads((DOCTYPE_ROOT / "ge_dispatch_challan_item" / "ge_dispatch_challan_item.json").read_text())
+	project_inventory_json = json.loads((DOCTYPE_ROOT / "ge_project_inventory" / "ge_project_inventory.json").read_text())
+
+	dispatch_fields = {field.get("fieldname") for field in dispatch_json.get("fields", [])}
+	dispatch_item_fields = {field.get("fieldname") for field in dispatch_item_json.get("fields", [])}
+	project_inventory_fields = {field.get("fieldname") for field in project_inventory_json.get("fields", [])}
+
+	assert {"challan_reference", "issued_to_name"}.issubset(dispatch_fields)
+	assert {"make", "model_no"}.issubset(dispatch_item_fields)
+	assert {
+		"hsn_code",
+		"make",
+		"model_no",
+		"serial_no",
+		"last_received_on",
+		"source_reference",
+		"invoice_no",
+		"purchase_order",
+		"purchase_cost",
+	}.issubset(project_inventory_fields)
+
+
 def test_hooks_enable_role_bootstrap_and_remove_guest_rw_config():
 	hooks_path = APP_ROOT / "hooks.py"
 	hooks_text = hooks_path.read_text()

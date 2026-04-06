@@ -1,6 +1,46 @@
 """Auto-extracted domain module. All public functions are re-exported by api.py."""
 from gov_erp.api_utils import *  # noqa: F401,F403 — shared utilities
 
+_PROJECT_INVENTORY_RECEIPT_ALIAS_MAP = {
+	"linked_project": "linked_project",
+	"linked_site": "linked_site",
+	"item_code": "item_code",
+	"item_name": "item_name",
+	"item": "item_name",
+	"received_qty": "received_qty",
+	"qty": "received_qty",
+	"uom": "unit",
+	"unit": "unit",
+	"received_date": "last_received_on",
+	"hsn_code": "hsn_code",
+	"make": "make",
+	"model_no": "model_no",
+	"serial_no": "serial_no",
+	"from_vendor_s_project_received": "source_reference",
+	"from_vendor_project_received": "source_reference",
+	"invoice_no": "invoice_no",
+	"purchase_order": "purchase_order",
+	"purchase_cost": "purchase_cost",
+	"remark": "last_receipt_note",
+	"remarks": "last_receipt_note",
+}
+
+
+def _normalize_project_inventory_receipt_values(values):
+	normalized = {}
+	for key, value in (values or {}).items():
+		target = _PROJECT_INVENTORY_RECEIPT_ALIAS_MAP.get(_normalize_sheet_header(key))
+		if target:
+			if value in (None, "") and normalized.get(target) not in (None, ""):
+				continue
+			normalized[target] = value
+			continue
+		normalized[key] = value
+
+	if not cstr(normalized.get("item_code") or "").strip() and cstr(normalized.get("item_name") or "").strip():
+		normalized["item_code"] = normalized["item_name"]
+	return normalized
+
 # ── Invoice APIs (Billing) ───────────────────────────────────
 
 @frappe.whitelist()
@@ -1608,10 +1648,19 @@ def get_project_inventory_records(project=None, site=None):
 			"linked_site",
 			"item_code",
 			"item_name",
+			"hsn_code",
+			"make",
+			"model_no",
+			"serial_no",
 			"unit",
 			"received_qty",
 			"consumed_qty",
 			"balance_qty",
+			"last_received_on",
+			"source_reference",
+			"invoice_no",
+			"purchase_order",
+			"purchase_cost",
 			"last_grn_ref",
 			"last_receipt_note",
 			"modified",
@@ -1625,7 +1674,7 @@ def get_project_inventory_records(project=None, site=None):
 def record_project_inventory_receipt(data):
 	"""Apply a project-side receipt update to project inventory totals."""
 	_require_project_inventory_write_access()
-	values = _parse_payload(data)
+	values = _normalize_project_inventory_receipt_values(_parse_payload(data))
 	project = _ensure_project_manager_project_scope(values.get("linked_project"))
 	values["linked_site"] = _ensure_site_belongs_to_project(project, values.get("linked_site"), allow_blank=True)
 	item_code = _require_param(values.get("item_code"), "item_code")
@@ -1650,13 +1699,34 @@ def record_project_inventory_receipt(data):
 				"linked_site": values.get("linked_site"),
 				"item_code": item_code,
 				"item_name": values.get("item_name") or item_code,
+				"hsn_code": values.get("hsn_code"),
+				"make": values.get("make"),
+				"model_no": values.get("model_no"),
+				"serial_no": values.get("serial_no"),
 				"unit": values.get("unit"),
 				"received_qty": received_qty,
 				"consumed_qty": 0,
+				"last_received_on": values.get("last_received_on"),
+				"source_reference": values.get("source_reference"),
+				"invoice_no": values.get("invoice_no"),
+				"purchase_order": values.get("purchase_order"),
+				"purchase_cost": flt(values.get("purchase_cost")),
+				"last_grn_ref": values.get("last_grn_ref"),
+				"last_receipt_note": values.get("last_receipt_note"),
 			}
 		)
 	doc.item_name = values.get("item_name") or doc.item_name or item_code
+	doc.hsn_code = values.get("hsn_code") or doc.hsn_code
+	doc.make = values.get("make") or doc.make
+	doc.model_no = values.get("model_no") or doc.model_no
+	doc.serial_no = values.get("serial_no") or doc.serial_no
 	doc.unit = values.get("unit") or doc.unit
+	doc.last_received_on = values.get("last_received_on") or doc.last_received_on
+	doc.source_reference = values.get("source_reference") or doc.source_reference
+	doc.invoice_no = values.get("invoice_no") or doc.invoice_no
+	doc.purchase_order = values.get("purchase_order") or doc.purchase_order
+	if values.get("purchase_cost") not in (None, ""):
+		doc.purchase_cost = flt(values.get("purchase_cost"))
 	doc.last_grn_ref = values.get("last_grn_ref") or doc.last_grn_ref
 	doc.last_receipt_note = values.get("last_receipt_note") or doc.last_receipt_note
 	if existing_name:

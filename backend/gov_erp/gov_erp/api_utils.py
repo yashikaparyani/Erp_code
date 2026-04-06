@@ -66,6 +66,7 @@ __all__ = [
     "_get_stock_age_bucket",
     "_latest_project_head_status_by_source",
     "_list_generic_docs",
+    "_normalize_sheet_header",
     "_parse_json_list",
     "_parse_payload",
     "_prepare_indent_doc_values",
@@ -160,6 +161,7 @@ __all__ = [
 ]
 
 import json
+import re
 from collections import defaultdict
 
 import frappe
@@ -1134,6 +1136,13 @@ def _parse_payload(data):
 	if isinstance(data, str):
 		return json.loads(data) if data else {}
 	return data or {}
+
+
+def _normalize_sheet_header(value):
+	"""Normalize human spreadsheet headers into stable lookup keys."""
+	if value is None:
+		return ""
+	return re.sub(r"[^a-z0-9]+", "_", cstr(value).strip().lower()).strip("_")
 
 
 def _get_project_manager_assigned_projects():

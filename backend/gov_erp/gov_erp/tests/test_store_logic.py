@@ -8,6 +8,7 @@ from gov_erp.gov_erp.doctype.ge_dispatch_challan.ge_dispatch_challan import (
 	validate_dispatch_status_transition,
 	validate_serial_number_bundle,
 )
+from gov_erp.inventory_api import _normalize_dispatch_challan_payload
 
 
 class Row:
@@ -142,3 +143,40 @@ def test_build_stock_entry_payload_for_transfer_and_issue():
 	assert issue_payload["items"][0]["s_warehouse"] == "WH-A"
 	assert issue_payload["items"][0]["t_warehouse"] is None
 	assert issue_payload["items"][0]["serial_no"] == "SN-1"
+
+
+def test_normalize_dispatch_challan_payload_accepts_out_sheet_aliases():
+	values = _normalize_dispatch_challan_payload(
+		{
+			"Send Date": "2026-04-06",
+			"challan no.": "DC-2026-001",
+			"Issued location /project": "Technosys HO to Site-17",
+			"Name of person issued": "Rakesh Sharma",
+			"Remark": "Urgent dispatch",
+			"items": [
+				{
+					"item_code": "ITEM-1",
+					"ITEM OF DESCRIPTION": "Camera",
+					"MAKE": "Hikvision",
+					"MODEL NO.": "DS-2CD",
+					"SERIAL NO.": "SN-1001",
+					"QTY": 2,
+					"UOM": "Nos",
+					"Remark": "Box sealed",
+				}
+			],
+		}
+	)
+
+	assert values["dispatch_date"] == "2026-04-06"
+	assert values["challan_reference"] == "DC-2026-001"
+	assert values["tracking_reference"] == "DC-2026-001"
+	assert values["target_site_name"] == "Technosys HO to Site-17"
+	assert values["issued_to_name"] == "Rakesh Sharma"
+	assert values["remarks"] == "Urgent dispatch"
+	assert values["items"][0]["item_link"] == "ITEM-1"
+	assert values["items"][0]["description"] == "Camera"
+	assert values["items"][0]["make"] == "Hikvision"
+	assert values["items"][0]["model_no"] == "DS-2CD"
+	assert values["items"][0]["serial_numbers"] == "SN-1001"
+	assert values["items"][0]["qty"] == 2

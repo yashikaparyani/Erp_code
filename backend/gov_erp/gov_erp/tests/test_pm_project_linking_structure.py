@@ -22,6 +22,13 @@ def test_project_inventory_doctype_and_consumption_report_exist():
     assert '"name": "GE Project Inventory"' in inventory_json
     assert '"fieldname": "linked_project"' in inventory_json
     assert '"fieldname": "balance_qty"' in inventory_json
+    assert '"fieldname": "hsn_code"' in inventory_json
+    assert '"fieldname": "make"' in inventory_json
+    assert '"fieldname": "model_no"' in inventory_json
+    assert '"fieldname": "serial_no"' in inventory_json
+    assert '"fieldname": "last_received_on"' in inventory_json
+    assert '"fieldname": "invoice_no"' in inventory_json
+    assert '"fieldname": "purchase_order"' in inventory_json
     assert '"name": "GE Material Consumption Report"' in consumption_json
     assert '"fieldname": "consumed_qty"' in consumption_json
 
@@ -29,11 +36,15 @@ def test_project_inventory_doctype_and_consumption_report_exist():
 def test_api_exposes_project_scoped_inventory_methods():
     source = _read(APP_ROOT / "api.py")
     for expected in [
+        "def get_inventory_reference_schema(",
         "def get_project_inventory_records(",
         "def record_project_inventory_receipt(",
         "def get_material_consumption_reports(",
         "def create_material_consumption_report(",
         "def get_project_receiving_summary(",
+        "_normalize_project_inventory_receipt_values(",
+        "INVENTORY_IN_REFERENCE_HEADERS = [",
+        "DISPATCH_OUT_REFERENCE_HEADERS = [",
         "_apply_project_manager_project_filter(filters, project=project, project_field=\"linked_project\")",
     ]:
         assert expected in source

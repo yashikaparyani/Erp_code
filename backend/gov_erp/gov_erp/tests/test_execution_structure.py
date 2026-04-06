@@ -94,3 +94,20 @@ def test_test_report_ui_matches_real_backend_fields():
 
     for stale in ["client_designation", "client_name", "reference_document", "test_description", "prepared_by"]:
         assert stale not in source
+
+
+def test_site_bulk_upload_api_surface_exists():
+    source = _read(APP_ROOT / "api.py")
+    for expected in [
+        "SITE_BULK_UPLOAD_FIELDS = [",
+        "def download_site_bulk_upload_template():",
+        "def bulk_upload_sites(file_url, default_project=None, default_tender=None, dry_run=0):",
+        "build_xlsx_response(",
+        "read_xlsx_file_from_attached_file",
+        "read_csv_content(",
+        "Only .xlsx and .csv site upload files are supported",
+        "site_code is required",
+        "linked_project is required",
+        '"headers": SITE_BULK_UPLOAD_FIELDS',
+    ]:
+        assert expected in source

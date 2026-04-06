@@ -1,6 +1,116 @@
 """Auto-extracted domain module. All public functions are re-exported by api.py."""
 from gov_erp.api_utils import *  # noqa: F401,F403 — shared utilities
 
+INVENTORY_IN_REFERENCE_HEADERS = [
+	"Received Date",
+	"HSN CODE",
+	"item",
+	"Make",
+	"Model No..",
+	"Serial No.",
+	"QTY",
+	"UOM",
+	"From Vendor's/Project Received",
+	"Invoice no.",
+	"Purchase Order",
+	"purchase cost.",
+	"REMARK",
+]
+
+DISPATCH_OUT_REFERENCE_HEADERS = [
+	"Send Date",
+	"challan no.",
+	"ITEM OF DESCRIPTION",
+	"MAKE",
+	"MODEL NO.",
+	"SERIAL NO.",
+	"QTY",
+	"UOM",
+	"Issued location /project",
+	"Name of person issued",
+	"Remark",
+]
+
+_DISPATCH_PARENT_ALIAS_MAP = {
+	"dispatch_date": "dispatch_date",
+	"send_date": "dispatch_date",
+	"challan_no": "challan_reference",
+	"challan_reference": "challan_reference",
+	"issued_location_project": "target_site_name",
+	"target_site_name": "target_site_name",
+	"name_of_person_issued": "issued_to_name",
+	"issued_to_name": "issued_to_name",
+	"remark": "remarks",
+	"remarks": "remarks",
+}
+
+_DISPATCH_ITEM_ALIAS_MAP = {
+	"item_link": "item_link",
+	"item_code": "item_link",
+	"description": "description",
+	"item_of_description": "description",
+	"item_of_discription": "description",
+	"make": "make",
+	"model_no": "model_no",
+	"serial_no": "serial_numbers",
+	"serial_numbers": "serial_numbers",
+	"qty": "qty",
+	"quantity": "qty",
+	"uom": "uom",
+	"remark": "remarks",
+	"remarks": "remarks",
+}
+
+
+def _normalize_aliased_payload(values, alias_map):
+	normalized = {}
+	for key, value in (values or {}).items():
+		target = alias_map.get(_normalize_sheet_header(key))
+		if target:
+			if value in (None, "") and normalized.get(target) not in (None, ""):
+				continue
+			normalized[target] = value
+			continue
+		normalized[key] = value
+	return normalized
+
+
+def _normalize_dispatch_item_payload(values):
+	row = _normalize_aliased_payload(values, _DISPATCH_ITEM_ALIAS_MAP)
+	if not cstr(row.get("description") or "").strip() and cstr(row.get("item_link") or "").strip():
+		row["description"] = row["item_link"]
+	return row
+
+
+def _normalize_dispatch_challan_payload(values):
+	normalized = _normalize_aliased_payload(values, _DISPATCH_PARENT_ALIAS_MAP)
+	if "items" in normalized:
+		normalized["items"] = [_normalize_dispatch_item_payload(item) for item in normalized.get("items") or []]
+	if normalized.get("challan_reference") and not normalized.get("tracking_reference"):
+		normalized["tracking_reference"] = normalized["challan_reference"]
+	return normalized
+
+
+@frappe.whitelist()
+def get_inventory_reference_schema():
+	"""Expose workbook-style header references for stores, receipts, and dispatch UX."""
+	_require_authenticated_user()
+	return {
+		"success": True,
+		"data": {
+			"in_sheet": {
+				"title": "All Received Materials Details-2026",
+				"supported_for": ["ho_inventory", "site_inventory", "grn_reference"],
+				"headers": INVENTORY_IN_REFERENCE_HEADERS,
+			},
+			"out_sheet": {
+				"title": "All Issued Materials Details - 2026",
+				"supported_for": ["ho_dispatch_challan"],
+				"headers": DISPATCH_OUT_REFERENCE_HEADERS,
+			},
+		},
+	}
+
 # ── Stores APIs ─────────────────────────────────────────────
 
 @frappe.whitelist()
@@ -18,7 +128,8 @@ def get_dispatch_challans(status=None, warehouse=None):
 		fields=[
 			"name", "dispatch_date", "dispatch_type", "status", "from_warehouse",
 			"to_warehouse", "target_site_name", "linked_project", "total_items",
-			"total_qty", "linked_stock_entry", "approved_by", "approved_at", "creation", "modified",
+			"total_qty", "challan_reference", "issued_to_name", "linked_stock_entry",
+			"approved_by", "approved_at", "creation", "modified",
 		],
 		order_by="creation desc",
 	)
@@ -38,7 +149,7 @@ def get_dispatch_challan(name=None):
 def create_dispatch_challan(data):
 	"""Create a dispatch challan draft."""
 	_require_store_write_access()
-	values = json.loads(data) if isinstance(data, str) else data
+	values = _normalize_dispatch_challan_payload(_parse_payload(data))
 	doc = frappe.get_doc({"doctype": "GE Dispatch Challan", **values})
 	doc.insert()
 	frappe.db.commit()
@@ -49,7 +160,7 @@ def create_dispatch_challan(data):
 def update_dispatch_challan(name, data):
 	"""Update a dispatch challan."""
 	_require_store_write_access()
-	values = json.loads(data) if isinstance(data, str) else data
+	values = _normalize_dispatch_challan_payload(_parse_payload(data))
 	doc = frappe.get_doc("GE Dispatch Challan", name)
 	doc.update(values)
 	doc.save()
@@ -1321,5 +1432,3 @@ def _get_reference_status_for_rule(rule):
 		getattr(doc, "workflow_state", None),
 		getattr(doc, "docstatus", None),
 	)
-
-
