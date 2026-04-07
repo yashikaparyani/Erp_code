@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   CalendarClock,
@@ -298,19 +298,7 @@ export default function HrAttendancePage() {
 
   const employeeOptions = useMemo(() => employees.map((employee) => ({ value: employee.name, label: `${employee.employee_name} (${employee.name})` })), [employees]);
 
-  useEffect(() => {
-    void loadWorkspace();
-  }, []);
-
-  useEffect(() => {
-    if (!holidayListName) {
-      setHolidayDetail(null);
-      return;
-    }
-    void loadHolidayDetail(holidayListName);
-  }, [holidayListName]);
-
-  async function loadWorkspace() {
+  const loadWorkspace = useCallback(async () => {
     setLoading(true);
     try {
       const [employeesRes, typesRes, allocationsRes, leaveRes, balancesRes, holidaysRes, calendarRes, overviewRes, regularizationRes] = await Promise.all([
@@ -338,6 +326,15 @@ export default function HrAttendancePage() {
       ]);
 
       if (!employeesRes.ok || employeesJson.success === false) throw new Error(employeesJson.message || 'Failed to load employees');
+      if (!typesRes.ok || typesJson.success === false) throw new Error(typesJson.message || 'Failed to load leave types');
+      if (!allocationsRes.ok || allocationsJson.success === false) throw new Error(allocationsJson.message || 'Failed to load leave allocations');
+      if (!leaveRes.ok || leaveJson.success === false) throw new Error(leaveJson.message || 'Failed to load leave applications');
+      if (!balancesRes.ok || balancesJson.success === false) throw new Error(balancesJson.message || 'Failed to load leave balances');
+      if (!holidaysRes.ok || holidaysJson.success === false) throw new Error(holidaysJson.message || 'Failed to load holidays');
+      if (!calendarRes.ok || calendarJson.success === false) throw new Error(calendarJson.message || 'Failed to load leave calendar');
+      if (!overviewRes.ok || overviewJson.success === false) throw new Error(overviewJson.message || 'Failed to load attendance overview');
+      if (!regularizationRes.ok || regularizationJson.success === false) throw new Error(regularizationJson.message || 'Failed to load attendance regularizations');
+
       setEmployees(employeesJson.data || []);
       setLeaveTypes(typesJson.data || []);
       setAllocations(allocationsJson.data || []);
@@ -347,15 +344,30 @@ export default function HrAttendancePage() {
       setCalendarData(calendarJson.data || { leaves: [], holidays: [] });
       setOverview(overviewJson.data || null);
       setRegularizations(regularizationJson.data || []);
-      if (!holidayListName && holidaysJson.data?.length) {
+
+      if (!holidayListName && Array.isArray(holidaysJson.data) && holidaysJson.data.length > 0) {
         setHolidayListName(holidaysJson.data[0].name);
       }
+
+      setFlash(null);
     } catch (error) {
-      setFlash({ tone: 'error', message: error instanceof Error ? error.message : 'Failed to load leave and attendance workspace' });
+      setFlash({ tone: 'error', message: error instanceof Error ? error.message : 'Failed to load attendance workspace' });
     } finally {
       setLoading(false);
     }
-  }
+  }, [attendanceDate, calendarEnd, calendarStart, holidayListName]);
+
+  useEffect(() => {
+    void loadWorkspace();
+  }, [loadWorkspace]);
+
+  useEffect(() => {
+    if (!holidayListName) {
+      setHolidayDetail(null);
+      return;
+    }
+    void loadHolidayDetail(holidayListName);
+  }, [holidayListName]);
 
   async function refreshWorkspace() {
     setRefreshing(true);
@@ -371,65 +383,6 @@ export default function HrAttendancePage() {
     }
   }
 
-  async function submitLeaveApplication() {
-    setWorking('leave-create');
-    try {
-      const res = await fetch('/api/hr/leave/applications', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(leaveForm),
-      });
-      const json = await res.json();
-      if (!res.ok || json.success === false) throw new Error(json.message || 'Failed to create leave application');
-      setLeaveForm(INITIAL_LEAVE_FORM);
-      setFlash({ tone: 'success', message: 'Leave draft created.' });
-      await refreshWorkspace();
-    } catch (error) {
-      setFlash({ tone: 'error', message: error instanceof Error ? error.message : 'Failed to create leave application' });
-    } finally {
-      setWorking(null);
-    }
-  }
-
-  async function createLeaveType() {
-    setWorking('type-create');
-    try {
-      const res = await fetch('/api/hr/leave/types', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(typeForm),
-      });
-      const json = await res.json();
-      if (!res.ok || json.success === false) throw new Error(json.message || 'Failed to create leave type');
-      setTypeForm(INITIAL_TYPE_FORM);
-      setFlash({ tone: 'success', message: 'Leave type created.' });
-      await refreshWorkspace();
-    } catch (error) {
-      setFlash({ tone: 'error', message: error instanceof Error ? error.message : 'Failed to create leave type' });
-    } finally {
-      setWorking(null);
-    }
-  }
-
-  async function createAllocation() {
-    setWorking('allocation-create');
-    try {
-      const res = await fetch('/api/hr/leave/allocations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(allocationForm),
-      });
-      const json = await res.json();
-      if (!res.ok || json.success === false) throw new Error(json.message || 'Failed to create leave allocation');
-      setAllocationForm(INITIAL_ALLOCATION_FORM);
-      setFlash({ tone: 'success', message: 'Leave allocation created.' });
-      await refreshWorkspace();
-    } catch (error) {
-      setFlash({ tone: 'error', message: error instanceof Error ? error.message : 'Failed to create leave allocation' });
-    } finally {
-      setWorking(null);
-    }
-  }
 
   async function createRegularization() {
     setWorking('regularization-create');
@@ -451,6 +404,66 @@ export default function HrAttendancePage() {
       await refreshWorkspace();
     } catch (error) {
       setFlash({ tone: 'error', message: error instanceof Error ? error.message : 'Failed to create regularization' });
+    } finally {
+      setWorking(null);
+    }
+  }
+
+  async function submitLeaveApplication() {
+    setWorking('leave-create');
+    try {
+      const res = await fetch('/api/hr/leave/applications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(leaveForm),
+      });
+      const json = await res.json();
+      if (!res.ok || json.success === false) throw new Error(json.message || 'Failed to create leave application');
+      setLeaveForm(INITIAL_LEAVE_FORM);
+      setFlash({ tone: 'success', message: 'Leave application draft created.' });
+      await refreshWorkspace();
+    } catch (error) {
+      setFlash({ tone: 'error', message: error instanceof Error ? error.message : 'Failed to create leave application' });
+    } finally {
+      setWorking(null);
+    }
+  }
+
+  async function createLeaveType() {
+    setWorking('leave-type-create');
+    try {
+      const res = await fetch('/api/hr/leave/types', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(typeForm),
+      });
+      const json = await res.json();
+      if (!res.ok || json.success === false) throw new Error(json.message || 'Failed to create leave type');
+      setTypeForm(INITIAL_TYPE_FORM);
+      setFlash({ tone: 'success', message: 'Leave type created.' });
+      await refreshWorkspace();
+    } catch (error) {
+      setFlash({ tone: 'error', message: error instanceof Error ? error.message : 'Failed to create leave type' });
+    } finally {
+      setWorking(null);
+    }
+  }
+
+  async function createAllocation() {
+    setWorking('leave-allocation-create');
+    try {
+      const res = await fetch('/api/hr/leave/allocations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(allocationForm),
+      });
+      const json = await res.json();
+      if (!res.ok || json.success === false) throw new Error(json.message || 'Failed to create leave allocation');
+      setAllocationForm(INITIAL_ALLOCATION_FORM);
+      setFlash({ tone: 'success', message: 'Leave allocation created.' });
+      await refreshWorkspace();
+    } catch (error) {
+      setFlash({ tone: 'error', message: error instanceof Error ? error.message : 'Failed to create leave allocation' });
     } finally {
       setWorking(null);
     }

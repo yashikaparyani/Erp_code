@@ -32,6 +32,7 @@ type ApprovalDialogState =
 export default function ApprovalsPage() {
   const router = useRouter();
   const { currentRole } = useRole();
+  const isDirector = currentRole === 'Director';
   const [showFilters, setShowFilters] = useState(false);
   const [data, setData] = useState<ApprovalData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,17 +69,13 @@ export default function ApprovalsPage() {
   }, []);
 
   useEffect(() => {
-    if (currentRole !== 'Director') {
+    if (!isDirector) {
       router.replace('/pre-sales/dashboard');
       return;
     }
 
     void fetchData();
-  }, [currentRole, fetchData, router]);
-
-  if (currentRole !== 'Director') {
-    return null;
-  }
+  }, [fetchData, isDirector, router]);
 
   const getApprovalKind = (row: ApprovalData) => {
     const approvalFor = row.approval_for.toLowerCase();
@@ -188,6 +185,10 @@ export default function ApprovalsPage() {
     if (normalized.includes('technical')) return { approve: 'Approve Technical', reject: 'Reject Technical' };
     return { approve: 'Approve', reject: 'Reject' };
   };
+
+  if (!isDirector) {
+    return null;
+  }
 
   return (
     <div className="p-3 sm:p-4 md:p-6 bg-gray-50 min-h-screen">

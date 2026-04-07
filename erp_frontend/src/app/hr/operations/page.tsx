@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Briefcase,
   Loader2,
@@ -198,11 +198,7 @@ export default function HrOperationsPage() {
     compliance: { summary: { total_records: 0, pending: 0, hold: 0, paid: 0, employee_contribution: 0, employer_contribution: 0 }, rows: [] },
   });
 
-  useEffect(() => {
-    void loadData();
-  }, [project, attendanceDate]);
-
-  async function loadData() {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
@@ -218,7 +214,11 @@ export default function HrOperationsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [attendanceDate, project]);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
 
   return (
     <div className="space-y-6">

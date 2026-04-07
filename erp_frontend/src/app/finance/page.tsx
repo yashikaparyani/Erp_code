@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Filter, Plus, X } from 'lucide-react';
@@ -49,21 +49,36 @@ export default function FinancePage() {
   const [error, setError] = useState('');
   const [busyInv, setBusyInv] = useState<string | null>(null);
   const [projectFilter, setProjectFilter] = useState(searchParams?.get('project') || '');
+  const requestIdRef = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
 
   const load = useCallback(async () => {
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
     setLoading(true);
     setError('');
     try {
       const [invRes, statsRes] = await Promise.all([
-        callApi<Invoice[]>('/api/invoices'),
-        callApi<Stats>('/api/invoices/stats'),
+        callApi<Invoice[]>('/api/invoices', { signal: controller.signal }),
+        callApi<Stats>('/api/invoices/stats', { signal: controller.signal }),
       ]);
+      if (requestId !== requestIdRef.current || controller.signal.aborted) {
+        return;
+      }
       setInvoices(invRes || []);
       setStats(statsRes || {});
     } catch (e) {
+      if (controller.signal.aborted || requestId !== requestIdRef.current) {
+        return;
+      }
       setError(e instanceof Error ? e.message : 'Failed to load');
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+      }
     }
   }, []);
 

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { getFileProxyUrl } from '@/lib/fileLinks';
 import {
   AlertCircle,
@@ -1142,10 +1143,12 @@ export default function DocumentsPage() {
               {getFileExtension(previewDoc.file_url || previewDoc.file) === 'pdf' ? (
                 <iframe title={previewDoc.document_name || previewDoc.name} src={getFileProxyUrl(previewDoc.file_url || previewDoc.file)} className="h-full w-full" />
               ) : (
-                <img
+                <Image
                   src={getFileProxyUrl(previewDoc.file_url || previewDoc.file) || ''}
                   alt={previewDoc.document_name || previewDoc.name}
-                  className="h-full w-full object-contain"
+                  fill
+                  unoptimized
+                  className="object-contain"
                 />
               )}
             </div>

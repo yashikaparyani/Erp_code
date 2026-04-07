@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -432,10 +432,6 @@ export default function ProjectsDashboardPage() {
     };
   }, []);
 
-  useEffect(() => {
-    void loadDirectory();
-  }, []);
-
   // ── User directory ──
   const userNameMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -445,10 +441,10 @@ export default function ProjectsDashboardPage() {
     return map;
   }, [directory]);
 
-  const resolveUserName = (email?: string) => {
+  const resolveUserName = useCallback((email?: string) => {
     if (!email) return undefined;
     return userNameMap[email] || email;
-  };
+  }, [userNameMap]);
 
   // ── Click-outside for dropdowns ──
   useEffect(() => {
@@ -486,7 +482,7 @@ export default function ProjectsDashboardPage() {
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q)),
     );
-  }, [projects, search, userNameMap]);
+  }, [projects, resolveUserName, search]);
 
   const blockedCount = projects.filter((p) => (p.spine_blocked || 0) > 0).length;
   const activeProjects = projects.filter((p) => (p.status || 'Open') !== 'Completed').length;
@@ -572,7 +568,7 @@ export default function ProjectsDashboardPage() {
     }));
   };
 
-  const loadDirectory = async () => {
+  const loadDirectory = useCallback(async () => {
     if (directory.length || directoryLoading) return;
     setDirectoryLoading(true);
     try {
@@ -588,7 +584,11 @@ export default function ProjectsDashboardPage() {
     } finally {
       setDirectoryLoading(false);
     }
-  };
+  }, [directory.length, directoryLoading]);
+
+  useEffect(() => {
+    void loadDirectory();
+  }, [loadDirectory]);
 
   // ── CRUD handlers ──
   const openCreateModal = async () => {

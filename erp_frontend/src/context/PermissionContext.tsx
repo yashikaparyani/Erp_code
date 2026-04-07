@@ -85,7 +85,7 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
       setPermissions(null);
       setIsLoaded(false);
     }
-  }, [isAuthenticated, currentUser?.username, fetchPermissions]);
+  }, [isAuthenticated, currentUser, currentUser?.username, fetchPermissions]);
 
   const hasCapability = useCallback(
     (capabilityKey: string): boolean => {

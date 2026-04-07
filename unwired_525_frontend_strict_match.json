@@ -1,0 +1,537 @@
+{
+  "baseline": 525,
+  "strong_frontend_exist": 240,
+  "weak_frontend_exist": 260,
+  "no_evidence": 25,
+  "strict_estimate_exists_but_not_wired": 240,
+  "moderate_estimate_exists_but_not_wired": 500,
+  "strong_examples": [
+    {
+      "category": "Accountability And Audit",
+      "api": "get_accountability_events_by_project",
+      "score": 6
+    },
+    {
+      "category": "Accountability And Audit",
+      "api": "get_blocked_accountability_items",
+      "score": 5
+    },
+    {
+      "category": "Accountability And Audit",
+      "api": "get_overdue_accountability_items",
+      "score": 5
+    },
+    {
+      "category": "Alerts And Reminders",
+      "api": "count_missed_reminders",
+      "score": 5
+    },
+    {
+      "category": "Alerts And Reminders",
+      "api": "get_unread_alert_count",
+      "score": 7
+    },
+    {
+      "category": "DMS And Dossier",
+      "api": "create_document_folder",
+      "score": 6
+    },
+    {
+      "category": "DMS And Dossier",
+      "api": "delete_uploaded_project_file",
+      "score": 7
+    },
+    {
+      "category": "DMS And Dossier",
+      "api": "get_document_folders",
+      "score": 6
+    },
+    {
+      "category": "DMS And Dossier",
+      "api": "get_document_versions",
+      "score": 6
+    },
+    {
+      "category": "DMS And Dossier",
+      "api": "get_expiring_documents",
+      "score": 6
+    },
+    {
+      "category": "DMS And Dossier",
+      "api": "get_project_dossier",
+      "score": 6
+    },
+    {
+      "category": "DMS And Dossier",
+      "api": "get_record_documents",
+      "score": 6
+    },
+    {
+      "category": "DMS And Dossier",
+      "api": "get_site_dossier",
+      "score": 6
+    },
+    {
+      "category": "Dashboards And MIS",
+      "api": "approve_finance_request",
+      "score": 6
+    },
+    {
+      "category": "Dashboards And MIS",
+      "api": "deny_finance_request",
+      "score": 9
+    },
+    {
+      "category": "Dashboards And MIS",
+      "api": "get_engineering_head_dashboard",
+      "score": 9
+    },
+    {
+      "category": "Dashboards And MIS",
+      "api": "get_executive_dashboard",
+      "score": 6
+    },
+    {
+      "category": "Dashboards And MIS",
+      "api": "get_finance_request_stats",
+      "score": 6
+    },
+    {
+      "category": "Dashboards And MIS",
+      "api": "get_finance_requests",
+      "score": 6
+    },
+    {
+      "category": "Dashboards And MIS",
+      "api": "get_procurement_dashboard",
+      "score": 6
+    },
+    {
+      "category": "Dashboards And MIS",
+      "api": "get_stores_dashboard",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "approve_change_request",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "approve_client_signoff",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "approve_dependency_override",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "approve_technical_deviation",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "approve_test_report",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "close_technical_deviation",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "commission_device",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "complete_commissioning_checklist",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "create_change_request",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "create_client_signoff",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "create_commissioning_checklist",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "create_dependency_override",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "create_dependency_rule",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "create_device_register",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "create_device_uptime_log",
+      "score": 9
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "create_project_asset",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "create_project_team_member",
+      "score": 9
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "create_staffing_assignment",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "create_technical_deviation",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "create_test_report",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "delete_change_request",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "delete_client_signoff",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "delete_comm_log",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "delete_commissioning_checklist",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "delete_dependency_rule",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "delete_device_register",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "delete_device_uptime_log",
+      "score": 9
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "delete_document_folder",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "delete_project_asset",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "delete_project_team_member",
+      "score": 9
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "delete_staffing_assignment",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "delete_technical_deviation",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "delete_test_report",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "end_staffing_assignment",
+      "score": 9
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "get_change_request",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "get_change_requests",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "get_client_signoff",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "get_client_signoffs",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "get_comm_log",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "get_commissioning_checklist",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "get_commissioning_checklists",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "get_dependency_overrides",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "get_dependency_rules",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "get_device_register",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "get_device_uptime_log",
+      "score": 9
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "get_device_uptime_logs",
+      "score": 9
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "get_project_asset",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "get_project_assets",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "get_project_team_member",
+      "score": 9
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "get_staffing_assignment",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "get_technical_deviation",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "get_technical_deviations",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "get_test_report",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "get_test_reports",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "reject_change_request",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "reject_dependency_override",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "reject_technical_deviation",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "reject_test_report",
+      "score": 6
+    },
+    {
+      "category": "Execution And Commissioning",
+      "api": "sign_client_signoff",
+      "score": 9
+    }
+  ],
+  "no_evidence_examples": [
+    {
+      "category": "ANDA Import",
+      "api": "run_anda_import",
+      "score": 2
+    },
+    {
+      "category": "ANDA Import",
+      "api": "run_anda_orchestrated_import",
+      "score": 2
+    },
+    {
+      "category": "DMS And Dossier",
+      "api": "check_progression_gate",
+      "score": 2
+    },
+    {
+      "category": "Dashboards And MIS",
+      "api": "get_pm_cockpit_summary",
+      "score": 2
+    },
+    {
+      "category": "Finance And Commercial",
+      "api": "approve_penalty_deduction",
+      "score": 2
+    },
+    {
+      "category": "Finance And Commercial",
+      "api": "create_penalty_deduction",
+      "score": 2
+    },
+    {
+      "category": "Finance And Commercial",
+      "api": "delete_penalty_deduction",
+      "score": 2
+    },
+    {
+      "category": "Finance And Commercial",
+      "api": "get_penalty_deduction",
+      "score": 2
+    },
+    {
+      "category": "Finance And Commercial",
+      "api": "get_penalty_deductions",
+      "score": 2
+    },
+    {
+      "category": "Finance And Commercial",
+      "api": "get_penalty_stats",
+      "score": 1
+    },
+    {
+      "category": "Finance And Commercial",
+      "api": "ph_approve_item",
+      "score": 1
+    },
+    {
+      "category": "Finance And Commercial",
+      "api": "ph_reject_item",
+      "score": 1
+    },
+    {
+      "category": "Finance And Commercial",
+      "api": "seed_bookkeeping_demo",
+      "score": 2
+    },
+    {
+      "category": "Finance And Commercial",
+      "api": "update_penalty_deduction",
+      "score": 2
+    },
+    {
+      "category": "HR",
+      "api": "create_statutory_ledger",
+      "score": 2
+    },
+    {
+      "category": "HR",
+      "api": "delete_statutory_ledger",
+      "score": 2
+    },
+    {
+      "category": "HR",
+      "api": "get_statutory_ledger",
+      "score": 2
+    },
+    {
+      "category": "HR",
+      "api": "get_statutory_ledger_stats",
+      "score": 2
+    },
+    {
+      "category": "HR",
+      "api": "get_statutory_ledgers",
+      "score": 2
+    },
+    {
+      "category": "HR",
+      "api": "get_who_is_in",
+      "score": 1
+    },
+    {
+      "category": "HR",
+      "api": "update_statutory_ledger",
+      "score": 2
+    },
+    {
+      "category": "Stores And Inventory",
+      "api": "get_po_stats",
+      "score": 0
+    },
+    {
+      "category": "Tendering And Presales",
+      "api": "create_party",
+      "score": 1
+    },
+    {
+      "category": "Tendering And Presales",
+      "api": "delete_party",
+      "score": 1
+    },
+    {
+      "category": "Tendering And Presales",
+      "api": "update_party",
+      "score": 1
+    }
+  ]
+}

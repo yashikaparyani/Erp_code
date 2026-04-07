@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ChangeEvent, useEffect, useState } from 'react';
+import { ChangeEvent, useCallback, useEffect, useState } from 'react';
 import {
   ArrowRightLeft,
   Briefcase,
@@ -441,16 +441,7 @@ export default function HrOnboardingPage() {
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  useEffect(() => {
-    void loadWorkspace();
-  }, [statusFilter, search]);
-
-  useEffect(() => {
-    if (!selectedId || mode === 'create') return;
-    void loadRecord(selectedId);
-  }, [selectedId]);
-
-  async function loadWorkspace(preferredId?: string) {
+  const loadWorkspace = useCallback(async (preferredId?: string) => {
     setLoadingList(true);
     setError('');
 
@@ -497,9 +488,9 @@ export default function HrOnboardingPage() {
     } finally {
       setLoadingList(false);
     }
-  }
+  }, [mode, search, selectedId, statusFilter]);
 
-  async function loadRecord(name: string) {
+  const loadRecord = useCallback(async (name: string) => {
     setLoadingDetail(true);
     setError('');
 
@@ -526,7 +517,16 @@ export default function HrOnboardingPage() {
     } finally {
       setLoadingDetail(false);
     }
-  }
+  }, [mode]);
+
+  useEffect(() => {
+    void loadWorkspace();
+  }, [loadWorkspace]);
+
+  useEffect(() => {
+    if (!selectedId || mode === 'create') return;
+    void loadRecord(selectedId);
+  }, [selectedId, mode, loadRecord]);
 
   function startCreate() {
     setMode('create');

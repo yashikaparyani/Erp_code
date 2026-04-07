@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   BarChart3,
@@ -185,24 +185,50 @@ export default function HRPage() {
 
   const [showOtModal, setShowOtModal] = useState(false);
   const [otForm, setOtForm] = useState({ employee: '', overtime_date: '', overtime_hours: '' });
+  const requestIdRef = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
 
-  useEffect(() => {
-    loadData();
+  const loadData = useCallback(async () => {
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch('/api/hr/dashboard', {
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.message || 'Failed to load HR dashboard');
+      }
+      if (requestId !== requestIdRef.current || controller.signal.aborted) {
+        return;
+      }
+      setData(payload.data);
+    } catch (err) {
+      if (controller.signal.aborted || requestId !== requestIdRef.current) {
+        return;
+      }
+      setError(err instanceof Error ? err.message : 'Failed to load HR dashboard');
+    } finally {
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+      }
+    }
   }, []);
 
-  function loadData() {
-    setLoading(true);
-    fetch('/api/hr/dashboard', { cache: 'no-store' })
-      .then(async (response) => {
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok || !payload.success) {
-          throw new Error(payload.message || 'Failed to load HR dashboard');
-        }
-        setData(payload.data);
-      })
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load HR dashboard'))
-      .finally(() => setLoading(false));
-  }
+  useEffect(() => {
+    void loadData();
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, [loadData]);
 
   async function handleCreate(method: string, args: Record<string, unknown>, close: () => void) {
     setBusy(true);
@@ -215,7 +241,7 @@ export default function HRPage() {
       const payload = await res.json().catch(() => ({}));
       if (!res.ok || !payload.success) throw new Error(payload.message || 'Create failed');
       close();
-      loadData();
+      await loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Create failed');
     } finally {

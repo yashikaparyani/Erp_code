@@ -10,7 +10,7 @@ export async function GET(
   try {
     const { id } = await params;
     const name = decodeURIComponent(id);
-    const result = await callFrappeMethod('get_dependency_rule', { name }, request);
+    const result = await callFrappeMethod('get_dependency_rules', { name }, request);
     return NextResponse.json({ success: true, data: result.data || result });
   } catch (err) {
     return NextResponse.json({ success: false, message: err instanceof Error ? err.message : 'Failed to load dependency rule' }, { status: 500 });

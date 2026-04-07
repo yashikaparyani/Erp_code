@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, RefreshCcw } from 'lucide-react';
 import { DashboardShell, SectionCard, StatCard } from '../dashboards/shared';
 import ModalFrame from '../ui/ModalFrame';
@@ -141,7 +141,7 @@ export default function OpsWorkspace<T extends Record<string, any>>({
   const hasFileFields = createFields.some((f) => f.type === 'file');
   const canCreate = Boolean(createMethod && createFields.length);
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
@@ -165,11 +165,11 @@ export default function OpsWorkspace<T extends Record<string, any>>({
     } finally {
       setLoading(false);
     }
-  };
+  }, [listArgs, listMethod, statsArgs, statsMethod]);
 
   useEffect(() => {
     void refresh();
-  }, [listMethod, statsMethod]);
+  }, [refresh]);
 
   useEffect(() => {
     setFormValues(buildInitialForm(createFields));

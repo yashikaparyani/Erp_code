@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState, type ComponentType } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ComponentType } from 'react';
 import {
   CheckCircle2,
   ChevronRight,
@@ -119,11 +119,7 @@ export default function HrApprovalsPage() {
     items: [],
   });
 
-  useEffect(() => {
-    void loadInbox();
-  }, [view, requestType]);
-
-  async function loadInbox() {
+  const loadInbox = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ view, requestType });
@@ -136,7 +132,11 @@ export default function HrApprovalsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [view, requestType]);
+
+  useEffect(() => {
+    void loadInbox();
+  }, [loadInbox]);
 
   async function refreshInbox() {
     setRefreshing(true);

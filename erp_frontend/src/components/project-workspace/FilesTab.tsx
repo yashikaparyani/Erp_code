@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { getFileProxyUrl } from '@/lib/fileLinks';
 import {
   Upload, X, Loader2, AlertCircle, FileText, Download, ChevronDown,
@@ -816,10 +817,12 @@ function FilesTab({ projectId, currentStage, wp }: { projectId: string; currentS
               {getDocumentExtension(previewDoc.file_url || previewDoc.file) === 'pdf' ? (
                 <iframe title={previewDoc.document_name || previewDoc.name} src={getFileProxyUrl(previewDoc.file_url || previewDoc.file)} className="h-full w-full" />
               ) : (
-                <img
+                <Image
                   src={getFileProxyUrl(previewDoc.file_url || previewDoc.file) || ''}
                   alt={previewDoc.document_name || previewDoc.name}
-                  className="h-full w-full object-contain"
+                  fill
+                  unoptimized
+                  className="object-contain"
                 />
               )}
             </div>

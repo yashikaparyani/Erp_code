@@ -12,13 +12,18 @@ export { useAuth } from '@/context/AuthContext';
 export async function callOps<T = unknown>(
   method: string,
   args: Record<string, unknown> = {},
+  options?: { signal?: AbortSignal },
 ): Promise<T> {
   const res = await fetch('/api/ops', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ method, args }),
+    signal: options?.signal,
   });
-  const payload = await res.json();
+  const payload = await res.json().catch(() => ({}));
+  if (options?.signal?.aborted) {
+    throw new DOMException('The operation was aborted.', 'AbortError');
+  }
   if (!payload.success) throw new Error(payload.message || `Failed: ${method}`);
   return (payload.data?.data ?? payload.data) as T;
 }
@@ -27,14 +32,18 @@ export async function callOps<T = unknown>(
 
 export async function callApi<T = unknown>(
   path: string,
-  opts?: { method?: string; body?: unknown },
+  opts?: { method?: string; body?: unknown; signal?: AbortSignal },
 ): Promise<T> {
   const res = await fetch(path, {
     method: opts?.method || 'GET',
     headers: opts?.body ? { 'Content-Type': 'application/json' } : undefined,
     body: opts?.body ? JSON.stringify(opts.body) : undefined,
+    signal: opts?.signal,
   });
-  const payload = await res.json();
+  const payload = await res.json().catch(() => ({}));
+  if (opts?.signal?.aborted) {
+    throw new DOMException('The operation was aborted.', 'AbortError');
+  }
   if (!res.ok || payload.success === false)
     throw new Error(payload.message || `Failed: ${path}`);
   return (payload.data?.data ?? payload.data) as T;

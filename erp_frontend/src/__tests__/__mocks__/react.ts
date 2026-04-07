@@ -5,4 +5,7 @@ export const useState = (v: unknown) => [v, () => {}];
 export const useCallback = (fn: unknown) => fn;
 export const useEffect = () => {};
 export type ReactNode = unknown;
-export default { createContext, useContext, useState, useCallback, useEffect };
+
+const ReactMock = { createContext, useContext, useState, useCallback, useEffect };
+
+export default ReactMock;

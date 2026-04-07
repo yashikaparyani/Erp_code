@@ -14,11 +14,16 @@ export async function GET(request: NextRequest) {
     const reference_doctype = searchParams.get('reference_doctype') || '';
     const subcategory = searchParams.get('subcategory') || '';
     const useCustom = source === 'custom' || Boolean(project) || Boolean(category) || Boolean(site) || Boolean(latestOnly) || Boolean(stage) || Boolean(reference_doctype) || Boolean(subcategory);
-    const result = await callFrappeMethod(
-      useCustom ? 'get_project_documents' : 'get_documents',
-      useCustom ? { folder, project, site, category, latest_only: latestOnly, stage, reference_doctype, subcategory } : { folder },
-      request,
-    );
+    let result;
+    if (useCustom) {
+      result = await callFrappeMethod(
+        'get_project_documents',
+        { folder, project, site, category, latest_only: latestOnly, stage, reference_doctype, subcategory },
+        request,
+      );
+    } else {
+      result = await callFrappeMethod('get_documents', { folder }, request);
+    }
     return NextResponse.json({ success: true, data: result.data || [] });
   } catch (error) {
     console.error('Error fetching documents:', error);

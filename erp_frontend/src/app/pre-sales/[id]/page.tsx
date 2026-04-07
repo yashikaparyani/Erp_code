@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import ModalFrame from '@/components/ui/ModalFrame';
 import { getFileProxyUrl } from '@/lib/fileLinks';
 import { deriveTenderFunnelStatus, getTenderFunnelMeta } from '@/components/tenderFunnel';
@@ -279,7 +279,7 @@ export default function TenderWorkspacePage() {
   const [technicalFile, setTechnicalFile] = useState<File | null>(null);
   const [viewDocUrl, setViewDocUrl] = useState<string | null>(null);
 
-  const loadWorkspace = async () => {
+  const loadWorkspace = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
@@ -292,11 +292,11 @@ export default function TenderWorkspacePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [tenderId]);
 
   useEffect(() => {
     void loadWorkspace();
-  }, [tenderId]);
+  }, [loadWorkspace]);
 
   const tender = workspace?.tender ?? null;
   const latestBid = workspace?.bids?.[0] ?? null;

@@ -69,7 +69,7 @@ export default function DepartmentProjectList({ config }: { config: DeptProjectL
       }
     })();
     return () => { active = false; };
-  }, []);
+  }, [config.departmentKey]);
 
   const filtered = search
     ? projects.filter((p) => {

@@ -28,16 +28,24 @@ const initialData: PMDashboardData = {
 
 export default function ProjectManagerDashboard() {
   const { data, loading, error, lastUpdated, refresh } = useApiData<PMDashboardData>('/api/dashboards/project-manager', initialData);
+  const noAssignedProjects = error.toLowerCase().includes('no assigned projects configured');
+  const displayError = noAssignedProjects ? '' : error;
 
   return (
     <DashboardShell
       title="Project Manager Dashboard"
       subtitle="Live coordination view across assigned projects, surveys, petty cash, and DPR reporting"
       loading={loading}
-      error={error}
+      error={displayError}
       lastUpdated={lastUpdated}
       onRetry={() => void refresh()}
     >
+      {noAssignedProjects ? (
+        <div className="rounded-[20px] border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-4 py-3 text-sm text-[var(--text-muted)]">
+          No projects are assigned to your user yet. Dashboard is shown with blank records until assignment is done.
+        </div>
+      ) : null}
+
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
         <StatCard title="Active Projects" value={data.projects.active} hint={`${data.projects.total} total, ${formatPercent(data.projects.avg_progress)} avg progress`} icon={FolderTree} tone="blue" />
         <StatCard title="Blocked Projects" value={data.projects.blocked} hint="Projects with spine blockers" icon={ClipboardList} tone="red" />

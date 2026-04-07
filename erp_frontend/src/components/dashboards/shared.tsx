@@ -52,32 +52,50 @@ function buildTimestamp() {
 
 export function useApiData<T>(url: string, initialData: T): FetchState<T> {
 	const initialDataRef = useRef(initialData);
+	const requestIdRef = useRef(0);
+	const abortRef = useRef<AbortController | null>(null);
 	const [data, setData] = useState<T>(initialData);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
 	const [lastUpdated, setLastUpdated] = useState('');
 
 	const refresh = useCallback(async () => {
+		const requestId = requestIdRef.current + 1;
+		requestIdRef.current = requestId;
+		abortRef.current?.abort();
+		const controller = new AbortController();
+		abortRef.current = controller;
 		setLoading(true);
 		setError('');
 
 		try {
-			const response = await fetch(url, { cache: 'no-store' });
+			const response = await fetch(url, { cache: 'no-store', signal: controller.signal });
 			const payload: ApiResponse<T> = await response.json().catch(() => ({}));
 			if (!response.ok || payload.success === false) {
 				throw new Error(payload.message || 'Failed to load data');
 			}
+			if (requestId !== requestIdRef.current || controller.signal.aborted) {
+				return;
+			}
 			setData((payload.data ?? initialDataRef.current) as T);
 			setLastUpdated(buildTimestamp());
 		} catch (err) {
+			if (controller.signal.aborted || requestId !== requestIdRef.current) {
+				return;
+			}
 			setError(err instanceof Error ? err.message : 'Failed to load data');
 		} finally {
-			setLoading(false);
+			if (requestId === requestIdRef.current) {
+				setLoading(false);
+			}
 		}
 	}, [url]);
 
 	useEffect(() => {
 		void refresh();
+		return () => {
+			abortRef.current?.abort();
+		};
 	}, [refresh]);
 
 	return { data, loading, error, lastUpdated, refresh };

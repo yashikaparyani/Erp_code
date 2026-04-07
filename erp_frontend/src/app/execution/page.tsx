@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { Plus, Wrench, Camera, Activity, CheckCircle2, Eye, X, ClipboardCheck, FileCheck2, GitBranch, ArrowRight, AlertTriangle } from 'lucide-react';
@@ -62,14 +62,33 @@ export default function ExecutionPage() {
     linked_tender: '',
     status: 'PLANNED',
   });
+  const requestIdRef = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
     setLoading(true);
-    Promise.all([
-      fetch('/api/sites').then(r => r.json()).catch(() => ({ data: [] })),
-      fetch('/api/dprs').then(r => r.json()).catch(() => ({ data: [] })),
-      fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method: 'get_execution_summary', args: {} }) }).then(r => r.json()).catch(() => ({ success: false })),
-    ]).then(([sitesRes, dprsRes, execRes]) => {
+    setError('');
+    try {
+      const [sitesRes, dprsRes, execRes] = await Promise.all([
+        fetch('/api/sites', { signal: controller.signal }).then((r) => r.json()).catch(() => ({ data: [] })),
+        fetch('/api/dprs', { signal: controller.signal }).then((r) => r.json()).catch(() => ({ data: [] })),
+        fetch('/api/ops', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ method: 'get_execution_summary', args: {} }),
+          signal: controller.signal,
+        }).then((r) => r.json()).catch(() => ({ success: false })),
+      ]);
+
+      if (requestId !== requestIdRef.current || controller.signal.aborted) {
+        return;
+      }
+
       setSites(sitesRes.data || []);
       setDprs(dprsRes.data || []);
       const d = dprsRes.data || [];
@@ -93,12 +112,24 @@ export default function ExecutionPage() {
           signoffs_signed: (cs.signoff_by_status?.['Signed'] || 0) + (cs.signoff_by_status?.['Approved'] || 0),
         });
       }
-    }).finally(() => setLoading(false));
-  };
+    } catch (loadError) {
+      if (controller.signal.aborted || requestId !== requestIdRef.current) {
+        return;
+      }
+      setError(loadError instanceof Error ? loadError.message : 'Failed to load execution data');
+    } finally {
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+      }
+    }
+  }, []);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    void loadData();
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, [loadData]);
 
   const handleCreateSite = async () => {
     if (!createForm.site_code.trim() || !createForm.site_name.trim() || !createForm.linked_project.trim()) {

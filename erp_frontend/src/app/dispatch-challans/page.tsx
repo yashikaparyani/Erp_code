@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import RegisterPage from '@/components/shells/RegisterPage';
 import { badge, DC_BADGES } from '@/components/procurement/proc-helpers';
@@ -17,7 +17,7 @@ export default function DispatchChallansPage() {
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('');
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true); setError('');
     try {
       const qs = filter ? `?status=${encodeURIComponent(filter)}` : '';
@@ -25,9 +25,9 @@ export default function DispatchChallansPage() {
       setItems(res.data || []);
     } catch { setError('Failed to load'); }
     finally { setLoading(false); }
-  };
+  }, [filter]);
 
-  useEffect(() => { load(); }, [filter]);
+  useEffect(() => { void load(); }, [load]);
 
   const draft = items.filter(i => i.status === 'DRAFT').length;
   const pending = items.filter(i => i.status === 'PENDING_APPROVAL').length;

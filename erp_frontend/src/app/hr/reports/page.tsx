@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Download,
   FileSpreadsheet,
@@ -126,11 +126,7 @@ export default function HrReportsPage() {
     }
   }, []);
 
-  useEffect(() => {
-    void loadReports();
-  }, [department, branch, status, attendanceDate]);
-
-  async function loadReports() {
+  const loadReports = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
@@ -151,7 +147,11 @@ export default function HrReportsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [attendanceDate, branch, department, selectedReportKey, status]);
+
+  useEffect(() => {
+    void loadReports();
+  }, [loadReports]);
 
   function toggleFavorite(key: string) {
     setFavorites((current) => {

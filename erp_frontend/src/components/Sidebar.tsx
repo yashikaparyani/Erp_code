@@ -393,15 +393,14 @@ export default function Sidebar() {
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean | undefined>>({});
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const navRef = useRef<HTMLElement | null>(null);
-  if (!currentUser || !currentRole) {
-    return null;
-  }
   const sourceLinks = currentRole === 'Project Manager' ? projectManagerNavLinks : navLinks;
-  const accessibleLinks = filterAccessibleNavLinks(
-    sourceLinks.filter((link) => shouldShowNavLinkForRole(link, currentRole, isPermissionLoaded)),
-    hasAccess,
-    currentRole,
-  );
+  const accessibleLinks = currentUser && currentRole
+    ? filterAccessibleNavLinks(
+      sourceLinks.filter((link) => shouldShowNavLinkForRole(link, currentRole, isPermissionLoaded)),
+      hasAccess,
+      currentRole,
+    )
+    : [];
 
   const persistScrollPosition = () => {
     if (!navRef.current) return;
@@ -458,6 +457,10 @@ export default function Sidebar() {
   useEffect(() => {
     setIsMobileOpen(false);
   }, [pathname]);
+
+  if (!currentUser || !currentRole) {
+    return null;
+  }
 
   return (
     <>

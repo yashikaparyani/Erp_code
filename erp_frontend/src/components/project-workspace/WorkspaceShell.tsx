@@ -178,7 +178,7 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
     }
     void load();
     return () => { active = false; };
-  }, [projectId, reloadKey]);
+  }, [projectId, reloadKey, config.departmentKey]);
 
   // Filter sites by department's allowed stages
   const deptSites = useMemo(() => {

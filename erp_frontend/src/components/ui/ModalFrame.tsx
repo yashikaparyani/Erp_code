@@ -21,8 +21,6 @@ export default function ModalFrame({
   footer,
   widthClassName = 'max-w-2xl',
 }: ModalFrameProps) {
-  if (!open) return null;
-
   const titleId = useId();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const { containerRef } = useAccessibleOverlay({
@@ -30,6 +28,8 @@ export default function ModalFrame({
     onClose,
     initialFocusRef: closeButtonRef,
   });
+
+  if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onMouseDown={onClose}>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Eye, MapPin, Plus, Trash2 } from 'lucide-react';
 import RegisterPage from '@/components/shells/RegisterPage';
@@ -21,8 +21,14 @@ import {
 
 export default function SurveyPage() {
   const { permissions, isLoaded: isPermissionLoaded } = usePermissions();
-  const assignedProjects = permissions?.user_context.assigned_projects ?? [];
-  const assignedSiteNames = permissions?.user_context.assigned_sites ?? [];
+  const assignedProjects = useMemo(
+    () => permissions?.user_context?.assigned_projects ?? [],
+    [permissions?.user_context?.assigned_projects],
+  );
+  const assignedSiteNames = useMemo(
+    () => permissions?.user_context?.assigned_sites ?? [],
+    [permissions?.user_context?.assigned_sites],
+  );
 
   const [rows, setRows] = useState<SiteSurveyRow[]>([]);
   const [sites, setSites] = useState<SiteRecord[]>([]);
@@ -39,7 +45,7 @@ export default function SurveyPage() {
 
   // ── Data loading ─────────────────────────────────────────────────────────
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!assignedProjects.length) {
       setRows([]);
       setSites([]);
@@ -107,11 +113,11 @@ export default function SurveyPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [assignedProjects, assignedSiteNames]);
 
   useEffect(() => {
     if (isPermissionLoaded) void loadData();
-  }, [isPermissionLoaded, assignedProjects.join(','), assignedSiteNames.join(',')]);
+  }, [isPermissionLoaded, loadData]);
 
   // ── Derived stats ────────────────────────────────────────────────────────
 

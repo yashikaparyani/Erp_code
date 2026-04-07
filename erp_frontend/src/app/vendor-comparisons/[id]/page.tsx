@@ -80,7 +80,7 @@ export default function VendorComparisonDetailPage() {
     })();
   }, [vc]);
 
-  const quotes = vc?.quotes || [];
+  const quotes = useMemo(() => vc?.quotes ?? [], [vc?.quotes]);
   const isDraft = vc?.status === 'DRAFT';
   const isPending = vc?.status === 'PENDING_APPROVAL';
   const isApproved = vc?.status === 'APPROVED';
@@ -218,7 +218,7 @@ export default function VendorComparisonDetailPage() {
       {/* Downstream PO chain */}
       <div className="shell-panel p-5">
         <div className="flex items-center justify-between mb-3">
-          <div><h3 className="font-semibold text-gray-900">Downstream PO Chain</h3><p className="text-xs text-gray-500">Purchase orders from this comparison's selected vendor lines.</p></div>
+          <div><h3 className="font-semibold text-gray-900">Downstream PO Chain</h3><p className="text-xs text-gray-500">Purchase orders from this comparison selected vendor lines.</p></div>
           {poLoading && <span className="text-xs text-gray-400">Loading…</span>}
         </div>
         {downstreamPOs.length === 0 ? (

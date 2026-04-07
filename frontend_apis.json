@@ -1,0 +1,6398 @@
+{
+  "accept_indent": [
+    {
+      "file": "erp_frontend/src/app/api/approvals/route.ts",
+      "line": 79
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 479
+    }
+  ],
+  "acknowledge_indent": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 478
+    }
+  ],
+  "act_on_hr_approval": [
+    {
+      "file": "erp_frontend/src/app/api/hr/approvals/actions/route.ts",
+      "line": 18
+    }
+  ],
+  "action_cost_sheet": [
+    {
+      "file": "erp_frontend/src/app/finance/costing/[id]/page.tsx",
+      "line": 45
+    },
+    {
+      "file": "erp_frontend/src/app/finance/costing/[id]/page.tsx",
+      "line": 47
+    },
+    {
+      "file": "erp_frontend/src/app/finance/costing/[id]/page.tsx",
+      "line": 97
+    }
+  ],
+  "action_costing_queue_entry": [
+    {
+      "file": "erp_frontend/src/app/finance/costing-queue/[id]/page.tsx",
+      "line": 90
+    }
+  ],
+  "action_estimate": [
+    {
+      "file": "erp_frontend/src/app/finance/estimates/[id]/page.tsx",
+      "line": 103
+    }
+  ],
+  "action_follow_up": [
+    {
+      "file": "erp_frontend/src/app/finance/follow-ups/[id]/page.tsx",
+      "line": 88
+    }
+  ],
+  "action_penalty": [
+    {
+      "file": "erp_frontend/src/app/finance/penalties/[id]/page.tsx",
+      "line": 91
+    }
+  ],
+  "action_proforma": [
+    {
+      "file": "erp_frontend/src/app/finance/proformas/[id]/page.tsx",
+      "line": 112
+    }
+  ],
+  "action_retention": [
+    {
+      "file": "erp_frontend/src/app/finance/retention/[id]/page.tsx",
+      "line": 89
+    }
+  ],
+  "action_sales_invoice": [
+    {
+      "file": "erp_frontend/src/app/finance/billing/[id]/page.tsx",
+      "line": 45
+    },
+    {
+      "file": "erp_frontend/src/app/finance/billing/[id]/page.tsx",
+      "line": 46
+    },
+    {
+      "file": "erp_frontend/src/app/finance/billing/[id]/page.tsx",
+      "line": 48
+    },
+    {
+      "file": "erp_frontend/src/app/finance/billing/[id]/page.tsx",
+      "line": 104
+    }
+  ],
+  "action_sla_penalty": [
+    {
+      "file": "erp_frontend/src/app/sla-penalties/[id]/page.tsx",
+      "line": 85
+    }
+  ],
+  "add_commercial_comment": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 407
+    },
+    {
+      "file": "erp_frontend/src/app/finance/commercial/page.tsx",
+      "line": 64
+    }
+  ],
+  "add_project_sites": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 8
+    },
+    {
+      "file": "erp_frontend/src/app/projects/page.tsx",
+      "line": 706
+    }
+  ],
+  "add_record_comment": [
+    {
+      "file": "erp_frontend/src/app/api/collaboration/route.ts",
+      "line": 29
+    }
+  ],
+  "add_ticket_comment": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 7
+    },
+    {
+      "file": "erp_frontend/src/app/api/tickets/route.ts",
+      "line": 51
+    },
+    {
+      "file": "erp_frontend/src/app/om-helpdesk/page.tsx",
+      "line": 205
+    }
+  ],
+  "advance_site_stage": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 9
+    }
+  ],
+  "apply_penalty_deduction": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 10
+    },
+    {
+      "file": "erp_frontend/src/app/api/penalties/[id]/actions/route.ts",
+      "line": 18
+    },
+    {
+      "file": "erp_frontend/src/app/finance/penalties/page.tsx",
+      "line": 24
+    }
+  ],
+  "approve_attendance_regularization": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 278
+    }
+  ],
+  "approve_boq": [
+    {
+      "file": "erp_frontend/src/app/api/approvals/route.ts",
+      "line": 31
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 11
+    }
+  ],
+  "approve_change_request": [
+    {
+      "file": "erp_frontend/src/app/api/engineering/change-requests/[id]/actions/route.ts",
+      "line": 18
+    },
+    {
+      "file": "erp_frontend/src/app/api/engineering/change-requests/route.ts",
+      "line": 32
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 12
+    },
+    {
+      "file": "erp_frontend/src/app/engineering/change-requests/page.tsx",
+      "line": 22
+    }
+  ],
+  "approve_client_signoff": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/client-signoffs/route.ts",
+      "line": 33
+    }
+  ],
+  "approve_cost_sheet": [
+    {
+      "file": "erp_frontend/src/app/api/approvals/route.ts",
+      "line": 39
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 13
+    }
+  ],
+  "approve_dependency_override": [
+    {
+      "file": "erp_frontend/src/app/api/execution/dependency-overrides/route.ts",
+      "line": 28
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 14
+    }
+  ],
+  "approve_dispatch_challan": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 15
+    }
+  ],
+  "approve_dpr": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 369
+    }
+  ],
+  "approve_drawing": [
+    {
+      "file": "erp_frontend/src/app/api/engineering/drawings/[id]/actions/route.ts",
+      "line": 18
+    },
+    {
+      "file": "erp_frontend/src/app/api/engineering/drawings/route.ts",
+      "line": 34
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 16
+    },
+    {
+      "file": "erp_frontend/src/app/engineering/drawings/page.tsx",
+      "line": 26
+    }
+  ],
+  "approve_estimate": [
+    {
+      "file": "erp_frontend/src/app/api/approvals/route.ts",
+      "line": 47
+    },
+    {
+      "file": "erp_frontend/src/app/api/estimates/[id]/actions/route.ts",
+      "line": 18
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 406
+    },
+    {
+      "file": "erp_frontend/src/app/finance/estimates/page.tsx",
+      "line": 44
+    }
+  ],
+  "approve_finance_request": [
+    {
+      "file": "erp_frontend/src/app/api/approvals/route.ts",
+      "line": 23
+    },
+    {
+      "file": "erp_frontend/src/app/api/finance-requests/approve/route.ts",
+      "line": 10
+    }
+  ],
+  "approve_invoice": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 17
+    }
+  ],
+  "approve_leave_application": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 269
+    }
+  ],
+  "approve_onboarding": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 18
+    }
+  ],
+  "approve_overtime_entry": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 19
+    },
+    {
+      "file": "erp_frontend/src/app/hr/overtime/page.tsx",
+      "line": 26
+    }
+  ],
+  "approve_penalty_deduction": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 20
+    },
+    {
+      "file": "erp_frontend/src/app/api/penalties/[id]/actions/route.ts",
+      "line": 17
+    },
+    {
+      "file": "erp_frontend/src/app/finance/penalties/page.tsx",
+      "line": 23
+    }
+  ],
+  "approve_petty_cash_entry": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 21
+    },
+    {
+      "file": "erp_frontend/src/app/api/petty-cash/[id]/route.ts",
+      "line": 31
+    }
+  ],
+  "approve_pm_request": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 444
+    },
+    {
+      "file": "erp_frontend/src/app/api/pm-requests/[id]/actions/route.ts",
+      "line": 27
+    }
+  ],
+  "approve_po_payment_terms": [
+    {
+      "file": "erp_frontend/src/app/api/purchase-orders/payment-terms/approve/route.ts",
+      "line": 9
+    }
+  ],
+  "approve_proforma_invoice": [
+    {
+      "file": "erp_frontend/src/app/api/approvals/route.ts",
+      "line": 55
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 410
+    },
+    {
+      "file": "erp_frontend/src/app/api/proformas/[id]/actions/route.ts",
+      "line": 18
+    },
+    {
+      "file": "erp_frontend/src/app/finance/proformas/page.tsx",
+      "line": 44
+    }
+  ],
+  "approve_project_stage": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 417
+    }
+  ],
+  "approve_rma": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 22
+    },
+    {
+      "file": "erp_frontend/src/app/api/rma-trackers/route.ts",
+      "line": 51
+    }
+  ],
+  "approve_sla_penalty": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 23
+    }
+  ],
+  "approve_technical_deviation": [
+    {
+      "file": "erp_frontend/src/app/api/engineering/technical-deviations/[id]/actions/route.ts",
+      "line": 17
+    },
+    {
+      "file": "erp_frontend/src/app/api/engineering/technical-deviations/route.ts",
+      "line": 29
+    }
+  ],
+  "approve_tender_approval": [
+    {
+      "file": "erp_frontend/src/app/api/approvals/route.ts",
+      "line": 63
+    },
+    {
+      "file": "erp_frontend/src/app/api/tender-approvals/[id]/actions/route.ts",
+      "line": 16
+    }
+  ],
+  "approve_test_report": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/test-reports/route.ts",
+      "line": 84
+    }
+  ],
+  "approve_travel_log": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 24
+    },
+    {
+      "file": "erp_frontend/src/app/hr/travel-logs/page.tsx",
+      "line": 27
+    }
+  ],
+  "approve_vendor_comparison": [
+    {
+      "file": "erp_frontend/src/app/api/approvals/route.ts",
+      "line": 71
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 25
+    }
+  ],
+  "assign_role_packs": [
+    {
+      "file": "erp_frontend/src/app/api/rbac/role-matrix/route.ts",
+      "line": 22
+    }
+  ],
+  "assign_tender_user_color": [
+    {
+      "file": "erp_frontend/src/app/api/tenders/[id]/user-color/route.ts",
+      "line": 8
+    }
+  ],
+  "assign_ticket": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 26
+    },
+    {
+      "file": "erp_frontend/src/app/api/tickets/route.ts",
+      "line": 45
+    },
+    {
+      "file": "erp_frontend/src/app/om-helpdesk/page.tsx",
+      "line": 191
+    }
+  ],
+  "assign_to_record": [
+    {
+      "file": "erp_frontend/src/app/api/collaboration/route.ts",
+      "line": 34
+    }
+  ],
+  "assign_user_override": [
+    {
+      "file": "erp_frontend/src/app/api/rbac/user-overrides/route.ts",
+      "line": 13
+    }
+  ],
+  "backfill_accountability_records": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 475
+    }
+  ],
+  "backfill_boq_context": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 504
+    }
+  ],
+  "backfill_derive_project": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 505
+    }
+  ],
+  "backfill_survey_context": [
+    {
+      "file": "erp_frontend/src/app/api/surveys/backfill-context/route.ts",
+      "line": 9
+    }
+  ],
+  "bulk_upload_sites": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 506
+    }
+  ],
+  "cancel_invoice": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 27
+    }
+  ],
+  "cancel_proforma_invoice": [
+    {
+      "file": "erp_frontend/src/app/api/approvals/route.ts",
+      "line": 59
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 411
+    },
+    {
+      "file": "erp_frontend/src/app/api/proformas/[id]/actions/route.ts",
+      "line": 19
+    },
+    {
+      "file": "erp_frontend/src/app/finance/proformas/page.tsx",
+      "line": 45
+    }
+  ],
+  "cancel_purchase_order": [
+    {
+      "file": "erp_frontend/src/app/api/purchase-orders/cancel/route.ts",
+      "line": 9
+    }
+  ],
+  "check_anda_master_integrity": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 507
+    }
+  ],
+  "check_progression_gate": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 430
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/FilesTab.tsx",
+      "line": 234
+    }
+  ],
+  "check_stage_document_completeness": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 425
+    },
+    {
+      "file": "erp_frontend/src/app/projects/[id]/dossier/page.tsx",
+      "line": 238
+    },
+    {
+      "file": "erp_frontend/src/app/sites/[id]/dossier/page.tsx",
+      "line": 240
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/DossierTab.tsx",
+      "line": 224
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/FilesTab.tsx",
+      "line": 233
+    }
+  ],
+  "check_survey_complete": [
+    {
+      "file": "erp_frontend/src/app/api/surveys/check-complete/route.ts",
+      "line": 18
+    }
+  ],
+  "clear_tender_observation": [
+    {
+      "file": "erp_frontend/src/app/api/tenders/[id]/workflow/route.ts",
+      "line": 42
+    }
+  ],
+  "clone_project": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 464
+    }
+  ],
+  "close_payment_follow_up": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 337
+    },
+    {
+      "file": "erp_frontend/src/app/finance/follow-ups/page.tsx",
+      "line": 41
+    }
+  ],
+  "close_rma": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 28
+    },
+    {
+      "file": "erp_frontend/src/app/api/rma-trackers/route.ts",
+      "line": 59
+    }
+  ],
+  "close_sla_timer": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 29
+    }
+  ],
+  "close_technical_deviation": [
+    {
+      "file": "erp_frontend/src/app/api/engineering/technical-deviations/[id]/actions/route.ts",
+      "line": 19
+    },
+    {
+      "file": "erp_frontend/src/app/api/engineering/technical-deviations/route.ts",
+      "line": 37
+    }
+  ],
+  "close_ticket": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 30
+    },
+    {
+      "file": "erp_frontend/src/app/api/tickets/route.ts",
+      "line": 66
+    }
+  ],
+  "commission_device": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/device-registers/route.ts",
+      "line": 29
+    }
+  ],
+  "complete_commissioning_checklist": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/checklists/route.ts",
+      "line": 33
+    }
+  ],
+  "complete_exit_management_kt": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 502
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/CloseoutTab.tsx",
+      "line": 101
+    }
+  ],
+  "convert_estimate_to_proforma": [
+    {
+      "file": "erp_frontend/src/app/api/estimates/[id]/actions/route.ts",
+      "line": 20
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 409
+    },
+    {
+      "file": "erp_frontend/src/app/finance/estimates/page.tsx",
+      "line": 46
+    }
+  ],
+  "convert_proforma_to_invoice": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 412
+    },
+    {
+      "file": "erp_frontend/src/app/api/proformas/[id]/actions/route.ts",
+      "line": 20
+    },
+    {
+      "file": "erp_frontend/src/app/finance/proformas/page.tsx",
+      "line": 46
+    }
+  ],
+  "convert_tender_to_bid": [
+    {
+      "file": "erp_frontend/src/app/api/tenders/[id]/workflow/route.ts",
+      "line": 47
+    }
+  ],
+  "convert_tender_to_project": [
+    {
+      "file": "erp_frontend/src/app/api/tender-convert/route.ts",
+      "line": 13
+    }
+  ],
+  "convert_ticket_to_rma": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 31
+    },
+    {
+      "file": "erp_frontend/src/app/api/tickets/[id]/convert-rma/route.ts",
+      "line": 15
+    }
+  ],
+  "costing_hold_item": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 495
+    }
+  ],
+  "costing_reject_item": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 496
+    }
+  ],
+  "costing_release_item": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 494
+    }
+  ],
+  "count_missed_reminders": [
+    {
+      "file": "erp_frontend/src/app/api/reminders/route.ts",
+      "line": 12
+    }
+  ],
+  "create_attendance_log": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 32
+    }
+  ],
+  "create_attendance_regularization": [
+    {
+      "file": "erp_frontend/src/app/api/hr/regularizations/route.ts",
+      "line": 26
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 276
+    }
+  ],
+  "create_bid": [
+    {
+      "file": "erp_frontend/src/app/api/bids/route.ts",
+      "line": 27
+    }
+  ],
+  "create_boq": [
+    {
+      "file": "erp_frontend/src/app/api/boqs/route.ts",
+      "line": 25
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 33
+    }
+  ],
+  "create_change_request": [
+    {
+      "file": "erp_frontend/src/app/api/change-requests/route.ts",
+      "line": 22
+    },
+    {
+      "file": "erp_frontend/src/app/api/engineering/change-requests/route.ts",
+      "line": 48
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 34
+    }
+  ],
+  "create_client_signoff": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/client-signoffs/route.ts",
+      "line": 45
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 35
+    }
+  ],
+  "create_comm_log": [
+    {
+      "file": "erp_frontend/src/app/api/comm-logs/route.ts",
+      "line": 92
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 36
+    },
+    {
+      "file": "erp_frontend/src/app/execution/comm-logs/page.tsx",
+      "line": 83
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/CommunicationsTab.tsx",
+      "line": 66
+    }
+  ],
+  "create_commercial_document": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 51
+    },
+    {
+      "file": "erp_frontend/src/app/finance/commercial/page.tsx",
+      "line": 73
+    }
+  ],
+  "create_commissioning_checklist": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/checklists/route.ts",
+      "line": 45
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 37
+    }
+  ],
+  "create_competitor": [
+    {
+      "file": "erp_frontend/src/app/api/competitors/route.ts",
+      "line": 25
+    }
+  ],
+  "create_cost_sheet": [
+    {
+      "file": "erp_frontend/src/app/api/cost-sheets/route.ts",
+      "line": 25
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 38
+    }
+  ],
+  "create_cost_sheet_from_boq": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 39
+    }
+  ],
+  "create_department": [
+    {
+      "file": "erp_frontend/src/app/api/departments/route.ts",
+      "line": 23
+    }
+  ],
+  "create_dependency_override": [
+    {
+      "file": "erp_frontend/src/app/api/execution/dependency-overrides/route.ts",
+      "line": 36
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 42
+    }
+  ],
+  "create_dependency_rule": [
+    {
+      "file": "erp_frontend/src/app/api/execution/dependency-rules/route.ts",
+      "line": 36
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 43
+    }
+  ],
+  "create_designation": [
+    {
+      "file": "erp_frontend/src/app/api/designations/route.ts",
+      "line": 23
+    }
+  ],
+  "create_device_register": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/device-registers/route.ts",
+      "line": 49
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 44
+    }
+  ],
+  "create_device_uptime_log": [
+    {
+      "file": "erp_frontend/src/app/api/device-uptime/route.ts",
+      "line": 24
+    },
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/device-uptime-logs/route.ts",
+      "line": 38
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 45
+    }
+  ],
+  "create_dispatch_challan": [
+    {
+      "file": "erp_frontend/src/app/api/dispatch-challans/route.ts",
+      "line": 24
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 46
+    }
+  ],
+  "create_document_folder": [
+    {
+      "file": "erp_frontend/src/app/api/documents/folders/route.ts",
+      "line": 29
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 47
+    },
+    {
+      "file": "erp_frontend/src/app/documents/page.tsx",
+      "line": 219
+    }
+  ],
+  "create_dpr": [
+    {
+      "file": "erp_frontend/src/app/api/dprs/route.ts",
+      "line": 25
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 48
+    },
+    {
+      "file": "erp_frontend/src/app/execution/page.tsx",
+      "line": 170
+    },
+    {
+      "file": "erp_frontend/src/app/project-manager/dpr/page.tsx",
+      "line": 64
+    }
+  ],
+  "create_drawing": [
+    {
+      "file": "erp_frontend/src/app/api/engineering/drawings/route.ts",
+      "line": 50
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 49
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/upload/route.ts",
+      "line": 11
+    }
+  ],
+  "create_emd_pbg_instrument": [
+    {
+      "file": "erp_frontend/src/app/api/emd-pbg/route.ts",
+      "line": 50
+    },
+    {
+      "file": "erp_frontend/src/app/api/finance-requests/route.ts",
+      "line": 26
+    }
+  ],
+  "create_estimate": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 50
+    }
+  ],
+  "create_grn": [
+    {
+      "file": "erp_frontend/src/app/api/grns/route.ts",
+      "line": 33
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 40
+    }
+  ],
+  "create_indent": [
+    {
+      "file": "erp_frontend/src/app/api/indents/route.ts",
+      "line": 32
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 41
+    }
+  ],
+  "create_invoice": [
+    {
+      "file": "erp_frontend/src/app/api/invoices/route.ts",
+      "line": 25
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 52
+    }
+  ],
+  "create_ip_allocation": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/ip-allocations/route.ts",
+      "line": 41
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 53
+    }
+  ],
+  "create_ip_pool": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/ip-pools/route.ts",
+      "line": 37
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 54
+    }
+  ],
+  "create_leave_allocation": [
+    {
+      "file": "erp_frontend/src/app/api/hr/leave/allocations/route.ts",
+      "line": 21
+    }
+  ],
+  "create_leave_application": [
+    {
+      "file": "erp_frontend/src/app/api/hr/leave/applications/route.ts",
+      "line": 30
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 267
+    }
+  ],
+  "create_leave_type": [
+    {
+      "file": "erp_frontend/src/app/api/hr/leave/types/route.ts",
+      "line": 19
+    }
+  ],
+  "create_loi_tracker": [
+    {
+      "file": "erp_frontend/src/app/api/loi-tracker/route.ts",
+      "line": 17
+    }
+  ],
+  "create_manpower_log": [
+    {
+      "file": "erp_frontend/src/app/api/manpower/route.ts",
+      "line": 23
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 55
+    }
+  ],
+  "create_material_consumption_report": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 56
+    },
+    {
+      "file": "erp_frontend/src/app/project-manager/inventory/page.tsx",
+      "line": 117
+    }
+  ],
+  "create_milestone": [
+    {
+      "file": "erp_frontend/src/app/api/milestones/route.ts",
+      "line": 23
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 57
+    }
+  ],
+  "create_onboarding": [
+    {
+      "file": "erp_frontend/src/app/api/hr/onboarding/route.ts",
+      "line": 23
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 58
+    }
+  ],
+  "create_organization": [
+    {
+      "file": "erp_frontend/src/app/api/organizations/route.ts",
+      "line": 26
+    }
+  ],
+  "create_overtime_entry": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 59
+    }
+  ],
+  "create_party": [
+    {
+      "file": "erp_frontend/src/app/api/parties/route.ts",
+      "line": 46
+    }
+  ],
+  "create_payment_follow_up": [
+    {
+      "file": "erp_frontend/src/app/api/finance/follow-ups/route.ts",
+      "line": 22
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 62
+    }
+  ],
+  "create_payment_receipt": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 61
+    },
+    {
+      "file": "erp_frontend/src/app/api/payment-receipts/route.ts",
+      "line": 22
+    },
+    {
+      "file": "erp_frontend/src/app/payment-receipts/page.tsx",
+      "line": 75
+    }
+  ],
+  "create_penalty": [
+    {
+      "file": "erp_frontend/src/app/penalties/page.tsx",
+      "line": 73
+    }
+  ],
+  "create_penalty_deduction": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 63
+    },
+    {
+      "file": "erp_frontend/src/app/api/penalties/route.ts",
+      "line": 23
+    }
+  ],
+  "create_permission_snapshot": [
+    {
+      "file": "erp_frontend/src/app/api/rbac/snapshot/route.ts",
+      "line": 7
+    }
+  ],
+  "create_petty_cash_entry": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 64
+    },
+    {
+      "file": "erp_frontend/src/app/api/petty-cash/route.ts",
+      "line": 24
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/PettyCashTab.tsx",
+      "line": 65
+    }
+  ],
+  "create_petty_cash_fund_request": [
+    {
+      "file": "erp_frontend/src/app/api/petty-cash/fund-requests/route.ts",
+      "line": 31
+    }
+  ],
+  "create_pm_request": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 441
+    },
+    {
+      "file": "erp_frontend/src/app/api/pm-requests/route.ts",
+      "line": 23
+    },
+    {
+      "file": "erp_frontend/src/app/project-manager/requests/page.tsx",
+      "line": 146
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/RequestsTab.tsx",
+      "line": 172
+    }
+  ],
+  "create_po_from_comparison": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 60
+    },
+    {
+      "file": "erp_frontend/src/app/api/purchase-orders/create-from-comparison/route.ts",
+      "line": 9
+    }
+  ],
+  "create_proforma_invoice": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 67
+    }
+  ],
+  "create_project": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 68
+    },
+    {
+      "file": "erp_frontend/src/app/api/projects/route.ts",
+      "line": 24
+    },
+    {
+      "file": "erp_frontend/src/app/projects/page.tsx",
+      "line": 634
+    }
+  ],
+  "create_project_asset": [
+    {
+      "file": "erp_frontend/src/app/api/execution/project-assets/route.ts",
+      "line": 38
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 69
+    }
+  ],
+  "create_project_document": [
+    {
+      "file": "erp_frontend/src/app/api/ops/upload/route.ts",
+      "line": 12
+    }
+  ],
+  "create_project_indent": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 65
+    },
+    {
+      "file": "erp_frontend/src/app/project-manager/inventory/page.tsx",
+      "line": 128
+    }
+  ],
+  "create_project_issue": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 434
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/IssuesTab.tsx",
+      "line": 78
+    }
+  ],
+  "create_project_note": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 452
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/NotesTab.tsx",
+      "line": 58
+    }
+  ],
+  "create_project_task": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 457
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/TasksTab.tsx",
+      "line": 116
+    }
+  ],
+  "create_project_team_member": [
+    {
+      "file": "erp_frontend/src/app/api/execution/project-team-members/route.ts",
+      "line": 37
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 70
+    }
+  ],
+  "create_purchase_order": [
+    {
+      "file": "erp_frontend/src/app/api/purchase-orders/route.ts",
+      "line": 32
+    }
+  ],
+  "create_retention": [
+    {
+      "file": "erp_frontend/src/app/retention/page.tsx",
+      "line": 73
+    }
+  ],
+  "create_retention_ledger": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 71
+    },
+    {
+      "file": "erp_frontend/src/app/api/retention/route.ts",
+      "line": 22
+    }
+  ],
+  "create_rma_tracker": [
+    {
+      "file": "erp_frontend/src/app/api/rma-trackers/route.ts",
+      "line": 31
+    }
+  ],
+  "create_role": [
+    {
+      "file": "erp_frontend/src/app/api/roles-list/route.ts",
+      "line": 23
+    }
+  ],
+  "create_site": [
+    {
+      "file": "erp_frontend/src/app/api/sites/route.ts",
+      "line": 24
+    }
+  ],
+  "create_sla_penalty_record": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 72
+    }
+  ],
+  "create_sla_penalty_rule": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 73
+    }
+  ],
+  "create_sla_profile": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 74
+    },
+    {
+      "file": "erp_frontend/src/app/api/sla-profiles/route.ts",
+      "line": 22
+    }
+  ],
+  "create_sla_timer": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 75
+    }
+  ],
+  "create_staffing_assignment": [
+    {
+      "file": "erp_frontend/src/app/api/execution/staffing-assignments/route.ts",
+      "line": 52
+    }
+  ],
+  "create_statutory_ledger": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 76
+    }
+  ],
+  "create_survey": [
+    {
+      "file": "erp_frontend/src/app/api/surveys/route.ts",
+      "line": 28
+    }
+  ],
+  "create_technical_deviation": [
+    {
+      "file": "erp_frontend/src/app/api/engineering/technical-deviations/route.ts",
+      "line": 50
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 77
+    }
+  ],
+  "create_technician_visit_log": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 78
+    },
+    {
+      "file": "erp_frontend/src/app/api/technician-visits/route.ts",
+      "line": 23
+    }
+  ],
+  "create_tender": [
+    {
+      "file": "erp_frontend/src/app/api/tenders/route.ts",
+      "line": 50
+    },
+    {
+      "file": "erp_frontend/src/lib/frappe.ts",
+      "line": 60
+    }
+  ],
+  "create_tender_checklist": [
+    {
+      "file": "erp_frontend/src/app/api/tender-checklists/route.ts",
+      "line": 27
+    }
+  ],
+  "create_tender_organization": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 79
+    }
+  ],
+  "create_tender_reminder": [
+    {
+      "file": "erp_frontend/src/app/api/tender-reminders/route.ts",
+      "line": 25
+    }
+  ],
+  "create_tender_result": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 80
+    }
+  ],
+  "create_test_report": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/test-reports/route.ts",
+      "line": 72
+    },
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/test-reports/route.ts",
+      "line": 100
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 81
+    }
+  ],
+  "create_ticket": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 82
+    },
+    {
+      "file": "erp_frontend/src/app/api/tickets/route.ts",
+      "line": 25
+    }
+  ],
+  "create_travel_log": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 83
+    }
+  ],
+  "create_user": [
+    {
+      "file": "erp_frontend/src/app/api/users-list/route.ts",
+      "line": 23
+    }
+  ],
+  "create_user_reminder": [
+    {
+      "file": "erp_frontend/src/app/api/reminders/route.ts",
+      "line": 34
+    }
+  ],
+  "create_vendor_comparison": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 84
+    },
+    {
+      "file": "erp_frontend/src/app/api/vendor-comparisons/route.ts",
+      "line": 24
+    }
+  ],
+  "decide_won_bid_loi": [
+    {
+      "file": "erp_frontend/src/app/api/bids/[id]/loi-decision/route.ts",
+      "line": 11
+    }
+  ],
+  "decommission_device": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/device-registers/route.ts",
+      "line": 37
+    }
+  ],
+  "delete_attendance_log": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 85
+    }
+  ],
+  "delete_attendance_regularization": [
+    {
+      "file": "erp_frontend/src/app/api/hr/regularizations/[id]/route.ts",
+      "line": 30
+    }
+  ],
+  "delete_boq": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 86
+    }
+  ],
+  "delete_change_request": [
+    {
+      "file": "erp_frontend/src/app/api/engineering/change-requests/route.ts",
+      "line": 44
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 87
+    },
+    {
+      "file": "erp_frontend/src/app/engineering/change-requests/page.tsx",
+      "line": 24
+    }
+  ],
+  "delete_client_signoff": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/client-signoffs/route.ts",
+      "line": 41
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 88
+    }
+  ],
+  "delete_comm_log": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 89
+    },
+    {
+      "file": "erp_frontend/src/app/execution/comm-logs/page.tsx",
+      "line": 101
+    }
+  ],
+  "delete_commissioning_checklist": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/checklists/route.ts",
+      "line": 41
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 90
+    }
+  ],
+  "delete_competitor": [
+    {
+      "file": "erp_frontend/src/app/api/competitors/[id]/route.ts",
+      "line": 45
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 91
+    }
+  ],
+  "delete_cost_sheet": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 92
+    }
+  ],
+  "delete_dependency_rule": [
+    {
+      "file": "erp_frontend/src/app/api/execution/dependency-rules/route.ts",
+      "line": 32
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 93
+    }
+  ],
+  "delete_device_register": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/device-registers/route.ts",
+      "line": 45
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 94
+    }
+  ],
+  "delete_device_uptime_log": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/device-uptime-logs/route.ts",
+      "line": 34
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 95
+    }
+  ],
+  "delete_dispatch_challan": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 96
+    }
+  ],
+  "delete_document_folder": [
+    {
+      "file": "erp_frontend/src/app/api/documents/folders/route.ts",
+      "line": 57
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 97
+    }
+  ],
+  "delete_dpr": [
+    {
+      "file": "erp_frontend/src/app/api/dprs/[id]/route.ts",
+      "line": 30
+    },
+    {
+      "file": "erp_frontend/src/app/api/dprs/route.ts",
+      "line": 52
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 98
+    }
+  ],
+  "delete_drawing": [
+    {
+      "file": "erp_frontend/src/app/api/engineering/drawings/route.ts",
+      "line": 46
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 99
+    },
+    {
+      "file": "erp_frontend/src/app/engineering/drawings/page.tsx",
+      "line": 28
+    }
+  ],
+  "delete_estimate": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 100
+    }
+  ],
+  "delete_invoice": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 101
+    }
+  ],
+  "delete_ip_allocation": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/ip-allocations/route.ts",
+      "line": 37
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 102
+    }
+  ],
+  "delete_ip_pool": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/ip-pools/route.ts",
+      "line": 33
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 103
+    }
+  ],
+  "delete_leave_allocation": [
+    {
+      "file": "erp_frontend/src/app/api/hr/leave/allocations/[id]/route.ts",
+      "line": 20
+    }
+  ],
+  "delete_leave_application": [
+    {
+      "file": "erp_frontend/src/app/api/hr/leave/applications/[id]/route.ts",
+      "line": 30
+    }
+  ],
+  "delete_leave_type": [
+    {
+      "file": "erp_frontend/src/app/api/hr/leave/types/[id]/route.ts",
+      "line": 20
+    }
+  ],
+  "delete_manpower_log": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 104
+    }
+  ],
+  "delete_milestone": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 105
+    }
+  ],
+  "delete_onboarding": [
+    {
+      "file": "erp_frontend/src/app/api/hr/onboarding/[id]/route.ts",
+      "line": 43
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 106
+    }
+  ],
+  "delete_overtime_entry": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 107
+    },
+    {
+      "file": "erp_frontend/src/app/hr/overtime/page.tsx",
+      "line": 28
+    }
+  ],
+  "delete_party": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 108
+    },
+    {
+      "file": "erp_frontend/src/app/api/parties/route.ts",
+      "line": 89
+    }
+  ],
+  "delete_payment_follow_up": [
+    {
+      "file": "erp_frontend/src/app/api/finance/follow-ups/[id]/route.ts",
+      "line": 37
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 110
+    },
+    {
+      "file": "erp_frontend/src/app/finance/follow-ups/page.tsx",
+      "line": 42
+    }
+  ],
+  "delete_payment_receipt": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 109
+    },
+    {
+      "file": "erp_frontend/src/app/finance/payment-receipts/page.tsx",
+      "line": 52
+    }
+  ],
+  "delete_penalty_deduction": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 111
+    },
+    {
+      "file": "erp_frontend/src/app/finance/penalties/page.tsx",
+      "line": 26
+    }
+  ],
+  "delete_petty_cash_entry": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 112
+    }
+  ],
+  "delete_pm_request": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 447
+    },
+    {
+      "file": "erp_frontend/src/app/api/pm-requests/[id]/route.ts",
+      "line": 30
+    }
+  ],
+  "delete_proforma_invoice": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 113
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 415
+    }
+  ],
+  "delete_project": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 114
+    },
+    {
+      "file": "erp_frontend/src/app/api/projects/[id]/route.ts",
+      "line": 44
+    },
+    {
+      "file": "erp_frontend/src/app/projects/page.tsx",
+      "line": 762
+    }
+  ],
+  "delete_project_asset": [
+    {
+      "file": "erp_frontend/src/app/api/execution/project-assets/route.ts",
+      "line": 34
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 115
+    }
+  ],
+  "delete_project_document": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 116
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/FilesTab.tsx",
+      "line": 158
+    }
+  ],
+  "delete_project_issue": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 436
+    },
+    {
+      "file": "erp_frontend/src/app/api/project-issues/[id]/route.ts",
+      "line": 19
+    }
+  ],
+  "delete_project_note": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 454
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/NotesTab.tsx",
+      "line": 79
+    }
+  ],
+  "delete_project_task": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 459
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/TasksTab.tsx",
+      "line": 124
+    }
+  ],
+  "delete_project_team_member": [
+    {
+      "file": "erp_frontend/src/app/api/execution/project-team-members/route.ts",
+      "line": 33
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 117
+    }
+  ],
+  "delete_purchase_order": [
+    {
+      "file": "erp_frontend/src/app/api/purchase-orders/route.ts",
+      "line": 58
+    }
+  ],
+  "delete_reminder": [
+    {
+      "file": "erp_frontend/src/app/api/reminders/route.ts",
+      "line": 59
+    }
+  ],
+  "delete_retention_ledger": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 118
+    },
+    {
+      "file": "erp_frontend/src/app/api/retention/[id]/route.ts",
+      "line": 30
+    },
+    {
+      "file": "erp_frontend/src/app/finance/retention/page.tsx",
+      "line": 26
+    }
+  ],
+  "delete_rma_tracker": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 119
+    }
+  ],
+  "delete_site": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 120
+    }
+  ],
+  "delete_sla_penalty_rule": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 121
+    }
+  ],
+  "delete_sla_profile": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 122
+    },
+    {
+      "file": "erp_frontend/src/app/sla/page.tsx",
+      "line": 22
+    }
+  ],
+  "delete_staffing_assignment": [
+    {
+      "file": "erp_frontend/src/app/api/execution/staffing-assignments/route.ts",
+      "line": 39
+    }
+  ],
+  "delete_statutory_ledger": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 123
+    }
+  ],
+  "delete_survey": [
+    {
+      "file": "erp_frontend/src/app/api/surveys/[id]/route.ts",
+      "line": 57
+    }
+  ],
+  "delete_technical_deviation": [
+    {
+      "file": "erp_frontend/src/app/api/engineering/technical-deviations/route.ts",
+      "line": 45
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 124
+    }
+  ],
+  "delete_technician_visit_log": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 125
+    },
+    {
+      "file": "erp_frontend/src/app/hr/technician-visits/page.tsx",
+      "line": 24
+    }
+  ],
+  "delete_tender": [
+    {
+      "file": "erp_frontend/src/app/api/tenders/[id]/route.ts",
+      "line": 60
+    },
+    {
+      "file": "erp_frontend/src/app/api/tenders/route.ts",
+      "line": 93
+    },
+    {
+      "file": "erp_frontend/src/lib/frappe.ts",
+      "line": 72
+    }
+  ],
+  "delete_tender_checklist": [
+    {
+      "file": "erp_frontend/src/app/api/tender-checklists/[id]/route.ts",
+      "line": 10
+    }
+  ],
+  "delete_tender_organization": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 126
+    }
+  ],
+  "delete_tender_reminder": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 127
+    }
+  ],
+  "delete_tender_result": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 128
+    }
+  ],
+  "delete_test_report": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/test-reports/route.ts",
+      "line": 96
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 129
+    }
+  ],
+  "delete_ticket": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 130
+    }
+  ],
+  "delete_travel_log": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 131
+    },
+    {
+      "file": "erp_frontend/src/app/hr/travel-logs/page.tsx",
+      "line": 29
+    }
+  ],
+  "delete_uploaded_project_file": [
+    {
+      "file": "erp_frontend/src/app/api/documents/upload/route.ts",
+      "line": 128
+    },
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/test-reports/route.ts",
+      "line": 75
+    },
+    {
+      "file": "erp_frontend/src/app/api/hr/onboarding/[id]/documents/route.ts",
+      "line": 58
+    }
+  ],
+  "delete_vendor_comparison": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 132
+    }
+  ],
+  "deny_finance_request": [
+    {
+      "file": "erp_frontend/src/app/api/approvals/route.ts",
+      "line": 27
+    },
+    {
+      "file": "erp_frontend/src/app/api/finance-requests/deny/route.ts",
+      "line": 10
+    }
+  ],
+  "dismiss_reminder": [
+    {
+      "file": "erp_frontend/src/app/api/reminders/route.ts",
+      "line": 52
+    }
+  ],
+  "dismiss_tender_reminder": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 133
+    }
+  ],
+  "download_site_bulk_upload_template": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 508
+    }
+  ],
+  "end_staffing_assignment": [
+    {
+      "file": "erp_frontend/src/app/api/execution/staffing-assignments/route.ts",
+      "line": 44
+    }
+  ],
+  "escalate_indent": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 482
+    }
+  ],
+  "escalate_payment_follow_up": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 338
+    },
+    {
+      "file": "erp_frontend/src/app/finance/follow-ups/page.tsx",
+      "line": 40
+    }
+  ],
+  "escalate_ticket": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 134
+    },
+    {
+      "file": "erp_frontend/src/app/api/tickets/route.ts",
+      "line": 48
+    }
+  ],
+  "evaluate_task_dependencies": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 135
+    }
+  ],
+  "frappe.client.get_list": [
+    {
+      "file": "erp_frontend/src/app/dispatch-challans/[id]/page.tsx",
+      "line": 98
+    },
+    {
+      "file": "erp_frontend/src/app/engineering/boq/[id]/page.tsx",
+      "line": 375
+    },
+    {
+      "file": "erp_frontend/src/app/engineering/boq/[id]/page.tsx",
+      "line": 387
+    },
+    {
+      "file": "erp_frontend/src/app/engineering/change-requests/[id]/page.tsx",
+      "line": 279
+    },
+    {
+      "file": "erp_frontend/src/app/engineering/change-requests/[id]/page.tsx",
+      "line": 291
+    },
+    {
+      "file": "erp_frontend/src/app/engineering/deviations/[id]/page.tsx",
+      "line": 319
+    },
+    {
+      "file": "erp_frontend/src/app/engineering/deviations/[id]/page.tsx",
+      "line": 331
+    },
+    {
+      "file": "erp_frontend/src/app/engineering/drawings/[id]/page.tsx",
+      "line": 283
+    },
+    {
+      "file": "erp_frontend/src/app/engineering/drawings/[id]/page.tsx",
+      "line": 295
+    },
+    {
+      "file": "erp_frontend/src/app/execution/commissioning/devices/[id]/page.tsx",
+      "line": 169
+    },
+    {
+      "file": "erp_frontend/src/app/execution/commissioning/devices/[id]/page.tsx",
+      "line": 170
+    },
+    {
+      "file": "erp_frontend/src/app/execution/sites/[id]/page.tsx",
+      "line": 123
+    },
+    {
+      "file": "erp_frontend/src/app/execution/sites/[id]/page.tsx",
+      "line": 124
+    },
+    {
+      "file": "erp_frontend/src/app/execution/sites/[id]/page.tsx",
+      "line": 125
+    },
+    {
+      "file": "erp_frontend/src/app/execution/sites/[id]/page.tsx",
+      "line": 126
+    },
+    {
+      "file": "erp_frontend/src/app/finance/billing/[id]/page.tsx",
+      "line": 77
+    },
+    {
+      "file": "erp_frontend/src/app/finance/billing/[id]/page.tsx",
+      "line": 78
+    },
+    {
+      "file": "erp_frontend/src/app/finance/costing/[id]/page.tsx",
+      "line": 70
+    },
+    {
+      "file": "erp_frontend/src/app/finance/costing/[id]/page.tsx",
+      "line": 71
+    },
+    {
+      "file": "erp_frontend/src/app/finance/estimates/[id]/page.tsx",
+      "line": 76
+    },
+    {
+      "file": "erp_frontend/src/app/finance/estimates/[id]/page.tsx",
+      "line": 77
+    },
+    {
+      "file": "erp_frontend/src/app/finance/follow-ups/[id]/page.tsx",
+      "line": 74
+    },
+    {
+      "file": "erp_frontend/src/app/finance/payment-receipts/[id]/page.tsx",
+      "line": 61
+    },
+    {
+      "file": "erp_frontend/src/app/finance/penalties/[id]/page.tsx",
+      "line": 78
+    },
+    {
+      "file": "erp_frontend/src/app/finance/proformas/[id]/page.tsx",
+      "line": 85
+    },
+    {
+      "file": "erp_frontend/src/app/finance/proformas/[id]/page.tsx",
+      "line": 86
+    },
+    {
+      "file": "erp_frontend/src/app/finance/retention/[id]/page.tsx",
+      "line": 76
+    },
+    {
+      "file": "erp_frontend/src/app/grns/[id]/page.tsx",
+      "line": 69
+    },
+    {
+      "file": "erp_frontend/src/app/hr/leave/applications/[id]/page.tsx",
+      "line": 211
+    },
+    {
+      "file": "erp_frontend/src/app/hr/leave/applications/[id]/page.tsx",
+      "line": 223
+    },
+    {
+      "file": "erp_frontend/src/app/hr/onboarding/[id]/page.tsx",
+      "line": 300
+    },
+    {
+      "file": "erp_frontend/src/app/hr/overtime/[id]/page.tsx",
+      "line": 179
+    },
+    {
+      "file": "erp_frontend/src/app/hr/regularizations/[id]/page.tsx",
+      "line": 214
+    },
+    {
+      "file": "erp_frontend/src/app/hr/regularizations/[id]/page.tsx",
+      "line": 226
+    },
+    {
+      "file": "erp_frontend/src/app/hr/technician-visits/[id]/page.tsx",
+      "line": 156
+    },
+    {
+      "file": "erp_frontend/src/app/hr/travel-logs/[id]/page.tsx",
+      "line": 197
+    },
+    {
+      "file": "erp_frontend/src/app/om-helpdesk/[id]/page.tsx",
+      "line": 165
+    },
+    {
+      "file": "erp_frontend/src/app/pre-sales/[id]/page.tsx",
+      "line": 1065
+    },
+    {
+      "file": "erp_frontend/src/app/pre-sales/bids/[id]/page.tsx",
+      "line": 591
+    },
+    {
+      "file": "erp_frontend/src/app/project-manager/dpr/[id]/page.tsx",
+      "line": 144
+    },
+    {
+      "file": "erp_frontend/src/app/project-manager/requests/[id]/page.tsx",
+      "line": 214
+    },
+    {
+      "file": "erp_frontend/src/app/rma/[id]/page.tsx",
+      "line": 152
+    },
+    {
+      "file": "erp_frontend/src/app/sla-penalties/[id]/page.tsx",
+      "line": 75
+    },
+    {
+      "file": "erp_frontend/src/app/sla-profiles/[id]/page.tsx",
+      "line": 92
+    },
+    {
+      "file": "erp_frontend/src/components/survey/SurveyDetailView.tsx",
+      "line": 261
+    },
+    {
+      "file": "erp_frontend/src/components/survey/SurveyDetailView.tsx",
+      "line": 279
+    }
+  ],
+  "frappe.client.set_value": [
+    {
+      "file": "erp_frontend/src/app/api/emd-pbg/[id]/document/route.ts",
+      "line": 40
+    }
+  ],
+  "generate_system_reminders": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 527
+    },
+    {
+      "file": "erp_frontend/src/app/api/system/reminders/route.ts",
+      "line": 12
+    }
+  ],
+  "get_accountability_dashboard_summary": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 474
+    }
+  ],
+  "get_accountability_events_by_project": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 473
+    }
+  ],
+  "get_accountability_record": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 469
+    }
+  ],
+  "get_accountability_timeline": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 468
+    }
+  ],
+  "get_accounts_dashboard": [
+    {
+      "file": "erp_frontend/src/app/api/dashboards/[dashboard]/route.ts",
+      "line": 25
+    }
+  ],
+  "get_alerts": [
+    {
+      "file": "erp_frontend/src/app/api/alerts/route.ts",
+      "line": 13
+    }
+  ],
+  "get_all_capabilities": [
+    {
+      "file": "erp_frontend/src/app/api/rbac/capabilities/route.ts",
+      "line": 9
+    }
+  ],
+  "get_anda_import_logs": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 509
+    }
+  ],
+  "get_anda_import_order": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 510
+    }
+  ],
+  "get_anda_import_tabs": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 511
+    }
+  ],
+  "get_attendance_log": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 136
+    }
+  ],
+  "get_attendance_logs": [
+    {
+      "file": "erp_frontend/src/app/api/hr/dashboard/route.ts",
+      "line": 29
+    },
+    {
+      "file": "erp_frontend/src/app/api/hr/operations/route.ts",
+      "line": 114
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 137
+    }
+  ],
+  "get_attendance_muster": [
+    {
+      "file": "erp_frontend/src/app/api/hr/attendance/overview/route.ts",
+      "line": 14
+    },
+    {
+      "file": "erp_frontend/src/app/api/hr/reports/route.ts",
+      "line": 81
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 272
+    }
+  ],
+  "get_attendance_regularization": [
+    {
+      "file": "erp_frontend/src/app/api/hr/regularizations/[id]/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 275
+    }
+  ],
+  "get_attendance_regularizations": [
+    {
+      "file": "erp_frontend/src/app/api/hr/regularizations/route.ts",
+      "line": 12
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 274
+    }
+  ],
+  "get_attendance_stats": [
+    {
+      "file": "erp_frontend/src/app/api/hr/attendance/overview/route.ts",
+      "line": 16
+    },
+    {
+      "file": "erp_frontend/src/app/api/hr/dashboard/route.ts",
+      "line": 23
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 138
+    }
+  ],
+  "get_bid": [
+    {
+      "file": "erp_frontend/src/app/api/bids/[id]/route.ts",
+      "line": 6
+    }
+  ],
+  "get_bids": [
+    {
+      "file": "erp_frontend/src/app/api/bids/route.ts",
+      "line": 8
+    },
+    {
+      "file": "erp_frontend/src/app/api/tender-workspace/[id]/route.ts",
+      "line": 37
+    }
+  ],
+  "get_blocked_accountability_items": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 472
+    }
+  ],
+  "get_boq": [
+    {
+      "file": "erp_frontend/src/app/api/boqs/[id]/route.ts",
+      "line": 13
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 139
+    }
+  ],
+  "get_boq_stats": [
+    {
+      "file": "erp_frontend/src/app/api/boqs/stats/route.ts",
+      "line": 8
+    }
+  ],
+  "get_boqs": [
+    {
+      "file": "erp_frontend/src/app/api/boqs/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/api/tender-workspace/[id]/route.ts",
+      "line": 31
+    }
+  ],
+  "get_change_request": [
+    {
+      "file": "erp_frontend/src/app/api/engineering/change-requests/[id]/route.ts",
+      "line": 13
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 140
+    }
+  ],
+  "get_change_requests": [
+    {
+      "file": "erp_frontend/src/app/api/change-requests/route.ts",
+      "line": 12
+    },
+    {
+      "file": "erp_frontend/src/app/api/engineering/change-requests/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 141
+    }
+  ],
+  "get_client_signoff": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/client-signoffs/[id]/route.ts",
+      "line": 13
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 142
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 236
+    }
+  ],
+  "get_client_signoffs": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/client-signoffs/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 143
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 235
+    }
+  ],
+  "get_comm_log": [
+    {
+      "file": "erp_frontend/src/app/api/comm-logs/[id]/route.ts",
+      "line": 10
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 144
+    }
+  ],
+  "get_comm_logs": [
+    {
+      "file": "erp_frontend/src/app/api/comm-logs/route.ts",
+      "line": 23
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 145
+    },
+    {
+      "file": "erp_frontend/src/app/execution/comm-logs/page.tsx",
+      "line": 70
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/CommunicationsTab.tsx",
+      "line": 49
+    }
+  ],
+  "get_commercial_comments": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 150
+    },
+    {
+      "file": "erp_frontend/src/app/finance/commercial/page.tsx",
+      "line": 50
+    }
+  ],
+  "get_commercial_documents": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 151
+    },
+    {
+      "file": "erp_frontend/src/app/finance/commercial/page.tsx",
+      "line": 51
+    }
+  ],
+  "get_commissioning_checklist": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/checklists/[id]/route.ts",
+      "line": 13
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 146
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 232
+    }
+  ],
+  "get_commissioning_checklists": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/checklists/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 147
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 231
+    }
+  ],
+  "get_competitor": [
+    {
+      "file": "erp_frontend/src/app/api/competitors/[id]/route.ts",
+      "line": 12
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 149
+    }
+  ],
+  "get_competitor_stats": [
+    {
+      "file": "erp_frontend/src/app/api/competitors/stats/route.ts",
+      "line": 8
+    }
+  ],
+  "get_competitors": [
+    {
+      "file": "erp_frontend/src/app/api/competitors/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 148
+    }
+  ],
+  "get_cost_sheet": [
+    {
+      "file": "erp_frontend/src/app/api/cost-sheets/[id]/route.ts",
+      "line": 13
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 152
+    },
+    {
+      "file": "erp_frontend/src/app/finance/costing/[id]/page.tsx",
+      "line": 25
+    }
+  ],
+  "get_cost_sheet_stats": [
+    {
+      "file": "erp_frontend/src/app/api/cost-sheets/stats/route.ts",
+      "line": 8
+    }
+  ],
+  "get_cost_sheets": [
+    {
+      "file": "erp_frontend/src/app/api/cost-sheets/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/api/tender-workspace/[id]/route.ts",
+      "line": 32
+    }
+  ],
+  "get_costing_queue": [
+    {
+      "file": "erp_frontend/src/app/api/costing-queue/route.ts",
+      "line": 20
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 492
+    }
+  ],
+  "get_costing_queue_entry": [
+    {
+      "file": "erp_frontend/src/app/finance/costing-queue/[id]/page.tsx",
+      "line": 22
+    }
+  ],
+  "get_costing_queue_item": [
+    {
+      "file": "erp_frontend/src/app/api/costing-queue/[id]/route.ts",
+      "line": 15
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 493
+    }
+  ],
+  "get_customer_statement": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 183
+    },
+    {
+      "file": "erp_frontend/src/app/finance/customer-statement/page.tsx",
+      "line": 20
+    }
+  ],
+  "get_department_spine_view": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 155
+    }
+  ],
+  "get_departments": [
+    {
+      "file": "erp_frontend/src/app/api/departments/route.ts",
+      "line": 6
+    }
+  ],
+  "get_dependency_overrides": [
+    {
+      "file": "erp_frontend/src/app/api/execution/dependency-overrides/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 153
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 237
+    }
+  ],
+  "get_dependency_rules": [
+    {
+      "file": "erp_frontend/src/app/api/execution/dependency-rules/[id]/route.ts",
+      "line": 13
+    },
+    {
+      "file": "erp_frontend/src/app/api/execution/dependency-rules/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 154
+    }
+  ],
+  "get_designations": [
+    {
+      "file": "erp_frontend/src/app/api/designations/route.ts",
+      "line": 6
+    }
+  ],
+  "get_device_register": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/device-registers/[id]/route.ts",
+      "line": 13
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 156
+    }
+  ],
+  "get_device_registers": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/device-registers/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 157
+    }
+  ],
+  "get_device_uptime_log": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 158
+    }
+  ],
+  "get_device_uptime_logs": [
+    {
+      "file": "erp_frontend/src/app/api/device-uptime/route.ts",
+      "line": 14
+    },
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/device-uptime-logs/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 159
+    }
+  ],
+  "get_dispatch_challan": [
+    {
+      "file": "erp_frontend/src/app/api/dispatch-challans/[id]/route.ts",
+      "line": 13
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 160
+    }
+  ],
+  "get_dispatch_challan_stats": [
+    {
+      "file": "erp_frontend/src/app/api/dispatch-challans/stats/route.ts",
+      "line": 8
+    }
+  ],
+  "get_dispatch_challans": [
+    {
+      "file": "erp_frontend/src/app/api/dispatch-challans/route.ts",
+      "line": 9
+    }
+  ],
+  "get_document_folders": [
+    {
+      "file": "erp_frontend/src/app/api/documents/folders/route.ts",
+      "line": 7
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 161
+    }
+  ],
+  "get_document_requirements": [
+    {
+      "file": "erp_frontend/src/app/api/documents/requirements/route.ts",
+      "line": 14
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 424
+    }
+  ],
+  "get_document_versions": [
+    {
+      "file": "erp_frontend/src/app/api/documents/versions/route.ts",
+      "line": 11
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 162
+    }
+  ],
+  "get_documents": [
+    {
+      "file": "erp_frontend/src/app/api/documents/route.ts",
+      "line": 25
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 163
+    }
+  ],
+  "get_dpr": [
+    {
+      "file": "erp_frontend/src/app/api/dprs/[id]/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 164
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 229
+    }
+  ],
+  "get_dpr_stats": [
+    {
+      "file": "erp_frontend/src/app/api/dprs/stats/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 165
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 230
+    }
+  ],
+  "get_dprs": [
+    {
+      "file": "erp_frontend/src/app/api/dprs/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 228
+    }
+  ],
+  "get_drawing": [
+    {
+      "file": "erp_frontend/src/app/api/engineering/drawings/[id]/route.ts",
+      "line": 13
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 166
+    }
+  ],
+  "get_drawings": [
+    {
+      "file": "erp_frontend/src/app/api/engineering/drawings/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 167
+    }
+  ],
+  "get_emd_pbg_instruments": [
+    {
+      "file": "erp_frontend/src/app/api/emd-pbg/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/api/tender-workspace/[id]/route.ts",
+      "line": 34
+    }
+  ],
+  "get_employee": [
+    {
+      "file": "erp_frontend/src/app/api/hr/employees/[id]/route.ts",
+      "line": 11
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 297
+    }
+  ],
+  "get_employee_education": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 299
+    }
+  ],
+  "get_employee_experience": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 300
+    }
+  ],
+  "get_employee_family": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 301
+    }
+  ],
+  "get_employee_stats": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 302
+    },
+    {
+      "file": "erp_frontend/src/app/hr/employees/page.tsx",
+      "line": 84
+    }
+  ],
+  "get_employees": [
+    {
+      "file": "erp_frontend/src/app/api/hr/employees/route.ts",
+      "line": 13
+    },
+    {
+      "file": "erp_frontend/src/app/api/hr/reports/route.ts",
+      "line": 78
+    },
+    {
+      "file": "erp_frontend/src/app/api/hr/reports/route.ts",
+      "line": 79
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 298
+    }
+  ],
+  "get_engineering_head_dashboard": [
+    {
+      "file": "erp_frontend/src/app/api/dashboards/[dashboard]/route.ts",
+      "line": 31
+    }
+  ],
+  "get_estimate": [
+    {
+      "file": "erp_frontend/src/app/api/estimates/[id]/route.ts",
+      "line": 13
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 168
+    },
+    {
+      "file": "erp_frontend/src/app/finance/estimates/[id]/page.tsx",
+      "line": 25
+    }
+  ],
+  "get_estimate_stats": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 170
+    }
+  ],
+  "get_estimates": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 169
+    }
+  ],
+  "get_execution_dashboard": [
+    {
+      "file": "erp_frontend/src/app/api/dashboards/[dashboard]/route.ts",
+      "line": 34
+    }
+  ],
+  "get_execution_summary": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 219
+    },
+    {
+      "file": "erp_frontend/src/app/execution/commissioning/page.tsx",
+      "line": 76
+    },
+    {
+      "file": "erp_frontend/src/app/execution/page.tsx",
+      "line": 83
+    }
+  ],
+  "get_executive_dashboard": [
+    {
+      "file": "erp_frontend/src/app/api/dashboards/[dashboard]/route.ts",
+      "line": 49
+    }
+  ],
+  "get_expiring_documents": [
+    {
+      "file": "erp_frontend/src/app/api/documents/expiring/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/api/hr/operations/route.ts",
+      "line": 119
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 281
+    }
+  ],
+  "get_finance_mis": [
+    {
+      "file": "erp_frontend/src/app/api/mis/finance/route.ts",
+      "line": 13
+    }
+  ],
+  "get_finance_request_stats": [
+    {
+      "file": "erp_frontend/src/app/api/finance-requests/stats/route.ts",
+      "line": 6
+    }
+  ],
+  "get_finance_requests": [
+    {
+      "file": "erp_frontend/src/app/api/finance-requests/route.ts",
+      "line": 10
+    },
+    {
+      "file": "erp_frontend/src/app/api/tender-workspace/[id]/route.ts",
+      "line": 33
+    }
+  ],
+  "get_follow_up": [
+    {
+      "file": "erp_frontend/src/app/finance/follow-ups/[id]/page.tsx",
+      "line": 24
+    }
+  ],
+  "get_frontend_permissions": [
+    {
+      "file": "erp_frontend/src/app/api/rbac/frontend-permissions/route.ts",
+      "line": 6
+    }
+  ],
+  "get_funnel_dashboard_stats": [
+    {
+      "file": "erp_frontend/src/app/api/presales/funnel-stats/route.ts",
+      "line": 6
+    }
+  ],
+  "get_funnel_tenders": [
+    {
+      "file": "erp_frontend/src/app/api/presales/funnel-tenders/route.ts",
+      "line": 26
+    }
+  ],
+  "get_grn": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 171
+    },
+    {
+      "file": "erp_frontend/src/app/grns/[id]/page.tsx",
+      "line": 32
+    }
+  ],
+  "get_grn_stats": [
+    {
+      "file": "erp_frontend/src/app/api/grns/stats/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 172
+    }
+  ],
+  "get_grns": [
+    {
+      "file": "erp_frontend/src/app/api/grns/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 173
+    },
+    {
+      "file": "erp_frontend/src/app/purchase-orders/[id]/page.tsx",
+      "line": 115
+    }
+  ],
+  "get_holiday_list": [
+    {
+      "file": "erp_frontend/src/app/api/hr/holidays/[id]/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 271
+    }
+  ],
+  "get_holiday_lists": [
+    {
+      "file": "erp_frontend/src/app/api/hr/holidays/route.ts",
+      "line": 9
+    }
+  ],
+  "get_hr_approval_inbox": [
+    {
+      "file": "erp_frontend/src/app/api/hr/approvals/route.ts",
+      "line": 11
+    }
+  ],
+  "get_indent": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 174
+    },
+    {
+      "file": "erp_frontend/src/app/indents/[id]/page.tsx",
+      "line": 46
+    }
+  ],
+  "get_indent_stats": [
+    {
+      "file": "erp_frontend/src/app/api/indents/stats/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 175
+    }
+  ],
+  "get_indents": [
+    {
+      "file": "erp_frontend/src/app/api/indents/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 176
+    }
+  ],
+  "get_inventory_reference_schema": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 512
+    }
+  ],
+  "get_invoice": [
+    {
+      "file": "erp_frontend/src/app/api/invoices/[id]/route.ts",
+      "line": 13
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 177
+    }
+  ],
+  "get_invoice_stats": [
+    {
+      "file": "erp_frontend/src/app/api/invoices/stats/route.ts",
+      "line": 8
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 178
+    }
+  ],
+  "get_invoices": [
+    {
+      "file": "erp_frontend/src/app/api/invoices/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/reports/page.tsx",
+      "line": 139
+    }
+  ],
+  "get_ip_allocation": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 179
+    }
+  ],
+  "get_ip_allocations": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/ip-allocations/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 180
+    }
+  ],
+  "get_ip_pool": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 181
+    }
+  ],
+  "get_ip_pools": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/ip-pools/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 182
+    }
+  ],
+  "get_leave_allocations": [
+    {
+      "file": "erp_frontend/src/app/api/hr/leave/allocations/route.ts",
+      "line": 11
+    }
+  ],
+  "get_leave_application": [
+    {
+      "file": "erp_frontend/src/app/api/hr/leave/applications/[id]/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 266
+    }
+  ],
+  "get_leave_applications": [
+    {
+      "file": "erp_frontend/src/app/api/hr/leave/applications/route.ts",
+      "line": 14
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 265
+    }
+  ],
+  "get_leave_balances": [
+    {
+      "file": "erp_frontend/src/app/api/hr/leave/balances/route.ts",
+      "line": 12
+    },
+    {
+      "file": "erp_frontend/src/app/api/hr/reports/route.ts",
+      "line": 80
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 263
+    }
+  ],
+  "get_leave_calendar": [
+    {
+      "file": "erp_frontend/src/app/api/hr/leave/calendar/route.ts",
+      "line": 12
+    }
+  ],
+  "get_leave_types": [
+    {
+      "file": "erp_frontend/src/app/api/hr/leave/types/route.ts",
+      "line": 9
+    }
+  ],
+  "get_legacy_data_report": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 513
+    }
+  ],
+  "get_login_mis": [
+    {
+      "file": "erp_frontend/src/app/api/mis/login/route.ts",
+      "line": 13
+    }
+  ],
+  "get_loi_status": [
+    {
+      "file": "erp_frontend/src/app/api/loi-tracker/route.ts",
+      "line": 7
+    }
+  ],
+  "get_manpower_log": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 184
+    }
+  ],
+  "get_manpower_logs": [
+    {
+      "file": "erp_frontend/src/app/api/manpower/route.ts",
+      "line": 13
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 185
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/StaffTab.tsx",
+      "line": 50
+    }
+  ],
+  "get_manpower_summary": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 186
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/StaffTab.tsx",
+      "line": 49
+    }
+  ],
+  "get_material_consumption_reports": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 227
+    },
+    {
+      "file": "erp_frontend/src/app/project-manager/inventory/page.tsx",
+      "line": 75
+    }
+  ],
+  "get_milestone": [
+    {
+      "file": "erp_frontend/src/app/api/milestones/[id]/route.ts",
+      "line": 10
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 187
+    }
+  ],
+  "get_milestones": [
+    {
+      "file": "erp_frontend/src/app/api/milestones/route.ts",
+      "line": 13
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 188
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/MilestonesTab.tsx",
+      "line": 30
+    }
+  ],
+  "get_notification_center": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 220
+    },
+    {
+      "file": "erp_frontend/src/app/notifications/page.tsx",
+      "line": 125
+    }
+  ],
+  "get_om_dashboard": [
+    {
+      "file": "erp_frontend/src/app/api/dashboards/[dashboard]/route.ts",
+      "line": 22
+    }
+  ],
+  "get_onboarding": [
+    {
+      "file": "erp_frontend/src/app/api/hr/onboarding/[id]/documents/route.ts",
+      "line": 36
+    },
+    {
+      "file": "erp_frontend/src/app/api/hr/onboarding/[id]/route.ts",
+      "line": 12
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 189
+    }
+  ],
+  "get_onboarding_stats": [
+    {
+      "file": "erp_frontend/src/app/api/hr/dashboard/route.ts",
+      "line": 22
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 191
+    },
+    {
+      "file": "erp_frontend/src/app/hr/onboarding/page.tsx",
+      "line": 458
+    }
+  ],
+  "get_onboardings": [
+    {
+      "file": "erp_frontend/src/app/api/hr/dashboard/route.ts",
+      "line": 28
+    },
+    {
+      "file": "erp_frontend/src/app/api/hr/onboarding/route.ts",
+      "line": 13
+    },
+    {
+      "file": "erp_frontend/src/app/api/hr/reports/route.ts",
+      "line": 84
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 190
+    }
+  ],
+  "get_open_accountability_items": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 470
+    }
+  ],
+  "get_organizations": [
+    {
+      "file": "erp_frontend/src/app/api/organizations/route.ts",
+      "line": 7
+    },
+    {
+      "file": "erp_frontend/src/lib/frappe.ts",
+      "line": 83
+    }
+  ],
+  "get_overdue_accountability_items": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 471
+    }
+  ],
+  "get_overtime_entries": [
+    {
+      "file": "erp_frontend/src/app/api/hr/dashboard/route.ts",
+      "line": 31
+    },
+    {
+      "file": "erp_frontend/src/app/api/hr/operations/route.ts",
+      "line": 115
+    },
+    {
+      "file": "erp_frontend/src/app/api/hr/reports/route.ts",
+      "line": 82
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 193
+    }
+  ],
+  "get_overtime_entry": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 192
+    },
+    {
+      "file": "erp_frontend/src/app/api/overtime/[id]/route.ts",
+      "line": 7
+    }
+  ],
+  "get_overtime_stats": [
+    {
+      "file": "erp_frontend/src/app/api/hr/dashboard/route.ts",
+      "line": 25
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 194
+    }
+  ],
+  "get_parties": [
+    {
+      "file": "erp_frontend/src/app/api/parties/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/lib/frappe.ts",
+      "line": 88
+    }
+  ],
+  "get_payment_follow_up_stats": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 199
+    }
+  ],
+  "get_payment_follow_ups": [
+    {
+      "file": "erp_frontend/src/app/api/finance/follow-ups/[id]/route.ts",
+      "line": 11
+    },
+    {
+      "file": "erp_frontend/src/app/api/finance/follow-ups/route.ts",
+      "line": 12
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 198
+    }
+  ],
+  "get_payment_receipt": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 195
+    },
+    {
+      "file": "erp_frontend/src/app/api/payment-receipts/[id]/route.ts",
+      "line": 13
+    },
+    {
+      "file": "erp_frontend/src/app/finance/payment-receipts/[id]/page.tsx",
+      "line": 22
+    }
+  ],
+  "get_payment_receipt_stats": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 196
+    },
+    {
+      "file": "erp_frontend/src/app/finance/billing/page.tsx",
+      "line": 63
+    }
+  ],
+  "get_payment_receipts": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 197
+    },
+    {
+      "file": "erp_frontend/src/app/api/payment-receipts/route.ts",
+      "line": 12
+    },
+    {
+      "file": "erp_frontend/src/app/payment-receipts/page.tsx",
+      "line": 21
+    }
+  ],
+  "get_penalties": [
+    {
+      "file": "erp_frontend/src/app/penalties/page.tsx",
+      "line": 21
+    }
+  ],
+  "get_penalty": [
+    {
+      "file": "erp_frontend/src/app/finance/penalties/[id]/page.tsx",
+      "line": 25
+    }
+  ],
+  "get_penalty_deduction": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 200
+    },
+    {
+      "file": "erp_frontend/src/app/api/penalties/[id]/route.ts",
+      "line": 13
+    }
+  ],
+  "get_penalty_deductions": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 201
+    },
+    {
+      "file": "erp_frontend/src/app/api/penalties/route.ts",
+      "line": 13
+    }
+  ],
+  "get_penalty_stats": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 202
+    }
+  ],
+  "get_pending_approvals": [
+    {
+      "file": "erp_frontend/src/app/api/approvals/route.ts",
+      "line": 6
+    }
+  ],
+  "get_permission_packs": [
+    {
+      "file": "erp_frontend/src/app/api/rbac/packs/route.ts",
+      "line": 10
+    }
+  ],
+  "get_petty_cash_entries": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 203
+    },
+    {
+      "file": "erp_frontend/src/app/api/petty-cash/route.ts",
+      "line": 14
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/PettyCashTab.tsx",
+      "line": 45
+    }
+  ],
+  "get_petty_cash_entry": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 204
+    },
+    {
+      "file": "erp_frontend/src/app/api/petty-cash/[id]/route.ts",
+      "line": 10
+    }
+  ],
+  "get_petty_cash_fund_requests": [
+    {
+      "file": "erp_frontend/src/app/api/petty-cash/fund-requests/route.ts",
+      "line": 18
+    }
+  ],
+  "get_ph_approval_item": [
+    {
+      "file": "erp_frontend/src/app/api/approval-hub/[id]/route.ts",
+      "line": 15
+    }
+  ],
+  "get_ph_approval_items": [
+    {
+      "file": "erp_frontend/src/app/api/approval-hub/route.ts",
+      "line": 20
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 484
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/ApprovalsTab.tsx",
+      "line": 43
+    }
+  ],
+  "get_pm_central_status": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 437
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/CentralStatusTab.tsx",
+      "line": 66
+    }
+  ],
+  "get_pm_cockpit_summary": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 215
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/OpsTab.tsx",
+      "line": 23
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/OverviewTab.tsx",
+      "line": 697
+    }
+  ],
+  "get_pm_request": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 440
+    },
+    {
+      "file": "erp_frontend/src/app/api/pm-requests/[id]/route.ts",
+      "line": 9
+    }
+  ],
+  "get_pm_requests": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 439
+    },
+    {
+      "file": "erp_frontend/src/app/api/pm-requests/route.ts",
+      "line": 13
+    },
+    {
+      "file": "erp_frontend/src/app/project-manager/requests/page.tsx",
+      "line": 99
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/RequestsTab.tsx",
+      "line": 118
+    }
+  ],
+  "get_po_payment_terms": [
+    {
+      "file": "erp_frontend/src/app/api/purchase-orders/payment-terms/route.ts",
+      "line": 9
+    }
+  ],
+  "get_po_stats": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 205
+    },
+    {
+      "file": "erp_frontend/src/app/api/purchase-orders/stats/route.ts",
+      "line": 9
+    }
+  ],
+  "get_presales_color_config": [
+    {
+      "file": "erp_frontend/src/app/api/presales/color-config/route.ts",
+      "line": 6
+    }
+  ],
+  "get_presales_dashboard": [
+    {
+      "file": "erp_frontend/src/app/api/dashboards/[dashboard]/route.ts",
+      "line": 28
+    }
+  ],
+  "get_procurement_dashboard": [
+    {
+      "file": "erp_frontend/src/app/api/dashboards/[dashboard]/route.ts",
+      "line": 43
+    }
+  ],
+  "get_proforma": [
+    {
+      "file": "erp_frontend/src/app/finance/proformas/[id]/page.tsx",
+      "line": 25
+    }
+  ],
+  "get_proforma_invoice": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 238
+    },
+    {
+      "file": "erp_frontend/src/app/api/proformas/[id]/route.ts",
+      "line": 13
+    }
+  ],
+  "get_proforma_invoice_stats": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 240
+    }
+  ],
+  "get_proforma_invoices": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 239
+    }
+  ],
+  "get_project": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 206
+    },
+    {
+      "file": "erp_frontend/src/app/api/projects/[id]/route.ts",
+      "line": 13
+    },
+    {
+      "file": "erp_frontend/src/app/projects/page.tsx",
+      "line": 652
+    }
+  ],
+  "get_project_activity": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 214
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/ActivityTab.tsx",
+      "line": 34
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/OverviewTab.tsx",
+      "line": 755
+    }
+  ],
+  "get_project_asset": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 207
+    }
+  ],
+  "get_project_assets": [
+    {
+      "file": "erp_frontend/src/app/api/execution/project-assets/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 208
+    }
+  ],
+  "get_project_closeout_eligibility": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 498
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/CloseoutTab.tsx",
+      "line": 58
+    }
+  ],
+  "get_project_closeout_items": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 499
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/CloseoutTab.tsx",
+      "line": 59
+    }
+  ],
+  "get_project_document": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 209
+    }
+  ],
+  "get_project_documents": [
+    {
+      "file": "erp_frontend/src/app/api/documents/route.ts",
+      "line": 19
+    },
+    {
+      "file": "erp_frontend/src/app/api/hr/operations/route.ts",
+      "line": 118
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 210
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/FilesTab.tsx",
+      "line": 90
+    }
+  ],
+  "get_project_dossier": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 426
+    },
+    {
+      "file": "erp_frontend/src/app/projects/[id]/dossier/page.tsx",
+      "line": 215
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/DossierTab.tsx",
+      "line": 214
+    }
+  ],
+  "get_project_favorites": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 450
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/WorkspaceShell.tsx",
+      "line": 143
+    }
+  ],
+  "get_project_head_dashboard": [
+    {
+      "file": "erp_frontend/src/app/api/dashboards/[dashboard]/route.ts",
+      "line": 37
+    }
+  ],
+  "get_project_head_loc_requests": [
+    {
+      "file": "erp_frontend/src/app/api/project-head/letter-of-submission/route.ts",
+      "line": 7
+    }
+  ],
+  "get_project_indents": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 216
+    },
+    {
+      "file": "erp_frontend/src/app/project-manager/inventory/page.tsx",
+      "line": 77
+    }
+  ],
+  "get_project_inventory_records": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 217
+    },
+    {
+      "file": "erp_frontend/src/app/project-manager/inventory/page.tsx",
+      "line": 74
+    }
+  ],
+  "get_project_issue": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 433
+    },
+    {
+      "file": "erp_frontend/src/app/api/project-issues/[id]/route.ts",
+      "line": 9
+    }
+  ],
+  "get_project_issues": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 432
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/IssuesTab.tsx",
+      "line": 54
+    }
+  ],
+  "get_project_manager_dashboard": [
+    {
+      "file": "erp_frontend/src/app/api/dashboards/[dashboard]/route.ts",
+      "line": 40
+    }
+  ],
+  "get_project_notes": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 451
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/NotesTab.tsx",
+      "line": 32
+    }
+  ],
+  "get_project_receiving_summary": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 218
+    },
+    {
+      "file": "erp_frontend/src/app/project-manager/inventory/page.tsx",
+      "line": 76
+    }
+  ],
+  "get_project_spine_detail": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 212
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/WorkspaceShell.tsx",
+      "line": 166
+    }
+  ],
+  "get_project_spine_list": [
+    {
+      "file": "erp_frontend/src/app/api/hr/operations/route.ts",
+      "line": 111
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 211
+    },
+    {
+      "file": "erp_frontend/src/app/api/projects/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/finance/billing/page.tsx",
+      "line": 80
+    },
+    {
+      "file": "erp_frontend/src/app/petty-cash/page.tsx",
+      "line": 100
+    },
+    {
+      "file": "erp_frontend/src/app/projects/page.tsx",
+      "line": 409
+    },
+    {
+      "file": "erp_frontend/src/app/projects/page.tsx",
+      "line": 422
+    },
+    {
+      "file": "erp_frontend/src/app/reports/page.tsx",
+      "line": 133
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/DepartmentProjectList.tsx",
+      "line": 61
+    }
+  ],
+  "get_project_spine_summary": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 213
+    }
+  ],
+  "get_project_tasks": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 456
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/TasksTab.tsx",
+      "line": 76
+    }
+  ],
+  "get_project_team_member": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 225
+    }
+  ],
+  "get_project_team_members": [
+    {
+      "file": "erp_frontend/src/app/api/execution/project-team-members/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/api/hr/operations/route.ts",
+      "line": 113
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 226
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/StaffTab.tsx",
+      "line": 48
+    }
+  ],
+  "get_project_timesheet_summary": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 466
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/TimesheetsTab.tsx",
+      "line": 25
+    }
+  ],
+  "get_project_workflow_state": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 224
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/OverviewTab.tsx",
+      "line": 38
+    }
+  ],
+  "get_purchase_order": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 241
+    },
+    {
+      "file": "erp_frontend/src/app/api/purchase-orders/detail/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/vendor-comparisons/[id]/page.tsx",
+      "line": 75
+    }
+  ],
+  "get_purchase_orders": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 242
+    },
+    {
+      "file": "erp_frontend/src/app/api/purchase-orders/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/reports/page.tsx",
+      "line": 136
+    },
+    {
+      "file": "erp_frontend/src/app/vendor-comparisons/[id]/page.tsx",
+      "line": 74
+    }
+  ],
+  "get_rbac_audit_event_types": [
+    {
+      "file": "erp_frontend/src/app/api/rbac/audit-event-types/route.ts",
+      "line": 6
+    }
+  ],
+  "get_rbac_audit_log": [
+    {
+      "file": "erp_frontend/src/app/api/rbac/audit-log/route.ts",
+      "line": 15
+    }
+  ],
+  "get_rbac_users": [
+    {
+      "file": "erp_frontend/src/app/api/rbac/users/route.ts",
+      "line": 11
+    }
+  ],
+  "get_receivable_aging": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 243
+    },
+    {
+      "file": "erp_frontend/src/app/finance/commercial/page.tsx",
+      "line": 39
+    },
+    {
+      "file": "erp_frontend/src/app/finance/receivable-aging/page.tsx",
+      "line": 17
+    }
+  ],
+  "get_record_assignments": [
+    {
+      "file": "erp_frontend/src/app/api/collaboration/assignments/route.ts",
+      "line": 12
+    }
+  ],
+  "get_record_comments": [
+    {
+      "file": "erp_frontend/src/app/api/collaboration/route.ts",
+      "line": 13
+    }
+  ],
+  "get_record_documents": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 428
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/FilesTab.tsx",
+      "line": 261
+    },
+    {
+      "file": "erp_frontend/src/components/ui/RecordDocumentsPanel.tsx",
+      "line": 139
+    }
+  ],
+  "get_reminders": [
+    {
+      "file": "erp_frontend/src/app/api/reminders/route.ts",
+      "line": 20
+    }
+  ],
+  "get_retention": [
+    {
+      "file": "erp_frontend/src/app/finance/retention/[id]/page.tsx",
+      "line": 24
+    }
+  ],
+  "get_retention_ledger": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 244
+    },
+    {
+      "file": "erp_frontend/src/app/api/retention/[id]/route.ts",
+      "line": 9
+    }
+  ],
+  "get_retention_ledgers": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 245
+    },
+    {
+      "file": "erp_frontend/src/app/api/retention/route.ts",
+      "line": 12
+    }
+  ],
+  "get_retention_stats": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 246
+    }
+  ],
+  "get_retentions": [
+    {
+      "file": "erp_frontend/src/app/retention/page.tsx",
+      "line": 21
+    }
+  ],
+  "get_rma_stats": [
+    {
+      "file": "erp_frontend/src/app/api/rma-trackers/stats/route.ts",
+      "line": 8
+    }
+  ],
+  "get_rma_tracker": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 247
+    },
+    {
+      "file": "erp_frontend/src/app/api/rma-trackers/[id]/route.ts",
+      "line": 13
+    }
+  ],
+  "get_rma_trackers": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 248
+    },
+    {
+      "file": "erp_frontend/src/app/api/rma-trackers/route.ts",
+      "line": 9
+    }
+  ],
+  "get_role_pack_matrix": [
+    {
+      "file": "erp_frontend/src/app/api/rbac/role-matrix/route.ts",
+      "line": 6
+    }
+  ],
+  "get_roles": [
+    {
+      "file": "erp_frontend/src/app/api/roles-list/route.ts",
+      "line": 6
+    }
+  ],
+  "get_sales_invoice": [
+    {
+      "file": "erp_frontend/src/app/finance/billing/[id]/page.tsx",
+      "line": 25
+    }
+  ],
+  "get_sales_mis": [
+    {
+      "file": "erp_frontend/src/app/api/mis/sales/route.ts",
+      "line": 13
+    }
+  ],
+  "get_session_context": [
+    {
+      "file": "erp_frontend/src/app/api/auth/login/route.ts",
+      "line": 22
+    },
+    {
+      "file": "erp_frontend/src/app/api/auth/session/route.ts",
+      "line": 15
+    }
+  ],
+  "get_site": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 249
+    },
+    {
+      "file": "erp_frontend/src/app/api/sites/[id]/route.ts",
+      "line": 13
+    }
+  ],
+  "get_site_dossier": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 427
+    },
+    {
+      "file": "erp_frontend/src/app/sites/[id]/dossier/page.tsx",
+      "line": 218
+    }
+  ],
+  "get_site_spine_detail": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 255
+    }
+  ],
+  "get_site_uptime_summary": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 250
+    }
+  ],
+  "get_sites": [
+    {
+      "file": "erp_frontend/src/app/api/hr/operations/route.ts",
+      "line": 112
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 262
+    },
+    {
+      "file": "erp_frontend/src/app/api/sites/route.ts",
+      "line": 9
+    }
+  ],
+  "get_sla_penalties": [
+    {
+      "file": "erp_frontend/src/app/sla-penalties/page.tsx",
+      "line": 18
+    }
+  ],
+  "get_sla_penalty": [
+    {
+      "file": "erp_frontend/src/app/sla-penalties/[id]/page.tsx",
+      "line": 24
+    }
+  ],
+  "get_sla_penalty_record": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 251
+    },
+    {
+      "file": "erp_frontend/src/app/api/sla-penalties/[id]/route.ts",
+      "line": 13
+    }
+  ],
+  "get_sla_penalty_records": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 252
+    },
+    {
+      "file": "erp_frontend/src/app/api/sla-penalties/route.ts",
+      "line": 9
+    }
+  ],
+  "get_sla_penalty_rules": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 253
+    }
+  ],
+  "get_sla_penalty_stats": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 254
+    }
+  ],
+  "get_sla_profile": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 256
+    },
+    {
+      "file": "erp_frontend/src/app/api/sla-profiles/[id]/route.ts",
+      "line": 13
+    }
+  ],
+  "get_sla_profiles": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 257
+    },
+    {
+      "file": "erp_frontend/src/app/api/sla-profiles/route.ts",
+      "line": 12
+    }
+  ],
+  "get_sla_timer": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 258
+    }
+  ],
+  "get_sla_timers": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 259
+    }
+  ],
+  "get_staffing_assignment": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 514
+    }
+  ],
+  "get_staffing_assignments": [
+    {
+      "file": "erp_frontend/src/app/api/execution/staffing-assignments/route.ts",
+      "line": 9
+    }
+  ],
+  "get_staffing_summary": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 515
+    }
+  ],
+  "get_statutory_ledger": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 260
+    }
+  ],
+  "get_statutory_ledger_stats": [
+    {
+      "file": "erp_frontend/src/app/api/hr/dashboard/route.ts",
+      "line": 26
+    }
+  ],
+  "get_statutory_ledgers": [
+    {
+      "file": "erp_frontend/src/app/api/hr/dashboard/route.ts",
+      "line": 32
+    },
+    {
+      "file": "erp_frontend/src/app/api/hr/operations/route.ts",
+      "line": 120
+    },
+    {
+      "file": "erp_frontend/src/app/api/hr/reports/route.ts",
+      "line": 85
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 261
+    }
+  ],
+  "get_stock_aging": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 282
+    },
+    {
+      "file": "erp_frontend/src/app/api/stock-aging/route.ts",
+      "line": 9
+    }
+  ],
+  "get_stock_position": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 283
+    },
+    {
+      "file": "erp_frontend/src/app/api/stock-position/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/indents/[id]/page.tsx",
+      "line": 66
+    }
+  ],
+  "get_store_stock_snapshot": [
+    {
+      "file": "erp_frontend/src/app/api/stock-snapshot/route.ts",
+      "line": 8
+    }
+  ],
+  "get_stores_dashboard": [
+    {
+      "file": "erp_frontend/src/app/api/dashboards/[dashboard]/route.ts",
+      "line": 46
+    }
+  ],
+  "get_survey": [
+    {
+      "file": "erp_frontend/src/app/api/surveys/[id]/route.ts",
+      "line": 13
+    }
+  ],
+  "get_survey_stats": [
+    {
+      "file": "erp_frontend/src/app/api/surveys/stats/route.ts",
+      "line": 9
+    }
+  ],
+  "get_surveys": [
+    {
+      "file": "erp_frontend/src/app/api/surveys/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/api/tender-workspace/[id]/route.ts",
+      "line": 30
+    }
+  ],
+  "get_swipe_ingestion_placeholder": [
+    {
+      "file": "erp_frontend/src/app/api/hr/attendance/overview/route.ts",
+      "line": 15
+    }
+  ],
+  "get_task_summary": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 462
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/TasksTab.tsx",
+      "line": 77
+    }
+  ],
+  "get_technical_deviation": [
+    {
+      "file": "erp_frontend/src/app/api/engineering/technical-deviations/[id]/route.ts",
+      "line": 13
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 284
+    }
+  ],
+  "get_technical_deviations": [
+    {
+      "file": "erp_frontend/src/app/api/engineering/technical-deviations/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 285
+    }
+  ],
+  "get_technician_visit_log": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 286
+    },
+    {
+      "file": "erp_frontend/src/app/api/technician-visits/[id]/route.ts",
+      "line": 7
+    }
+  ],
+  "get_technician_visit_logs": [
+    {
+      "file": "erp_frontend/src/app/api/hr/dashboard/route.ts",
+      "line": 33
+    },
+    {
+      "file": "erp_frontend/src/app/api/hr/operations/route.ts",
+      "line": 117
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 287
+    },
+    {
+      "file": "erp_frontend/src/app/api/technician-visits/route.ts",
+      "line": 13
+    }
+  ],
+  "get_technician_visit_stats": [
+    {
+      "file": "erp_frontend/src/app/api/hr/dashboard/route.ts",
+      "line": 27
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 288
+    }
+  ],
+  "get_tender": [
+    {
+      "file": "erp_frontend/src/app/api/tender-workspace/[id]/route.ts",
+      "line": 27
+    },
+    {
+      "file": "erp_frontend/src/app/api/tenders/[id]/route.ts",
+      "line": 11
+    },
+    {
+      "file": "erp_frontend/src/lib/frappe.ts",
+      "line": 54
+    }
+  ],
+  "get_tender_approvals": [
+    {
+      "file": "erp_frontend/src/app/api/tender-approvals/route.ts",
+      "line": 7
+    },
+    {
+      "file": "erp_frontend/src/app/api/tender-workspace/[id]/route.ts",
+      "line": 36
+    }
+  ],
+  "get_tender_checklist": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 289
+    }
+  ],
+  "get_tender_checklists": [
+    {
+      "file": "erp_frontend/src/app/api/tender-checklists/route.ts",
+      "line": 7
+    },
+    {
+      "file": "erp_frontend/src/app/api/tender-workspace/[id]/route.ts",
+      "line": 35
+    }
+  ],
+  "get_tender_organizations": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 290
+    }
+  ],
+  "get_tender_reminder": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 291
+    }
+  ],
+  "get_tender_reminder_stats": [
+    {
+      "file": "erp_frontend/src/app/api/tender-reminders/stats/route.ts",
+      "line": 8
+    }
+  ],
+  "get_tender_reminders": [
+    {
+      "file": "erp_frontend/src/app/api/tender-reminders/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/api/tender-workspace/[id]/route.ts",
+      "line": 29
+    }
+  ],
+  "get_tender_result": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 292
+    }
+  ],
+  "get_tender_result_stats": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 516
+    }
+  ],
+  "get_tender_results": [
+    {
+      "file": "erp_frontend/src/app/api/tender-workspace/[id]/route.ts",
+      "line": 28
+    }
+  ],
+  "get_tender_stats": [
+    {
+      "file": "erp_frontend/src/app/api/tenders/stats/route.ts",
+      "line": 8
+    },
+    {
+      "file": "erp_frontend/src/lib/frappe.ts",
+      "line": 78
+    }
+  ],
+  "get_tenders": [
+    {
+      "file": "erp_frontend/src/app/api/tenders/route.ts",
+      "line": 11
+    },
+    {
+      "file": "erp_frontend/src/app/pre-sales/tenders/page.tsx",
+      "line": 70
+    },
+    {
+      "file": "erp_frontend/src/app/reports/page.tsx",
+      "line": 142
+    },
+    {
+      "file": "erp_frontend/src/lib/frappe.ts",
+      "line": 48
+    }
+  ],
+  "get_test_report": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/test-reports/[id]/route.ts",
+      "line": 13
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 234
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 293
+    }
+  ],
+  "get_test_reports": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/test-reports/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 233
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 294
+    }
+  ],
+  "get_ticket": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 295
+    },
+    {
+      "file": "erp_frontend/src/app/api/tickets/[id]/route.ts",
+      "line": 13
+    }
+  ],
+  "get_ticket_stats": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 296
+    }
+  ],
+  "get_tickets": [
+    {
+      "file": "erp_frontend/src/app/api/tickets/route.ts",
+      "line": 9
+    }
+  ],
+  "get_travel_log": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 303
+    },
+    {
+      "file": "erp_frontend/src/app/api/travel-logs/[id]/route.ts",
+      "line": 7
+    }
+  ],
+  "get_travel_log_stats": [
+    {
+      "file": "erp_frontend/src/app/api/hr/dashboard/route.ts",
+      "line": 24
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 305
+    }
+  ],
+  "get_travel_logs": [
+    {
+      "file": "erp_frontend/src/app/api/hr/dashboard/route.ts",
+      "line": 30
+    },
+    {
+      "file": "erp_frontend/src/app/api/hr/operations/route.ts",
+      "line": 116
+    },
+    {
+      "file": "erp_frontend/src/app/api/hr/reports/route.ts",
+      "line": 83
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 304
+    }
+  ],
+  "get_unread_alert_count": [
+    {
+      "file": "erp_frontend/src/app/api/alerts/count/route.ts",
+      "line": 8
+    }
+  ],
+  "get_user_context": [
+    {
+      "file": "erp_frontend/src/app/api/rbac/user-context/route.ts",
+      "line": 9
+    }
+  ],
+  "get_user_effective_permissions": [
+    {
+      "file": "erp_frontend/src/app/api/rbac/user-permissions/route.ts",
+      "line": 9
+    }
+  ],
+  "get_user_mentions": [
+    {
+      "file": "erp_frontend/src/app/api/collaboration/mentions/route.ts",
+      "line": 13
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 222
+    }
+  ],
+  "get_users": [
+    {
+      "file": "erp_frontend/src/app/api/users-list/route.ts",
+      "line": 6
+    }
+  ],
+  "get_vendor_comparison": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 306
+    },
+    {
+      "file": "erp_frontend/src/app/vendor-comparisons/[id]/page.tsx",
+      "line": 49
+    }
+  ],
+  "get_vendor_comparison_stats": [
+    {
+      "file": "erp_frontend/src/app/api/vendor-comparisons/stats/route.ts",
+      "line": 8
+    }
+  ],
+  "get_vendor_comparisons": [
+    {
+      "file": "erp_frontend/src/app/api/vendor-comparisons/route.ts",
+      "line": 9
+    },
+    {
+      "file": "erp_frontend/src/app/indents/[id]/page.tsx",
+      "line": 72
+    },
+    {
+      "file": "erp_frontend/src/app/purchase-orders/[id]/page.tsx",
+      "line": 114
+    }
+  ],
+  "get_who_is_in": [
+    {
+      "file": "erp_frontend/src/app/api/hr/attendance/overview/route.ts",
+      "line": 13
+    }
+  ],
+  "get_workspace_permissions": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 223
+    },
+    {
+      "file": "erp_frontend/src/context/WorkspacePermissionContext.tsx",
+      "line": 90
+    }
+  ],
+  "health_check": [
+    {
+      "file": "erp_frontend/src/app/api/health/route.ts",
+      "line": 8
+    }
+  ],
+  "issue_closeout_certificate": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 500
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/CloseoutTab.tsx",
+      "line": 73
+    }
+  ],
+  "load_anda_masters": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 517
+    }
+  ],
+  "logout_current_session": [
+    {
+      "file": "erp_frontend/src/app/api/auth/logout/route.ts",
+      "line": 11
+    }
+  ],
+  "map_onboarding_to_employee": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 307
+    }
+  ],
+  "mark_alert_as_read": [
+    {
+      "file": "erp_frontend/src/app/api/alerts/route.ts",
+      "line": 29
+    }
+  ],
+  "mark_all_alerts_read": [
+    {
+      "file": "erp_frontend/src/app/api/alerts/route.ts",
+      "line": 34
+    }
+  ],
+  "mark_bid_cancelled": [
+    {
+      "file": "erp_frontend/src/app/api/bids/[id]/cancel/route.ts",
+      "line": 6
+    }
+  ],
+  "mark_bid_lost": [
+    {
+      "file": "erp_frontend/src/app/api/bids/[id]/lost/route.ts",
+      "line": 6
+    }
+  ],
+  "mark_bid_retender": [
+    {
+      "file": "erp_frontend/src/app/api/bids/[id]/retender/route.ts",
+      "line": 6
+    }
+  ],
+  "mark_bid_under_evaluation": [
+    {
+      "file": "erp_frontend/src/app/api/bids/[id]/under-evaluation/route.ts",
+      "line": 5
+    }
+  ],
+  "mark_bid_won": [
+    {
+      "file": "erp_frontend/src/app/api/bids/[id]/won/route.ts",
+      "line": 6
+    }
+  ],
+  "mark_device_faulty": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/device-registers/route.ts",
+      "line": 33
+    }
+  ],
+  "mark_dispatch_challan_dispatched": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 308
+    }
+  ],
+  "mark_invoice_paid": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 309
+    }
+  ],
+  "mark_loi_received": [
+    {
+      "file": "erp_frontend/src/app/api/loi-tracker/[id]/received/route.ts",
+      "line": 6
+    }
+  ],
+  "mark_mention_read": [
+    {
+      "file": "erp_frontend/src/app/api/collaboration/mentions/route.ts",
+      "line": 29
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 221
+    },
+    {
+      "file": "erp_frontend/src/components/mentions/MentionsPanel.tsx",
+      "line": 89
+    }
+  ],
+  "mark_tender_closure": [
+    {
+      "file": "erp_frontend/src/app/api/tenders/[id]/closure/route.ts",
+      "line": 19
+    }
+  ],
+  "mark_tender_reminder_sent": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 310
+    }
+  ],
+  "mark_tender_under_observation": [
+    {
+      "file": "erp_frontend/src/app/api/tenders/[id]/workflow/route.ts",
+      "line": 33
+    }
+  ],
+  "override_project_stage": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 419
+    }
+  ],
+  "pause_sla_timer": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 311
+    }
+  ],
+  "pause_ticket": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 312
+    },
+    {
+      "file": "erp_frontend/src/app/api/tickets/route.ts",
+      "line": 57
+    }
+  ],
+  "ph_approve_item": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 485
+    }
+  ],
+  "ph_reject_item": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 486
+    }
+  ],
+  "preview_onboarding_employee_mapping": [
+    {
+      "file": "erp_frontend/src/app/api/hr/onboarding/[id]/preview/route.ts",
+      "line": 12
+    }
+  ],
+  "process_due_reminders": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 528
+    },
+    {
+      "file": "erp_frontend/src/app/api/system/reminders/route.ts",
+      "line": 17
+    }
+  ],
+  "reconcile_invoice_payments": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 518
+    }
+  ],
+  "record_om_completion_letter": [
+    {
+      "file": "erp_frontend/src/app/api/tenders/[id]/closure/route.ts",
+      "line": 11
+    }
+  ],
+  "record_project_inventory_receipt": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 66
+    },
+    {
+      "file": "erp_frontend/src/app/project-manager/inventory/page.tsx",
+      "line": 106
+    }
+  ],
+  "refresh_project_spine": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 313
+    }
+  ],
+  "reject_attendance_regularization": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 279
+    }
+  ],
+  "reject_boq": [
+    {
+      "file": "erp_frontend/src/app/api/approvals/route.ts",
+      "line": 35
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 314
+    }
+  ],
+  "reject_change_request": [
+    {
+      "file": "erp_frontend/src/app/api/engineering/change-requests/[id]/actions/route.ts",
+      "line": 19
+    },
+    {
+      "file": "erp_frontend/src/app/api/engineering/change-requests/route.ts",
+      "line": 36
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 315
+    },
+    {
+      "file": "erp_frontend/src/app/engineering/change-requests/page.tsx",
+      "line": 23
+    }
+  ],
+  "reject_cost_sheet": [
+    {
+      "file": "erp_frontend/src/app/api/approvals/route.ts",
+      "line": 43
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 316
+    }
+  ],
+  "reject_dependency_override": [
+    {
+      "file": "erp_frontend/src/app/api/execution/dependency-overrides/route.ts",
+      "line": 32
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 317
+    }
+  ],
+  "reject_dispatch_challan": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 318
+    }
+  ],
+  "reject_dpr": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 370
+    }
+  ],
+  "reject_estimate": [
+    {
+      "file": "erp_frontend/src/app/api/approvals/route.ts",
+      "line": 51
+    },
+    {
+      "file": "erp_frontend/src/app/api/estimates/[id]/actions/route.ts",
+      "line": 19
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 408
+    },
+    {
+      "file": "erp_frontend/src/app/finance/estimates/page.tsx",
+      "line": 45
+    }
+  ],
+  "reject_indent": [
+    {
+      "file": "erp_frontend/src/app/api/approvals/route.ts",
+      "line": 83
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 480
+    }
+  ],
+  "reject_invoice": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 319
+    }
+  ],
+  "reject_leave_application": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 270
+    }
+  ],
+  "reject_onboarding": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 320
+    }
+  ],
+  "reject_overtime_entry": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 321
+    },
+    {
+      "file": "erp_frontend/src/app/hr/overtime/page.tsx",
+      "line": 27
+    }
+  ],
+  "reject_petty_cash_entry": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 322
+    },
+    {
+      "file": "erp_frontend/src/app/api/petty-cash/[id]/route.ts",
+      "line": 33
+    }
+  ],
+  "reject_pm_request": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 445
+    },
+    {
+      "file": "erp_frontend/src/app/api/pm-requests/[id]/actions/route.ts",
+      "line": 30
+    }
+  ],
+  "reject_po_payment_terms": [
+    {
+      "file": "erp_frontend/src/app/api/purchase-orders/payment-terms/reject/route.ts",
+      "line": 9
+    }
+  ],
+  "reject_project_stage": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 418
+    }
+  ],
+  "reject_rma": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 323
+    },
+    {
+      "file": "erp_frontend/src/app/api/rma-trackers/route.ts",
+      "line": 55
+    }
+  ],
+  "reject_sla_penalty": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 324
+    }
+  ],
+  "reject_technical_deviation": [
+    {
+      "file": "erp_frontend/src/app/api/engineering/technical-deviations/[id]/actions/route.ts",
+      "line": 18
+    },
+    {
+      "file": "erp_frontend/src/app/api/engineering/technical-deviations/route.ts",
+      "line": 33
+    }
+  ],
+  "reject_tender_approval": [
+    {
+      "file": "erp_frontend/src/app/api/approvals/route.ts",
+      "line": 67
+    },
+    {
+      "file": "erp_frontend/src/app/api/tender-approvals/[id]/actions/route.ts",
+      "line": 21
+    }
+  ],
+  "reject_test_report": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/test-reports/route.ts",
+      "line": 88
+    }
+  ],
+  "reject_travel_log": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 325
+    },
+    {
+      "file": "erp_frontend/src/app/hr/travel-logs/page.tsx",
+      "line": 28
+    }
+  ],
+  "reject_vendor_comparison": [
+    {
+      "file": "erp_frontend/src/app/api/approvals/route.ts",
+      "line": 75
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 326
+    }
+  ],
+  "release_ip_allocation": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/ip-allocations/route.ts",
+      "line": 29
+    }
+  ],
+  "release_retention": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 327
+    },
+    {
+      "file": "erp_frontend/src/app/api/retention/[id]/actions/route.ts",
+      "line": 21
+    },
+    {
+      "file": "erp_frontend/src/app/finance/retention/page.tsx",
+      "line": 25
+    }
+  ],
+  "remove_user_override": [
+    {
+      "file": "erp_frontend/src/app/api/rbac/user-overrides/route.ts",
+      "line": 30
+    }
+  ],
+  "reopen_attendance_regularization": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 280
+    }
+  ],
+  "reopen_leave_application": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 519
+    }
+  ],
+  "reopen_onboarding_draft": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 520
+    }
+  ],
+  "reorder_project_tasks": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 460
+    }
+  ],
+  "resolve_ticket": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 328
+    },
+    {
+      "file": "erp_frontend/src/app/api/tickets/route.ts",
+      "line": 63
+    }
+  ],
+  "restart_project_stage": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 333
+    }
+  ],
+  "resume_sla_timer": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 329
+    }
+  ],
+  "resume_ticket": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 330
+    },
+    {
+      "file": "erp_frontend/src/app/api/tickets/route.ts",
+      "line": 60
+    }
+  ],
+  "return_indent": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 481
+    }
+  ],
+  "return_onboarding_to_submitted": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 521
+    }
+  ],
+  "reverse_penalty_deduction": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 331
+    },
+    {
+      "file": "erp_frontend/src/app/api/penalties/[id]/actions/route.ts",
+      "line": 19
+    },
+    {
+      "file": "erp_frontend/src/app/finance/penalties/page.tsx",
+      "line": 25
+    }
+  ],
+  "review_onboarding": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 332
+    }
+  ],
+  "revise_boq": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 334
+    }
+  ],
+  "revise_cost_sheet": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 335
+    }
+  ],
+  "revise_vendor_comparison": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 336
+    }
+  ],
+  "revoke_closeout_certificate": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 501
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/CloseoutTab.tsx",
+      "line": 90
+    }
+  ],
+  "run_anda_import": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 522
+    }
+  ],
+  "run_anda_orchestrated_import": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 523
+    }
+  ],
+  "save_po_payment_terms": [
+    {
+      "file": "erp_frontend/src/app/api/purchase-orders/payment-terms/route.ts",
+      "line": 22
+    }
+  ],
+  "seed_bookkeeping_demo": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 416
+    },
+    {
+      "file": "erp_frontend/src/app/finance/commercial/page.tsx",
+      "line": 59
+    }
+  ],
+  "send_loc_request_to_project_head": [
+    {
+      "file": "erp_frontend/src/app/api/bids/[id]/loc-request/route.ts",
+      "line": 6
+    }
+  ],
+  "send_loi_request_to_departments": [
+    {
+      "file": "erp_frontend/src/app/api/bids/[id]/loi-request/route.ts",
+      "line": 11
+    }
+  ],
+  "set_tender_qualification": [
+    {
+      "file": "erp_frontend/src/app/api/tenders/[id]/workflow/route.ts",
+      "line": 15
+    },
+    {
+      "file": "erp_frontend/src/app/api/tenders/[id]/workflow/route.ts",
+      "line": 24
+    }
+  ],
+  "sign_client_signoff": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/client-signoffs/route.ts",
+      "line": 29
+    }
+  ],
+  "snooze_reminder": [
+    {
+      "file": "erp_frontend/src/app/api/reminders/route.ts",
+      "line": 44
+    }
+  ],
+  "start_commissioning_checklist": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/checklists/route.ts",
+      "line": 29
+    }
+  ],
+  "start_ticket": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 340
+    },
+    {
+      "file": "erp_frontend/src/app/api/tickets/route.ts",
+      "line": 54
+    }
+  ],
+  "submit_attendance_regularization": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 524
+    }
+  ],
+  "submit_bid": [
+    {
+      "file": "erp_frontend/src/app/api/bids/[id]/submit/route.ts",
+      "line": 5
+    }
+  ],
+  "submit_boq_for_approval": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 341
+    }
+  ],
+  "submit_change_request": [
+    {
+      "file": "erp_frontend/src/app/api/engineering/change-requests/[id]/actions/route.ts",
+      "line": 17
+    },
+    {
+      "file": "erp_frontend/src/app/api/engineering/change-requests/route.ts",
+      "line": 28
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 342
+    },
+    {
+      "file": "erp_frontend/src/app/engineering/change-requests/page.tsx",
+      "line": 21
+    }
+  ],
+  "submit_cost_sheet_for_approval": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 343
+    }
+  ],
+  "submit_dispatch_challan_for_approval": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 344
+    }
+  ],
+  "submit_dpr": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 368
+    }
+  ],
+  "submit_drawing": [
+    {
+      "file": "erp_frontend/src/app/api/engineering/drawings/[id]/actions/route.ts",
+      "line": 17
+    },
+    {
+      "file": "erp_frontend/src/app/api/engineering/drawings/route.ts",
+      "line": 30
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 345
+    },
+    {
+      "file": "erp_frontend/src/app/engineering/drawings/page.tsx",
+      "line": 25
+    }
+  ],
+  "submit_estimate": [
+    {
+      "file": "erp_frontend/src/app/api/estimates/[id]/actions/route.ts",
+      "line": 17
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 346
+    },
+    {
+      "file": "erp_frontend/src/app/finance/estimates/page.tsx",
+      "line": 43
+    }
+  ],
+  "submit_indent": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 477
+    }
+  ],
+  "submit_invoice": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 347
+    }
+  ],
+  "submit_leave_application": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 268
+    }
+  ],
+  "submit_loc_by_project_head": [
+    {
+      "file": "erp_frontend/src/app/api/bids/[id]/loc-submit/route.ts",
+      "line": 7
+    }
+  ],
+  "submit_onboarding": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 348
+    }
+  ],
+  "submit_overtime_entry": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 349
+    },
+    {
+      "file": "erp_frontend/src/app/hr/overtime/page.tsx",
+      "line": 25
+    }
+  ],
+  "submit_petty_cash_to_ph": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 490
+    },
+    {
+      "file": "erp_frontend/src/app/petty-cash/[id]/page.tsx",
+      "line": 134
+    }
+  ],
+  "submit_pm_request": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 443
+    },
+    {
+      "file": "erp_frontend/src/app/api/pm-requests/[id]/actions/route.ts",
+      "line": 24
+    }
+  ],
+  "submit_po_to_ph": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 488
+    },
+    {
+      "file": "erp_frontend/src/app/api/purchase-orders/submit-to-ph/route.ts",
+      "line": 17
+    },
+    {
+      "file": "erp_frontend/src/app/purchase-orders/[id]/page.tsx",
+      "line": 139
+    }
+  ],
+  "submit_proforma_invoice": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 413
+    },
+    {
+      "file": "erp_frontend/src/app/api/proformas/[id]/actions/route.ts",
+      "line": 17
+    },
+    {
+      "file": "erp_frontend/src/app/finance/proformas/page.tsx",
+      "line": 43
+    }
+  ],
+  "submit_project_stage_for_approval": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 350
+    }
+  ],
+  "submit_purchase_order": [
+    {
+      "file": "erp_frontend/src/app/api/purchase-orders/submit/route.ts",
+      "line": 9
+    }
+  ],
+  "submit_rma_po_to_ph": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 489
+    },
+    {
+      "file": "erp_frontend/src/app/api/rma-trackers/route.ts",
+      "line": 67
+    }
+  ],
+  "submit_tender_approval": [
+    {
+      "file": "erp_frontend/src/app/api/tender-approvals/route.ts",
+      "line": 27
+    }
+  ],
+  "submit_travel_log": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 351
+    },
+    {
+      "file": "erp_frontend/src/app/hr/travel-logs/page.tsx",
+      "line": 26
+    }
+  ],
+  "submit_vendor_comparison_for_approval": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 352
+    }
+  ],
+  "supersede_drawing": [
+    {
+      "file": "erp_frontend/src/app/api/engineering/drawings/[id]/actions/route.ts",
+      "line": 19
+    },
+    {
+      "file": "erp_frontend/src/app/api/engineering/drawings/route.ts",
+      "line": 38
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 339
+    },
+    {
+      "file": "erp_frontend/src/app/engineering/drawings/page.tsx",
+      "line": 27
+    }
+  ],
+  "sync_site_milestone_progress": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 525
+    }
+  ],
+  "toggle_department": [
+    {
+      "file": "erp_frontend/src/app/api/departments/toggle/route.ts",
+      "line": 10
+    }
+  ],
+  "toggle_project_favorite": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 449
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/WorkspaceShell.tsx",
+      "line": 150
+    }
+  ],
+  "toggle_role": [
+    {
+      "file": "erp_frontend/src/app/api/roles-list/toggle/route.ts",
+      "line": 10
+    }
+  ],
+  "toggle_site_blocked": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 353
+    }
+  ],
+  "transition_tender_status": [
+    {
+      "file": "erp_frontend/src/app/api/tenders/[id]/status/route.ts",
+      "line": 18
+    }
+  ],
+  "update_attendance_log": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 354
+    }
+  ],
+  "update_attendance_regularization": [
+    {
+      "file": "erp_frontend/src/app/api/hr/regularizations/[id]/route.ts",
+      "line": 20
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 277
+    }
+  ],
+  "update_bid": [
+    {
+      "file": "erp_frontend/src/app/api/bids/[id]/route.ts",
+      "line": 19
+    }
+  ],
+  "update_boq": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 355
+    }
+  ],
+  "update_change_request": [
+    {
+      "file": "erp_frontend/src/app/api/engineering/change-requests/[id]/route.ts",
+      "line": 31
+    },
+    {
+      "file": "erp_frontend/src/app/api/engineering/change-requests/route.ts",
+      "line": 40
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 356
+    }
+  ],
+  "update_client_signoff": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/client-signoffs/route.ts",
+      "line": 37
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 357
+    }
+  ],
+  "update_comm_log": [
+    {
+      "file": "erp_frontend/src/app/api/comm-logs/[id]/route.ts",
+      "line": 27
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 358
+    }
+  ],
+  "update_commissioning_checklist": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/checklists/route.ts",
+      "line": 37
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 359
+    }
+  ],
+  "update_competitor": [
+    {
+      "file": "erp_frontend/src/app/api/competitors/[id]/route.ts",
+      "line": 29
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 360
+    }
+  ],
+  "update_cost_sheet": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 361
+    }
+  ],
+  "update_dependency_rule": [
+    {
+      "file": "erp_frontend/src/app/api/execution/dependency-rules/route.ts",
+      "line": 28
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 362
+    }
+  ],
+  "update_device_register": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/device-registers/route.ts",
+      "line": 41
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 363
+    }
+  ],
+  "update_device_uptime_log": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/device-uptime-logs/route.ts",
+      "line": 30
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 364
+    }
+  ],
+  "update_dispatch_challan": [
+    {
+      "file": "erp_frontend/src/app/api/dispatch-challans/[id]/route.ts",
+      "line": 31
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 365
+    }
+  ],
+  "update_document_folder": [
+    {
+      "file": "erp_frontend/src/app/api/documents/folders/route.ts",
+      "line": 43
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 366
+    }
+  ],
+  "update_document_status": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 421
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/FilesTab.tsx",
+      "line": 149
+    }
+  ],
+  "update_dpr": [
+    {
+      "file": "erp_frontend/src/app/api/dprs/[id]/route.ts",
+      "line": 20
+    },
+    {
+      "file": "erp_frontend/src/app/api/dprs/route.ts",
+      "line": 39
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 367
+    }
+  ],
+  "update_drawing": [
+    {
+      "file": "erp_frontend/src/app/api/engineering/drawings/[id]/route.ts",
+      "line": 31
+    },
+    {
+      "file": "erp_frontend/src/app/api/engineering/drawings/route.ts",
+      "line": 42
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 371
+    }
+  ],
+  "update_employee": [
+    {
+      "file": "erp_frontend/src/app/api/hr/employees/[id]/route.ts",
+      "line": 26
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 372
+    }
+  ],
+  "update_estimate": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 373
+    }
+  ],
+  "update_invoice": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 374
+    }
+  ],
+  "update_ip_allocation": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/ip-allocations/route.ts",
+      "line": 33
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 375
+    }
+  ],
+  "update_ip_pool": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/ip-pools/route.ts",
+      "line": 29
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 376
+    }
+  ],
+  "update_leave_allocation": [
+    {
+      "file": "erp_frontend/src/app/api/hr/leave/allocations/[id]/route.ts",
+      "line": 10
+    }
+  ],
+  "update_leave_application": [
+    {
+      "file": "erp_frontend/src/app/api/hr/leave/applications/[id]/route.ts",
+      "line": 20
+    }
+  ],
+  "update_leave_type": [
+    {
+      "file": "erp_frontend/src/app/api/hr/leave/types/[id]/route.ts",
+      "line": 10
+    }
+  ],
+  "update_manpower_log": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 377
+    }
+  ],
+  "update_milestone": [
+    {
+      "file": "erp_frontend/src/app/api/milestones/[id]/route.ts",
+      "line": 27
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 378
+    }
+  ],
+  "update_onboarding": [
+    {
+      "file": "erp_frontend/src/app/api/hr/onboarding/[id]/documents/route.ts",
+      "line": 52
+    },
+    {
+      "file": "erp_frontend/src/app/api/hr/onboarding/[id]/route.ts",
+      "line": 26
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 379
+    }
+  ],
+  "update_overtime_entry": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 380
+    }
+  ],
+  "update_party": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 381
+    },
+    {
+      "file": "erp_frontend/src/app/api/parties/route.ts",
+      "line": 68
+    }
+  ],
+  "update_payment_follow_up": [
+    {
+      "file": "erp_frontend/src/app/api/finance/follow-ups/[id]/route.ts",
+      "line": 27
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 383
+    }
+  ],
+  "update_payment_receipt": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 382
+    }
+  ],
+  "update_penalty_deduction": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 384
+    }
+  ],
+  "update_petty_cash_entry": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 385
+    }
+  ],
+  "update_pm_request": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 442
+    },
+    {
+      "file": "erp_frontend/src/app/api/pm-requests/[id]/route.ts",
+      "line": 20
+    }
+  ],
+  "update_presales_color_config": [
+    {
+      "file": "erp_frontend/src/app/api/presales/color-config/route.ts",
+      "line": 19
+    }
+  ],
+  "update_proforma_invoice": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 414
+    }
+  ],
+  "update_project": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 386
+    },
+    {
+      "file": "erp_frontend/src/app/api/projects/[id]/route.ts",
+      "line": 27
+    },
+    {
+      "file": "erp_frontend/src/app/projects/page.tsx",
+      "line": 745
+    }
+  ],
+  "update_project_asset": [
+    {
+      "file": "erp_frontend/src/app/api/execution/project-assets/route.ts",
+      "line": 30
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 387
+    }
+  ],
+  "update_project_document": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 388
+    }
+  ],
+  "update_project_issue": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 435
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/IssuesTab.tsx",
+      "line": 102
+    }
+  ],
+  "update_project_note": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 453
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/NotesTab.tsx",
+      "line": 56
+    }
+  ],
+  "update_project_task": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 458
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/TasksTab.tsx",
+      "line": 113
+    }
+  ],
+  "update_project_team_member": [
+    {
+      "file": "erp_frontend/src/app/api/execution/project-team-members/route.ts",
+      "line": 29
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 389
+    }
+  ],
+  "update_purchase_order": [
+    {
+      "file": "erp_frontend/src/app/api/purchase-orders/route.ts",
+      "line": 45
+    }
+  ],
+  "update_reminder": [
+    {
+      "file": "erp_frontend/src/app/api/reminders/route.ts",
+      "line": 39
+    }
+  ],
+  "update_retention_ledger": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 390
+    },
+    {
+      "file": "erp_frontend/src/app/api/retention/[id]/route.ts",
+      "line": 20
+    }
+  ],
+  "update_rma_status": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 391
+    },
+    {
+      "file": "erp_frontend/src/app/api/rma-trackers/route.ts",
+      "line": 63
+    }
+  ],
+  "update_rma_tracker": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 392
+    }
+  ],
+  "update_site": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 393
+    }
+  ],
+  "update_sla_penalty_rule": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 394
+    }
+  ],
+  "update_sla_profile": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 395
+    }
+  ],
+  "update_staffing_assignment": [
+    {
+      "file": "erp_frontend/src/app/api/execution/staffing-assignments/route.ts",
+      "line": 30
+    }
+  ],
+  "update_statutory_ledger": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 396
+    }
+  ],
+  "update_survey": [
+    {
+      "file": "erp_frontend/src/app/api/surveys/[id]/route.ts",
+      "line": 32
+    }
+  ],
+  "update_task_status": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 461
+    },
+    {
+      "file": "erp_frontend/src/components/project-workspace/TasksTab.tsx",
+      "line": 129
+    }
+  ],
+  "update_technical_deviation": [
+    {
+      "file": "erp_frontend/src/app/api/engineering/technical-deviations/[id]/route.ts",
+      "line": 31
+    },
+    {
+      "file": "erp_frontend/src/app/api/engineering/technical-deviations/route.ts",
+      "line": 41
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 397
+    }
+  ],
+  "update_technician_visit_log": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 398
+    }
+  ],
+  "update_tender": [
+    {
+      "file": "erp_frontend/src/app/api/tenders/[id]/rfp-document/route.ts",
+      "line": 41
+    },
+    {
+      "file": "erp_frontend/src/app/api/tenders/[id]/route.ts",
+      "line": 34
+    },
+    {
+      "file": "erp_frontend/src/app/api/tenders/[id]/tender-document/route.ts",
+      "line": 34
+    },
+    {
+      "file": "erp_frontend/src/app/api/tenders/route.ts",
+      "line": 72
+    },
+    {
+      "file": "erp_frontend/src/lib/frappe.ts",
+      "line": 66
+    }
+  ],
+  "update_tender_checklist": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 399
+    }
+  ],
+  "update_tender_reminder": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 400
+    }
+  ],
+  "update_tender_result": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 401
+    }
+  ],
+  "update_test_report": [
+    {
+      "file": "erp_frontend/src/app/api/execution/commissioning/test-reports/route.ts",
+      "line": 92
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 402
+    }
+  ],
+  "update_ticket": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 403
+    }
+  ],
+  "update_travel_log": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 404
+    }
+  ],
+  "update_user_context": [
+    {
+      "file": "erp_frontend/src/app/api/rbac/user-context/route.ts",
+      "line": 25
+    }
+  ],
+  "update_vendor_comparison": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 405
+    }
+  ],
+  "upload_project_document": [
+    {
+      "file": "erp_frontend/src/app/api/documents/route.ts",
+      "line": 40
+    },
+    {
+      "file": "erp_frontend/src/app/api/documents/upload/route.ts",
+      "line": 121
+    },
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 420
+    }
+  ],
+  "waive_sla_penalty": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 422
+    }
+  ],
+  "withdraw_pm_request": [
+    {
+      "file": "erp_frontend/src/app/api/ops/route.ts",
+      "line": 446
+    },
+    {
+      "file": "erp_frontend/src/app/api/pm-requests/[id]/actions/route.ts",
+      "line": 33
+    }
+  ]
+}

@@ -28,7 +28,7 @@ const ROLE_CRITICAL_ROUTES: Record<string, string[]> = {
   'Store Manager': ['/grns', '/stock-position', '/stock-aging', '/procurement', '/inventory', '/documents', '/purchase-orders'],
   'Stores Logistics Head': ['/grns', '/stock-position', '/stock-aging', '/procurement', '/inventory', '/documents', '/purchase-orders'],
   'Project Manager': ['/survey', '/project-manager/dpr', '/project-manager/inventory', '/project-manager/petty-cash'],
-  'Accounts': ['/finance', '/payment-receipts', '/retention', '/penalties', '/reports', '/documents'],
+  'Accounts': ['/finance', '/finance/payment-receipts', '/finance/retention', '/finance/penalties', '/reports', '/documents'],
   'Field Technician': ['/execution', '/manpower', '/om-helpdesk', '/rma', '/documents', '/sla'],
   'RMA Manager': ['/rma', '/om-helpdesk', '/sla', '/documents', '/reports'],
   'OM Operator': ['/om-helpdesk', '/rma', '/sla', '/documents', '/reports'],
@@ -171,9 +171,12 @@ describe('Page File Coverage', () => {
       '/stock-position', '/stock-aging', '/milestones', '/manpower',
       '/petty-cash', '/comm-logs', '/payment-receipts', '/retention',
       '/penalties', '/drawings', '/change-requests', '/technician-visits',
+      '/finance/payment-receipts', '/finance/retention', '/finance/penalties',
+      '/engineering/drawings', '/engineering/change-requests', '/hr/technician-visits',
       '/project-manager/dpr', '/project-manager/inventory', '/project-manager/petty-cash',
       '/project-manager/requests',
       '/sla-profiles', '/device-uptime', '/accountability', '/login', '/profile',
+      '/project-head', '/vendor-comparisons', '/dispatch-challans', '/sla-penalties',
     ]);
 
     for (const route of allRoutes) {

@@ -156,9 +156,9 @@ export default function PresalesDashboard() {
 
   // Initial load
   useEffect(() => {
-    fetchStats();
-    fetchColorConfig();
-  }, []);
+    void fetchStats();
+    void fetchColorConfig();
+  }, [fetchStats, fetchColorConfig]);
 
   // Fetch tenders when filters change
   useEffect(() => {

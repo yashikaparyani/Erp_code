@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { usePermissions } from '@/context/PermissionContext';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -16,7 +16,10 @@ export interface SiteRow {
 
 export function usePmContext() {
   const { permissions } = usePermissions();
-  const assignedProjects: string[] = permissions?.user_context?.assigned_projects ?? [];
+  const assignedProjects = useMemo(
+    () => permissions?.user_context?.assigned_projects ?? [],
+    [permissions?.user_context?.assigned_projects],
+  );
 
   const [selectedProject, setSelectedProject] = useState('');
   const [sites, setSites] = useState<SiteRow[]>([]);

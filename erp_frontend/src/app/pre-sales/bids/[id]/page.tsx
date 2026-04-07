@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, ArrowLeft, BadgeCheck, FileStack, RefreshCw, Timer, Trophy, XCircle } from 'lucide-react';
 import { useRole } from '../../../../context/RoleContext';
 import ActionModal from '@/components/ui/ActionModal';
@@ -114,7 +114,7 @@ export default function BidWorkspacePage() {
   const [error, setError] = useState('');
   const [bidModal, setBidModal] = useState<{ action: string; title: string; fields: { name: string; label: string; type: 'text' | 'textarea'; defaultValue?: string }[]; runner: (values: Record<string, string>) => Promise<void> } | null>(null);
 
-  const loadBid = async () => {
+  const loadBid = useCallback(async () => {
     if (!bidId) return;
     setLoading(true);
     setError('');
@@ -131,11 +131,11 @@ export default function BidWorkspacePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [bidId]);
 
   useEffect(() => {
     void loadBid();
-  }, [bidId]);
+  }, [loadBid]);
 
   const loiSummary = useMemo(() => {
     const expected = bid?.loi_n_expected || 0;

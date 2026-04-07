@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ExternalLink, Filter, ListChecks, RefreshCw } from 'lucide-react';
 
@@ -54,7 +54,7 @@ export default function BidsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [latestOnly, setLatestOnly] = useState(true);
 
-  async function fetchBids() {
+  const fetchBids = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -74,11 +74,11 @@ export default function BidsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [latestOnly, statusFilter]);
 
   useEffect(() => {
     void fetchBids();
-  }, [statusFilter, latestOnly]);
+  }, [fetchBids]);
 
   return (
     <div className="min-h-screen bg-[var(--bg)] p-3 sm:p-4 lg:p-6 space-y-5">

@@ -3,6 +3,8 @@
 import { useAuth } from '../context/AuthContext';
 import { useRole } from '../context/RoleContext';
 import AccountsDashboard from '../components/dashboards/AccountsDashboard';
+import DirectorDashboard from '../components/dashboards/DirectorDashboard';
+import EngineerDashboard from '../components/dashboards/EngineerDashboard';
 import EngineeringHeadDashboard from '../components/dashboards/EngineeringHeadDashboard';
 import ExecutiveDashboard from '../components/dashboards/ExecutiveDashboard';
 import ExecutionDashboard from '../components/dashboards/ExecutionDashboard';
@@ -10,11 +12,12 @@ import HROverviewDashboard from '../components/dashboards/HROverviewDashboard';
 import OMDashboard from '../components/dashboards/OMDashboard';
 import PresalesDashboard from '../components/dashboards/PresalesDashboard';
 import PresalesExecutiveDashboard from '../components/dashboards/PresalesExecutiveDashboard';
-import ProcurementDashboard from '../components/dashboards/ProcurementDashboard';
 import ProcurementOverviewDashboard from '../components/dashboards/ProcurementOverviewDashboard';
+import PurchaseDashboard from '../components/dashboards/PurchaseDashboard';
 import ProjectHeadDashboard from '../components/dashboards/ProjectHeadDashboard';
 import ProjectManagerDashboard from '../components/dashboards/ProjectManagerDashboard';
 import StoresDashboard from '../components/dashboards/StoresDashboard';
+import StoresLogisticsHeadDashboard from '../components/dashboards/StoresLogisticsHeadDashboard';
 
 export default function Home() {
 	const { currentUser, isLoading } = useAuth();
@@ -25,6 +28,8 @@ export default function Home() {
 	}
 
 	switch (currentRole) {
+		case 'Director':
+			return <DirectorDashboard />;
 		case 'Project Head':
 			return <ProjectHeadDashboard />;
 		case 'Project Manager':
@@ -36,14 +41,15 @@ export default function Home() {
 		case 'Engineering Head':
 			return <EngineeringHeadDashboard />;
 		case 'Engineer':
-			return <EngineeringHeadDashboard />;
+			return <EngineerDashboard />;
 		case 'Procurement Manager':
 			return <ProcurementOverviewDashboard />;
 		case 'Purchase':
-			return <ProcurementDashboard />;
+			return <PurchaseDashboard />;
 		case 'Store Manager':
-		case 'Stores Logistics Head':
 			return <StoresDashboard />;
+		case 'Stores Logistics Head':
+			return <StoresLogisticsHeadDashboard />;
 		case 'Field Technician':
 			return <ExecutionDashboard />;
 		case 'Accounts':

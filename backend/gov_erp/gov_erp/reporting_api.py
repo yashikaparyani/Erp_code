@@ -1,5 +1,18 @@
 """Auto-extracted domain module. All public functions are re-exported by api.py."""
 from gov_erp.api_utils import *  # noqa: F401,F403 — shared utilities
+from gov_erp.execution_api import get_dpr_stats
+from gov_erp.finance_api import get_invoice_stats, get_penalty_stats, get_retention_stats
+from gov_erp.inventory_api import (
+	get_dispatch_challan_stats,
+	get_grn_stats,
+	get_indent_stats,
+	get_po_stats,
+	get_stock_aging,
+)
+from gov_erp.om_api import get_rma_stats, get_ticket_stats
+from gov_erp.procurement_api import get_boq_stats, get_vendor_comparison_stats
+from gov_erp.survey_api import get_survey_stats
+from gov_erp.tender_api import get_tender_stats
 
 
 def _get_finance_request_rows(filters):
@@ -583,6 +596,10 @@ def get_accounts_dashboard(project=None):
 @frappe.whitelist()
 def get_presales_dashboard():
 	"""Aggregate presales dashboard metrics."""
+	from gov_erp.tender_api import get_tender_stats as _get_tender_stats
+	from gov_erp.procurement_api import get_boq_stats as _get_boq_stats
+	from gov_erp.survey_api import get_survey_stats as _get_survey_stats
+
 	_require_tender_read_access()
 	checklist_rows = frappe.get_all("GE Tender Checklist Item", fields=["completion_pct"])
 	avg_completion = round(
@@ -591,9 +608,9 @@ def get_presales_dashboard():
 	return {
 		"success": True,
 		"data": {
-			"tenders": get_tender_stats().get("data", {}),
-			"boqs": get_boq_stats().get("data", {}),
-			"surveys": get_survey_stats().get("data", {}),
+			"tenders": _get_tender_stats().get("data", {}),
+			"boqs": _get_boq_stats().get("data", {}),
+			"surveys": _get_survey_stats().get("data", {}),
 			"finance_requests": get_finance_request_stats().get("data", {}),
 			"checklist_completion_pct": avg_completion,
 		},
@@ -922,6 +939,23 @@ def get_executive_dashboard():
 			},
 		},
 	}
+
+
+@frappe.whitelist()
+def get_director_dashboard():
+	"""Director-specific dashboard wrapper with explicit ownership of the home view."""
+	_require_roles(ROLE_DIRECTOR)
+	payload = get_executive_dashboard()
+	if not payload.get("success"):
+		return payload
+
+	data = payload.get("data") or {}
+	data["persona"] = {
+		"role": ROLE_DIRECTOR,
+		"view": "director",
+		"title": "Director Command Center",
+	}
+	return {"success": True, "data": data}
 
 
 @frappe.whitelist()
