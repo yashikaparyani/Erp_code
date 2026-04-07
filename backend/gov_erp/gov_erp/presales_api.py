@@ -162,7 +162,10 @@ def _sync_result_tracker(tender_doc):
             frappe.db.commit()
     except Exception:
         # Non-critical — do not break the main workflow
-        pass
+        frappe.log_error(
+            frappe.get_traceback(),
+            f"presales_api._sync_result_tracker failed for tender {tender_doc.name}",
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -222,6 +225,10 @@ def _get_color_config():
             }
         return result
     except Exception:
+        frappe.log_error(
+            frappe.get_traceback(),
+            "presales_api._get_color_config fallback defaults used",
+        )
         return {
             "slot_{}".format(i): {
                 "color": defaults[i - 1],
@@ -378,7 +385,10 @@ def get_funnel_dashboard_stats():
         if frappe.db.table_exists("GE EMD PBG Instrument") and frappe.db.has_column("GE EMD PBG Instrument", "refund_status"):
             emd_pending = frappe.db.count("GE EMD PBG Instrument", {"refund_status": "PENDING"})
     except Exception:
-        pass
+        frappe.log_error(
+            frappe.get_traceback(),
+            "presales_api.get_funnel_dashboard emd_pending_refund count failed",
+        )
 
     return {
         "success": True,

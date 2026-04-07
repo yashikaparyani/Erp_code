@@ -40,6 +40,7 @@ def create_boq(data):
 	"""Create a new BOQ."""
 	_require_boq_write_access()
 	values = json.loads(data) if isinstance(data, str) else data
+	_strip_workflow_fields("GE BOQ", values)
 	doc = frappe.get_doc({"doctype": "GE BOQ", **values})
 	doc.insert()
 	frappe.db.commit()
@@ -51,6 +52,7 @@ def update_boq(name, data):
 	"""Update an existing BOQ."""
 	_require_boq_write_access()
 	values = json.loads(data) if isinstance(data, str) else data
+	_strip_workflow_fields("GE BOQ", values)
 	doc = frappe.get_doc("GE BOQ", name)
 	doc.update(values)
 	doc.save()
@@ -62,9 +64,7 @@ def update_boq(name, data):
 def delete_boq(name):
 	"""Delete a BOQ."""
 	_require_boq_write_access()
-	doc = frappe.get_doc("GE BOQ", name)
-	if doc.status == "APPROVED":
-		return {"success": False, "message": "Cannot delete an approved BOQ"}
+	_block_delete_if_workflow_active("GE BOQ", name)
 	frappe.delete_doc("GE BOQ", name)
 	frappe.db.commit()
 	return {"success": True, "message": "BOQ deleted"}
@@ -501,8 +501,9 @@ def get_vendor_comparison(name=None):
 @frappe.whitelist()
 def create_vendor_comparison(data):
 	"""Create a vendor comparison sheet."""
-	_require_procurement_write_access()
 	values = json.loads(data) if isinstance(data, str) else data
+	_require_procurement_write_access(project=values.get("linked_project"))
+	_strip_workflow_fields("GE Vendor Comparison", values)
 	doc = frappe.get_doc({"doctype": "GE Vendor Comparison", **values})
 	doc.insert()
 	frappe.db.commit()
@@ -512,9 +513,10 @@ def create_vendor_comparison(data):
 @frappe.whitelist()
 def update_vendor_comparison(name, data):
 	"""Update a vendor comparison sheet."""
-	_require_procurement_write_access()
-	values = json.loads(data) if isinstance(data, str) else data
 	doc = frappe.get_doc("GE Vendor Comparison", name)
+	_require_procurement_write_access(project=doc.get("linked_project"))
+	values = json.loads(data) if isinstance(data, str) else data
+	_strip_workflow_fields("GE Vendor Comparison", values)
 	doc.update(values)
 	doc.save()
 	frappe.db.commit()
@@ -523,11 +525,10 @@ def update_vendor_comparison(name, data):
 
 @frappe.whitelist()
 def delete_vendor_comparison(name):
-	"""Delete a vendor comparison unless approved."""
-	_require_procurement_write_access()
+	"""Delete a vendor comparison unless it has entered the approval lifecycle."""
 	doc = frappe.get_doc("GE Vendor Comparison", name)
-	if doc.status == "APPROVED":
-		return {"success": False, "message": "Cannot delete an approved vendor comparison"}
+	_require_procurement_write_access(project=doc.get("linked_project"))
+	_block_delete_if_workflow_active("GE Vendor Comparison", name)
 	frappe.delete_doc("GE Vendor Comparison", name)
 	frappe.db.commit()
 	return {"success": True, "message": "Vendor comparison deleted"}

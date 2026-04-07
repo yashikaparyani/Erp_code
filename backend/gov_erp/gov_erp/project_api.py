@@ -1585,7 +1585,10 @@ def get_project_activity(project=None, limit=50):
                                 "action": entry.get("action"),
                         })
         except Exception:
-                pass
+                frappe.log_error(
+                        frappe.get_traceback(),
+                        f"project_api.get_project_activity workflow_history failed for {project}",
+                )
 
         # 5. Project-scoped alerts (notifications, mentions, approval events)
         try:
@@ -1609,7 +1612,10 @@ def get_project_activity(project=None, limit=50):
                                 "route": pa.route_path,
                         })
         except Exception:
-                pass
+                frappe.log_error(
+                        frappe.get_traceback(),
+                        f"project_api.get_project_activity alerts failed for {project}",
+                )
 
         # 6. Accountability events for this project
         try:
@@ -1634,7 +1640,10 @@ def get_project_activity(project=None, limit=50):
                                 "route": ae.source_route,
                         })
         except Exception:
-                pass
+                frappe.log_error(
+                        frappe.get_traceback(),
+                        f"project_api.get_project_activity accountability failed for {project}",
+                )
 
         # Sort all activities by timestamp descending, then limit
         activities.sort(key=lambda a: a.get("timestamp", ""), reverse=True)
@@ -2018,4 +2027,3 @@ def complete_exit_management_kt(name=None, kt_completed_on=None, remarks=None):
         closeout_doc.save()
         frappe.db.commit()
         return {"success": True, "data": closeout_doc.as_dict(), "message": "Exit Management KT marked as completed"}
-

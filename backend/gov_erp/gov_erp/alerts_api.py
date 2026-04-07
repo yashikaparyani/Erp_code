@@ -5,6 +5,49 @@ from gov_erp.api_utils import *  # noqa: F401,F403 — shared utilities
 # ALERTS API
 # ============================================================================
 
+_COLLABORATION_DOCTYPES = {
+        "Project",
+        "GE Site",
+        "GE Milestone",
+        "GE Survey",
+        "GE DPR",
+        "GE Project Document",
+        "GE Test Report",
+        "GE Drawing",
+        "GE Technical Deviation",
+        "GE Change Request",
+        "GE PM Request",
+        "GE Dispatch Challan",
+        "GE Project Inventory",
+        "GE Estimate",
+        "GE Proforma Invoice",
+        "GE Invoice",
+        "GE Payment Follow Up",
+        "GE Ticket",
+        "GE RMA Tracker",
+}
+
+_ALLOWED_COMMENT_TYPES = {"Comment", "Info"}
+
+
+def _require_collaboration_reference(reference_doctype=None, reference_name=None, *, require_write=False):
+        _require_param(reference_doctype, "reference_doctype")
+        _require_param(reference_name, "reference_name")
+
+        if reference_doctype not in _COLLABORATION_DOCTYPES:
+                frappe.throw("Reference DocType is not supported for collaboration")
+
+        if not frappe.db.exists(reference_doctype, reference_name):
+                frappe.throw(f"{reference_doctype} {reference_name} was not found")
+
+        perm_type = "write" if require_write else "read"
+        if not frappe.has_permission(reference_doctype, perm_type, reference_name):
+                action = "update" if require_write else "view"
+                frappe.throw(
+                        f"You do not have permission to {action} this record",
+                        frappe.PermissionError,
+                )
+
 @frappe.whitelist()
 def get_alerts(unread_only=False, project=None, limit=50):
         """Get alerts for the current user."""
@@ -248,13 +291,12 @@ def add_record_comment(
 ):
         """Add a comment to a record (project, site, milestone, etc.)."""
         _require_authenticated_user()
-        _require_param(reference_doctype, "reference_doctype")
-        _require_param(reference_name, "reference_name")
         _require_param(content, "content")
+        _require_collaboration_reference(reference_doctype, reference_name)
 
-        # Verify the user can see the referenced document
-        if not frappe.has_permission(reference_doctype, "read", reference_name):
-                frappe.throw("You do not have permission to comment on this record", frappe.PermissionError)
+        comment_type = cstr(comment_type or "Comment").strip() or "Comment"
+        if comment_type not in _ALLOWED_COMMENT_TYPES:
+                frappe.throw("Comment type is not supported for collaboration")
 
         comment = frappe.get_doc({
                 "doctype": "Comment",
@@ -298,11 +340,7 @@ def add_record_comment(
 def get_record_comments(reference_doctype=None, reference_name=None, limit=50):
         """Get comments for a record."""
         _require_authenticated_user()
-        _require_param(reference_doctype, "reference_doctype")
-        _require_param(reference_name, "reference_name")
-
-        if not frappe.has_permission(reference_doctype, "read", reference_name):
-                frappe.throw("You do not have permission to view this record", frappe.PermissionError)
+        _require_collaboration_reference(reference_doctype, reference_name)
 
         comments = frappe.get_all(
                 "Comment",
@@ -343,12 +381,8 @@ def assign_to_record(
 ):
         """Assign a user to a record (creates a ToDo)."""
         _require_authenticated_user()
-        _require_param(reference_doctype, "reference_doctype")
-        _require_param(reference_name, "reference_name")
         _require_param(assign_to_user, "assign_to_user")
-
-        if not frappe.has_permission(reference_doctype, "read", reference_name):
-                frappe.throw("You do not have permission to assign on this record", frappe.PermissionError)
+        _require_collaboration_reference(reference_doctype, reference_name, require_write=True)
 
         from frappe.desk.form.assign_to import add as assign_add
 
@@ -391,11 +425,7 @@ def assign_to_record(
 def get_record_assignments(reference_doctype=None, reference_name=None):
         """Get current assignments (ToDos) for a record."""
         _require_authenticated_user()
-        _require_param(reference_doctype, "reference_doctype")
-        _require_param(reference_name, "reference_name")
-
-        if not frappe.has_permission(reference_doctype, "read", reference_name):
-                frappe.throw("You do not have permission to view this record", frappe.PermissionError)
+        _require_collaboration_reference(reference_doctype, reference_name)
 
         todos = frappe.get_all(
                 "ToDo",
@@ -457,5 +487,3 @@ def _process_mentions(content: str, reference_doctype: str, reference_name: str)
                                 reference_doctype=reference_doctype,
                                 reference_name=reference_name,
                         )
-
-

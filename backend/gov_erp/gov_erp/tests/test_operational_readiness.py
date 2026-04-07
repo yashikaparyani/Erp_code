@@ -110,6 +110,27 @@ def test_demo_seed_guard_called_in_entry_points():
     assert not entry_points, f"Entry points not found in demo_seed.py: {entry_points}"
 
 
+def test_bookkeeping_demo_seed_has_production_guard():
+    """finance_api.py must define a dev-environment guard for bookkeeping demo seeding."""
+    src = (APP_ROOT / "finance_api.py").read_text()
+    assert "_assert_dev_demo_seed_environment" in src
+
+
+def test_bookkeeping_demo_seed_calls_guard():
+    """seed_bookkeeping_demo must call the dev-environment guard."""
+    tree = ast.parse((APP_ROOT / "finance_api.py").read_text())
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == "seed_bookkeeping_demo":
+            calls = [
+                n.func.id
+                for n in ast.walk(node)
+                if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+            ]
+            assert "_assert_dev_demo_seed_environment" in calls
+            return
+    raise AssertionError("seed_bookkeeping_demo not found in finance_api.py")
+
+
 # ---------------------------------------------------------------------------
 # 4. Operational docs exist
 # ---------------------------------------------------------------------------

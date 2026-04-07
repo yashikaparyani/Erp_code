@@ -1,6 +1,14 @@
 """Auto-extracted domain module. All public functions are re-exported by api.py."""
 from gov_erp.api_utils import *  # noqa: F401,F403 — shared utilities
 
+_TEMP_UPLOAD_REFERENCE_FIELDS = (
+	("GE Project Document", "file"),
+	("GE Test Report", "file"),
+	("GE Drawing", "file"),
+	("GE Employee Document", "file"),
+	("GE Commercial Document", "file_url"),
+)
+
 @frappe.whitelist()
 def get_documents(folder=None):
 	"""Return uploaded files for the document briefcase UI."""
@@ -52,6 +60,14 @@ def _project_document_sort_key(row):
 		row.get("creation") or "",
 		row.get("name") or "",
 	)
+
+
+def _is_temp_upload_file_referenced(file_url):
+	"""Return True when a temp-upload file URL is already linked from a business record."""
+	for doctype, fieldname in _TEMP_UPLOAD_REFERENCE_FIELDS:
+		if frappe.db.exists(doctype, {fieldname: file_url}):
+			return True
+	return False
 
 
 def _annotate_project_documents(rows, latest_only=False):
@@ -368,12 +384,32 @@ def update_document_status(data):
 
 @frappe.whitelist()
 def delete_uploaded_project_file(file_url=None):
-	"""Delete an uploaded File record by file_url when document creation fails."""
+	"""Delete a recent orphan upload by file_url when downstream record creation fails."""
 	_require_document_write_access()
 	file_url = _require_param(file_url, "file_url")
 	file_name = frappe.db.get_value("File", {"file_url": file_url}, "name")
 	if not file_name:
 		return {"success": True, "message": "No uploaded file record found for cleanup"}
+
+	file_doc = frappe.get_doc("File", file_name)
+	user_roles = set(frappe.get_roles(frappe.session.user))
+	is_admin = "System Manager" in user_roles or "Director" in user_roles
+	if not is_admin and cstr(file_doc.owner or "") != cstr(frappe.session.user):
+		frappe.throw("You can only clean up files that you uploaded", frappe.PermissionError)
+
+	if file_doc.attached_to_doctype or file_doc.attached_to_name or file_doc.attached_to_field:
+		return {"success": True, "message": "File is already attached and cannot be cleaned up"}
+
+	if _is_temp_upload_file_referenced(file_url):
+		return {"success": True, "message": "File is already linked from a business record and cannot be cleaned up"}
+
+	file_age_seconds = abs(frappe.utils.time_diff_in_seconds(frappe.utils.now_datetime(), file_doc.creation))
+	if file_age_seconds > 3600:
+		return {"success": True, "message": "File is no longer a recent temp upload and was left untouched"}
+
+	if cint(file_doc.is_folder):
+		return {"success": True, "message": "Folders are not eligible for temp upload cleanup"}
+
 	frappe.delete_doc("File", file_name, ignore_permissions=True)
 	frappe.db.commit()
 	return {"success": True, "message": "Uploaded file cleaned up"}
@@ -740,4 +776,3 @@ def check_progression_gate(project=None, target_stage=None, site=None):
 				else f"{len(missing_mandatory)} mandatory document(s) missing from prior stages",
 		},
 	}
-

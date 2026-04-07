@@ -710,8 +710,8 @@ def get_project_head_dashboard(project=None):
 def get_project_manager_dashboard():
 	"""Aggregate project-manager dashboard metrics scoped to assigned projects."""
 	_require_roles(ROLE_PROJECT_MANAGER, ROLE_PROJECT_HEAD, ROLE_DIRECTOR)
-	assigned = _get_project_manager_assigned_projects()
-	project_filters = {"project_manager_user": frappe.session.user} if assigned else {}
+	project_filters = {}
+	_apply_project_manager_project_filter(project_filters, project_field="name")
 	projects = frappe.get_all(
 		"Project",
 		filters=project_filters,
@@ -917,11 +917,15 @@ def get_executive_dashboard():
 	_require_roles(ROLE_DIRECTOR, ROLE_DEPARTMENT_HEAD)
 	budget_rows = frappe.get_all("GE Budget Allocation", fields=["sanctioned_amount", "revised_amount", "spent_to_date", "utilization_pct", "status"])
 	pending_approvals = get_pending_approvals().get("data", [])
+	total_project_rows = frappe.db.count("Project")
+	live_project_total = frappe.db.count("Project", {"total_sites": [">", 0]})
+	empty_shell_projects = max(total_project_rows - live_project_total, 0)
 	return {
 		"success": True,
 		"data": {
 			"projects": {
-				"total": frappe.db.count("Project"),
+				"total": live_project_total,
+				"empty_shells": empty_shell_projects,
 				"active_sites": frappe.db.count("GE Site", {"status": ["not in", ["COMPLETED", "CLOSED"]]}),
 			},
 			"budget": {
@@ -1854,5 +1858,3 @@ def get_user_mentions(project=None, limit=20):
 	_require_authenticated_user()
 	mentions = _get_mention_alerts(project=project, limit=limit)
 	return {"success": True, "data": mentions}
-
-

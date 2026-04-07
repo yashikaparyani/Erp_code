@@ -80,6 +80,17 @@ def test_scheduler_endpoints_require_scheduler_admin_access():
 		assert re.search(pattern, system_api, re.S), f"{func_name} must require scheduler admin access"
 
 
+def test_bookkeeping_demo_seed_requires_dev_environment():
+	finance_api = (APP_ROOT / "finance_api.py").read_text()
+
+	assert "def _assert_dev_demo_seed_environment():" in finance_api
+	assert re.search(
+		r"def seed_bookkeeping_demo\([^\)]*\):.*?_assert_dev_demo_seed_environment\(\).*?_require_billing_write_access\(\)",
+		finance_api,
+		re.S,
+	), "seed_bookkeeping_demo must require the dev demo guard before billing write access"
+
+
 def test_health_check_keeps_guest_response_lightweight():
 	api_utils = (APP_ROOT / "api_utils.py").read_text()
 	assert '"message": "Gov ERP backend is reachable"' in api_utils
@@ -247,8 +258,76 @@ def test_rbac_phase1_artifacts_exist_and_seed_flow_is_hooked():
 	assert "def seed_user_contexts" in rbac_seed_text
 	assert "seed_user_contexts()" in rbac_seed_text
 	assert "from gov_erp.rbac_seed import seed_rbac" in install_text
-	assert 'frappe.log_error(frappe.get_traceback(), "gov_erp: rbac seed failed on install")' in install_text
-	assert 'frappe.log_error(frappe.get_traceback(), "gov_erp: rbac seed failed on migrate")' in install_text
+	assert "def _run_bootstrap_step(step_label, phase, fn):" in install_text
+	assert 'frappe.log_error(frappe.get_traceback(), f"gov_erp: {step_label} failed on {phase}")' in install_text
+	assert re.search(r"def _run_bootstrap_step\(step_label, phase, fn\):.*?raise", install_text, re.S)
+
+
+def test_medium_priority_backend_hardening_is_present():
+	presales_text = (APP_ROOT / "presales_api.py").read_text()
+	accountability_text = (APP_ROOT / "accountability_api.py").read_text()
+	reporting_text = (APP_ROOT / "reporting_api.py").read_text()
+
+	assert 'presales_api._sync_result_tracker failed for tender' in presales_text
+	assert 'presales_api._get_color_config fallback defaults used' in presales_text
+	assert "def _append_category(category, count_loader, sample_loader=None):" in accountability_text
+	assert 'accountability_api.get_legacy_data_report failed for' in accountability_text
+	assert '"error": "query_failed"' in accountability_text
+	assert 'total_project_rows = frappe.db.count("Project")' in reporting_text
+	assert 'live_project_total = frappe.db.count("Project", {"total_sites": [">", 0]})' in reporting_text
+	assert "empty_shell_projects = max(total_project_rows - live_project_total, 0)" in reporting_text
+
+
+def test_remaining_backend_hardening_is_present():
+	finance_text = (APP_ROOT / "finance_api.py").read_text()
+	execution_text = (APP_ROOT / "execution_api.py").read_text()
+	reporting_text = (APP_ROOT / "reporting_api.py").read_text()
+
+	assert "_COMMERCIAL_REFERENCE_FIELDS = {" in finance_text
+	assert "def _require_commercial_reference(reference_doctype, reference_name):" in finance_text
+	assert 'frappe.throw("Reference DocType is not supported for commercial collaboration")' in finance_text
+	assert 'frappe.throw("Customer must match the selected commercial reference record")' in finance_text
+	assert re.search(
+		r"def add_commercial_comment\([^\)]*\):.*?_require_commercial_reference\(reference_doctype, reference_name\)",
+		finance_text,
+		re.S,
+	)
+	assert re.search(
+		r"def create_commercial_document\([^\)]*\):.*?_require_commercial_reference\(",
+		finance_text,
+		re.S,
+	)
+	assert "from gov_erp.dms_api import _is_temp_upload_file_referenced" in execution_text
+	assert "if not _is_temp_upload_file_referenced(file_url):" in execution_text
+	assert '_apply_project_manager_project_filter(project_filters, project_field="name")' in reporting_text
+
+
+def test_no_bare_exception_pass_blocks_remain_in_target_backend_modules():
+	project_text = (APP_ROOT / "project_api.py").read_text()
+	execution_text = (APP_ROOT / "execution_api.py").read_text()
+	presales_text = (APP_ROOT / "presales_api.py").read_text()
+
+	for text in [project_text, execution_text, presales_text]:
+		assert not re.search(r"except Exception:\n\s+pass", text)
+
+	assert "project_api.get_project_activity workflow_history failed" in project_text
+	assert "project_api.get_project_activity alerts failed" in project_text
+	assert "project_api.get_project_activity accountability failed" in project_text
+	assert 'frappe.log_error(frappe.get_traceback(), "Accountability: approve_dpr")' in execution_text
+	assert 'frappe.log_error(frappe.get_traceback(), "Accountability: reject_dpr")' in execution_text
+	assert "presales_api.get_funnel_dashboard emd_pending_refund count failed" in presales_text
+
+
+def test_collaboration_endpoints_are_allowlisted_and_assignment_requires_write_access():
+	alerts_text = (APP_ROOT / "alerts_api.py").read_text()
+
+	assert "_COLLABORATION_DOCTYPES = {" in alerts_text
+	assert '"Project"' in alerts_text
+	assert "def _require_collaboration_reference(reference_doctype=None, reference_name=None, *, require_write=False):" in alerts_text
+	assert 'frappe.throw("Reference DocType is not supported for collaboration")' in alerts_text
+	assert '_require_collaboration_reference(reference_doctype, reference_name)' in alerts_text
+	assert '_require_collaboration_reference(reference_doctype, reference_name, require_write=True)' in alerts_text
+	assert 'frappe.throw("Comment type is not supported for collaboration")' in alerts_text
 
 
 def test_rbac_phase2_permission_engine_surface_exists():

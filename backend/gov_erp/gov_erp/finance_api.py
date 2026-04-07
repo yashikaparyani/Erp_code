@@ -1,4 +1,6 @@
 """Auto-extracted domain module. All public functions are re-exported by api.py."""
+import os
+
 from gov_erp.api_utils import *  # noqa: F401,F403 — shared utilities
 
 _PROJECT_INVENTORY_RECEIPT_ALIAS_MAP = {
@@ -25,6 +27,13 @@ _PROJECT_INVENTORY_RECEIPT_ALIAS_MAP = {
 	"remarks": "last_receipt_note",
 }
 
+_COMMERCIAL_REFERENCE_FIELDS = {
+	"GE Estimate": "customer",
+	"GE Proforma Invoice": "customer",
+	"GE Invoice": "customer",
+	"GE Payment Follow Up": "customer",
+}
+
 
 def _normalize_project_inventory_receipt_values(values):
 	normalized = {}
@@ -40,6 +49,33 @@ def _normalize_project_inventory_receipt_values(values):
 	if not cstr(normalized.get("item_code") or "").strip() and cstr(normalized.get("item_name") or "").strip():
 		normalized["item_code"] = normalized["item_name"]
 	return normalized
+
+
+def _require_commercial_reference(reference_doctype, reference_name):
+	"""Validate commercial reference targets and return their linked customer."""
+	reference_doctype = _require_param(reference_doctype, "reference_doctype")
+	reference_name = _require_param(reference_name, "reference_name")
+	customer_field = _COMMERCIAL_REFERENCE_FIELDS.get(reference_doctype)
+	if not customer_field:
+		frappe.throw("Reference DocType is not supported for commercial collaboration")
+	if not frappe.db.exists(reference_doctype, reference_name):
+		frappe.throw(f"{reference_doctype} {reference_name} does not exist")
+	return reference_doctype, reference_name, frappe.db.get_value(reference_doctype, reference_name, customer_field)
+
+
+def _assert_dev_demo_seed_environment():
+	"""Refuse bookkeeping demo seeding outside dev/test-style environments."""
+	site = getattr(frappe.local, "site", None)
+	if site and "dev" not in site and "localhost" not in site and "test" not in site:
+		frappe.throw(
+			f"seed_bookkeeping_demo is blocked on production-like site '{site}'.",
+			title="Demo Seed Safety Guard",
+		)
+	if os.environ.get("FRAPPE_ENV") == "production":
+		frappe.throw(
+			"seed_bookkeeping_demo is blocked when FRAPPE_ENV=production.",
+			title="Demo Seed Safety Guard",
+		)
 
 # ── Invoice APIs (Billing) ───────────────────────────────────
 
@@ -2387,8 +2423,7 @@ def get_commercial_comments(customer=None, reference_doctype=None, reference_nam
 def add_commercial_comment(reference_doctype, reference_name, content):
 	"""Add a transaction-level comment to a commercial record."""
 	_require_billing_write_access()
-	reference_doctype = _require_param(reference_doctype, "reference_doctype")
-	reference_name = _require_param(reference_name, "reference_name")
+	reference_doctype, reference_name, _ = _require_commercial_reference(reference_doctype, reference_name)
 	content = _require_param(content, "content")
 	comment = frappe.get_doc(
 		{
@@ -2429,6 +2464,16 @@ def create_commercial_document(data):
 	"""Create a customer-context commercial document exchange record."""
 	_require_document_write_access()
 	values = json.loads(data) if isinstance(data, str) else data
+	reference_doctype, reference_name, linked_customer = _require_commercial_reference(
+		values.get("reference_doctype"),
+		values.get("reference_name"),
+	)
+	values["reference_doctype"] = reference_doctype
+	values["reference_name"] = reference_name
+	if values.get("customer") and linked_customer and values.get("customer") != linked_customer:
+		frappe.throw("Customer must match the selected commercial reference record")
+	if linked_customer:
+		values["customer"] = linked_customer
 	values["shared_by"] = frappe.session.user
 	values["shared_on"] = frappe.utils.now_datetime()
 	doc = frappe.get_doc({"doctype": "GE Commercial Document", **values})
@@ -2464,6 +2509,7 @@ def get_receivable_aging():
 @frappe.whitelist()
 def seed_bookkeeping_demo():
 	"""Seed a small bookkeeping demo chain if one does not already exist."""
+	_assert_dev_demo_seed_environment()
 	_require_billing_write_access()
 	customer_name = "DEMO CUSTOMER - COMMERCIAL"
 	project_name = None

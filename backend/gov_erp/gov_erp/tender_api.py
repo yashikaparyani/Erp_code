@@ -65,6 +65,7 @@ def create_tender(data):
 	"""Create a new tender."""
 	_require_tender_write_access()
 	values = json.loads(data) if isinstance(data, str) else data
+	_strip_workflow_fields("GE Tender", values)
 	doc = frappe.get_doc({"doctype": "GE Tender", **values})
 	doc.insert()
 	frappe.db.commit()
@@ -76,6 +77,7 @@ def update_tender(name, data):
 	"""Update an existing tender."""
 	_require_tender_write_access()
 	values = json.loads(data) if isinstance(data, str) else data
+	_strip_workflow_fields("GE Tender", values)
 	doc = frappe.get_doc("GE Tender", name)
 	doc.update(values)
 	doc.save()
@@ -411,6 +413,7 @@ def transition_tender_status(name, target_status):
 def delete_tender(name):
 	"""Delete a tender."""
 	_require_tender_write_access()
+	_block_delete_if_workflow_active("GE Tender", name)
 	frappe.delete_doc("GE Tender", name)
 	frappe.db.commit()
 	return {"success": True, "message": "Tender deleted"}

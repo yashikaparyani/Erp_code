@@ -119,7 +119,7 @@ def get_roles():
 @frappe.whitelist()
 def create_role(data):
 	"""Create a custom Frappe role."""
-	_require_roles(ROLE_HR_MANAGER, ROLE_DEPARTMENT_HEAD, ROLE_DIRECTOR)
+	_require_roles(ROLE_DIRECTOR)
 	values = json.loads(data) if isinstance(data, str) else data
 	role_name = (values.get("role_name") or "").strip()
 	if not role_name:
@@ -137,7 +137,7 @@ def create_role(data):
 @frappe.whitelist()
 def toggle_role(name):
 	"""Toggle a role's disabled state."""
-	_require_roles(ROLE_HR_MANAGER, ROLE_DEPARTMENT_HEAD, ROLE_DIRECTOR)
+	_require_roles(ROLE_DIRECTOR)
 	doc = frappe.get_doc("Role", name)
 	doc.disabled = 0 if cint(doc.disabled) else 1
 	doc.save()
@@ -199,7 +199,7 @@ def get_users():
 @frappe.whitelist()
 def create_user(data):
 	"""Create a system user for the admin settings UI."""
-	_require_roles(ROLE_PRESALES_HEAD, ROLE_HR_MANAGER, ROLE_DEPARTMENT_HEAD, ROLE_DIRECTOR)
+	_require_roles(ROLE_DIRECTOR)
 	values = json.loads(data) if isinstance(data, str) else data
 	email = (values.get("email") or "").strip().lower()
 	first_name = (values.get("first_name") or values.get("name") or "").strip()

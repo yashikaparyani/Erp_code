@@ -29,6 +29,7 @@ __all__ = [
     "SPINE_STAGES",
     "WORKFLOW_STAGE_KEYS",
     "WORKFLOW_SUPER_ROLES",
+    "WORKFLOW_PROTECTED_FIELDS",
     "_apply_creation_date_filters",
     "_append_project_workflow_event",
     "_apply_project_manager_project_filter",
@@ -134,6 +135,8 @@ __all__ = [
     "_source_route_for_project_head_item",
     "_sync_approval_with_costing_queue",
     "_sync_project_workflow_fields",
+    "_strip_workflow_fields",
+    "_block_delete_if_workflow_active",
     "_update_generic_doc",
     "_user_has_any_role",
     "_user_has_capability",
@@ -834,10 +837,11 @@ def _require_procurement_read_access():
 	_require_module_access("procurement")
 
 
-def _require_procurement_write_access():
+def _require_procurement_write_access(project=None, site=None):
 	_require_any_capability(
 		"procurement.indent.create", "procurement.indent.update",
 		"procurement.comparison.create", "procurement.readiness.update",
+		project=project, site=site,
 	)
 
 
@@ -873,18 +877,19 @@ def _require_document_read_access():
 	_require_capability("dms.file.view")
 
 
-def _require_document_write_access():
-	_require_capability("dms.file.upload")
+def _require_document_write_access(project=None, site=None):
+	_require_capability("dms.file.upload", project=project, site=site)
 
 
 def _require_execution_read_access():
 	_require_module_access("execution")
 
 
-def _require_execution_write_access():
+def _require_execution_write_access(project=None, site=None):
 	_require_any_capability(
 		"execution.installation.update", "execution.commissioning.update",
 		"execution.evidence.upload", "execution.device.manage",
+		project=project, site=site,
 	)
 
 
@@ -1582,14 +1587,53 @@ def _list_generic_docs(doctype, filters, fields, order_by="creation desc"):
 
 def _create_generic_doc(doctype, data):
 	values = _parse_payload(data)
+	_strip_workflow_fields(doctype, values)
 	doc = frappe.get_doc({"doctype": doctype, **values})
 	doc.insert()
 	frappe.db.commit()
 	return doc
 
 
+# Fields controlled exclusively by workflow endpoints — generic CRUD must not touch them.
+WORKFLOW_PROTECTED_FIELDS = {
+	"GE Drawing": {"status", "approved_by", "approval_date", "client_approval_status"},
+	"GE Change Request": {"status", "approved_by", "approval_date"},
+	"GE Test Report": {"status", "approved_by", "approval_date"},
+	"GE Tender": {
+		"status", "go_no_go_status", "go_no_go_by", "go_no_go_on", "go_no_go_remarks",
+		"technical_readiness", "technical_rejection_reason", "commercial_readiness",
+		"finance_readiness", "submission_status", "approval_status",
+	},
+	"GE BOQ": {"status", "approved_by", "approved_at", "rejected_by", "rejection_reason"},
+	"GE Vendor Comparison": {"status", "exception_reason", "exception_approved_by"},
+}
+
+# Statuses that indicate a record has entered a controlled lifecycle and must not
+# be deleted through the generic delete endpoint.
+_NON_DELETABLE_STATUSES = {
+	"GE Drawing": {"Submitted", "Approved", "Superseded"},
+	"GE Change Request": {"Submitted", "Approved", "Rejected"},
+	"GE Test Report": {"Submitted", "Approved", "Rejected"},
+	"GE Tender": {"SUBMITTED", "UNDER_EVALUATION", "WON", "LOST", "CANCELLED", "DROPPED", "CONVERTED_TO_PROJECT"},
+	"GE BOQ": {"PENDING_APPROVAL", "APPROVED"},
+	"GE Vendor Comparison": {"PENDING_APPROVAL", "APPROVED", "REJECTED"},
+}
+
+
+def _strip_workflow_fields(doctype, values):
+	"""Remove workflow-protected fields from *values* dict (in-place). Returns stripped key names."""
+	protected = WORKFLOW_PROTECTED_FIELDS.get(doctype)
+	if not protected:
+		return []
+	stripped = [k for k in list(values) if k in protected]
+	for k in stripped:
+		values.pop(k, None)
+	return stripped
+
+
 def _update_generic_doc(doctype, name, data):
 	values = _parse_payload(data)
+	_strip_workflow_fields(doctype, values)
 	doc = frappe.get_doc(doctype, name)
 	doc.update(values)
 	doc.save()
@@ -1597,7 +1641,22 @@ def _update_generic_doc(doctype, name, data):
 	return doc
 
 
+def _block_delete_if_workflow_active(doctype, name):
+	"""Throw if a workflow-controlled record has progressed past draft."""
+	blocked = _NON_DELETABLE_STATUSES.get(doctype)
+	if not blocked:
+		return
+	status = frappe.db.get_value(doctype, name, "status")
+	if status in blocked:
+		frappe.throw(
+			f"Cannot delete {doctype} '{name}' in '{status}' state. "
+			"Only draft records may be deleted.",
+			frappe.PermissionError,
+		)
+
+
 def _delete_generic_doc(doctype, name):
+	_block_delete_if_workflow_active(doctype, name)
 	frappe.delete_doc(doctype, name)
 	frappe.db.commit()
 

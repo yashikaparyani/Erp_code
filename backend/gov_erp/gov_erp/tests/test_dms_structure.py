@@ -48,7 +48,16 @@ def test_dms_api_hardening_rules_exist():
     for expected in [
         "Cannot delete a folder that still contains project documents",
         "cannot be edited directly on an existing document",
-        'not frappe.db.exists("GE Project Document", {"file": file_url})',
+        'def _is_temp_upload_file_referenced(file_url):',
+        '("GE Test Report", "file")',
+        '("GE Employee Document", "file")',
+        '("GE Commercial Document", "file_url")',
+        'You can only clean up files that you uploaded',
+        'file_doc.attached_to_doctype or file_doc.attached_to_name or file_doc.attached_to_field',
+        'File is already linked from a business record and cannot be cleaned up',
+        'file_age_seconds > 3600',
+        "from gov_erp.dms_api import _is_temp_upload_file_referenced",
+        "if not _is_temp_upload_file_referenced(file_url):",
         'frappe.delete_doc("File", file_name, ignore_permissions=True)',
     ]:
         assert expected in source

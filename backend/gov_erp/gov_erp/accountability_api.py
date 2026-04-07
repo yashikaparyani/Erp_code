@@ -639,21 +639,42 @@ def get_legacy_data_report(limit=500):
 	limit = cint(limit) or 500
 	report = {"categories": []}
 
+	def _append_category(category, count_loader, sample_loader=None):
+		try:
+			entry = {"category": category, "count": count_loader()}
+			if sample_loader:
+				entry["samples"] = sample_loader()
+			report["categories"].append(entry)
+		except Exception:
+			frappe.log_error(
+				frappe.get_traceback(),
+				f"accountability_api.get_legacy_data_report failed for {category}",
+			)
+			report["categories"].append({"category": category, "count": None, "error": "query_failed"})
+
 	# 1. Surveys missing linked_site
-	try:
-		count = frappe.db.count("GE Survey", filters=[["linked_site", "in", ["", None]]])
-		samples = frappe.get_all("GE Survey", filters=[["linked_site", "in", ["", None]]], fields=["name", "site_name", "linked_project"], limit_page_length=10)
-		report["categories"].append({"category": "survey_missing_site", "count": count, "samples": samples})
-	except Exception:
-		pass
+	_append_category(
+		"survey_missing_site",
+		lambda: frappe.db.count("GE Survey", filters=[["linked_site", "in", ["", None]]]),
+		lambda: frappe.get_all(
+			"GE Survey",
+			filters=[["linked_site", "in", ["", None]]],
+			fields=["name", "site_name", "linked_project"],
+			limit_page_length=10,
+		),
+	)
 
 	# 2. Surveys with context_status != resolved
-	try:
-		count = frappe.db.count("GE Survey", filters=[["context_status", "!=", "resolved"]])
-		samples = frappe.get_all("GE Survey", filters=[["context_status", "!=", "resolved"]], fields=["name", "context_status", "site_name"], limit_page_length=10)
-		report["categories"].append({"category": "survey_unresolved_context", "count": count, "samples": samples})
-	except Exception:
-		pass
+	_append_category(
+		"survey_unresolved_context",
+		lambda: frappe.db.count("GE Survey", filters=[["context_status", "!=", "resolved"]]),
+		lambda: frappe.get_all(
+			"GE Survey",
+			filters=[["context_status", "!=", "resolved"]],
+			fields=["name", "context_status", "site_name"],
+			limit_page_length=10,
+		),
+	)
 
 	# 3. Derive-project doctypes missing linked_project
 	for dt, site_field, project_field in [
@@ -663,28 +684,29 @@ def get_legacy_data_report(limit=500):
 		("GE Costing Queue", "linked_site", "project"),
 		("GE PH Approval Item", "linked_site", "project"),
 	]:
-		try:
-			count = frappe.db.count(dt, filters=[[site_field, "is", "set"], [project_field, "in", ["", None]]])
-			report["categories"].append({"category": f"{dt}_missing_project", "count": count})
-		except Exception:
-			pass
+		_append_category(
+			f"{dt}_missing_project",
+			lambda dt=dt, site_field=site_field, project_field=project_field: frappe.db.count(
+				dt,
+				filters=[[site_field, "is", "set"], [project_field, "in", ["", None]]],
+			),
+		)
 
 	# 4. BOQs missing context
-	try:
-		count_no_project = frappe.db.count("GE BOQ", filters=[["linked_project", "in", ["", None]]])
-		count_no_tender = frappe.db.count("GE BOQ", filters=[["linked_tender", "in", ["", None]]])
-		report["categories"].append({"category": "boq_missing_project", "count": count_no_project})
-		report["categories"].append({"category": "boq_missing_tender", "count": count_no_tender})
-	except Exception:
-		pass
+	_append_category(
+		"boq_missing_project",
+		lambda: frappe.db.count("GE BOQ", filters=[["linked_project", "in", ["", None]]]),
+	)
+	_append_category(
+		"boq_missing_tender",
+		lambda: frappe.db.count("GE BOQ", filters=[["linked_tender", "in", ["", None]]]),
+	)
 
 	# 5. RMA Tracker missing project
-	try:
-		count = frappe.db.count("GE RMA Tracker", filters=[["linked_project", "in", ["", None]]])
-		report["categories"].append({"category": "rma_missing_project", "count": count})
-	except Exception:
-		pass
+	_append_category(
+		"rma_missing_project",
+		lambda: frappe.db.count("GE RMA Tracker", filters=[["linked_project", "in", ["", None]]]),
+	)
 
 	return {"success": True, "data": report}
-
 

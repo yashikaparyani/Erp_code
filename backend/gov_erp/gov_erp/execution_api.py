@@ -687,7 +687,7 @@ def approve_dpr(name=None, remarks=None):
 			description=f"DPR approved for site {doc.get('linked_site') or 'N/A'}",
 		)
 	except Exception:
-		pass
+		frappe.log_error(frappe.get_traceback(), "Accountability: approve_dpr")
 	return {"success": True, "data": doc.as_dict(), "message": "DPR approved"}
 
 
@@ -717,7 +717,7 @@ def reject_dpr(name=None, remarks=None):
 			description=f"DPR rejected for site {doc.get('linked_site') or 'N/A'}",
 		)
 	except Exception:
-		pass
+		frappe.log_error(frappe.get_traceback(), "Accountability: reject_dpr")
 	return {"success": True, "data": doc.as_dict(), "message": "DPR rejected"}
 
 
@@ -817,7 +817,8 @@ def get_project_document(name=None):
 @frappe.whitelist()
 def update_document_folder(name, data):
 	"""Update a custom document folder."""
-	_require_document_write_access()
+	doc_ref = frappe.get_doc("GE Document Folder", name)
+	_require_document_write_access(project=doc_ref.get("linked_project"))
 	if frappe.db.count("GE Project Document", {"folder": name}):
 		values = _parse_payload(data)
 		if "linked_project" in values:
@@ -831,7 +832,8 @@ def update_document_folder(name, data):
 @frappe.whitelist()
 def delete_document_folder(name):
 	"""Delete a custom document folder."""
-	_require_document_write_access()
+	doc = frappe.get_doc("GE Document Folder", name)
+	_require_document_write_access(project=doc.get("linked_project"))
 	if frappe.db.count("GE Project Document", {"folder": name}):
 		frappe.throw("Cannot delete a folder that still contains project documents")
 	_delete_generic_doc("GE Document Folder", name)
@@ -841,7 +843,8 @@ def delete_document_folder(name):
 @frappe.whitelist()
 def update_project_document(name, data):
 	"""Update a custom project document."""
-	_require_document_write_access()
+	doc_ref = frappe.get_doc("GE Project Document", name)
+	_require_document_write_access(project=doc_ref.get("linked_project"))
 	values = _parse_payload(data)
 	for forbidden in ["file", "version", "uploaded_by", "uploaded_on", "submitted_by", "submitted_on", "linked_project"]:
 		if forbidden in values:
@@ -853,16 +856,19 @@ def update_project_document(name, data):
 @frappe.whitelist()
 def delete_project_document(name):
 	"""Delete a custom project document."""
-	_require_document_write_access()
 	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Project Document", name)
+	_require_document_write_access(project=doc.get("linked_project"))
 	file_url = doc.file
 	_delete_generic_doc("GE Project Document", name)
-	if file_url and not frappe.db.exists("GE Project Document", {"file": file_url}):
-		file_name = frappe.db.get_value("File", {"file_url": file_url}, "name")
-		if file_name:
-			frappe.delete_doc("File", file_name, ignore_permissions=True)
-			frappe.db.commit()
+	if file_url:
+		from gov_erp.dms_api import _is_temp_upload_file_referenced
+
+		if not _is_temp_upload_file_referenced(file_url):
+			file_name = frappe.db.get_value("File", {"file_url": file_url}, "name")
+			if file_name:
+				frappe.delete_doc("File", file_name, ignore_permissions=True)
+				frappe.db.commit()
 	return {"success": True, "message": "Project document deleted"}
 
 
@@ -896,21 +902,28 @@ def get_drawing(name=None):
 
 @frappe.whitelist()
 def create_drawing(data):
-	_require_execution_write_access()
-	doc = _create_generic_doc("GE Drawing", data)
+	values = _parse_payload(data)
+	_require_execution_write_access(project=values.get("linked_project"), site=values.get("linked_site"))
+	doc = _create_generic_doc("GE Drawing", values)
 	return {"success": True, "data": doc.as_dict(), "message": "Drawing created"}
 
 
 @frappe.whitelist()
 def update_drawing(name, data):
-	_require_execution_write_access()
-	doc = _update_generic_doc("GE Drawing", name, data)
+	doc = frappe.get_doc("GE Drawing", name)
+	_require_execution_write_access(project=doc.get("linked_project"), site=doc.get("linked_site"))
+	values = _parse_payload(data)
+	_strip_workflow_fields("GE Drawing", values)
+	doc.update(values)
+	doc.save()
+	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": "Drawing updated"}
 
 
 @frappe.whitelist()
 def delete_drawing(name):
-	_require_execution_write_access()
+	doc = frappe.get_doc("GE Drawing", name)
+	_require_execution_write_access(project=doc.get("linked_project"), site=doc.get("linked_site"))
 	_delete_generic_doc("GE Drawing", name)
 	return {"success": True, "message": "Drawing deleted"}
 
@@ -988,21 +1001,28 @@ def get_change_request(name=None):
 
 @frappe.whitelist()
 def create_change_request(data):
-	_require_execution_write_access()
-	doc = _create_generic_doc("GE Change Request", data)
+	values = _parse_payload(data)
+	_require_execution_write_access(project=values.get("linked_project"), site=values.get("linked_site"))
+	doc = _create_generic_doc("GE Change Request", values)
 	return {"success": True, "data": doc.as_dict(), "message": "Change request created"}
 
 
 @frappe.whitelist()
 def update_change_request(name, data):
-	_require_execution_write_access()
-	doc = _update_generic_doc("GE Change Request", name, data)
+	doc = frappe.get_doc("GE Change Request", name)
+	_require_execution_write_access(project=doc.get("linked_project"), site=doc.get("linked_site"))
+	values = _parse_payload(data)
+	_strip_workflow_fields("GE Change Request", values)
+	doc.update(values)
+	doc.save()
+	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": "Change request updated"}
 
 
 @frappe.whitelist()
 def delete_change_request(name):
-	_require_execution_write_access()
+	doc = frappe.get_doc("GE Change Request", name)
+	_require_execution_write_access(project=doc.get("linked_project"), site=doc.get("linked_site"))
 	_delete_generic_doc("GE Change Request", name)
 	return {"success": True, "message": "Change request deleted"}
 
@@ -1232,8 +1252,9 @@ def get_test_report(name=None):
 
 @frappe.whitelist()
 def create_test_report(data):
-	_require_execution_write_access()
 	values = _parse_payload(data)
+	_require_execution_write_access(project=values.get("linked_project"), site=values.get("linked_site"))
+	_strip_workflow_fields("GE Test Report", values)
 	values.setdefault("status", "Submitted")
 	values.setdefault("tested_by", frappe.session.user)
 	values.setdefault("test_date", frappe.utils.today())
@@ -1245,14 +1266,20 @@ def create_test_report(data):
 
 @frappe.whitelist()
 def update_test_report(name, data):
-	_require_execution_write_access()
-	doc = _update_generic_doc("GE Test Report", name, data)
+	doc = frappe.get_doc("GE Test Report", name)
+	_require_execution_write_access(project=doc.get("linked_project"), site=doc.get("linked_site"))
+	values = _parse_payload(data)
+	_strip_workflow_fields("GE Test Report", values)
+	doc.update(values)
+	doc.save()
+	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": "Test report updated"}
 
 
 @frappe.whitelist()
 def delete_test_report(name):
-	_require_execution_write_access()
+	doc = frappe.get_doc("GE Test Report", name)
+	_require_execution_write_access(project=doc.get("linked_project"), site=doc.get("linked_site"))
 	_delete_generic_doc("GE Test Report", name)
 	return {"success": True, "message": "Test report deleted"}
 
