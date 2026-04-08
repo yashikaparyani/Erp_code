@@ -49,6 +49,12 @@ export default function PaymentReceiptsPage() {
         { name: 'remarks', label: 'Remarks', type: 'textarea' },
       ]}
       actions={[
+        {
+          label: 'Update',
+          tone: 'primary',
+          buildRequest: (row) => ({ method: 'update_payment_receipt', args: { name: row.name } }),
+          prompt: { message: 'Update note', field: 'remarks' },
+        },
         { label: 'Delete', tone: 'danger', buildRequest: (row) => ({ method: 'delete_payment_receipt', args: { name: row.name } }), confirmMessage: 'Delete this payment receipt?' },
       ]}
       statsCards={[

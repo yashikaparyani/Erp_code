@@ -20,6 +20,13 @@ export default function PenaltiesPage() {
         { name: 'remarks', label: 'Remarks', type: 'textarea' },
       ]}
       actions={[
+        {
+          label: 'Update',
+          tone: 'primary',
+          visible: (row) => row.status !== 'APPLIED' && row.status !== 'REVERSED',
+          buildRequest: (row) => ({ method: 'update_penalty_deduction', args: { name: row.name } }),
+          prompt: { message: 'Update note', field: 'remarks' },
+        },
         { label: 'Approve', tone: 'success', buildRequest: (row) => ({ method: 'approve_penalty_deduction', args: { name: row.name } }) },
         { label: 'Apply', tone: 'warning', buildRequest: (row) => ({ method: 'apply_penalty_deduction', args: { name: row.name } }), prompt: { message: 'Invoice name to apply against', field: 'invoice_name' } },
         { label: 'Reverse', tone: 'danger', buildRequest: (row) => ({ method: 'reverse_penalty_deduction', args: { name: row.name } }), prompt: { message: 'Reverse reason', field: 'reason' } },

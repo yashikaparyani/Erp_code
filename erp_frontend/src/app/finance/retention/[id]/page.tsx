@@ -18,10 +18,12 @@ export default function RetentionDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showRelease, setShowRelease] = useState(false);
+  const [showUpdate, setShowUpdate] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true); setError('');
-    try { setData(await callOps<Retention>('get_retention', { name: id })); }
+    try { setData(await callOps<Retention>('get_retention_ledger', { name: id })); }
     catch (e) { setError(e instanceof Error ? e.message : 'Failed'); }
     setLoading(false);
   }, [id]);
@@ -41,7 +43,13 @@ export default function RetentionDetailPage() {
       backHref="/finance/retention" backLabel="Retention"
       loading={loading} error={error} onRetry={load}
       status={d.status} statusVariant={statusVariant(d.status)}
-      headerActions={canRelease ? <button className="btn btn-primary" onClick={() => setShowRelease(true)}>Release</button> : undefined}
+      headerActions={
+        <div className="flex gap-2">
+          {canRelease ? <button className="btn btn-primary" onClick={() => setShowRelease(true)}>Release</button> : null}
+          <button className="btn btn-secondary" onClick={() => setShowUpdate(true)}>Update</button>
+          <button className="btn btn-secondary text-red-600" onClick={() => setShowDelete(true)}>Delete</button>
+        </div>
+      }
       identityBlock={
         <>
           {/* KPI Cards */}
@@ -86,8 +94,28 @@ export default function RetentionDetailPage() {
           { name: 'release_amount', label: `Amount to Release (max ${formatCurrency(remaining)})`, type: 'text', required: true },
           { name: 'remarks', label: 'Remarks', type: 'textarea' },
         ]}
-        onConfirm={async (v) => { await callOps('action_retention', { name: id, action: 'release', ...v }); setShowRelease(false); load(); }}
+        onConfirm={async (v) => { await callOps('release_retention', { name: id, ...v }); setShowRelease(false); load(); }}
         onCancel={() => setShowRelease(false)}
+      />
+
+      <ActionModal
+        open={showUpdate}
+        title="Update Retention"
+        confirmLabel="Update"
+        variant="default"
+        fields={[{ name: 'remarks', label: 'Update Note', type: 'textarea' }]}
+        onConfirm={async (v) => { await callOps('update_retention_ledger', { name: id, ...v }); setShowUpdate(false); load(); }}
+        onCancel={() => setShowUpdate(false)}
+      />
+
+      <ActionModal
+        open={showDelete}
+        title="Delete Retention"
+        confirmLabel="Delete"
+        variant="danger"
+        fields={[{ name: 'reason', label: 'Delete Reason', type: 'textarea', required: true }]}
+        onConfirm={async (v) => { await callOps('delete_retention_ledger', { name: id, ...v }); setShowDelete(false); load(); }}
+        onCancel={() => setShowDelete(false)}
       />
     </DetailPage>
   );

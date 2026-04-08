@@ -43,7 +43,21 @@ export default function EstimatesPage() {
         { label: 'Send', tone: 'primary', visible: (row) => row.status === 'DRAFT', buildRequest: (row) => ({ method: 'submit_estimate', args: { name: row.name } }) },
         { label: 'Approve', tone: 'success', visible: (row) => row.status === 'SENT' || row.status === 'DRAFT', buildRequest: (row) => ({ method: 'approve_estimate', args: { name: row.name } }) },
         { label: 'Reject', tone: 'danger', visible: (row) => row.status !== 'CONVERTED' && row.status !== 'CANCELLED', buildRequest: (row) => ({ method: 'reject_estimate', args: { name: row.name } }), prompt: { message: 'Reason', field: 'reason' } },
+        {
+          label: 'Update',
+          tone: 'primary',
+          visible: (row) => row.status === 'DRAFT' || row.status === 'SENT',
+          buildRequest: (row) => ({ method: 'update_estimate', args: { name: row.name } }),
+          prompt: { message: 'Update note', field: 'remarks' },
+        },
         { label: 'To Proforma', tone: 'warning', visible: (row) => row.status === 'APPROVED' || row.status === 'SENT', buildRequest: (row) => ({ method: 'convert_estimate_to_proforma', args: { name: row.name } }) },
+        {
+          label: 'Delete',
+          tone: 'danger',
+          visible: (row) => row.status === 'DRAFT',
+          buildRequest: (row) => ({ method: 'delete_estimate', args: { name: row.name } }),
+          confirmMessage: 'Delete this estimate?',
+        },
       ]}
       statsCards={[
         { label: 'Estimates', path: 'total', hint: 'All quotation records', icon: FileText, tone: 'blue' },

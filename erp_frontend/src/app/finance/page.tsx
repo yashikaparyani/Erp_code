@@ -5,17 +5,13 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Filter, Plus, X } from 'lucide-react';
 import RegisterPage from '@/components/shells/RegisterPage';
-import FormModal from '@/components/shells/FormModal';
-import ActionModal from '@/components/ui/ActionModal';
 import {
   callApi,
   formatCurrency,
   formatDate,
   badge,
   INVOICE_BADGES,
-  hasAnyRole,
 } from '@/components/finance/fin-helpers';
-import { useAuth } from '@/context/AuthContext';
 
 interface Invoice {
   name: string;
@@ -42,7 +38,6 @@ interface Stats {
 export default function FinancePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { currentUser } = useAuth();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [stats, setStats] = useState<Stats>({});
   const [loading, setLoading] = useState(true);
@@ -93,6 +88,17 @@ export default function FinancePage() {
     setBusyInv(null);
   };
 
+  const runGlobalAction = async (method: string) => {
+    setBusyInv('__global__');
+    try {
+      await callApi(`/api/ops`, { method: 'POST', body: { method, args: {} } });
+      await load();
+    } catch {
+      // no-op
+    }
+    setBusyInv(null);
+  };
+
   const filtered = projectFilter
     ? invoices.filter(i => (i.linked_project || '').toLowerCase().includes(projectFilter.toLowerCase()))
     : invoices;
@@ -119,6 +125,9 @@ export default function FinancePage() {
           <Link href="/finance/costing" className="btn btn-secondary">Costing</Link>
           <Link href="/finance/billing" className="btn btn-secondary">Billing</Link>
           <Link href="/finance/payment-receipts" className="btn btn-secondary">Payments</Link>
+          <button className="btn btn-secondary" onClick={() => void runGlobalAction('reconcile_invoice_payments')} disabled={busyInv === '__global__'}>
+            Reconcile
+          </button>
         </div>
       }
       filterBar={
@@ -209,6 +218,13 @@ export default function FinancePage() {
                           disabled={busyInv === inv.name}
                           className="px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50">
                           Cancel
+                        </button>
+                      )}
+                      {inv.status === 'DRAFT' && (
+                        <button onClick={() => runAction(inv.name, 'delete_invoice')}
+                          disabled={busyInv === inv.name}
+                          className="px-2 py-1 text-xs font-medium text-red-700 bg-red-50 rounded hover:bg-red-100 disabled:opacity-50">
+                          Delete
                         </button>
                       )}
                     </div>

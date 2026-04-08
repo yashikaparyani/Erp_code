@@ -9,6 +9,7 @@ import ActionModal from '@/components/ui/ActionModal';
 import { AccountabilityTimeline } from '@/components/accountability/AccountabilityTimeline';
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
 import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
+import { getFileProxyUrl } from '@/lib/fileLinks';
 
 type LoiRow = {
   name: string;
@@ -47,8 +48,17 @@ type BidDetail = {
     tender_number?: string;
     title?: string;
     status?: string;
+      creation?: string;
+      owner?: string;
     client?: string;
     organization?: string;
+      tender_document?: string;
+      rfp_document?: string;
+      go_no_go_status?: string;
+      go_no_go_by?: string;
+      go_no_go_on?: string;
+      technical_readiness?: string;
+      commercial_readiness?: string;
     tenure_years?: number;
     tenure_end_date?: string;
     closure_letter_received?: number;
@@ -56,6 +66,25 @@ type BidDetail = {
     bid_denied_reason?: string;
     linked_project?: string;
   };
+};
+
+type TenderApproval = {
+  name: string;
+  approval_type?: string;
+  status?: string;
+  requested_by?: string;
+  approver_role?: string;
+  request_remarks?: string;
+  action_remarks?: string;
+  attached_document?: string;
+  creation?: string;
+};
+
+type Instrument = {
+  name: string;
+  instrument_type?: string;
+  instrument_number?: string;
+  instrument_document?: string;
 };
 
 const STATUS_STYLES: Record<string, string> = {
@@ -104,6 +133,19 @@ async function postJson(url: string, body?: Record<string, unknown>) {
   return response.json();
 }
 
+async function callOps<T>(method: string, args?: Record<string, unknown>): Promise<T> {
+  const response = await fetch('/api/ops', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ method, args }),
+  });
+  const json = await response.json().catch(() => ({}));
+  if (!response.ok || json.success === false) {
+    throw new Error(json.message || `Failed to call ${method}`);
+  }
+  return (json.data ?? json) as T;
+}
+
 export default function BidWorkspacePage() {
   const params = useParams<{ id: string }>();
   const { currentRole } = useRole();
@@ -112,6 +154,8 @@ export default function BidWorkspacePage() {
   const [loading, setLoading] = useState(true);
   const [busyAction, setBusyAction] = useState('');
   const [error, setError] = useState('');
+  const [tenderApprovals, setTenderApprovals] = useState<TenderApproval[]>([]);
+  const [tenderInstruments, setTenderInstruments] = useState<Instrument[]>([]);
   const [bidModal, setBidModal] = useState<{ action: string; title: string; fields: { name: string; label: string; type: 'text' | 'textarea'; defaultValue?: string }[]; runner: (values: Record<string, string>) => Promise<void> } | null>(null);
 
   const loadBid = useCallback(async () => {
@@ -182,6 +226,59 @@ export default function BidWorkspacePage() {
       setBusyAction('');
     }
   };
+
+  useEffect(() => {
+    const tenderName = bid?.tender;
+    if (!tenderName) {
+      setTenderApprovals([]);
+      setTenderInstruments([]);
+      return;
+    }
+    (async () => {
+      try {
+        const [approvalsRes, instrumentsRes] = await Promise.all([
+          fetch(`/api/tender-approvals?tender=${encodeURIComponent(tenderName)}`, { cache: 'no-store' }),
+          fetch(`/api/emd-pbg?tender=${encodeURIComponent(tenderName)}&type=`, { cache: 'no-store' }),
+        ]);
+        const [approvalsJson, instrumentsJson] = await Promise.all([
+          approvalsRes.json().catch(() => ({})),
+          instrumentsRes.json().catch(() => ({})),
+        ]);
+        setTenderApprovals(Array.isArray(approvalsJson?.data) ? approvalsJson.data : []);
+        setTenderInstruments(Array.isArray(instrumentsJson?.data) ? instrumentsJson.data : []);
+      } catch {
+        setTenderApprovals([]);
+        setTenderInstruments([]);
+      }
+    })();
+  }, [bid?.tender]);
+
+  const supportingDocs = useMemo(() => {
+    const docs: Array<{ label: string; file: string; helper: string }> = [];
+    if (bid?.tender_detail?.tender_document) {
+      docs.push({ label: 'Tender Document', file: bid.tender_detail.tender_document, helper: 'Primary tender document from linked tender workspace.' });
+    }
+    if (bid?.tender_detail?.rfp_document) {
+      docs.push({ label: 'RFP Document', file: bid.tender_detail.rfp_document, helper: 'RFP document from linked tender workspace.' });
+    }
+    tenderApprovals.forEach((approval) => {
+      if (!approval.attached_document) return;
+      docs.push({
+        label: `${(approval.approval_type || 'Approval').replace(/_/g, ' ')} Document`,
+        file: approval.attached_document,
+        helper: `Uploaded with approval request by ${approval.requested_by || 'user'}.`,
+      });
+    });
+    tenderInstruments.forEach((instrument) => {
+      if (!instrument.instrument_document) return;
+      docs.push({
+        label: `${instrument.instrument_type || 'Instrument'} Document`,
+        file: instrument.instrument_document,
+        helper: `${instrument.instrument_number || instrument.name} linked instrument attachment.`,
+      });
+    });
+    return docs.filter((doc, idx, arr) => arr.findIndex((v) => v.file === doc.file) === idx);
+  }, [bid?.tender_detail?.rfp_document, bid?.tender_detail?.tender_document, tenderApprovals, tenderInstruments]);
 
   if (loading) {
     return (
@@ -535,6 +632,24 @@ export default function BidWorkspacePage() {
       </section>
 
       <section className="rounded-3xl border border-[var(--border-subtle)] bg-white p-5">
+        <h2 className="text-lg font-semibold text-[var(--text-main)]">Tender Audit Snapshot</h2>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-3 text-sm text-[var(--text-main)]">
+            Created by {bid.tender_detail?.owner || '-'} on {formatDate(bid.tender_detail?.creation)}
+          </div>
+          <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-3 text-sm text-[var(--text-main)]">
+            Go/No-Go: {bid.tender_detail?.go_no_go_status || 'PENDING'}
+          </div>
+          <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-3 text-sm text-[var(--text-main)]">
+            Technical Readiness: {bid.tender_detail?.technical_readiness || 'NOT_STARTED'}
+          </div>
+          <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-3 text-sm text-[var(--text-main)]">
+            Commercial Readiness: {bid.tender_detail?.commercial_readiness || 'NOT_STARTED'}
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-[var(--border-subtle)] bg-white p-5">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h2 className="text-lg font-semibold text-[var(--text-main)]">Department LOIs</h2>
@@ -580,6 +695,59 @@ export default function BidWorkspacePage() {
               )}
             </tbody>
           </table>
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-[var(--border-subtle)] bg-white p-5">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <h2 className="text-lg font-semibold text-[var(--text-main)]">Tender Approval Trail</h2>
+            <p className="text-sm text-[var(--text-soft)]">This mirrors the linked tender approval flow in the bid workspace.</p>
+          </div>
+        </div>
+        <div className="mt-4 space-y-3">
+          {tenderApprovals.length ? tenderApprovals.map((approval) => (
+            <div key={approval.name} className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm font-semibold text-[var(--text-main)]">{(approval.approval_type || 'Approval').replace(/_/g, ' ')} • {approval.approver_role || '-'}</div>
+                <span className="text-xs font-medium text-[var(--text-soft)]">{approval.status || '-'}</span>
+              </div>
+              <div className="mt-1 text-xs text-[var(--text-soft)]">Requested by {approval.requested_by || '-'} on {formatDate(approval.creation)}</div>
+              {approval.request_remarks ? <div className="mt-2 text-sm text-[var(--text-main)]">{approval.request_remarks}</div> : null}
+              {approval.action_remarks ? <div className="mt-1 text-xs text-[var(--text-soft)]">Director note: {approval.action_remarks}</div> : null}
+            </div>
+          )) : (
+            <div className="rounded-2xl border border-dashed border-[var(--border-subtle)] bg-[var(--surface)] px-4 py-5 text-sm text-[var(--text-soft)]">
+              No approval entries found for linked tender.
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-[var(--border-subtle)] bg-white p-5">
+        <h2 className="text-lg font-semibold text-[var(--text-main)]">Tender Supporting Documents</h2>
+        <p className="mt-1 text-sm text-[var(--text-soft)]">Tender/RFP, technical approval files, and EMD/PBG documents are visible here.</p>
+        <div className="mt-4 space-y-3">
+          {supportingDocs.length ? supportingDocs.map((doc) => (
+            <div key={doc.file} className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] px-4 py-3">
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-[var(--text-main)]">{doc.label}</div>
+                <div className="text-xs text-[var(--text-soft)]">{doc.helper}</div>
+              </div>
+              <a
+                href={getFileProxyUrl(doc.file)}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-white px-3 py-2 text-xs font-medium text-[var(--text-main)] hover:border-[var(--accent)]"
+              >
+                Open
+              </a>
+            </div>
+          )) : (
+            <div className="rounded-2xl border border-dashed border-[var(--border-subtle)] bg-[var(--surface)] px-4 py-5 text-sm text-[var(--text-soft)]">
+              No tender-side documents available.
+            </div>
+          )}
         </div>
       </section>
 

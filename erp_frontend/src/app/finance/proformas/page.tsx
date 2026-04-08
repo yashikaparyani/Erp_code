@@ -42,8 +42,22 @@ export default function ProformasPage() {
       actions={[
         { label: 'Send', tone: 'primary', visible: (row) => row.status === 'DRAFT', buildRequest: (row) => ({ method: 'submit_proforma_invoice', args: { name: row.name } }) },
         { label: 'Approve', tone: 'success', visible: (row) => row.status === 'SENT' || row.status === 'DRAFT', buildRequest: (row) => ({ method: 'approve_proforma_invoice', args: { name: row.name } }) },
+        {
+          label: 'Update',
+          tone: 'primary',
+          visible: (row) => row.status === 'DRAFT' || row.status === 'SENT',
+          buildRequest: (row) => ({ method: 'update_proforma_invoice', args: { name: row.name } }),
+          prompt: { message: 'Update note', field: 'remarks' },
+        },
         { label: 'Cancel', tone: 'danger', visible: (row) => row.status !== 'CONVERTED', buildRequest: (row) => ({ method: 'cancel_proforma_invoice', args: { name: row.name } }), prompt: { message: 'Reason', field: 'reason' } },
         { label: 'To Invoice', tone: 'warning', visible: (row) => row.status === 'APPROVED' || row.status === 'SENT', buildRequest: (row) => ({ method: 'convert_proforma_to_invoice', args: { name: row.name } }) },
+        {
+          label: 'Delete',
+          tone: 'danger',
+          visible: (row) => row.status === 'DRAFT',
+          buildRequest: (row) => ({ method: 'delete_proforma_invoice', args: { name: row.name } }),
+          confirmMessage: 'Delete this proforma invoice?',
+        },
       ]}
       statsCards={[
         { label: 'Proformas', path: 'total', hint: 'All proforma documents', icon: ReceiptText, tone: 'blue' },

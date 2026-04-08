@@ -26,6 +26,10 @@ interface EmdInstrument {
   issue_date?: string;
   expiry_date?: string;
   instrument_document?: string;
+  refund_status?: string;
+  refund_date?: string;
+  refund_reference?: string;
+  refund_remarks?: string;
   remarks?: string;
   creation?: string;
   modified?: string;
@@ -130,6 +134,9 @@ export default function EmdInstrumentDetailPage() {
               [<User key="bn" className="h-3.5 w-3.5" />, 'Beneficiary', data.beneficiary_name],
               [<Calendar key="id" className="h-3.5 w-3.5" />, 'Issue Date', formatDate(data.issue_date)],
               [<Calendar key="ed" className="h-3.5 w-3.5" />, 'Expiry Date', formatDate(data.expiry_date)],
+              [<Clock key="rs" className="h-3.5 w-3.5" />, 'Refund Status', data.refund_status],
+              [<Calendar key="rd" className="h-3.5 w-3.5" />, 'Refund Date', formatDate(data.refund_date)],
+              [<FileText key="rr" className="h-3.5 w-3.5" />, 'Refund Reference', data.refund_reference],
               [<User key="o" className="h-3.5 w-3.5" />, 'Created By', data.owner],
               [<Calendar key="c" className="h-3.5 w-3.5" />, 'Created', formatDate(data.creation)],
             ].map(([icon, label, value]) => (
@@ -164,6 +171,12 @@ export default function EmdInstrumentDetailPage() {
             <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 p-3">
               <p className="text-xs font-medium text-blue-600 mb-1">Release Condition</p>
               <p className="text-sm text-gray-700 whitespace-pre-wrap">{data.release_condition}</p>
+            </div>
+          )}
+          {data.refund_remarks && (
+            <div className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+              <p className="text-xs font-medium text-emerald-700 mb-1">Refund Remarks</p>
+              <p className="text-sm text-gray-700 whitespace-pre-wrap">{data.refund_remarks}</p>
             </div>
           )}
         </div>

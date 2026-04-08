@@ -135,7 +135,7 @@ function StatCard({
   hint?: string;
 }) {
   return (
-    <div className={`rounded-xl border p-4 flex items-start gap-3 ${tone}`}>
+    <div className={`rounded-2xl border p-4 flex items-start gap-3 shadow-sm ${tone}`}>
       <span className="mt-0.5 flex-shrink-0">
         <Icon className="w-5 h-5" />
       </span>
@@ -170,21 +170,21 @@ function ItemList({
   const [open, setOpen] = useState(initialOpen);
 
   return (
-    <div className="rounded-xl border border-[var(--border)] overflow-hidden">
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <button
-        className="w-full flex items-center gap-2 px-4 py-3 bg-[var(--surface-hover)] hover:bg-[var(--surface-active)] transition-colors text-left"
+        className="w-full flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-4 py-3 text-left transition-colors hover:bg-slate-100"
         onClick={() => setOpen((p) => !p)}
       >
-        <Icon className="w-4 h-4 text-[var(--text-muted)] flex-shrink-0" />
-        <span className="text-sm font-semibold text-[var(--text-primary)] flex-1">{title}</span>
-        <span className="text-xs text-[var(--text-muted)]">{items.length} item{items.length !== 1 ? 's' : ''}</span>
-        {open ? <ChevronDown className="w-4 h-4 text-[var(--text-muted)]" /> : <ChevronRight className="w-4 h-4 text-[var(--text-muted)]" />}
+        <Icon className="w-4 h-4 text-slate-500 flex-shrink-0" />
+        <span className="text-sm font-semibold text-slate-900 flex-1">{title}</span>
+        <span className="text-xs text-slate-500">{items.length} item{items.length !== 1 ? 's' : ''}</span>
+        {open ? <ChevronDown className="w-4 h-4 text-slate-500" /> : <ChevronRight className="w-4 h-4 text-slate-500" />}
       </button>
 
       {open && (
-        <div className="divide-y divide-[var(--border)]">
+        <div className="divide-y divide-slate-100">
           {items.length === 0 ? (
-            <p className="px-4 py-3 text-xs text-[var(--text-muted)] italic">{emptyMsg}</p>
+            <p className="px-4 py-3 text-xs italic text-slate-500">{emptyMsg}</p>
           ) : (
             items.map((item, idx) => renderRow(item, idx))
           )}
@@ -201,42 +201,42 @@ function ItemList({
 function RecordRow({ rec }: { rec: AccountabilityRecord }) {
   const age = ageDays(rec.modified);
   return (
-    <div className="px-4 py-2.5 grid grid-cols-[1fr_auto] gap-2 hover:bg-[var(--surface-hover)] transition-colors">
+    <div className="grid grid-cols-[1fr_auto] gap-2 px-4 py-2.5 transition-colors hover:bg-slate-50">
       <div className="min-w-0">
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-xs font-medium text-[var(--text-primary)]">{rec.subject_doctype}</span>
-          <span className="text-xs text-[var(--text-muted)]">{rec.subject_name}</span>
+          <span className="text-xs font-medium text-slate-900">{rec.subject_doctype}</span>
+          <span className="text-xs text-slate-500">{rec.subject_name}</span>
           {rec.current_status && (
-            <span className="rounded-full bg-[var(--surface-hover)] px-2 py-0.5 text-[10px] text-[var(--text-muted)] border border-[var(--border)]">
+            <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] text-slate-600">
               {rec.current_status}
             </span>
           )}
         </div>
         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
           {rec.linked_project && (
-            <span className="text-[10px] text-[var(--text-muted)]">Project: {rec.linked_project}</span>
+            <span className="text-[10px] text-slate-500">Project: {rec.linked_project}</span>
           )}
           {rec.linked_site && (
-            <span className="text-[10px] text-[var(--text-muted)]">Site: {rec.linked_site}</span>
+            <span className="text-[10px] text-slate-500">Site: {rec.linked_site}</span>
           )}
           {rec.current_owner_role && (
-            <span className="text-[10px] text-[var(--text-muted)]">Owner: {rec.current_owner_role}</span>
+            <span className="text-[10px] text-slate-500">Owner: {rec.current_owner_role}</span>
           )}
           {rec.current_owner_user && (
-            <span className="text-[10px] text-[var(--text-muted)]">({shortName(rec.current_owner_user)})</span>
+            <span className="text-[10px] text-slate-500">({shortName(rec.current_owner_user)})</span>
           )}
         </div>
         {(rec.blocking_reason || rec.escalated_to_user) && (
-          <p className="text-[10px] mt-0.5 text-amber-600 dark:text-amber-400 truncate">
+          <p className="mt-0.5 truncate text-[10px] text-amber-700">
             {rec.blocking_reason || `Escalated to: ${shortName(rec.escalated_to_user)}`}
           </p>
         )}
         {rec.due_date && (
-          <p className="text-[10px] text-rose-500 mt-0.5">Due: {fmtTime(rec.due_date)}</p>
+          <p className="mt-0.5 text-[10px] text-rose-600">Due: {fmtTime(rec.due_date)}</p>
         )}
       </div>
       <div className="flex-shrink-0 text-right">
-        <span className="text-[10px] text-[var(--text-muted)] whitespace-nowrap">{age}d old</span>
+        <span className="whitespace-nowrap text-[10px] text-slate-500">{age}d old</span>
       </div>
     </div>
   );
@@ -248,29 +248,29 @@ function RecordRow({ rec }: { rec: AccountabilityRecord }) {
 
 function RejectedRow({ ev }: { ev: RejectedEvent }) {
   return (
-    <div className="px-4 py-2.5 hover:bg-[var(--surface-hover)] transition-colors">
+    <div className="px-4 py-2.5 transition-colors hover:bg-rose-50/70">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
             {ev.reference_doctype && (
-              <span className="text-xs font-medium text-[var(--text-primary)]">{ev.reference_doctype}</span>
+              <span className="text-xs font-medium text-slate-900">{ev.reference_doctype}</span>
             )}
             {ev.reference_name && (
-              <span className="text-xs text-[var(--text-muted)]">{ev.reference_name}</span>
+              <span className="text-xs text-slate-500">{ev.reference_name}</span>
             )}
           </div>
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-            <span className="text-[10px] text-[var(--text-muted)]">by {shortName(ev.actor)}</span>
-            {ev.actor_role && <span className="text-[10px] text-[var(--text-muted)]">({ev.actor_role})</span>}
-            {ev.actor_department && <span className="text-[10px] text-[var(--text-muted)]">· {ev.actor_department}</span>}
+            <span className="text-[10px] text-slate-500">by {shortName(ev.actor)}</span>
+            {ev.actor_role && <span className="text-[10px] text-slate-500">({ev.actor_role})</span>}
+            {ev.actor_department && <span className="text-[10px] text-slate-500">· {ev.actor_department}</span>}
           </div>
           {ev.remarks && (
-            <p className="text-[10px] mt-0.5 rounded bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 px-1.5 py-0.5 truncate">
+            <p className="mt-0.5 truncate rounded bg-rose-50 px-1.5 py-0.5 text-[10px] text-rose-700">
               {ev.remarks}
             </p>
           )}
         </div>
-        <span className="text-[10px] text-[var(--text-muted)] whitespace-nowrap flex-shrink-0">
+        <span className="flex-shrink-0 whitespace-nowrap text-[10px] text-slate-500">
           {fmtTime(ev.event_time)}
         </span>
       </div>
@@ -283,20 +283,20 @@ function RejectedRow({ ev }: { ev: RejectedEvent }) {
 /* ─────────────────────────────────────────────────────────────────────── */
 
 function HeatmapBar({ rows }: { rows: DeptHeatmapRow[] }) {
-  if (rows.length === 0) return <p className="text-xs text-[var(--text-muted)] italic py-2">No data</p>;
+  if (rows.length === 0) return <p className="py-2 text-xs italic text-slate-500">No data</p>;
   const max = rows[0]?.count || 1;
   return (
     <div className="space-y-2">
       {rows.map((row) => (
         <div key={row.department} className="flex items-center gap-2">
-          <span className="text-xs text-[var(--text-muted)] w-32 truncate flex-shrink-0">{row.department}</span>
-          <div className="flex-1 h-4 rounded-full bg-[var(--surface-hover)] overflow-hidden">
+          <span className="w-32 flex-shrink-0 truncate text-xs text-slate-500">{row.department}</span>
+          <div className="flex-1 h-4 overflow-hidden rounded-full bg-slate-100">
             <div
-              className="h-full rounded-full bg-amber-400 dark:bg-amber-600 transition-all"
+              className="h-full rounded-full bg-gradient-to-r from-amber-300 to-amber-500 transition-all"
               style={{ width: `${(row.count / max) * 100}%` }}
             />
           </div>
-          <span className="text-xs font-medium text-[var(--text-primary)] w-8 text-right">{row.count}</span>
+          <span className="w-8 text-right text-xs font-medium text-slate-900">{row.count}</span>
         </div>
       ))}
     </div>
@@ -321,20 +321,20 @@ const EVENT_COLORS: Record<string, string> = {
 };
 
 function EventDistribution({ rows }: { rows: EventTypeRow[] }) {
-  if (rows.length === 0) return <p className="text-xs text-[var(--text-muted)] italic py-2">No data</p>;
+  if (rows.length === 0) return <p className="py-2 text-xs italic text-slate-500">No data</p>;
   const max = rows[0]?.count || 1;
   return (
     <div className="space-y-1.5">
       {rows.slice(0, 12).map((row) => (
         <div key={row.event_type} className="flex items-center gap-2">
-          <span className="text-[10px] text-[var(--text-muted)] w-28 truncate flex-shrink-0">{row.event_type}</span>
-          <div className="flex-1 h-3 rounded-full bg-[var(--surface-hover)] overflow-hidden">
+          <span className="w-28 flex-shrink-0 truncate text-[10px] text-slate-500">{row.event_type}</span>
+          <div className="flex-1 h-3 overflow-hidden rounded-full bg-slate-100">
             <div
               className={`h-full rounded-full transition-all ${EVENT_COLORS[row.event_type] ?? 'bg-blue-400'}`}
               style={{ width: `${(row.count / max) * 100}%` }}
             />
           </div>
-          <span className="text-xs font-medium text-[var(--text-primary)] w-8 text-right">{row.count}</span>
+          <span className="w-8 text-right text-xs font-medium text-slate-900">{row.count}</span>
         </div>
       ))}
     </div>
@@ -397,8 +397,8 @@ export function AccountabilityDashboard({
       {/* Header */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
-          <h2 className="text-base font-semibold text-[var(--text-primary)]">Accountability &amp; Traceability</h2>
-          <p className="text-xs text-[var(--text-muted)] mt-0.5">
+          <h2 className="text-base font-semibold text-slate-900">Accountability &amp; Traceability</h2>
+          <p className="mt-0.5 text-xs text-slate-500">
             Director/RCA view — who owns what, what is blocked, what is overdue
             {lastUpdated && <> · Updated {lastUpdated}</>}
           </p>
@@ -406,16 +406,16 @@ export function AccountabilityDashboard({
         <button
           onClick={() => void load()}
           disabled={loading}
-          className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 shadow-sm transition-colors hover:border-slate-300 hover:text-slate-900 disabled:opacity-50"
         >
-          {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+          {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-600" /> : <RefreshCw className="w-3.5 h-3.5 text-amber-600" />}
           {loading ? 'Loading…' : 'Refresh'}
         </button>
       </div>
 
       {/* Error */}
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600 dark:border-red-800 dark:bg-red-950/30 dark:text-red-400">
+        <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 shadow-sm">
           <span className="font-medium">Error:</span> {error}
         </div>
       )}
@@ -426,33 +426,33 @@ export function AccountabilityDashboard({
           label="Open Items"
           value={summary.total_open}
           icon={TrendingUp}
-          tone="border-[var(--border)] bg-[var(--surface-hover)] text-[var(--text-primary)]"
+          tone="border-slate-200 bg-white text-slate-900"
         />
         <StatCard
           label="Blocked"
           value={summary.total_blocked}
           icon={Lock}
-          tone="border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300"
+          tone="border-red-200 bg-red-50 text-red-700"
           hint="require immediate attention"
         />
         <StatCard
           label="Overdue"
           value={summary.total_overdue}
           icon={Clock}
-          tone="border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-300"
+          tone="border-orange-200 bg-orange-50 text-orange-700"
           hint="past due date"
         />
         <StatCard
           label="Escalated"
           value={summary.total_escalated}
           icon={AlertTriangle}
-          tone="border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
+          tone="border-amber-200 bg-amber-50 text-amber-700"
         />
         <StatCard
           label="Recent Rejections"
           value={summary.total_rejected_recent}
           icon={ThumbsDown}
-          tone="border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-300"
+          tone="border-rose-200 bg-rose-50 text-rose-700"
           hint="last 30 days"
         />
       </div>
@@ -498,19 +498,19 @@ export function AccountabilityDashboard({
           />
 
           {/* Department Heatmap */}
-          <div className="rounded-xl border border-[var(--border)] p-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex items-center gap-2 mb-3">
-              <BarChart2 className="w-4 h-4 text-[var(--text-muted)]" />
-              <span className="text-sm font-semibold text-[var(--text-primary)]">Open Items by Department</span>
+              <BarChart2 className="w-4 h-4 text-slate-500" />
+              <span className="text-sm font-semibold text-slate-900">Open Items by Department</span>
             </div>
             <HeatmapBar rows={data.department_heatmap} />
           </div>
 
           {/* Event Distribution */}
-          <div className="rounded-xl border border-[var(--border)] p-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex items-center gap-2 mb-3">
-              <TrendingUp className="w-4 h-4 text-[var(--text-muted)]" />
-              <span className="text-sm font-semibold text-[var(--text-primary)]">Event Activity Distribution</span>
+              <TrendingUp className="w-4 h-4 text-slate-500" />
+              <span className="text-sm font-semibold text-slate-900">Event Activity Distribution</span>
             </div>
             <EventDistribution rows={data.event_type_distribution} />
           </div>

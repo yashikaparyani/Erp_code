@@ -19,7 +19,7 @@ export default function CostingQueueDetailPage() {
 
   const load = useCallback(async () => {
     setLoading(true); setError('');
-    try { setData(await callOps<Entry>('get_costing_queue_entry', { name: id })); }
+    try { setData(await callOps<Entry>('get_costing_queue_item', { name: id })); }
     catch (e) { setError(e instanceof Error ? e.message : 'Failed'); }
     setLoading(false);
   }, [id]);
@@ -87,7 +87,18 @@ export default function CostingQueueDetailPage() {
         open={!!action} title={`${action} Queue Entry`}
         confirmLabel={action || ''} variant={action === 'Reject' ? 'danger' : 'default'}
         fields={[{ name: 'remarks', label: 'Remarks', type: 'textarea', required: action === 'Reject' }]}
-        onConfirm={async (v) => { await callOps('action_costing_queue_entry', { name: id, action: action!.toLowerCase(), ...v }); setAction(null); load(); }}
+        onConfirm={async (v) => {
+          const methodMap: Record<string, string> = {
+            Release: 'costing_release_item',
+            Hold: 'costing_hold_item',
+            Reject: 'costing_reject_item',
+          };
+          const method = methodMap[action || ''];
+          if (!method) return;
+          await callOps(method, { name: id, ...v });
+          setAction(null);
+          load();
+        }}
         onCancel={() => setAction(null)}
       />
     </DetailPage>

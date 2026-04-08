@@ -37,6 +37,13 @@ export default function FollowUpsPage() {
         summary: values.summary,
       })}
       actions={[
+        {
+          label: 'Update',
+          tone: 'primary',
+          visible: (row) => row.status !== 'CLOSED',
+          buildRequest: (row) => ({ method: 'update_payment_follow_up', args: { name: row.name } }),
+          prompt: { message: 'Update note', field: 'remarks' },
+        },
         { label: 'Escalate', tone: 'warning', visible: (row) => row.status !== 'CLOSED', buildRequest: (row) => ({ method: 'escalate_payment_follow_up', args: { name: row.name } }), prompt: { message: 'Escalation note', field: 'remarks' } },
         { label: 'Close', tone: 'success', visible: (row) => row.status !== 'CLOSED', buildRequest: (row) => ({ method: 'close_payment_follow_up', args: { name: row.name } }), prompt: { message: 'Closing note', field: 'remarks' } },
         { label: 'Delete', tone: 'danger', buildRequest: (row) => ({ method: 'delete_payment_follow_up', args: { name: row.name } }), confirmMessage: 'Delete this follow-up?' },

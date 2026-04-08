@@ -21,7 +21,10 @@ export default function FollowUpDetailPage() {
 
   const load = useCallback(async () => {
     setLoading(true); setError('');
-    try { setData(await callOps<FollowUp>('get_follow_up', { name: id })); }
+    try {
+      const rows = await callOps<FollowUp[]>('get_payment_follow_ups', { name: id });
+      setData(Array.isArray(rows) ? (rows[0] || null) : null);
+    }
     catch (e) { setError(e instanceof Error ? e.message : 'Failed'); }
     setLoading(false);
   }, [id]);
@@ -40,8 +43,10 @@ export default function FollowUpDetailPage() {
       status={d.status} statusVariant={statusVariant(d.status)}
       headerActions={canAct && isOpen ? (
         <div className="flex gap-2">
+          <button className="btn btn-secondary" onClick={() => setAction('Update')}>Update</button>
           <button className="btn btn-primary" onClick={() => setAction('Close')}>Close</button>
           <button className="btn btn-secondary" onClick={() => setAction('Escalate')}>Escalate</button>
+          <button className="btn btn-secondary text-red-600" onClick={() => setAction('Delete')}>Delete</button>
         </div>
       ) : undefined}
       identityBlock={
@@ -81,11 +86,23 @@ export default function FollowUpDetailPage() {
         open={!!action} title={`${action} Follow-Up`}
         confirmLabel={action || ''} variant={action === 'Close' ? 'default' : 'default'}
         fields={[
-          { name: 'remarks', label: 'Remarks', type: 'textarea', required: true },
+          { name: 'remarks', label: 'Remarks', type: 'textarea', required: action !== 'Update' ? true : false },
           ...(action === 'Close' ? [{ name: 'collected_amount', label: 'Collected Amount', type: 'text' as const }] : []),
           ...(action === 'Escalate' ? [{ name: 'escalate_to', label: 'Escalate To', type: 'text' as const }] : []),
         ]}
-        onConfirm={async (v) => { await callOps('action_follow_up', { name: id, action: action!.toLowerCase(), ...v }); setAction(null); load(); }}
+        onConfirm={async (v) => {
+          const methodMap: Record<string, string> = {
+            Update: 'update_payment_follow_up',
+            Close: 'close_payment_follow_up',
+            Escalate: 'escalate_payment_follow_up',
+            Delete: 'delete_payment_follow_up',
+          };
+          const method = methodMap[action || ''];
+          if (!method) return;
+          await callOps(method, { name: id, ...v });
+          setAction(null);
+          load();
+        }}
         onCancel={() => setAction(null)}
       />
     </DetailPage>

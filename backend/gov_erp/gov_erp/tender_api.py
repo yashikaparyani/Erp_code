@@ -35,13 +35,14 @@ def get_tenders(filters=None, limit_page_length=50, limit_start=0):
 	if tender_names:
 		bid_rows = frappe.get_all(
 			"GE Bid",
-			filters={"linked_tender": ["in", tender_names]},
-			fields=["name", "linked_tender", "status", "bid_amount", "bid_date"],
+			filters={"tender": ["in", tender_names]},
+			fields=["name", "tender", "status", "bid_amount", "bid_date"],
 			order_by="creation desc",
 		)
 		for b in bid_rows:
-			if b.linked_tender not in latest_bids:
-				latest_bids[b.linked_tender] = b
+			b["linked_tender"] = b.get("tender")
+			if b.tender not in latest_bids:
+				latest_bids[b.tender] = b
 
 	for t in data:
 		_attach_computed_tender_funnel_status(t)
@@ -89,13 +90,21 @@ def _get_tender_transition_readiness(doc, target_status):
 	"""Return readiness checks before moving a tender into a controlled lifecycle status."""
 	checks = []
 
+	def _count_emd_pbg_for_tender(tender_name):
+		if frappe.db.has_column("GE EMD PBG Instrument", "linked_tender"):
+			return frappe.db.count("GE EMD PBG Instrument", {"linked_tender": tender_name})
+		linked_project = frappe.db.get_value("GE Tender", tender_name, "linked_project")
+		if not linked_project:
+			return 0
+		return frappe.db.count("GE EMD PBG Instrument", {"linked_project": linked_project})
+
 	def add_check(ok, label):
 		checks.append({"ok": bool(ok), "label": label})
 
 	if target_status == "SUBMITTED":
 		boq_count = frappe.db.count("GE BOQ", {"linked_tender": doc.name})
 		cost_sheet_count = frappe.db.count("GE Cost Sheet", {"linked_tender": doc.name})
-		finance_count = frappe.db.count("GE EMD PBG Instrument", {"linked_tender": doc.name})
+		finance_count = _count_emd_pbg_for_tender(doc.name)
 		add_check(getattr(doc, "go_no_go_status", None) == "GO", "Go / No-Go should be approved before submission.")
 		add_check(getattr(doc, "technical_readiness", None) == "APPROVED", "Technical readiness should be approved before submission.")
 		add_check(getattr(doc, "commercial_readiness", None) == "APPROVED", "Commercial readiness should be approved before submission.")
@@ -284,7 +293,7 @@ def get_tender_approvals(tender=None, status=None):
 		fields=[
 			"name", "linked_tender", "approval_type", "status", "requested_by",
 			"approver_role", "approver_user", "request_remarks", "action_remarks",
-			"acted_on", "creation", "modified",
+			"acted_on", "attached_document", "creation", "modified",
 		],
 		order_by="creation desc",
 	)
@@ -648,44 +657,91 @@ def create_organization(data):
 def get_emd_pbg_instruments(tender=None, instrument_type=None, status=None):
 	"""Return EMD/PBG instruments, optionally filtered by tender and type."""
 	_require_tender_read_access()
+	has_linked_tender = frappe.db.has_column("GE EMD PBG Instrument", "linked_tender")
+	has_linked_project = frappe.db.has_column("GE EMD PBG Instrument", "linked_project")
 	filters = {}
 	if tender:
-		filters["linked_tender"] = tender
+		if has_linked_tender:
+			filters["linked_tender"] = tender
 	if instrument_type:
 		filters["instrument_type"] = instrument_type
 	if status:
 		filters["status"] = status
+	fields = [
+		"name", "instrument_type", "instrument_number",
+		"amount", "status", "bank_name", "issue_date", "expiry_date", "instrument_document", "remarks",
+		"refund_status", "refund_date", "refund_reference", "refund_remarks",
+		"creation", "modified",
+	]
+	if has_linked_tender:
+		fields.insert(2, "linked_tender")
+	elif has_linked_project:
+		fields.insert(2, "linked_project")
 	data = frappe.get_all(
 		"GE EMD PBG Instrument",
 		filters=filters,
-		fields=[
-			"name", "instrument_type", "linked_tender", "instrument_number",
-			"amount", "status", "bank_name", "issue_date", "expiry_date", "instrument_document", "remarks",
-			"creation", "modified",
-		],
+		fields=fields,
 		order_by="creation desc",
 	)
+	if not has_linked_tender:
+		for row in data:
+			linked_project = cstr(row.get("linked_project") or "").strip()
+			if linked_project:
+				row["linked_tender"] = cstr(frappe.db.get_value("Project", linked_project, "linked_tender") or "").strip()
+	if tender and not has_linked_tender:
+		data = [row for row in data if row.get("linked_tender") == tender]
 	return {"success": True, "data": data}
 
 
+def _normalize_refund_status(value):
+	status = (value or "NOT_DUE").strip().upper()
+	allowed = {"NOT_DUE", "PENDING", "INITIATED", "REFUNDED", "NOT_REFUNDABLE"}
+	if status not in allowed:
+		frappe.throw("Invalid refund status")
+	return status
+
+
+def _is_pbg_allowed_for_tender(linked_tender):
+	if not linked_tender:
+		return False
+	tender_status = cstr(frappe.db.get_value("GE Tender", linked_tender, "status") or "").strip().upper()
+	allowed_statuses = {"WON", "CONVERTED_TO_PROJECT", "CONVERTED TO PROJECT"}
+	return tender_status in allowed_statuses
+
+
 @frappe.whitelist()
-def create_emd_pbg_instrument(data):
+def create_emd_pbg_instrument(data=None, **kwargs):
 	"""Create an EMD/PBG instrument row."""
 	_require_tender_write_access()
-	values = json.loads(data) if isinstance(data, str) else data
+	values = json.loads(data) if isinstance(data, str) else (data or {})
+	if kwargs:
+		values.update(kwargs)
 	linked_tender = (values.get("linked_tender") or "").strip()
 	if not linked_tender:
 		frappe.throw("Linked tender is required")
 	amount = float(values.get("amount") or 0)
 	if amount <= 0:
 		frappe.throw("Amount must be greater than zero")
+	instrument_type = (values.get("instrument_type") or "").strip().upper()
+	if instrument_type in ("PBG", "ADDITIONAL_PBG", "RETENTION_BG") and not _is_pbg_allowed_for_tender(linked_tender):
+		frappe.throw("PBG can only be created for won/converted tenders")
+
+	refund_status = values.get("refund_status")
+	if not refund_status:
+		refund_status = "PENDING" if instrument_type == "EMD" else "NOT_DUE"
+	refund_status = _normalize_refund_status(refund_status)
 
 	payload = {
 		"doctype": "GE EMD PBG Instrument",
 		**values,
 		"linked_tender": linked_tender,
+		"instrument_type": instrument_type or values.get("instrument_type"),
 		"amount": amount,
 		"status": values.get("status") or "Pending",
+		"refund_status": refund_status,
+		"refund_date": values.get("refund_date"),
+		"refund_reference": values.get("refund_reference"),
+		"refund_remarks": values.get("refund_remarks"),
 	}
 	doc = frappe.get_doc(payload)
 	doc.insert()
@@ -694,140 +750,112 @@ def create_emd_pbg_instrument(data):
 
 
 @frappe.whitelist()
+def update_emd_pbg_instrument(name, data=None, **kwargs):
+	"""Update an EMD/PBG instrument row."""
+	_require_tender_write_access()
+	values = json.loads(data) if isinstance(data, str) else (data or {})
+	if kwargs:
+		values.update(kwargs)
+	doc = frappe.get_doc("GE EMD PBG Instrument", name)
+
+	instrument_type = (values.get("instrument_type") or doc.instrument_type or "").strip().upper()
+	if instrument_type in ("PBG", "ADDITIONAL_PBG", "RETENTION_BG") and not _is_pbg_allowed_for_tender(doc.linked_tender):
+		frappe.throw("PBG can only be created for won/converted tenders")
+
+	if "instrument_type" in values:
+		doc.instrument_type = instrument_type
+	if "instrument_number" in values:
+		doc.instrument_number = values.get("instrument_number")
+	if "bank_name" in values:
+		doc.bank_name = values.get("bank_name")
+	if "issue_date" in values:
+		doc.issue_date = values.get("issue_date")
+	if "expiry_date" in values:
+		doc.expiry_date = values.get("expiry_date")
+	if "amount" in values:
+		doc.amount = float(values.get("amount") or 0)
+	if "status" in values:
+		doc.status = values.get("status")
+	if "remarks" in values:
+		doc.remarks = values.get("remarks")
+	if "refund_status" in values:
+		doc.refund_status = _normalize_refund_status(values.get("refund_status"))
+	if "refund_date" in values:
+		doc.refund_date = values.get("refund_date")
+	if "refund_reference" in values:
+		doc.refund_reference = values.get("refund_reference")
+	if "refund_remarks" in values:
+		doc.refund_remarks = values.get("refund_remarks")
+
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Instrument updated"}
+
+
+@frappe.whitelist()
+def delete_emd_pbg_instrument(name):
+	"""Delete an EMD/PBG instrument row."""
+	_require_tender_write_access()
+	frappe.delete_doc("GE EMD PBG Instrument", name)
+	frappe.db.commit()
+	return {"success": True, "message": "Instrument deleted"}
+
+
+@frappe.whitelist()
+def set_emd_refund_status(name, refund_status, refund_date=None, refund_reference=None, refund_remarks=None):
+	"""Update refund tracking fields for an EMD instrument."""
+	_require_tender_write_access()
+	doc = frappe.get_doc("GE EMD PBG Instrument", name)
+	if cstr(doc.instrument_type or "").strip().upper() != "EMD":
+		frappe.throw("Refund status can be set only for EMD instruments")
+
+	doc.refund_status = _normalize_refund_status(refund_status)
+	if refund_date is not None:
+		doc.refund_date = refund_date
+	if refund_reference is not None:
+		doc.refund_reference = refund_reference
+	if refund_remarks is not None:
+		doc.refund_remarks = refund_remarks
+
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Refund status updated"}
+
+
+@frappe.whitelist()
 def get_tender_results(tender=None, result_stage=None, is_fresh=None):
-	"""Return tender result rows."""
-	_require_tender_read_access()
-	filters = {}
-	if tender:
-		filters["tender"] = tender
-	if result_stage:
-		filters["result_stage"] = result_stage
-	if is_fresh is not None and str(is_fresh) != "":
-		filters["is_fresh"] = int(is_fresh)
-	data = frappe.get_all(
-		"GE Tender Result",
-		filters=filters,
-		fields=[
-			"name", "result_id", "tender", "reference_no", "organization_name",
-			"result_stage", "publication_date", "winning_amount", "winner_company",
-			"is_fresh", "site_location", "creation", "modified",
-		],
-		order_by="publication_date desc, creation desc",
-	)
-
-	tracked_statuses = ["UNDER_EVALUATION", "WON", "LOST"]
-	tracked_filters = {"status": ["in", tracked_statuses]}
-	if tender:
-		tracked_filters["name"] = tender
-
-	stage_status_map = {
-		"Technical Evaluation": {"UNDER_EVALUATION"},
-		"Financial Evaluation": {"UNDER_EVALUATION", "LOST"},
-		"AOC": {"WON"},
-		"LoI Issued": {"WON"},
-		"Work Order": {"WON"},
-	}
-	if result_stage and result_stage in stage_status_map:
-		tracked_filters["status"] = ["in", list(stage_status_map[result_stage])]
-
-	tracked_tenders = frappe.get_all(
-		"GE Tender",
-		filters=tracked_filters,
-		fields=["name", "tender_number", "title", "client", "organization", "status", "submission_date", "estimated_value", "modified"],
-		order_by="modified desc",
-	)
-	existing_tenders = {row.get("tender") for row in data if row.get("tender")}
-	for tracked in tracked_tenders:
-		if tracked.name in existing_tenders:
-			continue
-		synthetic_stage = _get_tender_result_stage_for_status(tracked.status)
-		if result_stage and synthetic_stage != result_stage:
-			continue
-		data.append(
-			{
-				"name": f"tracked::{tracked.name}",
-				"result_id": tracked.tender_number,
-				"tender": tracked.name,
-				"reference_no": tracked.tender_number,
-				"organization_name": tracked.organization or tracked.client,
-				"result_stage": synthetic_stage,
-				"publication_date": tracked.submission_date or cstr(tracked.modified)[:10],
-				"winning_amount": tracked.estimated_value if tracked.status == "WON" else 0,
-				"winner_company": "",
-				"is_fresh": 1,
-				"site_location": "",
-				"creation": tracked.modified,
-				"modified": tracked.modified,
-			}
-		)
-
-	data.sort(
-		key=lambda row: (
-			_normalize_sortable_datetime(row.get("publication_date")),
-			_normalize_sortable_datetime(row.get("creation")),
-		),
-		reverse=True,
-	)
-	return {"success": True, "data": data}
+	"""Deprecated: tender result tracker removed from workflow."""
+	return {"success": False, "message": "Tender result tracker has been retired. Use bid workflow states instead."}
 
 
 @frappe.whitelist()
 def get_tender_result(name=None):
-	"""Return one tender result row with bidders."""
-	_require_tender_read_access()
-	name = _require_param(name, "name")
-	doc = frappe.get_doc("GE Tender Result", name)
-	return {"success": True, "data": doc.as_dict()}
+	"""Deprecated: tender result tracker removed from workflow."""
+	return {"success": False, "message": "Tender result tracker has been retired. Use bid workflow states instead."}
 
 
 @frappe.whitelist()
 def create_tender_result(data):
-	"""Create a tender result row."""
-	_require_tender_write_access()
-	values = json.loads(data) if isinstance(data, str) else data
-	doc = frappe.get_doc({"doctype": "GE Tender Result", **values})
-	doc.insert()
-	frappe.db.commit()
-	return {"success": True, "data": doc.as_dict(), "message": "Tender result created"}
+	"""Deprecated: tender result tracker removed from workflow."""
+	return {"success": False, "message": "Tender result tracker has been retired. Use bid workflow states instead."}
 
 
 @frappe.whitelist()
 def update_tender_result(name, data):
-	"""Update a tender result row."""
-	_require_tender_write_access()
-	values = json.loads(data) if isinstance(data, str) else data
-	doc = frappe.get_doc("GE Tender Result", name)
-	doc.update(values)
-	doc.save()
-	frappe.db.commit()
-	return {"success": True, "data": doc.as_dict(), "message": "Tender result updated"}
+	"""Deprecated: tender result tracker removed from workflow."""
+	return {"success": False, "message": "Tender result tracker has been retired. Use bid workflow states instead."}
 
 
 @frappe.whitelist()
 def delete_tender_result(name):
-	"""Delete a tender result row."""
-	_require_tender_write_access()
-	frappe.delete_doc("GE Tender Result", name)
-	frappe.db.commit()
-	return {"success": True, "message": "Tender result deleted"}
+	"""Deprecated: tender result tracker removed from workflow."""
+	return {"success": False, "message": "Tender result tracker has been retired. Use bid workflow states instead."}
 
 
 @frappe.whitelist()
 def get_tender_result_stats():
-	"""Aggregate tender result stats."""
-	_require_tender_read_access()
-	rows = frappe.get_all("GE Tender Result", fields=["result_stage", "winning_amount", "is_fresh"])
-	return {
-		"success": True,
-		"data": {
-			"total": len(rows),
-			"fresh": sum(1 for row in rows if row.is_fresh),
-			"aoc": sum(1 for row in rows if row.result_stage == "AOC"),
-			"loi_issued": sum(1 for row in rows if row.result_stage == "LoI Issued"),
-			"work_order": sum(1 for row in rows if row.result_stage == "Work Order"),
-			"total_winning_amount": sum(row.winning_amount or 0 for row in rows),
-		},
-	}
+	"""Deprecated: tender result tracker removed from workflow."""
+	return {"success": False, "message": "Tender result tracker has been retired. Use bid workflow states instead."}
 
 
 @frappe.whitelist()

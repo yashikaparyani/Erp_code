@@ -50,7 +50,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useRole, type Role, PROJECT_SIDE_ROLES } from '../context/RoleContext';
+import { useRole, type Role, PROJECT_SIDE_ROLES, roleAccess } from '../context/RoleContext';
 
 interface SubMenuItem {
   name: string;
@@ -84,7 +84,8 @@ const isRoleAllowedForItem = (item: Pick<SubMenuItem, 'href'>, role: Role) => {
     return role === 'Director';
   }
 
-  return true;
+  const allowedPaths = roleAccess[role] ?? [];
+  return allowedPaths.some((allowedPath) => item.href === allowedPath || item.href.startsWith(allowedPath + '/'));
 };
 
 const filterAccessibleItems = (items: SubMenuItem[], hasAccess: (path: string) => boolean, role: Role): SubMenuItem[] => {
@@ -106,7 +107,7 @@ const filterAccessibleNavLinks = (links: NavLink[], hasAccess: (path: string) =>
   return links.reduce<NavLink[]>((visibleLinks, link) => {
     const visibleChildren = link.children ? filterAccessibleItems(link.children, hasAccess, role) : undefined;
 
-    if (hasAccess(link.href) || (visibleChildren?.length ?? 0) > 0) {
+    if (isRoleAllowedForItem(link, role) && (hasAccess(link.href) || (visibleChildren?.length ?? 0) > 0)) {
       visibleLinks.push({
         ...link,
         children: visibleChildren,
@@ -118,6 +119,11 @@ const filterAccessibleNavLinks = (links: NavLink[], hasAccess: (path: string) =>
 };
 
 const shouldShowNavLinkForRole = (link: NavLink, role: Role, isPermissionLoaded: boolean) => {
+  const allowedPaths = roleAccess[role] ?? [];
+  const roleAllowsLink = allowedPaths.some((allowedPath) => link.href === allowedPath || link.href.startsWith(allowedPath + '/'));
+
+  if (!roleAllowsLink) return false;
+
   if (isPermissionLoaded) return true;
 
   if (link.name === 'Projects') {
@@ -146,10 +152,9 @@ const navLinks: NavLink[] = [
       { name: 'Approvals', href: '/pre-sales/approvals', icon: CheckSquare },
     ],
   },
-  { name: 'Projects', href: '/projects', icon: Layers3 },
   {
-    name: 'Project Head',
-    href: '/project-head/letter-of-completion',
+    name: 'Projects',
+    href: '/projects',
     icon: Briefcase,
     children: [
       { name: 'Project Workspace', href: '/projects', icon: Layers3 },

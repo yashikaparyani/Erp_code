@@ -22,7 +22,7 @@ export default function PenaltyDetailPage() {
 
   const load = useCallback(async () => {
     setLoading(true); setError('');
-    try { setData(await callOps<Penalty>('get_penalty', { name: id })); }
+    try { setData(await callOps<Penalty>('get_penalty_deduction', { name: id })); }
     catch (e) { setError(e instanceof Error ? e.message : 'Failed'); }
     setLoading(false);
   }, [id]);
@@ -41,9 +41,11 @@ export default function PenaltyDetailPage() {
       status={d.status} statusVariant={statusVariant(d.status)}
       headerActions={canAct ? (
         <div className="flex gap-2">
+          {(d.status === 'Pending' || d.status === 'Draft' || d.status === 'Approved') && <button className="btn btn-secondary" onClick={() => setAction('Update')}>Update</button>}
           {isPending && <button className="btn btn-primary" onClick={() => setAction('Approve')}>Approve</button>}
           {d.status === 'Approved' && <button className="btn btn-primary" onClick={() => setAction('Apply')}>Apply to Invoice</button>}
           {(d.status === 'Approved' || d.status === 'Applied') && <button className="btn btn-secondary text-red-600" onClick={() => setAction('Reverse')}>Reverse</button>}
+          {(d.status === 'Draft' || d.status === 'Pending') && <button className="btn btn-secondary text-red-600" onClick={() => setAction('Delete')}>Delete</button>}
         </div>
       ) : undefined}
       identityBlock={
@@ -83,12 +85,25 @@ export default function PenaltyDetailPage() {
     >
       <ActionModal
         open={!!action} title={`${action} Penalty`}
-        confirmLabel={action || ''} variant={action === 'Reverse' ? 'danger' : 'default'}
+        confirmLabel={action || ''} variant={action === 'Reverse' || action === 'Delete' ? 'danger' : 'default'}
         fields={[
-          { name: 'remarks', label: 'Remarks', type: 'textarea', required: action === 'Reverse' },
+          { name: 'remarks', label: 'Remarks', type: 'textarea', required: action === 'Reverse' || action === 'Delete' },
           ...(action === 'Apply' ? [{ name: 'invoice', label: 'Invoice to Apply', type: 'text' as const, required: true }] : []),
         ]}
-        onConfirm={async (v) => { await callOps('action_penalty', { name: id, action: action!.toLowerCase(), ...v }); setAction(null); load(); }}
+        onConfirm={async (v) => {
+          const methodMap: Record<string, string> = {
+            Approve: 'approve_penalty_deduction',
+            Apply: 'apply_penalty_deduction',
+            Reverse: 'reverse_penalty_deduction',
+            Update: 'update_penalty_deduction',
+            Delete: 'delete_penalty_deduction',
+          };
+          const method = methodMap[action || ''];
+          if (!method) return;
+          await callOps(method, { name: id, ...v });
+          setAction(null);
+          load();
+        }}
         onCancel={() => setAction(null)}
       />
     </DetailPage>

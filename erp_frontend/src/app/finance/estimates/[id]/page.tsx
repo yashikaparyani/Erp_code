@@ -43,9 +43,11 @@ export default function EstimateDetailPage() {
       headerActions={
         <div className="flex gap-2">
           {canEdit && d.status === 'Draft' && <button className="btn btn-primary" onClick={() => setAction('Send')}>Send</button>}
+          {canEdit && (d.status === 'Draft' || d.status === 'Sent') && <button className="btn btn-secondary" onClick={() => setAction('Update')}>Update</button>}
           {canApprove && d.status === 'Sent' && <button className="btn btn-primary" onClick={() => setAction('Approve')}>Approve</button>}
           {canApprove && d.status === 'Sent' && <button className="btn btn-secondary text-red-600" onClick={() => setAction('Reject')}>Reject</button>}
           {canEdit && d.status === 'Approved' && <button className="btn btn-primary" onClick={() => setAction('Convert')}>Convert to Proforma</button>}
+          {canEdit && d.status === 'Draft' && <button className="btn btn-secondary text-red-600" onClick={() => setAction('Delete')}>Delete</button>}
         </div>
       }
       identityBlock={
@@ -99,8 +101,22 @@ export default function EstimateDetailPage() {
       <ActionModal
         open={!!action} title={`${action} Estimate`}
         confirmLabel={action || ''} variant={action === 'Reject' ? 'danger' : 'default'}
-        fields={action === 'Reject' ? [{ name: 'reason', label: 'Reason', type: 'textarea', required: true }] : [{ name: 'remarks', label: 'Remarks', type: 'textarea' }]}
-        onConfirm={async (v) => { await callOps('action_estimate', { name: id, action: action!.toLowerCase().replace(/ /g, '_'), ...v }); setAction(null); load(); }}
+        fields={action === 'Reject' || action === 'Delete' ? [{ name: 'reason', label: 'Reason', type: 'textarea', required: true }] : [{ name: 'remarks', label: 'Remarks', type: 'textarea' }]}
+        onConfirm={async (v) => {
+          const methodMap: Record<string, string> = {
+            Send: 'submit_estimate',
+            Approve: 'approve_estimate',
+            Reject: 'reject_estimate',
+            Convert: 'convert_estimate_to_proforma',
+            Update: 'update_estimate',
+            Delete: 'delete_estimate',
+          };
+          const method = methodMap[action || ''];
+          if (!method) return;
+          await callOps(method, { name: id, ...v });
+          setAction(null);
+          load();
+        }}
         onCancel={() => setAction(null)}
       />
     </DetailPage>

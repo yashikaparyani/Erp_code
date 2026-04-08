@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import DetailPage from '@/components/shells/DetailPage';
+import ActionModal from '@/components/ui/ActionModal';
 import AccountabilityTimeline from '@/components/accountability/AccountabilityTimeline';
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
 import TraceabilityPanel from '@/components/ui/TraceabilityPanel';
@@ -16,6 +17,7 @@ export default function PaymentReceiptDetailPage() {
   const [data, setData] = useState<Receipt | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [action, setAction] = useState<'update' | 'delete' | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true); setError('');
@@ -34,6 +36,12 @@ export default function PaymentReceiptDetailPage() {
       backHref="/finance/payment-receipts" backLabel="Receipts"
       loading={loading} error={error} onRetry={load}
       status={d.status} statusVariant={statusVariant(d.status)}
+      headerActions={
+        <div className="flex gap-2">
+          <button className="btn btn-secondary" onClick={() => setAction('update')}>Update</button>
+          <button className="btn btn-secondary text-red-600" onClick={() => setAction('delete')}>Delete</button>
+        </div>
+      }
       identityBlock={
         <div className="card">
           <div className="card-header"><h3 className="font-semibold">Receipt Details</h3></div>
@@ -74,6 +82,26 @@ export default function PaymentReceiptDetailPage() {
           <div className="flex justify-between font-semibold border-t pt-2"><span>Unadjusted Balance</span><span className="text-orange-600">{formatCurrency(d.unadjusted_amount)}</span></div>
         </div>
       </div>
+
+      <ActionModal
+        open={!!action}
+        title={action === 'delete' ? 'Delete Payment Receipt' : 'Update Payment Receipt'}
+        confirmLabel={action === 'delete' ? 'Delete' : 'Update'}
+        variant={action === 'delete' ? 'danger' : 'default'}
+        fields={[
+          { name: 'remarks', label: action === 'delete' ? 'Delete Reason' : 'Update Note', type: 'textarea', required: action === 'delete' },
+        ]}
+        onConfirm={async (v) => {
+          if (action === 'delete') {
+            await callOps('delete_payment_receipt', { name: id, ...v });
+          } else {
+            await callOps('update_payment_receipt', { name: id, ...v });
+          }
+          setAction(null);
+          load();
+        }}
+        onCancel={() => setAction(null)}
+      />
     </DetailPage>
   );
 }

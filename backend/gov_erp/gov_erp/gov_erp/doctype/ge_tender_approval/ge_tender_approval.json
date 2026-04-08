@@ -16,6 +16,7 @@
   "approver_user",
   "request_remarks",
   "action_remarks",
+    "attached_document",
   "acted_on"
  ],
  "fields": [
@@ -85,6 +86,11 @@
    "fieldname": "action_remarks",
    "fieldtype": "Small Text",
    "label": "Action Remarks"
+    },
+    {
+     "fieldname": "attached_document",
+     "fieldtype": "Attach",
+     "label": "Attached Document"
   },
   {
    "fieldname": "acted_on",

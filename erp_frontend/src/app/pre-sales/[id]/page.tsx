@@ -9,12 +9,12 @@ import { getFileProxyUrl } from '@/lib/fileLinks';
 import { deriveTenderFunnelStatus, getTenderFunnelMeta } from '@/components/tenderFunnel';
 import { useRole } from '@/context/RoleContext';
 import { AccountabilityTimeline } from '@/components/accountability/AccountabilityTimeline';
-import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
 import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
 import {
   AlertCircle,
   ArrowLeft,
   CheckCircle2,
+  ChevronDown,
   FilePlus2,
   FileText,
   FolderPlus,
@@ -64,6 +64,8 @@ type Tender = {
   tender_owner?: string;
   submission_status?: string;
   finance_readiness?: string;
+  creation?: string;
+  owner?: string;
 };
 
 type TenderApproval = {
@@ -105,24 +107,6 @@ type BidRow = {
   bid_date?: string;
 };
 
-type TenderResultRow = {
-  name: string;
-  result_stage?: string;
-  winning_bidder?: string;
-  winning_amount?: number;
-  result_date?: string;
-  remarks?: string;
-};
-
-type TenderReminderRow = {
-  name: string;
-  title?: string;
-  reminder_date?: string;
-  reminder_time?: string;
-  reminder_kind?: string;
-  status?: string;
-};
-
 type SurveyRow = {
   name: string;
   status?: string;
@@ -145,23 +129,14 @@ type CostSheetRow = {
   sell_value?: number;
 };
 
-type TenderChecklistRow = {
-  name: string;
-  checklist_name?: string;
-  completion_pct?: number;
-};
-
 type WorkspaceResponse = {
   tender: Tender | null;
-  results: TenderResultRow[];
-  reminders: TenderReminderRow[];
   surveys: SurveyRow[];
   boqs: BoqRow[];
   costSheets: CostSheetRow[];
   approvals: TenderApproval[];
   financeRequests: Instrument[];
   instruments: Instrument[];
-  checklistTemplates: TenderChecklistRow[];
   bids: BidRow[];
 };
 
@@ -200,6 +175,13 @@ function formatDateTime(date?: string, time?: string) {
   return raw;
 }
 
+function getPreviewMode(url: string): 'pdf' | 'image' | 'none' {
+  const clean = (url.split('?')[0] || '').toLowerCase();
+  if (clean.endsWith('.pdf')) return 'pdf';
+  if (clean.endsWith('.png') || clean.endsWith('.jpg') || clean.endsWith('.jpeg') || clean.endsWith('.webp') || clean.endsWith('.gif') || clean.endsWith('.svg')) return 'image';
+  return 'none';
+}
+
 function ActionButton({
   onClick,
   disabled,
@@ -227,6 +209,19 @@ function ActionButton({
       {children}
     </button>
   );
+}
+
+async function callOps<T>(method: string, args?: Record<string, unknown>): Promise<T> {
+  const response = await fetch('/api/ops', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ method, args }),
+  });
+  const json = await response.json().catch(() => ({}));
+  if (!response.ok || json.success === false) {
+    throw new Error(json.message || `Failed to execute ${method}`);
+  }
+  return (json.data ?? json) as T;
 }
 
 type StageCardAction = {
@@ -342,21 +337,33 @@ export default function TenderWorkspacePage() {
       });
     });
 
+    (((workspace?.instruments?.length ? workspace.instruments : workspace?.financeRequests) || []) as Instrument[]).forEach((instrument) => {
+      if (!instrument.instrument_document) return;
+      docs.push({
+        label: `${instrument.instrument_type || 'Instrument'} Document`,
+        file: instrument.instrument_document,
+        helper: `${instrument.instrument_number || instrument.name} uploaded against EMD/PBG tracking.`,
+      });
+    });
+
     return docs.filter((doc, index, list) => list.findIndex((item) => item.file === doc.file) === index);
-  }, [tender?.rfp_document, tender?.tender_document, workspace?.approvals]);
+  }, [tender?.rfp_document, tender?.tender_document, workspace?.approvals, workspace?.financeRequests, workspace?.instruments]);
 
   const canObserve = derivedFunnel === 'Not Qualified Tender' || derivedFunnel === 'Locked Tender';
   const surveyCount = workspace?.surveys?.length || 0;
   const boqCount = workspace?.boqs?.length || 0;
   const costSheetCount = workspace?.costSheets?.length || 0;
-  const reminderCount = workspace?.reminders?.length || 0;
-  const checklistAvg = workspace?.checklistTemplates?.length
-    ? Math.round(workspace.checklistTemplates.reduce((sum, row) => sum + Number(row.completion_pct || 0), 0) / workspace.checklistTemplates.length)
-    : 0;
   const instrumentRows = (workspace?.instruments?.length ? workspace.instruments : workspace?.financeRequests) || [];
   const emdInstruments = instrumentRows.filter((row) => row.instrument_type === 'EMD');
   const pbgInstruments = instrumentRows.filter((row) => row.instrument_type === 'PBG');
   const instrumentDocumentCount = instrumentRows.filter((row) => Boolean(row.instrument_document)).length;
+  const autoEmdTracking = tender?.emd_required && latestBid && emdInstruments.length === 0
+    ? {
+        amount: tender.emd_amount || 0,
+        status: 'Tracked from bid creation',
+        helper: `Bid ${latestBid.name} exists, so EMD tracking is shown automatically until the instrument is uploaded.`,
+      }
+    : null;
 
   const reasonTrail: ReasonTrailItem[] = tender ? [
     tender.go_no_go_status === 'NO_GO' ? { field: 'go_no_go_remarks' as const, title: 'No-Go Reason', value: tender.go_no_go_remarks || '' } : null,
@@ -560,6 +567,47 @@ export default function TenderWorkspacePage() {
     }
   };
 
+  const transitionTenderStatus = async (nextStatus: string) => {
+    if (!nextStatus) return;
+    try {
+      setBusy('status-transition');
+      const response = await fetch(`/api/tenders/${encodeURIComponent(tenderId)}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target_status: nextStatus }),
+      });
+      const json = await response.json();
+      if (!json.success) {
+        throw new Error(json.message || 'Failed to transition tender status');
+      }
+      await loadWorkspace();
+    } catch (statusError) {
+      setError(statusError instanceof Error ? statusError.message : 'Failed to transition tender status');
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const convertTenderToProject = async () => {
+    try {
+      setBusy('convert-project');
+      const response = await fetch('/api/tender-convert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tender_name: tenderId }),
+      });
+      const json = await response.json();
+      if (!json.success) {
+        throw new Error(json.message || 'Failed to convert tender to project');
+      }
+      await loadWorkspace();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to convert tender to project');
+    } finally {
+      setBusy('');
+    }
+  };
+
   if (loading) {
     return <div className="flex min-h-[420px] items-center justify-center gap-3 text-sm text-gray-500"><Loader2 className="h-5 w-5 animate-spin" />Loading tender workspace...</div>;
   }
@@ -571,6 +619,21 @@ export default function TenderWorkspacePage() {
       </div>
     );
   }
+
+  const allowedStatusOptions = (() => {
+    const current = (tender.status || '').toUpperCase();
+    const matrix: Record<string, string[]> = {
+      DRAFT: ['SUBMITTED', 'DROPPED'],
+      GO_NO_GO_PENDING: ['SUBMITTED', 'DROPPED'],
+      NO_GO: ['DROPPED'],
+      QUALIFIED: ['SUBMITTED', 'DROPPED'],
+      TECHNICAL_IN_PROGRESS: ['SUBMITTED', 'DROPPED'],
+      BID_READY: ['SUBMITTED', 'DROPPED'],
+      SUBMITTED: ['UNDER_EVALUATION', 'WON', 'LOST', 'DROPPED'],
+      UNDER_EVALUATION: ['WON', 'LOST', 'DROPPED'],
+    };
+    return matrix[current] || [];
+  })();
 
   const stageCards: StageCard[] = [
     {
@@ -678,6 +741,26 @@ export default function TenderWorkspacePage() {
 
           <div className="rounded-3xl border border-white/15 bg-white/10 p-5">
             <div className="text-sm font-semibold text-white">Workspace Actions</div>
+            <div className="mt-3 flex items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wide text-white/70">Move Status</span>
+              <div className="relative">
+                <select
+                  className="rounded-full border border-white/30 bg-white/20 px-3 py-1.5 pr-8 text-xs font-medium text-white outline-none"
+                  defaultValue=""
+                  disabled={!allowedStatusOptions.length || busy.length > 0}
+                  onChange={(event) => {
+                    void transitionTenderStatus(event.target.value);
+                    event.currentTarget.value = '';
+                  }}
+                >
+                  <option value="" disabled className="text-gray-700">Change status</option>
+                  {allowedStatusOptions.map((status) => (
+                    <option key={status} value={status} className="text-gray-900">{labelize(status)}</option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/80" />
+              </div>
+            </div>
             <div className="mt-4 flex flex-wrap gap-2">
               <ActionButton tone="light" onClick={() => setShowInstrumentModal(true)} disabled={busy.length > 0}>
                 Add Instrument
@@ -702,9 +785,17 @@ export default function TenderWorkspacePage() {
               {isPresales && canObserve ? (
                 <ActionButton tone="ghost" onClick={() => { setRejectMode('observation'); setReasonInput(tender.bid_denied_reason || ''); }} disabled={busy.length > 0}>Keep Under Observation</ActionButton>
               ) : null}
+              {isPresales ? (
+                <ActionButton tone="ghost" onClick={() => setReasonEditor({ field: 'qualification_reason', title: 'Create Reason Note', value: '' })} disabled={busy.length > 0}>Create Reason</ActionButton>
+              ) : null}
               {isPresales && derivedFunnel === 'EMD done and technical confirmed' && !latestBid ? (
                 <ActionButton onClick={() => void runWorkflow('convert_to_bid')} disabled={busy.length > 0}>
                   Convert To Bid
+                </ActionButton>
+              ) : null}
+              {isPresales && tender.status === 'WON' && !tender.linked_project ? (
+                <ActionButton onClick={() => void convertTenderToProject()} disabled={busy.length > 0}>
+                  Convert Tender To Project
                 </ActionButton>
               ) : null}
             </div>
@@ -713,6 +804,18 @@ export default function TenderWorkspacePage() {
               <div className="mt-4 rounded-2xl border border-white/20 bg-white/10 p-4">
                 <div className="text-sm font-semibold">Director Decision: GO / NO-GO</div>
                 <div className="mt-1 text-sm text-white/75">Requested by {goNoGoApproval.requested_by || '-'} on {formatDate(goNoGoApproval.creation)}</div>
+                {goNoGoApproval.attached_document ? (
+                  <div className="mt-2 text-sm text-white/90">
+                    Supporting document:{' '}
+                    <button
+                      type="button"
+                      onClick={() => setViewDocUrl(getFileProxyUrl(goNoGoApproval.attached_document!))}
+                      className="underline underline-offset-2"
+                    >
+                      View uploaded file
+                    </button>
+                  </div>
+                ) : null}
                 <div className="mt-3 flex flex-wrap gap-2">
                   <ActionButton tone="light" onClick={() => void actOnApproval(goNoGoApproval.name, 'approve')} disabled={busy.length > 0}>Go</ActionButton>
                   <ActionButton tone="ghost" onClick={() => { setRejectMode('nogo'); setReasonInput(goNoGoApproval.request_remarks || tender.go_no_go_remarks || ''); }} disabled={busy.length > 0}>No Go</ActionButton>
@@ -725,6 +828,20 @@ export default function TenderWorkspacePage() {
               <div className="mt-4 rounded-2xl border border-white/20 bg-white/10 p-4">
                 <div className="text-sm font-semibold">Director Decision: Technical Review</div>
                 <div className="mt-1 text-sm text-white/75">Requested by {technicalApproval.requested_by || '-'} on {formatDate(technicalApproval.creation)}</div>
+                {technicalApproval.attached_document ? (
+                  <div className="mt-2 text-sm text-white/90">
+                    Presales supporting document:{' '}
+                    <button
+                      type="button"
+                      onClick={() => setViewDocUrl(getFileProxyUrl(technicalApproval.attached_document!))}
+                      className="underline underline-offset-2"
+                    >
+                      View uploaded file
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-2 text-xs text-white/70">No file attached with this request.</div>
+                )}
                 <div className="mt-3 flex flex-wrap gap-2">
                   <ActionButton tone="light" onClick={() => void actOnApproval(technicalApproval.name, 'approve')} disabled={busy.length > 0}>Approve Technical</ActionButton>
                   <ActionButton tone="ghost" onClick={() => { setRejectMode('technical'); setReasonInput(tender.technical_rejection_reason || technicalApproval.request_remarks || ''); }} disabled={busy.length > 0}>Reject Technical</ActionButton>
@@ -763,67 +880,32 @@ export default function TenderWorkspacePage() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5 text-[#0f5164]" />
-            <h2 className="text-base font-semibold text-gray-900">Reason Trail</h2>
-          </div>
-          <div className="mt-4 space-y-3">
-            {reasonTrail.length ? reasonTrail.map((item) => (
-              <div key={item.field} className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-semibold text-gray-900">{item.title}</div>
-                    <p className="mt-2 text-sm text-gray-600">{item.value || 'Reason not available yet.'}</p>
-                  </div>
-                  {isPresales ? (
-                    <div className="flex gap-2">
-                      <button type="button" className="text-xs font-semibold text-[#0f5164]" onClick={() => setReasonEditor(item)}>Edit</button>
-                      <button type="button" className="text-xs font-semibold text-rose-600" onClick={() => void updateTender({ [item.field]: '' })}>Clear</button>
+        {reasonTrail.length ? (
+          <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-[#0f5164]" />
+              <h2 className="text-base font-semibold text-gray-900">Reason Trail</h2>
+            </div>
+            <div className="mt-4 space-y-3">
+              {reasonTrail.map((item) => (
+                <div key={item.field} className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900">{item.title}</div>
+                      <p className="mt-2 text-sm text-gray-600">{item.value || 'Reason not available yet.'}</p>
                     </div>
-                  ) : null}
+                    {isPresales ? (
+                      <div className="flex gap-2">
+                        <button type="button" className="text-xs font-semibold text-[#0f5164]" onClick={() => setReasonEditor(item)}>Edit</button>
+                        <button type="button" className="text-xs font-semibold text-rose-600" onClick={() => void updateTender({ [item.field]: '' })}>Clear</button>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
-            )) : <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-sm text-gray-500">Red, orange, and pink stages will capture reasons here.</div>}
-          </div>
-        </section>
-
-        <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-5 w-5 text-[#0f5164]" />
-            <h2 className="text-base font-semibold text-gray-900">Bid Readiness Signals</h2>
-          </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-2xl border border-gray-200 p-4">
-              <div className="text-xs uppercase tracking-wide text-gray-500">Surveys</div>
-              <div className="mt-2 text-lg font-semibold text-gray-900">{surveyCount}</div>
-              <div className="mt-2 text-sm text-gray-600">
-                {surveyCount ? `${workspace?.surveys?.filter((row) => row.status === 'Completed').length || 0} completed` : 'No survey records linked yet'}
-              </div>
+              ))}
             </div>
-            <div className="rounded-2xl border border-gray-200 p-4">
-              <div className="text-xs uppercase tracking-wide text-gray-500">BOQs</div>
-              <div className="mt-2 text-lg font-semibold text-gray-900">{boqCount}</div>
-              <div className="mt-2 text-sm text-gray-600">
-                {boqCount ? `${workspace?.boqs?.filter((row) => row.status === 'APPROVED').length || 0} approved` : 'No BOQ prepared yet'}
-              </div>
-            </div>
-            <div className="rounded-2xl border border-gray-200 p-4">
-              <div className="text-xs uppercase tracking-wide text-gray-500">Cost Sheets</div>
-              <div className="mt-2 text-lg font-semibold text-gray-900">{costSheetCount}</div>
-              <div className="mt-2 text-sm text-gray-600">
-                {costSheetCount ? `${workspace?.costSheets?.filter((row) => row.status === 'APPROVED').length || 0} approved` : 'No cost sheet prepared yet'}
-              </div>
-            </div>
-            <div className="rounded-2xl border border-gray-200 p-4">
-              <div className="text-xs uppercase tracking-wide text-gray-500">Checklist Readiness</div>
-              <div className="mt-2 text-lg font-semibold text-gray-900">{checklistAvg}%</div>
-              <div className="mt-2 text-sm text-gray-600">
-                {workspace?.checklistTemplates?.length ? `${workspace.checklistTemplates.length} checklist template rows available` : 'No checklist templates linked yet'}
-              </div>
-            </div>
-          </div>
-        </section>
+          </section>
+        ) : null}
 
         <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2">
@@ -833,6 +915,14 @@ export default function TenderWorkspacePage() {
           <div className="mt-2 text-sm text-gray-500">
             {instrumentRows.length ? `${instrumentRows.length} instrument row(s), ${instrumentDocumentCount} document link(s)` : 'Track EMD and PBG rows with their actual instrument files here.'}
           </div>
+          {autoEmdTracking ? (
+            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+              <div className="text-sm font-semibold text-amber-800">Automatic EMD Tracking</div>
+              <div className="mt-1 text-sm text-amber-800">EMD Amount: {formatCurrency(autoEmdTracking.amount)}</div>
+              <div className="mt-1 text-xs text-amber-700">{autoEmdTracking.status}</div>
+              <div className="mt-2 text-xs leading-5 text-amber-700">{autoEmdTracking.helper}</div>
+            </div>
+          ) : null}
           <div className="mt-4 space-y-3">
             {instrumentRows.length ? instrumentRows.map((instrument) => (
               <div key={instrument.name} className="rounded-2xl border border-gray-200 p-4">
@@ -905,120 +995,77 @@ export default function TenderWorkspacePage() {
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
         <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5 text-[#0f5164]" />
-            <h2 className="text-base font-semibold text-gray-900">Tender Results</h2>
+            <CheckCircle2 className="h-5 w-5 text-[#0f5164]" />
+            <h2 className="text-base font-semibold text-gray-900">Approval Trail</h2>
           </div>
+          <p className="mt-2 text-sm text-gray-500">Complete approval trail with requester, approver role, timestamps, remarks, and supporting files.</p>
           <div className="mt-4 space-y-3">
-            {workspace?.results?.length ? workspace.results.map((result) => (
-              <div key={result.name} className="rounded-2xl border border-gray-200 p-4">
+            {workspace?.approvals?.length ? workspace.approvals.map((approval) => (
+              <div key={approval.name} className="rounded-2xl border border-gray-200 p-4">
                 <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm font-semibold text-gray-900">{labelize(result.result_stage) || 'Result Stage'}</div>
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">{formatDate(result.result_date)}</span>
+                  <div className="text-sm font-semibold text-gray-900">{labelize(approval.approval_type)} • {approval.approver_role || '-'}</div>
+                  <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                    approval.status === 'Approved' ? 'bg-green-100 text-green-700' :
+                    approval.status === 'Rejected' ? 'bg-red-100 text-red-700' :
+                    'bg-amber-100 text-amber-700'
+                  }`}>{approval.status || '-'}</span>
                 </div>
-                <div className="mt-2 text-sm text-gray-600">
-                  {result.winning_bidder ? `Winning bidder: ${result.winning_bidder}` : 'Bidder decision not recorded yet'}
-                </div>
-                {result.winning_amount ? <div className="mt-1 text-sm text-gray-500">Winning amount: {formatCurrency(result.winning_amount)}</div> : null}
-                {result.remarks ? <div className="mt-1 text-sm text-gray-500">Remarks: {result.remarks}</div> : null}
+                <div className="mt-2 text-sm text-gray-600">Requested by {approval.requested_by || '-'} on {formatDate(approval.creation)}</div>
+                {approval.request_remarks ? (
+                  <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-blue-500 mb-1">Presales Remark</div>
+                    <div className="text-sm text-gray-700">{approval.request_remarks}</div>
+                  </div>
+                ) : null}
+                {approval.attached_document ? (
+                  <div className="mt-3 flex items-center gap-3 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3">
+                    <FileText className="h-5 w-5 text-indigo-500 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-indigo-500 mb-0.5">Attached Document</div>
+                      <div className="text-sm text-gray-700 truncate">{approval.attached_document.split('/').pop()}</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setViewDocUrl(getFileProxyUrl(approval.attached_document!))}
+                      className="shrink-0 rounded-full bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 transition"
+                    >
+                      View Document
+                    </button>
+                  </div>
+                ) : null}
+                {approval.action_remarks ? <div className="mt-2 text-sm text-gray-500">Director note: {approval.action_remarks}</div> : null}
               </div>
-            )) : <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-sm text-gray-500">No tender result rows recorded yet.</div>}
+            )) : <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-sm text-gray-500">No approval request created yet.</div>}
           </div>
         </section>
 
         <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2">
-            <FilePlus2 className="h-5 w-5 text-[#0f5164]" />
-            <h2 className="text-base font-semibold text-gray-900">Reminders And Inputs</h2>
+            <AlertCircle className="h-5 w-5 text-[#0f5164]" />
+            <h2 className="text-base font-semibold text-gray-900">Audit Trail</h2>
           </div>
-          <div className="mt-4 space-y-4">
-            <div>
-              <div className="text-sm font-semibold text-gray-900">Tender Reminders</div>
-              <div className="mt-2 space-y-2">
-                {reminderCount ? workspace?.reminders?.slice(0, 4).map((reminder) => (
-                  <div key={reminder.name} className="rounded-2xl border border-gray-200 bg-gray-50 p-3">
-                    <div className="text-sm font-medium text-gray-900">{reminder.title || reminder.reminder_kind || 'Reminder'}</div>
-                    <div className="mt-1 text-xs text-gray-500">{formatDateTime(reminder.reminder_date, reminder.reminder_time)} • {reminder.status || 'Active'}</div>
-                  </div>
-                )) : <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-500">No tender reminders yet.</div>}
-              </div>
+          <div className="mt-4 space-y-3 text-sm text-gray-700">
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+              Tender created by {tender.owner || '-'} on {formatDate(tender.creation)}.
             </div>
-
-            <div>
-              <div className="text-sm font-semibold text-gray-900">Latest Delivery Inputs</div>
-              <div className="mt-2 space-y-2">
-                {workspace?.surveys?.slice(0, 2).map((row) => (
-                  <div key={row.name} className="rounded-2xl border border-gray-200 p-3">
-                    <div className="text-sm font-medium text-gray-900">Survey • {row.site_name || row.linked_site || row.name}</div>
-                    <div className="mt-1 text-xs text-gray-500">{row.status || 'Draft'} {row.survey_date ? `• ${formatDate(row.survey_date)}` : ''}</div>
-                  </div>
-                ))}
-                {workspace?.boqs?.slice(0, 1).map((row) => (
-                  <div key={row.name} className="rounded-2xl border border-gray-200 p-3">
-                    <div className="text-sm font-medium text-gray-900">BOQ • {row.boq_name || row.name}</div>
-                    <div className="mt-1 text-xs text-gray-500">{row.status || 'Draft'} {row.total_amount ? `• ${formatCurrency(row.total_amount)}` : ''}</div>
-                  </div>
-                ))}
-                {workspace?.costSheets?.slice(0, 1).map((row) => (
-                  <div key={row.name} className="rounded-2xl border border-gray-200 p-3">
-                    <div className="text-sm font-medium text-gray-900">Cost Sheet • {row.sheet_name || row.name}</div>
-                    <div className="mt-1 text-xs text-gray-500">{row.status || 'Draft'} {row.sell_value ? `• ${formatCurrency(row.sell_value)}` : ''}</div>
-                  </div>
-                ))}
-                {!surveyCount && !boqCount && !costSheetCount ? (
-                  <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-500">
-                    No survey, BOQ, or cost sheet records are linked yet.
-                  </div>
-                ) : null}
-              </div>
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+              Current tender status: {labelize(tender.status)} | Funnel: {derivedFunnel}.
+            </div>
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+              Go/No-Go: {labelize(tender.go_no_go_status)} {tender.go_no_go_remarks ? `| Reason: ${tender.go_no_go_remarks}` : ''}
+            </div>
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+              Qualification: {labelize(tender.commercial_readiness)} {tender.qualification_reason ? `| Reason: ${tender.qualification_reason}` : ''}
+            </div>
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+              Technical: {labelize(tender.technical_readiness)} {tender.technical_rejection_reason ? `| Reason: ${tender.technical_rejection_reason}` : ''}
+            </div>
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+              Bid link: {latestBid?.name || 'No linked bid yet'}.
             </div>
           </div>
         </section>
       </div>
-
-      <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
-        <div className="flex items-center gap-2">
-          <CheckCircle2 className="h-5 w-5 text-[#0f5164]" />
-          <h2 className="text-base font-semibold text-gray-900">Approval Trail</h2>
-        </div>
-        <div className="mt-4 space-y-3">
-          {workspace?.approvals?.length ? workspace.approvals.map((approval) => (
-            <div key={approval.name} className="rounded-2xl border border-gray-200 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-sm font-semibold text-gray-900">{labelize(approval.approval_type)} • {approval.approver_role || '-'}</div>
-                <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                  approval.status === 'Approved' ? 'bg-green-100 text-green-700' :
-                  approval.status === 'Rejected' ? 'bg-red-100 text-red-700' :
-                  'bg-amber-100 text-amber-700'
-                }`}>{approval.status || '-'}</span>
-              </div>
-              <div className="mt-2 text-sm text-gray-600">Requested by {approval.requested_by || '-'} on {formatDate(approval.creation)}</div>
-              {approval.request_remarks ? (
-                <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-blue-500 mb-1">Presales Remark</div>
-                  <div className="text-sm text-gray-700">{approval.request_remarks}</div>
-                </div>
-              ) : null}
-              {approval.attached_document ? (
-                <div className="mt-3 flex items-center gap-3 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3">
-                  <FileText className="h-5 w-5 text-indigo-500 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-semibold uppercase tracking-wide text-indigo-500 mb-0.5">Attached Document</div>
-                    <div className="text-sm text-gray-700 truncate">{approval.attached_document.split('/').pop()}</div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setViewDocUrl(getFileProxyUrl(approval.attached_document!))}
-                    className="shrink-0 rounded-full bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 transition"
-                  >
-                    View Document
-                  </button>
-                </div>
-              ) : null}
-              {approval.action_remarks ? <div className="mt-2 text-sm text-gray-500">Director note: {approval.action_remarks}</div> : null}
-            </div>
-          )) : <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-sm text-gray-500">No approval request created yet.</div>}
-        </div>
-      </section>
 
       <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
         <div className="flex items-center gap-2">
@@ -1064,8 +1111,6 @@ export default function TenderWorkspacePage() {
       <LinkedRecordsPanel links={[
         { label: 'Bids', doctype: 'GE Bid', method: 'frappe.client.get_list', args: { doctype: 'GE Bid', filters: JSON.stringify({ tender: tenderId }), fields: JSON.stringify(['name', 'bid_amount', 'status', 'bid_date']), limit_page_length: '10' }, href: (name: string) => `/pre-sales/bids/${name}` },
       ]} />
-
-      <RecordDocumentsPanel referenceDoctype="GE Tender" referenceName={tenderId} title="Linked Documents" initialLimit={5} />
 
       <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm"><div className="mb-3 font-semibold text-gray-900">Accountability Trail</div><AccountabilityTimeline subjectDoctype="GE Tender" subjectName={tenderId} compact={false} initialLimit={10} /></div>
 
@@ -1244,16 +1289,20 @@ export default function TenderWorkspacePage() {
       >
         {viewDocUrl ? (
           <div className="space-y-3">
-            {viewDocUrl.toLowerCase().includes('.pdf') || !viewDocUrl.match(/\.(png|jpg|jpeg|gif|webp|svg)($|\?)/) ? (
+            {getPreviewMode(viewDocUrl) === 'pdf' ? (
               <iframe
                 src={viewDocUrl}
                 title="Document Viewer"
                 className="w-full rounded-2xl border border-gray-200"
                 style={{ height: '70vh' }}
               />
-            ) : (
+            ) : getPreviewMode(viewDocUrl) === 'image' ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={viewDocUrl} alt="Document" className="w-full rounded-2xl object-contain max-h-[65vh]" />
+            ) : (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                Inline preview is not supported for this file type. Use Open in new tab to view or download it.
+              </div>
             )}
             <div className="flex justify-end gap-2">
               <a

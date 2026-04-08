@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Banknote, CheckCircle, ExternalLink, RefreshCw, XCircle } from 'lucide-react';
 
@@ -37,22 +37,26 @@ export default function WonBidsPage() {
   const [rows, setRows] = useState<WonBidRow[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchRows = async () => {
+  const fetchRows = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/pre-sales/won-bids', { cache: 'no-store' });
-      const json = await res.json();
-      setRows(json.success ? json.data || [] : []);
+      const response = await fetch('/api/pre-sales/won-bids', { cache: 'no-store' });
+      const json = await response.json();
+      if (!json.success) {
+        throw new Error(json.message || 'Failed to load won bids');
+      }
+      const wonRows = Array.isArray(json.data) ? json.data : [];
+      setRows(wonRows);
     } catch {
       setRows([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     void fetchRows();
-  }, []);
+  }, [fetchRows]);
 
   const totalValue = rows.reduce((sum, row) => sum + (row.bid_amount || 0), 0);
 

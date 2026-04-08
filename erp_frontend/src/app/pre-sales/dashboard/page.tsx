@@ -1,6 +1,6 @@
 'use client';
-import React, { useState, useEffect, useCallback, useTransition } from 'react';
-import { RefreshCw, LayoutDashboard, Palette, TrendingUp, AlertCircle, CheckCircle, Clock, DollarSign, Plus } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo, useTransition } from 'react';
+import { RefreshCw, LayoutDashboard, Palette, TrendingUp, AlertCircle, CheckCircle, Clock, DollarSign, Plus, Pencil, Trash2 } from 'lucide-react';
 import FunnelColorCard from '../../../components/presales/FunnelColorCard';
 import FunnelFilterStrip, { DashboardFilters, DEFAULT_FILTERS, loadSavedFilters, saveFilters } from '../../../components/presales/FunnelFilterStrip';
 import ActiveFilterChips from '../../../components/presales/ActiveFilterChips';
@@ -22,6 +22,19 @@ interface StatsData {
     overdue: number;
     due_this_week: number;
   };
+}
+
+interface CompetitorStats {
+  win_rate?: number;
+  total_bids?: number;
+  wins?: number;
+}
+
+interface CompetitorRow {
+  name: string;
+  competitor_name?: string;
+  region?: string;
+  category?: string;
 }
 
 type Tab = 'dashboard' | 'color-legend';
@@ -105,6 +118,9 @@ export default function PresalesDashboard() {
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [isPending, startTransition] = useTransition();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [competitorStats, setCompetitorStats] = useState<CompetitorStats | null>(null);
+  const [competitors, setCompetitors] = useState<CompetitorRow[]>([]);
+  const [competitorBusy, setCompetitorBusy] = useState(false);
 
   // Load saved filters on mount
   useEffect(() => {
@@ -126,6 +142,70 @@ export default function PresalesDashboard() {
       setIsLoadingStats(false);
     }
   }, []);
+
+  const callOps = useCallback(async <T,>(method: string, args?: Record<string, unknown>): Promise<T> => {
+    const res = await fetch('/api/ops', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ method, args }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || json.success === false) throw new Error(json.message || `Failed: ${method}`);
+    return (json.data ?? json) as T;
+  }, []);
+
+  const fetchCompetitorStats = useCallback(async () => {
+    try {
+      const [stats, list] = await Promise.all([
+        callOps<CompetitorStats>('get_competitor_stats', {}),
+        callOps<CompetitorRow[]>('get_competitors', {}),
+      ]);
+      setCompetitorStats(stats || null);
+      setCompetitors(Array.isArray(list) ? list : []);
+    } catch {
+      setCompetitorStats(null);
+      setCompetitors([]);
+    }
+  }, [callOps]);
+
+  const createCompetitor = async () => {
+    const competitor_name = window.prompt('Competitor name');
+    if (!competitor_name) return;
+    const region = window.prompt('Region (optional)') || '';
+    const category = window.prompt('Category (optional)') || '';
+    try {
+      setCompetitorBusy(true);
+      await callOps('create_competitor', { data: JSON.stringify({ competitor_name, region, category }) });
+      await fetchCompetitorStats();
+    } finally {
+      setCompetitorBusy(false);
+    }
+  };
+
+  const updateCompetitor = async (row: CompetitorRow) => {
+    const competitor_name = window.prompt('Competitor name', row.competitor_name || row.name);
+    if (!competitor_name) return;
+    const region = window.prompt('Region (optional)', row.region || '') || '';
+    const category = window.prompt('Category (optional)', row.category || '') || '';
+    try {
+      setCompetitorBusy(true);
+      await callOps('update_competitor', { name: row.name, data: JSON.stringify({ competitor_name, region, category }) });
+      await fetchCompetitorStats();
+    } finally {
+      setCompetitorBusy(false);
+    }
+  };
+
+  const deleteCompetitor = async (row: CompetitorRow) => {
+    if (!window.confirm(`Delete competitor ${row.competitor_name || row.name}?`)) return;
+    try {
+      setCompetitorBusy(true);
+      await callOps('delete_competitor', { name: row.name });
+      await fetchCompetitorStats();
+    } finally {
+      setCompetitorBusy(false);
+    }
+  };
 
   // Fetch color config
   const fetchColorConfig = useCallback(async () => {
@@ -158,7 +238,8 @@ export default function PresalesDashboard() {
   useEffect(() => {
     void fetchStats();
     void fetchColorConfig();
-  }, [fetchStats, fetchColorConfig]);
+    void fetchCompetitorStats();
+  }, [fetchStats, fetchColorConfig, fetchCompetitorStats]);
 
   // Fetch tenders when filters change
   useEffect(() => {
@@ -174,6 +255,7 @@ export default function PresalesDashboard() {
     fetchStats();
     fetchTenders(filters);
     fetchColorConfig();
+    fetchCompetitorStats();
   };
 
   const handleFilterChange = (partial: Partial<DashboardFilters>) => {
@@ -231,6 +313,22 @@ export default function PresalesDashboard() {
   // ─── Derived data for funnel bar
   const systemKeys = Object.keys(SYSTEM_FUNNEL_META) as (keyof typeof SYSTEM_FUNNEL_META)[];
   const userSlotKeys = Array.from({ length: 6 }, (_, i) => `USER_SLOT_${i + 1}` as FunnelColorKey);
+
+  const closureAlerts = useMemo(() => {
+    const now = new Date();
+    return (tenders || [])
+      .map((t) => {
+        const rawDate = t.tenure_end_date || t.presales_closure_date;
+        const d = rawDate ? new Date(rawDate) : null;
+        if (!d || Number.isNaN(d.getTime())) return null;
+        const daysLeft = Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        return { ...t, daysLeft };
+      })
+      .filter((t): t is any => Boolean(t))
+      .filter((t) => t.daysLeft >= 0 && t.daysLeft <= 30)
+      .filter((t) => !['WON', 'LOST', 'DROPPED', 'CANCELLED', 'CONVERTED_TO_PROJECT'].includes((t.status || '').toUpperCase()))
+      .slice(0, 8);
+  }, [tenders]);
 
   return (
     <div className="min-h-screen bg-[var(--bg)] space-y-5 p-3 sm:p-4 lg:p-6">
@@ -308,8 +406,78 @@ export default function PresalesDashboard() {
               <QuickStat icon={AlertCircle} label="Overdue" value={stats.quick_stats.overdue} accent="#ef4444" />
               <QuickStat icon={Clock} label="Due This Week" value={stats.quick_stats.due_this_week} accent="#f97316" />
               <QuickStat icon={AlertCircle} label="EMD Pending Refund" value={stats.quick_stats.emd_pending_refund} accent="#eab308" />
+              <QuickStat
+                icon={TrendingUp}
+                label="Competitor Win Rate"
+                value={`${Number(competitorStats?.win_rate || 0).toFixed(1)}%`}
+                accent="#0ea5e9"
+                sub={`Bids ${competitorStats?.total_bids || 0} · Wins ${competitorStats?.wins || 0}`}
+              />
             </div>
           )}
+
+          {closureAlerts.length > 0 && (
+            <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm font-semibold text-amber-800">Action Required: Nearing Closing Date</div>
+                <span className="text-xs text-amber-700">Only tenders with no final action are shown</span>
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {closureAlerts.map((t) => (
+                  <a key={t.name} href={`/pre-sales/${encodeURIComponent(t.name)}`} className="rounded-xl border border-amber-300 bg-white px-3 py-2 text-sm text-slate-800 hover:bg-amber-100">
+                    <div className="font-semibold">{t.tender_number || t.name}</div>
+                    <div className="text-xs text-slate-600">{t.title || 'Untitled Tender'}</div>
+                    <div className="mt-1 text-xs font-medium text-amber-700">{t.daysLeft} day(s) left</div>
+                  </a>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <section className="rounded-2xl border border-[var(--border-subtle)] bg-white p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold text-[var(--text-main)]">Competitor Management</h3>
+                <p className="text-xs text-[var(--text-soft)]">Create, update, and delete competitor master rows from dashboard.</p>
+              </div>
+              <button
+                onClick={() => void createCompetitor()}
+                disabled={competitorBusy}
+                className="inline-flex items-center gap-1 rounded-lg bg-[var(--accent)] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+              >
+                <Plus className="h-3.5 w-3.5" /> Add Competitor
+              </button>
+            </div>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {competitors.slice(0, 9).map((row) => (
+                <div key={row.name} className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-3">
+                  <div className="text-sm font-semibold text-[var(--text-main)]">{row.competitor_name || row.name}</div>
+                  <div className="mt-1 text-xs text-[var(--text-soft)]">{row.region || 'Region not set'} | {row.category || 'Category not set'}</div>
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      onClick={() => void updateCompetitor(row)}
+                      disabled={competitorBusy}
+                      className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700 disabled:opacity-60"
+                    >
+                      <Pencil className="h-3 w-3" /> Update
+                    </button>
+                    <button
+                      onClick={() => void deleteCompetitor(row)}
+                      disabled={competitorBusy}
+                      className="inline-flex items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700 disabled:opacity-60"
+                    >
+                      <Trash2 className="h-3 w-3" /> Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {!competitors.length && (
+                <div className="rounded-xl border border-dashed border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-5 text-xs text-[var(--text-soft)]">
+                  No competitors found.
+                </div>
+              )}
+            </div>
+          </section>
 
           {/* ── 12-Color Funnel Bar ─── */}
           <div className="space-y-3">

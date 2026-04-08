@@ -17,7 +17,19 @@
   "issue_date",
   "column_break_expiry",
   "expiry_date",
-  "remarks"
+    "remarks",
+    "section_break_project",
+    "linked_project",
+    "linked_agreement_no",
+    "column_break_project",
+    "beneficiary_name",
+    "release_condition",
+    "section_break_refund",
+    "refund_status",
+    "refund_date",
+    "column_break_refund",
+    "refund_reference",
+    "refund_remarks"
  ],
  "fields": [
   {
@@ -136,6 +148,38 @@
    "fieldtype": "Small Text",
    "label": "Release Condition",
    "description": "Condition under which the instrument can be released"
+    },
+    {
+     "fieldname": "section_break_refund",
+     "fieldtype": "Section Break",
+     "label": "Refund Tracking"
+    },
+    {
+     "default": "NOT_DUE",
+     "fieldname": "refund_status",
+     "fieldtype": "Select",
+     "in_list_view": 1,
+     "label": "Refund Status",
+     "options": "NOT_DUE\nPENDING\nINITIATED\nREFUNDED\nNOT_REFUNDABLE"
+    },
+    {
+     "fieldname": "refund_date",
+     "fieldtype": "Date",
+     "label": "Refund Date"
+    },
+    {
+     "fieldname": "column_break_refund",
+     "fieldtype": "Column Break"
+    },
+    {
+     "fieldname": "refund_reference",
+     "fieldtype": "Data",
+     "label": "Refund Reference"
+    },
+    {
+     "fieldname": "refund_remarks",
+     "fieldtype": "Small Text",
+     "label": "Refund Remarks"
   }
  ],
  "index_web_pages_for_search": 0,

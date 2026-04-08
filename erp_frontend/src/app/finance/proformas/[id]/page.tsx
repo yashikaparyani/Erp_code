@@ -22,7 +22,7 @@ export default function ProformaDetailPage() {
 
   const load = useCallback(async () => {
     setLoading(true); setError('');
-    try { setData(await callOps<Proforma>('get_proforma', { name: id })); }
+    try { setData(await callOps<Proforma>('get_proforma_invoice', { name: id })); }
     catch (e) { setError(e instanceof Error ? e.message : 'Failed'); }
     setLoading(false);
   }, [id]);
@@ -49,9 +49,11 @@ export default function ProformaDetailPage() {
       headerActions={
         <div className="flex gap-2">
           {canEdit && d.status === 'Draft' && <button className="btn btn-primary" onClick={() => setAction('Send')}>Send</button>}
+          {canEdit && (d.status === 'Draft' || d.status === 'Sent') && <button className="btn btn-secondary" onClick={() => setAction('Update')}>Update</button>}
           {canApprove && d.status === 'Sent' && <button className="btn btn-primary" onClick={() => setAction('Approve')}>Approve</button>}
           {canApprove && (d.status === 'Sent' || d.status === 'Draft') && <button className="btn btn-secondary text-red-600" onClick={() => setAction('Cancel')}>Cancel</button>}
           {canEdit && d.status === 'Approved' && <button className="btn btn-primary" onClick={() => setAction('Convert')}>Convert to Invoice</button>}
+          {canEdit && d.status === 'Draft' && <button className="btn btn-secondary text-red-600" onClick={() => setAction('Delete')}>Delete</button>}
         </div>
       }
       identityBlock={
@@ -107,9 +109,23 @@ export default function ProformaDetailPage() {
 
       <ActionModal
         open={!!action} title={`${action} Proforma`}
-        confirmLabel={action || ''} variant={action === 'Cancel' ? 'danger' : 'default'}
-        fields={action === 'Cancel' ? [{ name: 'reason', label: 'Reason', type: 'textarea', required: true }] : [{ name: 'remarks', label: 'Remarks', type: 'textarea' }]}
-        onConfirm={async (v) => { await callOps('action_proforma', { name: id, action: action!.toLowerCase().replace(/ /g, '_'), ...v }); setAction(null); load(); }}
+        confirmLabel={action || ''} variant={action === 'Cancel' || action === 'Delete' ? 'danger' : 'default'}
+        fields={action === 'Cancel' || action === 'Delete' ? [{ name: 'reason', label: 'Reason', type: 'textarea', required: true }] : [{ name: 'remarks', label: 'Remarks', type: 'textarea' }]}
+        onConfirm={async (v) => {
+          const methodMap: Record<string, string> = {
+            Send: 'submit_proforma_invoice',
+            Approve: 'approve_proforma_invoice',
+            Cancel: 'cancel_proforma_invoice',
+            Convert: 'convert_proforma_to_invoice',
+            Update: 'update_proforma_invoice',
+            Delete: 'delete_proforma_invoice',
+          };
+          const method = methodMap[action || ''];
+          if (!method) return;
+          await callOps(method, { name: id, ...v });
+          setAction(null);
+          load();
+        }}
         onCancel={() => setAction(null)}
       />
     </DetailPage>

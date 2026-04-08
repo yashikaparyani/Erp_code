@@ -24,6 +24,10 @@ type InstrumentRow = {
   issue_date?: string;
   expiry_date?: string;
   remarks?: string;
+  refund_status?: string;
+  refund_date?: string;
+  refund_reference?: string;
+  refund_remarks?: string;
   creation?: string;
   modified?: string;
 };
@@ -32,6 +36,7 @@ type BidRow = {
   name: string;
   tender: string;
   result_date?: string;
+  bid_date?: string;
   status?: string;
 };
 
@@ -43,13 +48,24 @@ const addDays = (dateText?: string, days = 30) => {
   return date.toISOString().slice(0, 10);
 };
 
+const normalizeRefundStatus = (status?: string) => {
+  const value = (status || '').toUpperCase();
+  if (!value) return 'Not Initiated';
+  if (value === 'NOT_DUE') return 'Not Required';
+  if (value === 'PENDING') return 'Pending';
+  if (value === 'INITIATED') return 'Submitted';
+  if (value === 'REFUNDED') return 'Released';
+  if (value === 'NOT_REFUNDABLE') return 'Forfeited';
+  return status || 'Not Initiated';
+};
+
 export async function GET(request: NextRequest) {
   try {
     const [tenderResult, instrumentResult, bidResult] = await Promise.all([
       callFrappeMethod<{ data?: TenderRow[] }>(
         'get_tenders',
         {
-          filters: [['status', '=', 'LOST']],
+          filters: [['emd_required', '=', 1]],
           limit_page_length: 1000,
           limit_start: 0,
         },
@@ -65,7 +81,6 @@ export async function GET(request: NextRequest) {
       callPresalesMethod<{ data?: BidRow[] }>(
         'get_bids',
         {
-          status: 'LOST',
           is_latest: '1',
         },
         request,
@@ -95,13 +110,28 @@ export async function GET(request: NextRequest) {
       .map((tender) => {
         const instrument = latestInstrumentByTender.get(tender.name);
         const bid = latestBidByTender.get(tender.name);
+        const tenderStatus = (tender.status || bid?.status || '').trim().toUpperCase();
+        const hasBidContext = Boolean(bid);
+        const hasTrackingContext = Boolean(instrument || hasBidContext || tender.emd_required);
         const expectedRefundDate =
           instrument?.expiry_date ||
-          addDays(bid?.result_date || tender.submission_date, 30);
+          ((tenderStatus === 'LOST' || tenderStatus === 'WON' || tenderStatus === 'CANCEL')
+            ? addDays(bid?.result_date || bid?.bid_date || tender.submission_date, 30)
+            : '');
 
         const refundStatus = !tender.emd_required
           ? 'Not Required'
-          : instrument?.status || 'Not Initiated';
+          : instrument?.refund_status
+            ? normalizeRefundStatus(instrument.refund_status)
+            : tenderStatus === 'LOST'
+              ? 'Not Initiated'
+              : hasBidContext
+                ? 'Bid Created'
+                : 'Not Initiated';
+
+        if (!hasTrackingContext) {
+          return null;
+        }
 
         return {
           tender_id: tender.name,
@@ -110,7 +140,7 @@ export async function GET(request: NextRequest) {
           client: tender.client || '',
           organization: tender.organization || '',
           submission_date: tender.submission_date || '',
-          lost_date: bid?.result_date || '',
+          lost_date: bid?.result_date || bid?.bid_date || '',
           emd_required: Boolean(tender.emd_required),
           emd_amount: Number(instrument?.amount || tender.emd_amount || 0),
           refund_status: refundStatus,
@@ -122,8 +152,10 @@ export async function GET(request: NextRequest) {
           expiry_date: instrument?.expiry_date || '',
           remarks: instrument?.remarks || '',
           has_instrument: Boolean(instrument),
+          bid_status: bid?.status || '',
         };
       })
+      .filter((row): row is NonNullable<typeof row> => Boolean(row))
       .sort((a, b) => {
         const aTime = new Date(b.lost_date || b.submission_date || 0).getTime();
         const bTime = new Date(a.lost_date || a.submission_date || 0).getTime();
@@ -133,9 +165,7 @@ export async function GET(request: NextRequest) {
     const summary = {
       total_lost_tenders: rows.length,
       emd_required_count: rows.filter((row) => row.emd_required).length,
-      pending_refund_count: rows.filter((row) =>
-        row.emd_required && ['Pending', 'Submitted', 'Expired', 'Not Initiated'].includes(row.refund_status),
-      ).length,
+      pending_refund_count: rows.filter((row) => row.emd_required && ['Pending', 'Submitted', 'Not Initiated', 'Bid Created'].includes(row.refund_status)).length,
       released_count: rows.filter((row) => row.refund_status === 'Released').length,
       forfeited_count: rows.filter((row) => row.refund_status === 'Forfeited').length,
     };

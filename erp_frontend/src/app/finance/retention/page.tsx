@@ -22,6 +22,12 @@ export default function RetentionPage() {
         { name: 'remarks', label: 'Remarks', type: 'textarea' },
       ]}
       actions={[
+        {
+          label: 'Update',
+          tone: 'primary',
+          buildRequest: (row) => ({ method: 'update_retention_ledger', args: { name: row.name } }),
+          prompt: { message: 'Update note', field: 'remarks' },
+        },
         { label: 'Release', tone: 'success', buildRequest: (row) => ({ method: 'release_retention', args: { name: row.name } }), prompt: { message: 'Release amount', field: 'release_amount' } },
         { label: 'Delete', tone: 'danger', buildRequest: (row) => ({ method: 'delete_retention_ledger', args: { name: row.name } }), confirmMessage: 'Delete this retention entry?' },
       ]}
