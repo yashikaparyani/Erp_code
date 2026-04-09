@@ -11,6 +11,7 @@ import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
 import TraceabilityPanel from '@/components/ui/TraceabilityPanel';
 import { useRole } from '@/context/RoleContext';
 import { callOps, formatCurrency, formatDate, statusVariant } from '@/components/procurement/proc-helpers';
+import { indentApi } from '@/lib/typedApi';
 
 /* ── types ──────────────────────────────────────────── */
 
@@ -43,7 +44,7 @@ export default function IndentDetailPage() {
 
   const load = useCallback(async () => {
     setLoading(true); setError('');
-    try { setData(await callOps<Detail>('get_indent', { name })); }
+    try { setData(await indentApi.get<Detail>(name)); }
     catch (e) { setError(e instanceof Error ? e.message : 'Failed to load'); }
     finally { setLoading(false); }
   }, [name]);
@@ -53,7 +54,7 @@ export default function IndentDetailPage() {
   const flash = (m: string) => { setSuccess(m); setTimeout(() => setSuccess(''), 4000); };
   const run = async (method: string, args: Record<string, string> = {}) => {
     setBusy(method); setError('');
-    try { await callOps(method, { name, ...args }); flash(`${method} done`); await load(); }
+    try { await indentApi.action(name, method.replace(/_indent$/, ''), args.remarks); flash(`${method} done`); await load(); }
     catch (e) { setError(e instanceof Error ? e.message : 'Failed'); }
     finally { setBusy(''); }
   };

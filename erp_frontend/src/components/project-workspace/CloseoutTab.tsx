@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Award, Loader2, FileWarning } from 'lucide-react';
-import { callOps } from './workspace-types';
+import { closeoutApi } from '@/lib/typedApi';
 
 type CloseoutEligibility = {
   contract_scope: string | null;
@@ -55,8 +55,8 @@ function CloseoutTab({ projectId }: { projectId: string }) {
     setError('');
     try {
       const [eligRes, itemsRes] = await Promise.all([
-        callOps<CloseoutEligibility>('get_project_closeout_eligibility', { project: projectId }),
-        callOps<CloseoutItem[]>('get_project_closeout_items', { project: projectId }),
+        closeoutApi.getEligibility<CloseoutEligibility>(projectId),
+        closeoutApi.getItems<CloseoutItem[]>(projectId),
       ]);
       setEligibility(eligRes);
       setItems(itemsRes);
@@ -70,12 +70,12 @@ function CloseoutTab({ projectId }: { projectId: string }) {
     if (!eligibility?.next_eligible) return;
     setActionBusy(true);
     try {
-      await callOps('issue_closeout_certificate', {
-        project: projectId,
-        closeout_type: eligibility.next_eligible,
-        remarks: issueRemarks.trim() || undefined,
-        kt_handover_plan: eligibility.next_eligible === 'Exit Management KT' ? ktPlan.trim() || undefined : undefined,
-      });
+      await closeoutApi.issueCertificate(
+        projectId,
+        eligibility.next_eligible,
+        issueRemarks.trim() || undefined,
+        eligibility.next_eligible === 'Exit Management KT' ? ktPlan.trim() || undefined : undefined,
+      );
       setIssueRemarks('');
       setKtPlan('');
       await loadData();
@@ -87,7 +87,7 @@ function CloseoutTab({ projectId }: { projectId: string }) {
     if (!revokeReason.trim()) return;
     setActionBusy(true);
     try {
-      await callOps('revoke_closeout_certificate', { name, reason: revokeReason.trim() });
+      await closeoutApi.revokeCertificate(name, revokeReason.trim());
       setShowRevokeFor(null);
       setRevokeReason('');
       await loadData();
@@ -98,7 +98,7 @@ function CloseoutTab({ projectId }: { projectId: string }) {
   const handleCompleteKt = async (name: string) => {
     setActionBusy(true);
     try {
-      await callOps('complete_exit_management_kt', { name });
+      await closeoutApi.completeKt(name);
       await loadData();
     } catch (err) { setError(err instanceof Error ? err.message : 'Failed to mark KT as complete'); }
     setActionBusy(false);

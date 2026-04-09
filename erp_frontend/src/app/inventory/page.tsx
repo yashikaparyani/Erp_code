@@ -3,15 +3,17 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Filter, X, Eye } from 'lucide-react';
+import { Filter, X, Eye, Plus, Trash2 } from 'lucide-react';
 import RegisterPage from '@/components/shells/RegisterPage';
 import FormModal from '@/components/shells/FormModal';
+import LinkPicker from '@/components/ui/LinkPicker';
 import { badge, DC_BADGES } from '@/components/procurement/proc-helpers';
 import { useAuth } from '@/context/AuthContext';
 
-interface DC { name: string; dispatch_date?: string; dispatch_type?: string; status?: string; from_warehouse?: string; to_warehouse?: string; target_site_name?: string; linked_project?: string; total_items?: number; total_qty?: number; }
+interface DC { name: string; dispatch_date?: string; dispatch_type?: string; status?: string; from_warehouse?: string; to_warehouse?: string; target_site_name?: string; linked_project?: string; total_items?: number; total_qty?: number; challan_reference?: string; issued_to_name?: string; }
 interface DCStats { total?: number; draft?: number; pending_approval?: number; dispatched?: number; total_qty?: number; }
 interface StockBin { warehouse?: string; item_code?: string; actual_qty?: number; reserved_qty?: number; ordered_qty?: number; projected_qty?: number; }
+interface DCItem { item_link: string; description: string; qty: number; make?: string; model_no?: string; serial_numbers?: string; uom?: string; remarks?: string; }
 
 export default function InventoryPage() {
   const { currentUser } = useAuth();
@@ -25,6 +27,35 @@ export default function InventoryPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [actionBusy, setActionBusy] = useState<string | null>(null);
+
+  // Challan create form state
+  const emptyItem = (): DCItem => ({ item_link: '', description: '', qty: 1, make: '', model_no: '', serial_numbers: '', uom: 'Nos', remarks: '' });
+  const [dcForm, setDcForm] = useState({
+    dispatch_type: 'WAREHOUSE_TO_SITE',
+    dispatch_date: '',
+    challan_reference: '',
+    from_warehouse: '',
+    to_warehouse: '',
+    target_site_name: '',
+    linked_project: '',
+    issued_to_name: '',
+    vehicle_number: '',
+    transporter_name: '',
+    purpose_of_issuance: '',
+    remarks: '',
+  });
+  const [dcItems, setDcItems] = useState<DCItem[]>([emptyItem()]);
+
+  // Schema-driven labels from backend workbook reference
+  const [outHeaders, setOutHeaders] = useState<string[]>([]);
+  useEffect(() => {
+    fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method: 'get_inventory_reference_schema' }) })
+      .then(r => r.json())
+      .then(p => { if (p.data?.out_sheet?.headers) setOutHeaders(p.data.out_sheet.headers); })
+      .catch(() => {});
+  }, []);
+  // Map workbook headers to line-item columns (fallback to sensible defaults)
+  const colLabel = (idx: number, fallback: string) => outHeaders[idx] || fallback;
 
   const hasRole = (...roles: string[]) => roles.some(r => new Set(currentUser?.roles || []).has(r));
   const canSubmit = hasRole('Director', 'System Manager', 'Store Manager', 'Stores Logistics Head', 'Procurement Manager', 'Purchase');
@@ -45,16 +76,30 @@ export default function InventoryPage() {
 
   useEffect(() => { load(); }, []);
 
-  const handleCreate = async (v: Record<string, string>) => {
-    if (!v.dispatch_date || !v.description?.trim() || !v.item_link?.trim()) { setError('Date, Item, Description required'); return; }
+  const handleCreate = async () => {
+    const validItems = dcItems.filter(i => i.item_link.trim() && i.description.trim());
+    if (!dcForm.dispatch_date || validItems.length === 0) { setError('Date and at least one item with Item + Description required'); return; }
     setCreating(true); setError('');
     try {
-      const res = await fetch('/api/dispatch-challans', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dispatch_type: v.dispatch_type || 'WAREHOUSE_TO_SITE', dispatch_date: v.dispatch_date, from_warehouse: v.from_warehouse || undefined, to_warehouse: v.to_warehouse || undefined, target_site_name: v.target_site_name || undefined, linked_project: v.linked_project || undefined, items: [{ item_link: v.item_link, description: v.description, qty: Number(v.qty) || 1 }] }) });
+      const payload = {
+        ...dcForm,
+        items: validItems.map(i => ({ ...i, qty: Number(i.qty) || 1 })),
+      };
+      const res = await fetch('/api/dispatch-challans', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const p = await res.json(); if (!res.ok || !p.success) throw new Error(p.message || 'Failed');
-      setShowCreate(false); load();
+      setShowCreate(false);
+      setDcForm({ dispatch_type: 'WAREHOUSE_TO_SITE', dispatch_date: '', challan_reference: '', from_warehouse: '', to_warehouse: '', target_site_name: '', linked_project: '', issued_to_name: '', vehicle_number: '', transporter_name: '', purpose_of_issuance: '', remarks: '' });
+      setDcItems([emptyItem()]);
+      load();
     } catch (e) { setError(e instanceof Error ? e.message : 'Failed'); }
     finally { setCreating(false); }
   };
+
+  const updateItem = (idx: number, field: keyof DCItem, value: string | number) => {
+    setDcItems(prev => prev.map((it, i) => i === idx ? { ...it, [field]: value } : it));
+  };
+  const addItem = () => setDcItems(prev => [...prev, emptyItem()]);
+  const removeItem = (idx: number) => setDcItems(prev => prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev);
 
   const runAction = async (name: string, action: string) => {
     setActionBusy(name); setError('');
@@ -92,15 +137,17 @@ export default function InventoryPage() {
       <div className="shell-panel overflow-hidden mb-6">
         <div className="px-5 py-3 border-b border-gray-100"><h3 className="font-semibold text-gray-900">Dispatch Challans</h3></div>
         <table className="data-table text-sm">
-          <thead><tr><th>Challan</th><th>Date</th><th>Type</th><th>From</th><th>To</th><th>Project</th><th>Items</th><th>Qty</th><th>Status</th><th>Action</th></tr></thead>
+          <thead><tr><th>Challan</th><th>Ref</th><th>Date</th><th>Type</th><th>From</th><th>To</th><th>Issued To</th><th>Project</th><th>Items</th><th>Qty</th><th>Status</th><th>Action</th></tr></thead>
           <tbody>
-            {filtered.length === 0 ? <tr><td colSpan={10} className="text-center py-8 text-gray-500">No challans found</td></tr> : filtered.map(c => (
+            {filtered.length === 0 ? <tr><td colSpan={12} className="text-center py-8 text-gray-500">No challans found</td></tr> : filtered.map(c => (
               <tr key={c.name}>
                 <td className="font-medium">{c.name}</td>
+                <td className="text-gray-600">{c.challan_reference || '-'}</td>
                 <td className="text-gray-600">{c.dispatch_date || '-'}</td>
                 <td><span className="badge badge-blue">{c.dispatch_type || '-'}</span></td>
                 <td className="text-gray-700">{c.from_warehouse || '-'}</td>
                 <td className="text-gray-700">{c.to_warehouse || c.target_site_name || '-'}</td>
+                <td className="text-gray-700">{c.issued_to_name || '-'}</td>
                 <td>{c.linked_project ? <Link href={`/projects/${encodeURIComponent(c.linked_project)}?tab=ops`} className="text-blue-600 hover:underline text-sm">{c.linked_project}</Link> : '-'}</td>
                 <td className="text-gray-600">{c.total_items ?? 0}</td>
                 <td className="text-gray-600">{c.total_qty ?? 0}</td>
@@ -139,22 +186,119 @@ export default function InventoryPage() {
       <FormModal
         open={showCreate}
         title="Create Dispatch Challan"
-        description="Dispatch items from warehouse to site."
+        description="Dispatch items from warehouse to site with full workbook detail."
         busy={creating}
-        fields={[
-          { name: 'dispatch_type', label: 'Dispatch Type', type: 'select' as const, options: [{ value: 'WAREHOUSE_TO_WAREHOUSE', label: 'Warehouse to Warehouse' }, { value: 'WAREHOUSE_TO_SITE', label: 'Warehouse to Site' }, { value: 'VENDOR_TO_SITE', label: 'Vendor to Site' }] },
-          { name: 'dispatch_date', label: 'Dispatch Date', type: 'date' as const, required: true },
-          { name: 'from_warehouse', label: 'From Warehouse', type: 'text' as const },
-          { name: 'to_warehouse', label: 'To Warehouse', type: 'text' as const },
-          { name: 'target_site_name', label: 'Target Site', type: 'text' as const },
-          { name: 'linked_project', label: 'Linked Project', type: 'text' as const },
-          { name: 'item_link', label: 'Item', type: 'text' as const, required: true },
-          { name: 'qty', label: 'Qty', type: 'number' as const },
-          { name: 'description', label: 'Description', type: 'text' as const, required: true },
-        ]}
-        onConfirm={handleCreate}
+        size="lg"
+        confirmLabel="Create Challan"
+        onConfirm={() => handleCreate()}
         onCancel={() => setShowCreate(false)}
-      />
+      >
+        <div className="space-y-5 px-6 py-4">
+          {/* Header fields */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Dispatch Type</label>
+              <select className="input" value={dcForm.dispatch_type} onChange={e => setDcForm(f => ({ ...f, dispatch_type: e.target.value }))}>
+                <option value="WAREHOUSE_TO_WAREHOUSE">Warehouse to Warehouse</option>
+                <option value="WAREHOUSE_TO_SITE">Warehouse to Site</option>
+                <option value="VENDOR_TO_SITE">Vendor to Site</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Dispatch Date *</label>
+              <input type="date" className="input" value={dcForm.dispatch_date} onChange={e => setDcForm(f => ({ ...f, dispatch_date: e.target.value }))} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Challan Reference</label>
+              <input className="input" placeholder="e.g. DC-2026-001" value={dcForm.challan_reference} onChange={e => setDcForm(f => ({ ...f, challan_reference: e.target.value }))} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">From Warehouse</label>
+              <LinkPicker entity="warehouse" value={dcForm.from_warehouse} onChange={v => setDcForm(f => ({ ...f, from_warehouse: v }))} placeholder="Search warehouses…" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">To Warehouse</label>
+              <LinkPicker entity="warehouse" value={dcForm.to_warehouse} onChange={v => setDcForm(f => ({ ...f, to_warehouse: v }))} placeholder="Search warehouses…" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Target Site</label>
+              <LinkPicker entity="site" value={dcForm.target_site_name} onChange={v => setDcForm(f => ({ ...f, target_site_name: v }))} placeholder="Search sites…" filters={dcForm.linked_project ? { project: dcForm.linked_project } : undefined} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Linked Project</label>
+              <LinkPicker entity="project" value={dcForm.linked_project} onChange={v => setDcForm(f => ({ ...f, linked_project: v }))} placeholder="Search projects…" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Issued To</label>
+              <input className="input" placeholder="Name of person issued" value={dcForm.issued_to_name} onChange={e => setDcForm(f => ({ ...f, issued_to_name: e.target.value }))} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Purpose</label>
+              <select className="input" value={dcForm.purpose_of_issuance} onChange={e => setDcForm(f => ({ ...f, purpose_of_issuance: e.target.value }))}>
+                <option value="">-- Select --</option>
+                <option value="Site Installation">Site Installation</option>
+                <option value="Repair">Repair</option>
+                <option value="Replacement">Replacement</option>
+                <option value="Testing">Testing</option>
+                <option value="Training">Training</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle Number</label>
+              <input className="input" value={dcForm.vehicle_number} onChange={e => setDcForm(f => ({ ...f, vehicle_number: e.target.value }))} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Transporter</label>
+              <input className="input" value={dcForm.transporter_name} onChange={e => setDcForm(f => ({ ...f, transporter_name: e.target.value }))} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Remarks</label>
+              <input className="input" value={dcForm.remarks} onChange={e => setDcForm(f => ({ ...f, remarks: e.target.value }))} />
+            </div>
+          </div>
+
+          {/* Line items */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-gray-900">Line Items</h3>
+              <button type="button" className="btn btn-secondary text-xs" onClick={addItem}><Plus className="w-3.5 h-3.5" /> Add Row</button>
+            </div>
+            <div className="overflow-x-auto rounded-lg border border-gray-200">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-600">{colLabel(2, 'Item')} *</th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-600">Description *</th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-600">{colLabel(3, 'Make')}</th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-600">{colLabel(4, 'Model No.')}</th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-600 w-16">{colLabel(6, 'Qty')}</th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-600 w-16">{colLabel(7, 'UOM')}</th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-600">{colLabel(5, 'Serial No.')}</th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-600">{colLabel(10, 'Remarks')}</th>
+                    <th className="px-2 py-2 w-8"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dcItems.map((item, idx) => (
+                    <tr key={idx} className="border-t border-gray-100">
+                      <td className="px-1 py-1"><LinkPicker entity="item" className="text-xs" value={item.item_link} onChange={v => updateItem(idx, 'item_link', v)} placeholder="Search items…" /></td>
+                      <td className="px-1 py-1"><input className="input text-xs" value={item.description} onChange={e => updateItem(idx, 'description', e.target.value)} /></td>
+                      <td className="px-1 py-1"><input className="input text-xs" value={item.make} onChange={e => updateItem(idx, 'make', e.target.value)} /></td>
+                      <td className="px-1 py-1"><input className="input text-xs" value={item.model_no} onChange={e => updateItem(idx, 'model_no', e.target.value)} /></td>
+                      <td className="px-1 py-1"><input type="number" min="1" className="input text-xs w-16" value={item.qty} onChange={e => updateItem(idx, 'qty', Number(e.target.value) || 1)} /></td>
+                      <td className="px-1 py-1"><input className="input text-xs w-16" value={item.uom} onChange={e => updateItem(idx, 'uom', e.target.value)} /></td>
+                      <td className="px-1 py-1"><input className="input text-xs" value={item.serial_numbers} onChange={e => updateItem(idx, 'serial_numbers', e.target.value)} /></td>
+                      <td className="px-1 py-1"><input className="input text-xs" value={item.remarks} onChange={e => updateItem(idx, 'remarks', e.target.value)} /></td>
+                      <td className="px-1 py-1"><button type="button" className="p-1 text-gray-400 hover:text-rose-600" onClick={() => removeItem(idx)}><Trash2 className="w-3.5 h-3.5" /></button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </FormModal>
     </RegisterPage>
   );
 }

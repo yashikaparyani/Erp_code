@@ -2,9 +2,12 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { MessageSquareText, Upload } from 'lucide-react';
+import { MessageSquareText, Upload, FileText, X } from 'lucide-react';
 import RegisterPage from '@/components/shells/RegisterPage';
 import { callOps } from '@/components/finance/fin-helpers';
+import { commercialApi } from '@/lib/typedApi';
+import { getFileProxyUrl } from '@/lib/fileLinks';
+import LinkPicker from '@/components/ui/LinkPicker';
 
 export default function CommercialPage() {
   const [aging, setAging] = useState<any[]>([]);
@@ -17,7 +20,9 @@ export default function CommercialPage() {
   const [commentItems, setCommentItems] = useState<any[]>([]);
   const [documentItems, setDocumentItems] = useState<any[]>([]);
   const [commentForm, setCommentForm] = useState({ reference_doctype: 'GE Estimate', reference_name: '', content: '' });
-  const [documentForm, setDocumentForm] = useState({ customer: '', reference_doctype: 'GE Estimate', reference_name: '', document_name: '', category: 'Commercial', file_url: '', remarks: '' });
+  const [documentForm, setDocumentForm] = useState({ customer: '', reference_doctype: 'GE Estimate', reference_name: '', document_name: '', category: 'Commercial', remarks: '' });
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [seeding, setSeeding] = useState(false);
   const [busyAction, setBusyAction] = useState('');
@@ -47,8 +52,8 @@ export default function CommercialPage() {
   const loadContext = async (customer: string) => {
     if (!customer.trim()) { setCommentItems([]); setDocumentItems([]); return; }
     const [c, d] = await Promise.all([
-      callOps<any[]>('get_commercial_comments', { customer }),
-      callOps<any[]>('get_commercial_documents', { customer }),
+      commercialApi.getComments<any[]>(customer),
+      commercialApi.getDocuments<any[]>(customer),
     ]);
     setCommentItems(c || []); setDocumentItems(d || []);
   };
@@ -61,19 +66,31 @@ export default function CommercialPage() {
   const addComment = async () => {
     setBusyAction('comment'); setError('');
     try {
-      await callOps('add_commercial_comment', { reference_doctype: commentForm.reference_doctype, reference_name: commentForm.reference_name, content: commentForm.content });
+      await commercialApi.addComment(commentForm.reference_doctype, commentForm.reference_name, commentForm.content);
       setCommentForm(p => ({ ...p, reference_name: '', content: '' })); await loadContext(selectedCustomer);
     } catch (e) { setError(e instanceof Error ? e.message : 'Failed'); }
     setBusyAction('');
   };
 
   const addDocument = async () => {
-    setBusyAction('document'); setError('');
+    if (!docFile) { setError('Please select a file to upload.'); return; }
+    setBusyAction('document'); setError(''); setUploading(true);
     try {
-      await callOps('create_commercial_document', { data: JSON.stringify(documentForm) });
-      setDocumentForm(p => ({ ...p, reference_name: '', document_name: '', file_url: '', remarks: '' }));
+      // Step 1: upload file
+      const uploadBody = new FormData();
+      uploadBody.append('file', docFile);
+      const uploadRes = await fetch('/api/ops/upload-file', { method: 'POST', body: uploadBody });
+      const uploadPayload = await uploadRes.json().catch(() => ({}));
+      if (!uploadRes.ok || !uploadPayload.success) throw new Error(uploadPayload.message || 'File upload failed');
+      const fileUrl = uploadPayload.data.file_url;
+      setUploading(false);
+
+      // Step 2: create commercial document
+      await commercialApi.createDocument({ data: JSON.stringify({ ...documentForm, file_url: fileUrl }) });
+      setDocumentForm(p => ({ ...p, reference_name: '', document_name: '', remarks: '' }));
+      setDocFile(null);
       await loadContext(documentForm.customer || selectedCustomer);
-    } catch (e) { setError(e instanceof Error ? e.message : 'Failed'); }
+    } catch (e) { setError(e instanceof Error ? e.message : 'Failed'); setUploading(false); }
     setBusyAction('');
   };
 
@@ -148,12 +165,18 @@ export default function CommercialPage() {
         <div className="card">
           <div className="card-header flex items-center gap-2"><MessageSquareText className="h-5 w-5 text-[#1e6b87]" /><h3 className="font-semibold text-gray-900">Transaction Comments</h3></div>
           <div className="card-body space-y-3">
-            <input className="input" placeholder="Customer filter" value={selectedCustomer} onChange={e => setSelectedCustomer(e.target.value)} />
+            <LinkPicker entity="customer" value={selectedCustomer} onChange={setSelectedCustomer} placeholder="Search customers…" />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <select className="input" value={commentForm.reference_doctype} onChange={e => setCommentForm(p => ({...p, reference_doctype: e.target.value}))}>
                 {doctypeOptions.map(d => <option key={d} value={d}>{d.replace('GE ','')}</option>)}
               </select>
-              <input className="input" placeholder="Record ID" value={commentForm.reference_name} onChange={e => setCommentForm(p => ({...p, reference_name: e.target.value}))} />
+              <LinkPicker
+                entity="commercial_reference"
+                value={commentForm.reference_name}
+                onChange={v => setCommentForm(p => ({ ...p, reference_name: v }))}
+                placeholder="Search records…"
+                filters={{ doctype: commentForm.reference_doctype }}
+              />
             </div>
             <textarea className="input min-h-24" placeholder="Add a transaction comment" value={commentForm.content} onChange={e => setCommentForm(p => ({...p, content: e.target.value}))} />
             <div className="flex justify-end"><button className="btn btn-primary" disabled={busyAction==='comment'} onClick={addComment}>{busyAction==='comment'?'Saving...':'Add Comment'}</button></div>
@@ -173,25 +196,47 @@ export default function CommercialPage() {
           <div className="card-header flex items-center gap-2"><Upload className="h-5 w-5 text-[#1e6b87]" /><h3 className="font-semibold text-gray-900">Document Exchange</h3></div>
           <div className="card-body space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <input className="input" placeholder="Customer" value={documentForm.customer} onChange={e => setDocumentForm(p => ({...p, customer: e.target.value}))} />
+              <LinkPicker entity="customer" value={documentForm.customer} onChange={v => setDocumentForm(p => ({...p, customer: v}))} placeholder="Search customers…" />
               <select className="input" value={documentForm.reference_doctype} onChange={e => setDocumentForm(p => ({...p, reference_doctype: e.target.value}))}>
                 {doctypeOptions.map(d => <option key={d} value={d}>{d.replace('GE ','')}</option>)}
               </select>
-              <input className="input" placeholder="Record ID" value={documentForm.reference_name} onChange={e => setDocumentForm(p => ({...p, reference_name: e.target.value}))} />
+              <LinkPicker
+                entity="commercial_reference"
+                value={documentForm.reference_name}
+                onChange={v => setDocumentForm(p => ({ ...p, reference_name: v }))}
+                placeholder="Search records…"
+                filters={{ doctype: documentForm.reference_doctype }}
+              />
               <input className="input" placeholder="Document Name" value={documentForm.document_name} onChange={e => setDocumentForm(p => ({...p, document_name: e.target.value}))} />
               <select className="input" value={documentForm.category} onChange={e => setDocumentForm(p => ({...p, category: e.target.value}))}>
                 {['Commercial','Quote','Statement','Payment Proof','Customer Communication','Other'].map(c => <option key={c}>{c}</option>)}
               </select>
-              <input className="input" placeholder="File URL" value={documentForm.file_url} onChange={e => setDocumentForm(p => ({...p, file_url: e.target.value}))} />
+            </div>
+            {/* File upload */}
+            <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-3">
+              {docFile ? (
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-blue-600 shrink-0" />
+                  <span className="text-sm text-gray-700 truncate flex-1">{docFile.name}</span>
+                  <span className="text-xs text-gray-400">{(docFile.size / 1024).toFixed(0)} KB</span>
+                  <button type="button" className="p-1 text-gray-400 hover:text-rose-600" onClick={() => setDocFile(null)}><X className="h-3.5 w-3.5" /></button>
+                </div>
+              ) : (
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <Upload className="h-4 w-4 text-gray-400" />
+                  <span className="text-sm text-gray-500">Choose file (PDF, DOCX, XLSX, JPG, PNG)</span>
+                  <input type="file" className="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png" onChange={e => setDocFile(e.target.files?.[0] ?? null)} />
+                </label>
+              )}
             </div>
             <textarea className="input min-h-24" placeholder="Remarks" value={documentForm.remarks} onChange={e => setDocumentForm(p => ({...p, remarks: e.target.value}))} />
-            <div className="flex justify-end"><button className="btn btn-primary" disabled={busyAction==='document'} onClick={addDocument}>{busyAction==='document'?'Sharing...':'Share Document'}</button></div>
+            <div className="flex justify-end"><button className="btn btn-primary" disabled={busyAction==='document' || uploading} onClick={addDocument}>{uploading ? 'Uploading…' : busyAction==='document' ? 'Sharing...' : 'Share Document'}</button></div>
             <div className="space-y-2">
               {!documentItems.length ? <div className="text-sm text-gray-500">No documents</div> : documentItems.slice(0,6).map(d => (
                 <div key={d.name} className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
                   <div className="text-sm font-medium text-gray-900">{d.document_name}</div>
                   <div className="text-xs text-gray-500">{d.customer} | {d.reference_doctype} | {d.reference_name}</div>
-                  <a href={d.file_url} target="_blank" rel="noreferrer" className="text-sm text-[#1e6b87] hover:underline mt-1 inline-block">{d.file_url}</a>
+                  {d.file_url && <a href={getFileProxyUrl(d.file_url, true)} target="_blank" rel="noreferrer" className="text-sm text-[#1e6b87] hover:underline mt-1 inline-flex items-center gap-1"><FileText className="h-3.5 w-3.5" />Download</a>}
                 </div>
               ))}
             </div>

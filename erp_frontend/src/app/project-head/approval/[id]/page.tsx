@@ -6,6 +6,7 @@ import Link from 'next/link';
 import {
   CheckCircle2, XCircle, User, Calendar, IndianRupee,
   FileText, ExternalLink, Clock, Hash, Tag, Building2,
+  ArrowRight, Info,
 } from 'lucide-react';
 import DetailPage from '@/components/shells/DetailPage';
 import ActionModal from '@/components/ui/ActionModal';
@@ -204,6 +205,9 @@ export default function ApprovalDetailPage() {
       >
         {d && (
           <div className="space-y-4">
+            {/* What happens next */}
+            <WhatHappensNext status={d.status} />
+
             {/* Costing / Finance card */}
             {d.costing_queue_ref && (
               <div className="card">
@@ -264,5 +268,49 @@ export default function ApprovalDetailPage() {
         </ActionModal>
       )}
     </>
+  );
+}
+
+/* ── What Happens Next ──────────────────────────────────────── */
+
+const NEXT_STEP: Record<string, { icon: React.ReactNode; heading: string; text: string }> = {
+  'Submitted to PH': {
+    icon: <Clock className="h-4 w-4 text-blue-600" />,
+    heading: 'Awaiting your decision',
+    text: 'Review the request details and supporting documents, then approve or reject. Once approved, the item is forwarded to the Costing Queue for disbursement.',
+  },
+  'Approved by PH': {
+    icon: <ArrowRight className="h-4 w-4 text-purple-600" />,
+    heading: 'Forwarded to Costing',
+    text: 'This request has been approved and is now in the Costing Queue. The Finance team will review it for release, hold, or rejection.',
+  },
+  'Rejected by PH': {
+    icon: <XCircle className="h-4 w-4 text-rose-600" />,
+    heading: 'Request rejected',
+    text: 'This request was rejected. The requester has been notified. No further action is needed unless a new request is submitted.',
+  },
+  'Forwarded to Costing': {
+    icon: <ArrowRight className="h-4 w-4 text-purple-600" />,
+    heading: 'In Costing Queue',
+    text: 'Awaiting Finance review. The costing team will release, hold, or reject the disbursement.',
+  },
+  'Disbursed / Released': {
+    icon: <CheckCircle2 className="h-4 w-4 text-teal-600" />,
+    heading: 'Complete',
+    text: 'Funds have been released. This request is fully processed.',
+  },
+};
+
+function WhatHappensNext({ status }: { status?: string }) {
+  const step = NEXT_STEP[status || ''];
+  if (!step) return null;
+  return (
+    <div className="rounded-lg border border-blue-100 bg-blue-50/50 px-4 py-3 flex items-start gap-3">
+      <div className="mt-0.5">{step.icon}</div>
+      <div>
+        <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-1.5"><Info className="h-3.5 w-3.5 text-blue-500" /> {step.heading}</h3>
+        <p className="text-sm text-gray-600 mt-0.5">{step.text}</p>
+      </div>
+    </div>
   );
 }

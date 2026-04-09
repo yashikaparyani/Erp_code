@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
-import { Plus, Wrench, Camera, Activity, CheckCircle2, Eye, X, ClipboardCheck, FileCheck2, GitBranch, ArrowRight, AlertTriangle } from 'lucide-react';
+import { Plus, Wrench, Camera, Activity, CheckCircle2, Eye, X, ClipboardCheck, FileCheck2, GitBranch, ArrowRight, AlertTriangle, Upload, Download } from 'lucide-react';
 
 interface Site {
   name: string;
@@ -43,6 +43,17 @@ interface CommissioningSummary {
   signoffs_signed: number;
 }
 
+interface BulkUploadResult {
+  dry_run: boolean;
+  created_count: number;
+  skipped_count: number;
+  error_count: number;
+  created: { row: number; site_code: string; site_name: string }[];
+  skipped: { row: number; site_code: string; reason: string }[];
+  errors: { row: number; message: string }[];
+  headers: string[];
+}
+
 export default function ExecutionPage() {
   const { currentUser } = useAuth();
   const [sites, setSites] = useState<Site[]>([]);
@@ -62,6 +73,14 @@ export default function ExecutionPage() {
     linked_tender: '',
     status: 'PLANNED',
   });
+  // Bulk upload state
+  const [showBulkUploadModal, setShowBulkUploadModal] = useState(false);
+  const [bulkFile, setBulkFile] = useState<File | null>(null);
+  const [bulkDefaults, setBulkDefaults] = useState({ default_project: '', default_tender: '' });
+  const [bulkDryRun, setBulkDryRun] = useState(true);
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const [bulkResult, setBulkResult] = useState<BulkUploadResult | null>(null);
+  const [downloadingTemplate, setDownloadingTemplate] = useState(false);
   const requestIdRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -175,6 +194,78 @@ export default function ExecutionPage() {
     setCreating(false);
   };
 
+  const handleDownloadTemplate = async () => {
+    setDownloadingTemplate(true);
+    try {
+      const res = await fetch('/api/ops/download?method=download_site_bulk_upload_template');
+      if (!res.ok) {
+        const errPayload = await res.json().catch(() => ({ message: 'Download failed' }));
+        throw new Error(errPayload.message || 'Download failed');
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'ge_site_bulk_upload_template.xlsx';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to download template');
+    } finally {
+      setDownloadingTemplate(false);
+    }
+  };
+
+  const handleBulkUpload = async () => {
+    if (!bulkFile) { setError('Please select a file to upload.'); return; }
+    setBulkUploading(true);
+    setError('');
+    setBulkResult(null);
+    try {
+      // Step 1: upload the file to Frappe
+      const uploadBody = new FormData();
+      uploadBody.append('file', bulkFile);
+      const uploadRes = await fetch('/api/ops/upload-file', { method: 'POST', body: uploadBody });
+      const uploadPayload = await uploadRes.json().catch(() => ({}));
+      if (!uploadRes.ok || !uploadPayload.success) {
+        throw new Error(uploadPayload.message || 'File upload failed');
+      }
+      const fileUrl = uploadPayload.data.file_url;
+
+      // Step 2: call bulk_upload_sites
+      const args: Record<string, unknown> = { file_url: fileUrl, dry_run: bulkDryRun ? 1 : 0 };
+      if (bulkDefaults.default_project.trim()) args.default_project = bulkDefaults.default_project.trim();
+      if (bulkDefaults.default_tender.trim()) args.default_tender = bulkDefaults.default_tender.trim();
+      const res = await fetch('/api/ops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ method: 'bulk_upload_sites', args }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload.message || 'Bulk upload failed');
+
+      const data = payload.data?.data ?? payload.data ?? payload;
+      setBulkResult(data as BulkUploadResult);
+
+      // If it was a real run and there were created sites, refresh the list
+      if (!bulkDryRun && (data as BulkUploadResult).created_count > 0) {
+        await loadData();
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Bulk upload failed');
+    } finally {
+      setBulkUploading(false);
+    }
+  };
+
+  const resetBulkModal = () => {
+    setShowBulkUploadModal(false);
+    setBulkFile(null);
+    setBulkDefaults({ default_project: '', default_tender: '' });
+    setBulkDryRun(true);
+    setBulkResult(null);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -203,7 +294,15 @@ export default function ExecutionPage() {
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Execution (I&C)</h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-1">Installation, commissioning, and site progress tracking</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <button className="btn btn-secondary w-full sm:w-auto" onClick={handleDownloadTemplate} disabled={downloadingTemplate}>
+            <Download className="w-4 h-4" />
+            {downloadingTemplate ? 'Downloading…' : 'Template'}
+          </button>
+          <button className="btn btn-secondary w-full sm:w-auto" onClick={() => setShowBulkUploadModal(true)}>
+            <Upload className="w-4 h-4" />
+            Upload Sites
+          </button>
           <button className="btn btn-secondary w-full sm:w-auto" onClick={() => setShowDprModal(true)}>
             <Camera className="w-4 h-4" />
             New DPR
@@ -308,6 +407,125 @@ export default function ExecutionPage() {
             <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
               <button className="btn btn-secondary" onClick={() => setShowDprModal(false)}>Cancel</button>
               <button className="btn btn-primary" onClick={handleCreateDpr} disabled={creating}>{creating ? 'Creating...' : 'Create DPR'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Upload Modal */}
+      {showBulkUploadModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h2 className="text-lg font-semibold text-gray-900">Bulk Upload Sites</h2>
+              <button className="p-2 rounded-lg hover:bg-gray-100" onClick={resetBulkModal}><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              {/* File picker */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Upload XLSX or CSV *</label>
+                <input
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  className="input"
+                  onChange={(e) => { setBulkFile(e.target.files?.[0] ?? null); setBulkResult(null); }}
+                />
+              </div>
+              {/* Optional defaults */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Default Project</label>
+                  <input className="input" placeholder="Applied when row is blank" value={bulkDefaults.default_project} onChange={(e) => setBulkDefaults(d => ({ ...d, default_project: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Default Tender</label>
+                  <input className="input" placeholder="Applied when row is blank" value={bulkDefaults.default_tender} onChange={(e) => setBulkDefaults(d => ({ ...d, default_tender: e.target.value }))} />
+                </div>
+              </div>
+              {/* Dry run toggle */}
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={bulkDryRun} onChange={(e) => { setBulkDryRun(e.target.checked); setBulkResult(null); }} className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                <span className="text-sm text-gray-700">Validate only (dry run) — no records will be created</span>
+              </label>
+
+              {/* Results */}
+              {bulkResult && (
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
+                  <div className="flex items-center gap-3 text-sm font-semibold text-gray-900">
+                    {bulkResult.dry_run ? 'Validation Preview' : 'Upload Complete'}
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-center">
+                      <div className="text-lg font-bold text-emerald-700">{bulkResult.created_count}</div>
+                      <div className="text-xs text-emerald-600">{bulkResult.dry_run ? 'Would Create' : 'Created'}</div>
+                    </div>
+                    <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-center">
+                      <div className="text-lg font-bold text-amber-700">{bulkResult.skipped_count}</div>
+                      <div className="text-xs text-amber-600">Skipped</div>
+                    </div>
+                    <div className="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-center">
+                      <div className="text-lg font-bold text-rose-700">{bulkResult.error_count}</div>
+                      <div className="text-xs text-rose-600">Errors</div>
+                    </div>
+                  </div>
+                  {/* Error rows */}
+                  {bulkResult.errors.length > 0 && (
+                    <div>
+                      <div className="text-xs font-semibold text-rose-700 mb-1">Errors</div>
+                      <div className="max-h-40 overflow-y-auto space-y-1">
+                        {bulkResult.errors.map((e) => (
+                          <div key={e.row} className="text-xs text-rose-700 bg-rose-50 rounded px-2 py-1">
+                            Row {e.row}: {e.message}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* Skipped rows */}
+                  {bulkResult.skipped.length > 0 && (
+                    <div>
+                      <div className="text-xs font-semibold text-amber-700 mb-1">Skipped (already exist)</div>
+                      <div className="max-h-32 overflow-y-auto space-y-1">
+                        {bulkResult.skipped.map((s) => (
+                          <div key={s.row} className="text-xs text-amber-700 bg-amber-50 rounded px-2 py-1">
+                            Row {s.row}: {s.site_code} — {s.reason}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* Created rows */}
+                  {bulkResult.created.length > 0 && (
+                    <div>
+                      <div className="text-xs font-semibold text-emerald-700 mb-1">{bulkResult.dry_run ? 'Would Create' : 'Created'}</div>
+                      <div className="max-h-32 overflow-y-auto space-y-1">
+                        {bulkResult.created.map((c) => (
+                          <div key={c.row} className="text-xs text-emerald-700 bg-emerald-50 rounded px-2 py-1">
+                            Row {c.row}: {c.site_code} — {c.site_name}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            {error ? <p className="px-6 pb-2 text-sm text-red-600">{error}</p> : null}
+            <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100">
+              <button className="btn btn-secondary text-sm" onClick={handleDownloadTemplate} disabled={downloadingTemplate}>
+                <Download className="w-4 h-4" />
+                {downloadingTemplate ? 'Downloading…' : 'Download Template'}
+              </button>
+              <div className="flex gap-2">
+                <button className="btn btn-secondary" onClick={resetBulkModal}>Cancel</button>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleBulkUpload}
+                  disabled={!bulkFile || bulkUploading}
+                >
+                  {bulkUploading ? 'Processing…' : bulkDryRun ? 'Validate' : 'Upload & Create'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

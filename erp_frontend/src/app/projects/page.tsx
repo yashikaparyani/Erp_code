@@ -882,6 +882,7 @@ export default function ProjectsDashboardPage() {
                 {filteredProjects.map((project) => {
                   const href = `/projects/${encodeURIComponent(project.name)}`;
                   const blocked = (project.spine_blocked || 0) > 0;
+                  const noSitesUploaded = (project.total_sites || 0) === 0;
                   return (
                     <tr key={project.name} className="group hover:bg-[var(--surface-raised)]/55 transition-colors">
                       <td className="px-6 py-4">
@@ -910,9 +911,16 @@ export default function ProjectsDashboardPage() {
                         </div>
                       </td>
                       <td className="px-4 py-4">
-                        <div className="inline-flex items-center gap-2 text-[var(--text-main)]">
-                          <FolderTree className="h-4 w-4 text-[var(--text-muted)]" />
-                          <span className="font-medium">{project.total_sites || 0}</span>
+                        <div className="flex flex-wrap items-center gap-2 text-[var(--text-main)]">
+                          <div className="inline-flex items-center gap-2">
+                            <FolderTree className="h-4 w-4 text-[var(--text-muted)]" />
+                            <span className="font-medium">{project.total_sites || 0}</span>
+                          </div>
+                          {noSitesUploaded && (
+                            <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-medium text-amber-700">
+                              No sites uploaded
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-4 py-4">

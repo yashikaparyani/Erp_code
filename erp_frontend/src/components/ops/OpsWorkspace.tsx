@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, RefreshCcw } from 'lucide-react';
 import { DashboardShell, SectionCard, StatCard } from '../dashboards/shared';
 import ModalFrame from '../ui/ModalFrame';
+import LinkPicker, { type LookupEntity } from '../ui/LinkPicker';
 
 type Tone = 'blue' | 'green' | 'orange' | 'purple' | 'red' | 'amber' | 'cyan' | 'slate' | 'teal';
 
@@ -12,13 +13,17 @@ type FieldOption = { label: string; value: string };
 export type WorkspaceField = {
   name: string;
   label: string;
-  type?: 'text' | 'number' | 'date' | 'textarea' | 'select' | 'file';
+  type?: 'text' | 'number' | 'date' | 'textarea' | 'select' | 'file' | 'link';
   placeholder?: string;
   required?: boolean;
   options?: FieldOption[];
   defaultValue?: string | number;
   /** Comma-separated list of accepted file extensions, e.g. '.pdf,.dwg' */
   accept?: string;
+  /** For type='link': which entity to search. */
+  linkEntity?: LookupEntity;
+  /** For type='link': extra filters. */
+  linkFilters?: Record<string, string>;
 };
 
 export type WorkspaceColumn<T extends Record<string, any>> = {
@@ -397,6 +402,14 @@ export default function OpsWorkspace<T extends Record<string, any>>({
                     <p className="mt-1 text-xs text-gray-500">Selected: {fileValues[field.name]!.name}</p>
                   ) : null}
                 </div>
+              ) : field.type === 'link' && field.linkEntity ? (
+                <LinkPicker
+                  entity={field.linkEntity}
+                  value={formValues[field.name] || ''}
+                  onChange={(v) => setFormValues((prev) => ({ ...prev, [field.name]: v }))}
+                  placeholder={field.placeholder}
+                  filters={field.linkFilters}
+                />
               ) : (
                 <input
                   className="input"

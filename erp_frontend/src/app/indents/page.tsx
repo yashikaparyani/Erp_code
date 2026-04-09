@@ -8,7 +8,8 @@ import FormModal from '@/components/shells/FormModal';
 import ActionModal from '@/components/ui/ActionModal';
 import { AccountabilityTimeline } from '@/components/accountability/AccountabilityTimeline';
 import { useRole } from '@/context/RoleContext';
-import { badge, INDENT_BADGES, callOps } from '@/components/procurement/proc-helpers';
+import { badge, INDENT_BADGES } from '@/components/procurement/proc-helpers';
+import { indentApi } from '@/lib/typedApi';
 
 /* ── types ───────────────────────────────────────────── */
 
@@ -64,7 +65,7 @@ export default function IndentsPage() {
     setActingOn(args.name || method);
     setError('');
     try {
-      await callOps(method, args);
+      await indentApi.action(args.name, method.replace(/_indent$/, ''), args.reason);
       await load();
     } catch (e) { setError(e instanceof Error ? e.message : 'Action failed'); }
     finally { setActingOn(''); }

@@ -294,6 +294,8 @@ const navLinks: NavLink[] = [
       { name: 'User Management', href: '/settings/user-management', icon: Users2 },
       { name: 'Audit Log', href: '/settings/audit-log', icon: ScrollText },
       { name: 'Checklist', href: '/settings/checklist', icon: CheckSquare },
+      { name: 'Operations', href: '/settings/operations', icon: Cpu },
+      { name: 'ANDA Import', href: '/settings/anda-import', icon: Database },
     ],
   },
 ];

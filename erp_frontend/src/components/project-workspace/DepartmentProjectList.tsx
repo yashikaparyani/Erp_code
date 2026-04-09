@@ -142,7 +142,9 @@ export default function DepartmentProjectList({ config }: { config: DeptProjectL
         <p className="py-12 text-center text-sm text-[var(--text-muted)]">No department-relevant projects found.</p>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {departmentFiltered.map((p) => (
+          {departmentFiltered.map((p) => {
+            const noSitesUploaded = (p.total_sites || 0) === 0;
+            return (
             <Link
               key={p.name}
               href={`${config.workspaceBasePath}/${encodeURIComponent(p.name)}`}
@@ -166,6 +168,11 @@ export default function DepartmentProjectList({ config }: { config: DeptProjectL
                   <span className="inline-block rounded-lg bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-600">
                     {p.total_sites || 0} sites
                   </span>
+                  {noSitesUploaded && (
+                    <span className="inline-block rounded-lg bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+                      No sites uploaded
+                    </span>
+                  )}
                   {(p.spine_blocked ?? 0) > 0 && (
                     <span className="inline-block rounded-lg bg-rose-50 px-2 py-0.5 text-[10px] font-medium text-rose-600">Blocked</span>
                   )}
@@ -179,7 +186,7 @@ export default function DepartmentProjectList({ config }: { config: DeptProjectL
                 </div>
               </div>
             </Link>
-          ))}
+          )})}
         </div>
       )}
     </div>

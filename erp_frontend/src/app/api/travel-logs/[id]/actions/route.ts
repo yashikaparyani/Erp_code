@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { callFrappeMethod } from '@/app/api/_lib/frappe';
 

@@ -3,13 +3,14 @@
 import { ReactNode, RefObject, useEffect, useId, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { useAccessibleOverlay } from '@/lib/useAccessibleOverlay';
+import LinkPicker, { type LookupEntity } from '@/components/ui/LinkPicker';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
 export interface FormField {
   name: string;
   label: string;
-  type: 'text' | 'textarea' | 'select' | 'date' | 'number' | 'file';
+  type: 'text' | 'textarea' | 'select' | 'date' | 'number' | 'file' | 'link';
   required?: boolean;
   placeholder?: string;
   defaultValue?: string;
@@ -18,6 +19,10 @@ export interface FormField {
   hint?: string;
   /** If true, the field is disabled. */
   disabled?: boolean;
+  /** For type='link': which entity to search. */
+  linkEntity?: LookupEntity;
+  /** For type='link': extra filters sent to the lookup API. */
+  linkFilters?: Record<string, string>;
 }
 
 export interface FormModalProps {
@@ -214,6 +219,16 @@ export default function FormModal({
                       placeholder={field.placeholder}
                       disabled={field.disabled}
                       className={inputCls(field.name)}
+                    />
+                  ) : field.type === 'link' && field.linkEntity ? (
+                    <LinkPicker
+                      entity={field.linkEntity}
+                      value={values[field.name] ?? ''}
+                      onChange={(v) => setValue(field.name, v)}
+                      placeholder={field.placeholder}
+                      disabled={field.disabled}
+                      className={fieldErrors[field.name] ? 'border-rose-400 bg-rose-50' : ''}
+                      filters={field.linkFilters}
                     />
                   ) : (
                     <input

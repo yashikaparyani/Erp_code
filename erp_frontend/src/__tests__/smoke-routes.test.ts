@@ -177,6 +177,7 @@ describe('Page File Coverage', () => {
       '/project-manager/requests',
       '/sla-profiles', '/device-uptime', '/accountability', '/login', '/profile',
       '/project-head', '/vendor-comparisons', '/dispatch-challans', '/sla-penalties',
+      '/settings/operations', '/settings/anda-import',
     ]);
 
     for (const route of allRoutes) {

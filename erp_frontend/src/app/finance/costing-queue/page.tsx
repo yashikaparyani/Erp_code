@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { Filter } from 'lucide-react';
 import RegisterPage from '@/components/shells/RegisterPage';
 import ActionModal from '@/components/ui/ActionModal';
-import { callApi, callOps, formatCurrency, formatDate } from '@/components/finance/fin-helpers';
+import { callApi, formatCurrency, formatDate } from '@/components/finance/fin-helpers';
+import { costingApi } from '@/lib/typedApi';
 
 interface QueueItem {
   name: string; source_type?: string; source_id?: string; ph_approver?: string;
@@ -36,10 +37,7 @@ export default function CostingQueuePage() {
   const load = useCallback(async () => {
     setLoading(true); setError('');
     try {
-      const queueRows = await callOps<QueueItem[]>('get_costing_queue', {
-        status: statusFilter || undefined,
-        source_type: sourceFilter || undefined,
-      });
+      const queueRows = await costingApi.getQueue<QueueItem[]>(statusFilter || undefined, sourceFilter || undefined);
       const list = Array.isArray(queueRows) ? queueRows : [];
       setItems(list);
       setStats({
@@ -58,12 +56,7 @@ export default function CostingQueuePage() {
     if (!actionTarget || !actionType) return;
     setBusy(true); setError('');
     try {
-      const methodMap: Record<ActionType, string> = {
-        release: 'costing_release_item',
-        hold: 'costing_hold_item',
-        reject: 'costing_reject_item',
-      };
-      await callOps(methodMap[actionType], { name: actionTarget.name, remarks });
+      await costingApi[actionType](actionTarget.name, remarks);
       setActionTarget(null); load();
     } catch (e) { setError(e instanceof Error ? e.message : 'Action failed'); }
     setBusy(false);
