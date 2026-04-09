@@ -21,6 +21,7 @@ import RegisterPage from '@/components/shells/RegisterPage';
 import type { StatItem } from '@/components/shells/RegisterPage';
 import { formatPercent } from '@/components/dashboards/shared';
 import { useAuth } from '@/context/AuthContext';
+import { projectApi } from '@/lib/typedApi';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -64,21 +65,6 @@ type DraftSiteRow = {
   site_name: string;
   site_code: string;
 };
-
-// ── API ────────────────────────────────────────────────────────────────────
-
-async function callOps<T>(method: string, args?: Record<string, unknown>): Promise<T> {
-  const response = await fetch('/api/ops', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ method, args }),
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok || payload.success === false) {
-    throw new Error(payload.message || 'Failed to load projects');
-  }
-  return (payload.data ?? payload) as T;
-}
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -406,7 +392,7 @@ export default function ProjectsDashboardPage() {
     setLoading(true);
     setError('');
     try {
-      const data = await callOps<ProjectListItem[]>('get_project_spine_list');
+      const data = await projectApi.list<ProjectListItem[]>();
       setProjects(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load projects');
@@ -419,7 +405,7 @@ export default function ProjectsDashboardPage() {
     let active = true;
     (async () => {
       try {
-        const data = await callOps<ProjectListItem[]>('get_project_spine_list');
+        const data = await projectApi.list<ProjectListItem[]>();
         if (active) setProjects(data);
       } catch (err) {
         if (active) setError(err instanceof Error ? err.message : 'Failed to load projects');
@@ -631,7 +617,7 @@ export default function ProjectsDashboardPage() {
         estimated_costing: createForm.estimated_costing ? Number(createForm.estimated_costing) : undefined,
         initial_sites: initialSites,
       };
-      const created = await callOps<ProjectListItem>('create_project', { data: payload });
+      const created = await projectApi.create<ProjectListItem>(payload);
       await loadProjects();
       setShowCreate(false);
       setNotice({ tone: 'success', message: `Project ${created.project_name || created.name} created.` });
@@ -649,7 +635,7 @@ export default function ProjectsDashboardPage() {
     setNotice(null);
     await loadDirectory();
     try {
-      const project = await callOps<ProjectListItem>('get_project', { name: projectName });
+      const project = await projectApi.get<ProjectListItem>(projectName);
       setEditTarget(project);
       setEditForm({
         project_name: project.project_name || '',
@@ -703,10 +689,7 @@ export default function ProjectsDashboardPage() {
     setAddingSites(true);
     setNotice(null);
     try {
-      await callOps<ProjectListItem>('add_project_sites', {
-        project: siteTarget.name,
-        data: { initial_sites: initialSites },
-      });
+      await projectApi.addSites<ProjectListItem>(siteTarget.name, initialSites);
       await loadProjects();
       setShowAddSites(false);
       setSiteTarget(null);
@@ -742,7 +725,7 @@ export default function ProjectsDashboardPage() {
         spine_blocked: editForm.spine_blocked ? 1 : 0,
         blocker_summary: editForm.spine_blocked ? editForm.blocker_summary.trim() || undefined : undefined,
       };
-      await callOps<ProjectListItem>('update_project', { name: editTarget.name, data: payload });
+      await projectApi.update<ProjectListItem>(editTarget.name, payload);
       await loadProjects();
       setShowEdit(false);
       setEditTarget(null);
@@ -759,7 +742,7 @@ export default function ProjectsDashboardPage() {
     setDeleting(true);
     setNotice(null);
     try {
-      await callOps('delete_project', { name: deleteTarget.name });
+      await projectApi.delete(deleteTarget.name);
       await loadProjects();
       setNotice({ tone: 'success', message: `Project ${deleteTarget.project_name || deleteTarget.name} deleted.` });
       setDeleteTarget(null);

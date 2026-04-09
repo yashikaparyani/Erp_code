@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
+import { executionApi } from '@/lib/typedApi';
 import { Plus, Wrench, Camera, Activity, CheckCircle2, Eye, X, ClipboardCheck, FileCheck2, GitBranch, ArrowRight, AlertTriangle, Upload, Download } from 'lucide-react';
 
 interface Site {
@@ -96,12 +97,7 @@ export default function ExecutionPage() {
       const [sitesRes, dprsRes, execRes] = await Promise.all([
         fetch('/api/sites', { signal: controller.signal }).then((r) => r.json()).catch(() => ({ data: [] })),
         fetch('/api/dprs', { signal: controller.signal }).then((r) => r.json()).catch(() => ({ data: [] })),
-        fetch('/api/ops', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ method: 'get_execution_summary', args: {} }),
-          signal: controller.signal,
-        }).then((r) => r.json()).catch(() => ({ success: false })),
+        executionApi.getSummary<{ commissioning_summary?: any; sites_summary?: any }>({ signal: controller.signal }).catch(() => null),
       ]);
 
       if (requestId !== requestIdRef.current || controller.signal.aborted) {
@@ -117,9 +113,9 @@ export default function ExecutionPage() {
         total_equipment_logged: d.reduce((s: number, r: DPR) => s + (r.equipment_count || 0), 0),
       });
       // Commissioning summary from execution API
-      if (execRes.success && execRes.data) {
-        const cs = execRes.data.commissioning_summary || {};
-        const ss = execRes.data.sites_summary || {};
+      if (execRes) {
+        const cs = execRes.commissioning_summary || {};
+        const ss = execRes.sites_summary || {};
         setCommSummary({
           ready_for_commissioning: ss.ready_for_commissioning || 0,
           blocked_count: ss.blocked_count || 0,
@@ -186,9 +182,7 @@ export default function ExecutionPage() {
     }
     setCreating(true); setError('');
     try {
-      const res = await fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method: 'create_dpr', args: dprForm }) });
-      const result = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(result.message || 'Failed to create DPR');
+      await executionApi.createDpr(dprForm);
       setShowDprModal(false); setDprForm({ linked_project: '', linked_site: '', report_date: '', summary: '', manpower_on_site: 0, equipment_count: 0 }); await loadData();
     } catch (e) { setError(e instanceof Error ? e.message : 'Failed to create DPR'); }
     setCreating(false);
@@ -197,12 +191,7 @@ export default function ExecutionPage() {
   const handleDownloadTemplate = async () => {
     setDownloadingTemplate(true);
     try {
-      const res = await fetch('/api/ops/download?method=download_site_bulk_upload_template');
-      if (!res.ok) {
-        const errPayload = await res.json().catch(() => ({ message: 'Download failed' }));
-        throw new Error(errPayload.message || 'Download failed');
-      }
-      const blob = await res.blob();
+      const blob = await executionApi.downloadSiteTemplate();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -233,18 +222,17 @@ export default function ExecutionPage() {
       const fileUrl = uploadPayload.data.file_url;
 
       // Step 2: call bulk_upload_sites
-      const args: Record<string, unknown> = { file_url: fileUrl, dry_run: bulkDryRun ? 1 : 0 };
+      const args: Record<string, unknown> = { file_url: fileUrl, dry_run: bulkDryRun };
       if (bulkDefaults.default_project.trim()) args.default_project = bulkDefaults.default_project.trim();
       if (bulkDefaults.default_tender.trim()) args.default_tender = bulkDefaults.default_tender.trim();
-      const res = await fetch('/api/ops', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ method: 'bulk_upload_sites', args }),
+      const payload = await executionApi.bulkUploadSites<BulkUploadResult | { data?: BulkUploadResult }>({
+        file_url: fileUrl,
+        dry_run: bulkDryRun,
+        default_project: bulkDefaults.default_project.trim() || undefined,
+        default_tender: bulkDefaults.default_tender.trim() || undefined,
       });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(payload.message || 'Bulk upload failed');
 
-      const data = payload.data?.data ?? payload.data ?? payload;
+      const data = (payload as { data?: BulkUploadResult }).data ?? (payload as BulkUploadResult);
       setBulkResult(data as BulkUploadResult);
 
       // If it was a real run and there were created sites, refresh the list

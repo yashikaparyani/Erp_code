@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { AlertCircle, Loader2, RefreshCcw, Users2 } from 'lucide-react';
-import { callOps } from './pm-helpers';
+import { projectWorkspaceApi } from '@/lib/typedApi';
 
 type TeamMember = {
   name: string;
@@ -45,9 +45,9 @@ export default function StaffTab({ projectId }: { projectId: string }) {
     setError('');
     try {
       const [teamData, summaryData, logsData] = await Promise.all([
-        callOps<TeamMember[]>('get_project_team_members', { project: projectId }),
-        callOps<ManpowerSummary>('get_manpower_summary', { project: projectId }),
-        callOps<ManpowerLog[]>('get_manpower_logs', { project: projectId }),
+        projectWorkspaceApi.getProjectTeamMembers<TeamMember[]>(projectId),
+        projectWorkspaceApi.getManpowerSummary<ManpowerSummary>(projectId),
+        projectWorkspaceApi.getManpowerLogs<ManpowerLog[]>(projectId),
       ]);
       setTeam(Array.isArray(teamData) ? teamData : []);
       setSummary(summaryData || null);

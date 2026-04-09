@@ -3,7 +3,7 @@ import { callFrappeMethod, jsonErrorResponse } from '../_lib/frappe';
 
 export const dynamic = 'force-dynamic';
 
-type Entity = 'project' | 'site' | 'item' | 'customer' | 'warehouse' | 'vendor' | 'invoice' | 'commercial_reference';
+type Entity = 'project' | 'site' | 'item' | 'customer' | 'warehouse' | 'vendor' | 'invoice' | 'commercial_reference' | 'purchase_order' | 'tender';
 
 const COMMERCIAL_REFERENCE_DOCTYPES = new Set([
   'GE Estimate',
@@ -118,6 +118,32 @@ export async function GET(request: NextRequest) {
         }, request);
         const list = Array.isArray(rows) ? rows : [];
         data = list.map((r: any) => ({ value: r.name, label: r.name, sub: `${r.customer || ''}${r.total_amount ? ` · ₹${r.total_amount}` : ''}` }));
+        break;
+      }
+
+      case 'purchase_order': {
+        const rows = await callFrappeMethod('frappe.client.get_list', {
+          doctype: 'Purchase Order',
+          fields: ['name', 'supplier', 'transaction_date', 'status', 'grand_total'],
+          filters: q ? [['name', 'like', `%${q}%`]] : [],
+          limit_page_length: 30,
+          order_by: 'creation desc',
+        }, request);
+        const list = Array.isArray(rows) ? rows : [];
+        data = list.map((r: any) => ({ value: r.name, label: r.name, sub: `${r.supplier || ''}${r.grand_total ? ` · ₹${r.grand_total}` : ''}` }));
+        break;
+      }
+
+      case 'tender': {
+        const rows = await callFrappeMethod('frappe.client.get_list', {
+          doctype: 'GE Tender',
+          fields: ['name', 'tender_title', 'status'],
+          filters: q ? [['name', 'like', `%${q}%`]] : [],
+          limit_page_length: 30,
+          order_by: 'creation desc',
+        }, request);
+        const list = Array.isArray(rows) ? rows : [];
+        data = list.map((r: any) => ({ value: r.name, label: r.tender_title || r.name, sub: `${r.name}${r.status ? ` · ${r.status}` : ''}` }));
         break;
       }
 

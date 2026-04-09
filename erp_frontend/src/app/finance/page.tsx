@@ -12,6 +12,7 @@ import {
   badge,
   INVOICE_BADGES,
 } from '@/components/finance/fin-helpers';
+import { invoiceApi } from '@/lib/typedApi';
 
 interface Invoice {
   name: string;
@@ -82,16 +83,18 @@ export default function FinancePage() {
   const runAction = async (name: string, method: string) => {
     setBusyInv(name);
     try {
-      await callApi(`/api/ops`, { method: 'POST', body: { method, args: { name } } });
+      // Map full method names to short action names: submit_invoice -> submit, mark_invoice_paid -> mark_paid
+      const action = method.replace(/_invoice$/, '').replace('mark_invoice_', 'mark_');
+      await invoiceApi.action(action, name);
       await load();
     } catch { /* swallow */ }
     setBusyInv(null);
   };
 
-  const runGlobalAction = async (method: string) => {
+  const runGlobalAction = async (_method: string) => {
     setBusyInv('__global__');
     try {
-      await callApi(`/api/ops`, { method: 'POST', body: { method, args: {} } });
+      await invoiceApi.reconcile();
       await load();
     } catch {
       // no-op

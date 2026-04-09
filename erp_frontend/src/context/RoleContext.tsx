@@ -377,10 +377,23 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     if (!currentUser || !currentRole) {
       return false;
     }
+    const isSystemManager = new Set(currentUser.roles || []).has('System Manager');
 
     if (path.startsWith('/sites/') && path.endsWith('/dossier')) {
       const allowedPaths = roleAccess[currentRole] ?? [];
       return allowedPaths.includes('/documents') || currentRole === 'Project Manager' || PROJECT_SIDE_ROLES.includes(currentRole);
+    }
+
+    if (path === '/settings/operations' || path.startsWith('/settings/operations/')) {
+      return currentRole === 'Director' || isSystemManager;
+    }
+
+    if (path === '/settings/anda-import' || path.startsWith('/settings/anda-import/')) {
+      return currentRole === 'Director' || isSystemManager;
+    }
+
+    if (path === '/finance/costing-queue' || path.startsWith('/finance/costing-queue/')) {
+      return currentRole === 'Director' || currentRole === 'Accounts' || isSystemManager;
     }
 
     // ── Backend RBAC truth (Phase 5) ──

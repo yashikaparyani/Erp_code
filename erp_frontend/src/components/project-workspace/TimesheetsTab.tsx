@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
-import { callOps } from './workspace-types';
+import { projectWorkspaceApi } from '@/lib/typedApi';
 
 type TimesheetSummary = {
   dpr_count: number;
@@ -22,7 +22,7 @@ function TimesheetsTab({ projectId }: { projectId: string }) {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const d = await callOps<TimesheetSummary>('get_project_timesheet_summary', { project: projectId });
+      const d = await projectWorkspaceApi.getProjectTimesheetSummary<TimesheetSummary>(projectId);
       setData(d);
     } catch (err) { setError(err instanceof Error ? err.message : 'Failed to load timesheet data'); }
     finally { setLoading(false); }

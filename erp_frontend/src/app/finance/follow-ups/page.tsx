@@ -13,9 +13,9 @@ export default function FollowUpsPage() {
       createMethod="create_payment_follow_up"
       createLabel="Add Follow Up"
       createFields={[
-        { name: 'customer', label: 'Customer', placeholder: 'GE Party name' },
-        { name: 'linked_invoice', label: 'Linked Invoice', placeholder: 'Invoice ID' },
-        { name: 'linked_project', label: 'Linked Project', placeholder: 'Project ID' },
+        { name: 'customer', label: 'Customer', type: 'link', linkEntity: 'customer', placeholder: 'Search customer…' },
+        { name: 'linked_invoice', label: 'Linked Invoice', type: 'link', linkEntity: 'invoice', placeholder: 'Search invoice…' },
+        { name: 'linked_project', label: 'Linked Project', type: 'link', linkEntity: 'project', placeholder: 'Search project…' },
         { name: 'follow_up_date', label: 'Follow Up Date', type: 'date' },
         { name: 'follow_up_mode', label: 'Mode', type: 'select', options: [{ label: 'Call', value: 'CALL' }, { label: 'Email', value: 'EMAIL' }, { label: 'WhatsApp', value: 'WHATSAPP' }, { label: 'Meeting', value: 'MEETING' }] },
         { name: 'contact_person', label: 'Contact Person' },

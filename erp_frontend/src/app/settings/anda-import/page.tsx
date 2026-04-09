@@ -243,6 +243,10 @@ export default function AndaImportPage() {
         <p className="text-sm text-gray-500 mt-1">Import historical project data from ANDA spreadsheets. Restricted to Director / System Manager.</p>
       </div>
 
+      <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+        Use this workspace for controlled backfill only. Start with master readiness, validate imports in <span className="font-semibold">Dry Run</span>, and move to staged or committed runs only after unresolved references are cleared.
+      </div>
+
       {/* ── Section 1: Master Integrity ── */}
       <CollapsibleSection title="Master Data Readiness" icon={<Shield className="h-4 w-4 text-blue-600" />} open={expandedSections.integrity} onToggle={() => toggle('integrity')}>
         {integrityError && <div className="text-sm text-rose-600 mb-3">{integrityError}</div>}
@@ -356,7 +360,10 @@ export default function AndaImportPage() {
           <button className="btn btn-secondary btn-sm" onClick={loadLogs} disabled={logsLoading}><RefreshCw className="h-3.5 w-3.5" /> Refresh</button>
         </div>
         {logsLoading ? <Spinner label="Loading logs…" /> : logs.length === 0 ? (
-          <div className="py-8 text-center text-sm text-gray-500">No import runs recorded yet.</div>
+          <div className="py-8 text-center">
+            <div className="text-sm font-medium text-gray-700">No import runs recorded yet.</div>
+            <div className="mt-1 text-xs text-gray-500">Dry runs and committed imports will appear here with per-tab counts so operators can audit what changed.</div>
+          </div>
         ) : (
           <div className="overflow-x-auto"><table className="data-table text-sm"><thead><tr><th>ID</th><th>Tab</th><th>Mode</th><th>Total</th><th>Accepted</th><th>Rejected</th><th>Duplicates</th><th>Skipped</th><th>Started</th></tr></thead><tbody>
             {logs.map(l => (

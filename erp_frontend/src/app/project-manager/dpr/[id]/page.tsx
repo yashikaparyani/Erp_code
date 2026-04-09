@@ -77,10 +77,10 @@ export default function DprDetailPage() {
   const runDprAction = async (method: string) => {
     setActionBusy(method);
     try {
-      const res = await fetch('/api/ops', {
+      const res = await fetch(`/api/dprs/${encodeURIComponent(dprName)}/actions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ method, name: dprName }),
+        body: JSON.stringify({ action: method }),
       });
       const payload = await res.json();
       if (!payload.success) throw new Error(payload.message || 'Action failed');

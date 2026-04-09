@@ -187,6 +187,10 @@ export default function ProjectManagerInventoryPage() {
         }
       >
         <div className="space-y-6 p-4">
+          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+            This workspace is aligned to the workbook-style <span className="font-semibold">IN</span> receipt model. Use receipt updates to preserve HSN, make/model, serial, invoice, PO, and GRN context so balance changes stay traceable.
+          </div>
+
           {/* Receiving Context */}
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
             <div className="card">

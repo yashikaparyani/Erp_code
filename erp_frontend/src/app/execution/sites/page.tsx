@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { Filter, X, Plus, Eye, Search, MapPin, FileText } from 'lucide-react';
 import RegisterPage from '@/components/shells/RegisterPage';
 import FormModal from '@/components/shells/FormModal';
+import LinkPicker from '@/components/ui/LinkPicker';
 
 interface Site {
   name: string;
@@ -155,11 +156,12 @@ export default function SiteRegisterPage() {
           </div>
           <div className="flex items-center gap-1">
             <Filter className="h-3.5 w-3.5 text-gray-400" />
-            <input
-              className="input w-44"
-              placeholder="Project filter…"
+            <LinkPicker
+              entity="project"
               value={projectFilter}
-              onChange={e => setProjectFilter(e.target.value)}
+              onChange={setProjectFilter}
+              placeholder="Project filter…"
+              className="w-44"
             />
           </div>
           <select
@@ -203,7 +205,7 @@ export default function SiteRegisterPage() {
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="text-center py-8 text-gray-500">
-                    {sites.length === 0 ? 'No sites found' : 'No sites match your filters'}
+                    {sites.length === 0 ? 'No sites have been uploaded yet. Create one here or use the bulk-upload flow from Execution.' : 'No sites match your current filters.'}
                   </td>
                 </tr>
               ) : filtered.map(site => (
@@ -273,8 +275,8 @@ export default function SiteRegisterPage() {
         fields={[
           { name: 'site_code', label: 'Site Code', type: 'text', required: true, placeholder: 'e.g. SITE-001' },
           { name: 'site_name', label: 'Site Name', type: 'text', required: true, placeholder: 'e.g. Sector 17 Control Room' },
-          { name: 'linked_project', label: 'Linked Project', type: 'text', required: true },
-          { name: 'linked_tender', label: 'Linked Tender', type: 'text' },
+          { name: 'linked_project', label: 'Linked Project', type: 'link', linkEntity: 'project' as const, required: true },
+          { name: 'linked_tender', label: 'Linked Tender', type: 'link', linkEntity: 'tender' as const },
           { name: 'status', label: 'Status', type: 'select', defaultValue: 'PLANNED', options: STATUS_OPTIONS.map(s => ({ value: s, label: s.replace(/_/g, ' ') })) },
           { name: 'address', label: 'Address', type: 'text' },
           { name: 'latitude', label: 'Latitude', type: 'text', placeholder: '28.6139' },

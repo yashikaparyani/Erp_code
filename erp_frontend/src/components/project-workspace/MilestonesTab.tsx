@@ -2,8 +2,9 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { Loader2, Flag } from 'lucide-react';
+import { projectWorkspaceApi } from '@/lib/typedApi';
 import type { SiteRow, DepartmentConfig } from './workspace-types';
-import { callOps, SPINE_STAGES, STAGE_LABELS } from './workspace-types';
+import { SPINE_STAGES, STAGE_LABELS } from './workspace-types';
 import { SectionHeader } from './workspace-helpers';
 
 type MilestoneRecord = {
@@ -27,7 +28,7 @@ function MilestonesTab({ sites, projectId, config }: { sites: SiteRow[]; project
     (async () => {
       setMsLoading(true);
       try {
-        const data = await callOps<MilestoneRecord[]>('get_milestones', { project: projectId });
+        const data = await projectWorkspaceApi.getMilestones<MilestoneRecord[]>(projectId);
         if (active) setMilestones(data);
       } catch (err) {
         if (active) setMsError(err instanceof Error ? err.message : 'Failed to load milestones');

@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { getFileProxyUrl } from '@/lib/fileLinks';
+import { projectWorkspaceApi } from '@/lib/typedApi';
 import {
   Upload, X, Loader2, AlertCircle, FileText, Download, ChevronDown,
   ExternalLink, Clock, BookOpen, Trash2,
@@ -11,7 +12,7 @@ import {
 import { WorkspacePermissions } from '../../context/WorkspacePermissionContext';
 import type { ProjectDocument } from './workspace-types';
 import {
-  callOps, getDocumentExtension, isPreviewableDocument,
+  getDocumentExtension, isPreviewableDocument,
   DOCUMENT_TRACE_STAGES, DOCUMENT_TRACE_STAGE_LABELS,
   PROJECT_TO_DOCUMENT_STAGE, DOSSIER_STAGE_ORDER, DOSSIER_STAGE_LABELS,
 } from './workspace-types';
@@ -87,7 +88,7 @@ function FilesTab({ projectId, currentStage, wp }: { projectId: string; currentS
   const loadDocs = async () => {
     setLoading(true);
     try {
-      const data = await callOps<ProjectDocument[]>('get_project_documents', { project: projectId });
+      const data = await projectWorkspaceApi.getDocuments<ProjectDocument[]>(projectId);
       setDocs(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load documents');
@@ -146,7 +147,7 @@ function FilesTab({ projectId, currentStage, wp }: { projectId: string; currentS
 
   const handleStatusChange = async (docName: string, status: string) => {
     try {
-      await callOps('update_document_status', { name: docName, status });
+      await projectWorkspaceApi.updateDocumentStatus(docName, status);
       loadDocs();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Status update failed');
@@ -155,7 +156,7 @@ function FilesTab({ projectId, currentStage, wp }: { projectId: string; currentS
 
   const handleDelete = async (name: string) => {
     try {
-      await callOps('delete_project_document', { name });
+      await projectWorkspaceApi.deleteDocument(name);
       loadDocs();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Delete failed');
@@ -230,8 +231,8 @@ function FilesTab({ projectId, currentStage, wp }: { projectId: string; currentS
       setTraceLoading(true);
       try {
         const [completeness, gate] = await Promise.all([
-          callOps<StageCompleteness>('check_stage_document_completeness', { project: projectId, stage: selectedTraceStage }),
-          callOps<ProgressionGate>('check_progression_gate', { project: projectId, target_stage: selectedTraceStage }),
+          projectWorkspaceApi.getStageCompleteness<StageCompleteness>(projectId, selectedTraceStage),
+          projectWorkspaceApi.getProgressionGate<ProgressionGate>(projectId, selectedTraceStage),
         ]);
         if (!active) return;
         setStageCompleteness(completeness);
@@ -258,10 +259,10 @@ function FilesTab({ projectId, currentStage, wp }: { projectId: string; currentS
       }
       setRecordDocsLoading(true);
       try {
-        const data = await callOps<ProjectDocument[]>('get_record_documents', {
-          reference_doctype: selectedRecordBundle.reference_doctype,
-          reference_name: selectedRecordBundle.reference_name,
-        });
+        const data = await projectWorkspaceApi.getRecordDocuments<ProjectDocument[]>(
+          selectedRecordBundle.reference_doctype,
+          selectedRecordBundle.reference_name,
+        );
         if (!active) return;
         setRecordDocs(data);
       } catch (err) {

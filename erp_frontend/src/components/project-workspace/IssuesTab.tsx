@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { AlertCircle, Plus, RefreshCcw, Loader2, X } from 'lucide-react';
-import { callOps } from './pm-helpers';
+import { projectWorkspaceApi } from '@/lib/typedApi';
 
 type ProjectIssue = {
   name: string;
@@ -51,7 +51,7 @@ export default function IssuesTab({ projectId }: { projectId: string }) {
     setLoading(true);
     setError('');
     try {
-      const data = await callOps<ProjectIssue[]>('get_project_issues', { project: projectId });
+      const data = await projectWorkspaceApi.getIssues<ProjectIssue[]>(projectId);
       setIssues(Array.isArray(data) ? data : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load issues');
@@ -75,17 +75,15 @@ export default function IssuesTab({ projectId }: { projectId: string }) {
     if (!form.title.trim()) return;
     setCreating(true);
     try {
-      await callOps('create_project_issue', {
-        data: JSON.stringify({
-          linked_project: projectId,
-          title: form.title.trim(),
-          severity: form.severity,
-          category: form.category.trim() || undefined,
-          assigned_to: form.assigned_to.trim() || undefined,
-          description: form.description.trim() || undefined,
-          target_date: form.target_date || undefined,
-          status: 'Open',
-        }),
+      await projectWorkspaceApi.createIssue({
+        linked_project: projectId,
+        title: form.title.trim(),
+        severity: form.severity,
+        category: form.category.trim() || undefined,
+        assigned_to: form.assigned_to.trim() || undefined,
+        description: form.description.trim() || undefined,
+        target_date: form.target_date || undefined,
+        status: 'Open',
       });
       setShowCreate(false);
       setForm({ title: '', severity: 'Medium', category: '', assigned_to: '', description: '', target_date: '' });
@@ -99,7 +97,7 @@ export default function IssuesTab({ projectId }: { projectId: string }) {
 
   const updateStatus = async (name: string, newStatus: string) => {
     try {
-      await callOps('update_project_issue', { name, data: JSON.stringify({ status: newStatus }) });
+      await projectWorkspaceApi.updateIssue(name, { status: newStatus });
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update issue');

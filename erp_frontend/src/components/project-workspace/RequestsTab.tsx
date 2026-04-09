@@ -5,7 +5,7 @@ import {
   AlertCircle, Plus, RefreshCcw, Loader2, X,
   Clock, CheckCircle2, XCircle, ArrowUpRight, Send,
 } from 'lucide-react';
-import { callOps } from './pm-helpers';
+import { projectWorkspaceApi } from '@/lib/typedApi';
 import { useAccessibleOverlay } from '@/lib/useAccessibleOverlay';
 import { sanitizeRichText } from '@/lib/sanitizeRichText';
 import { useRole } from '../../context/RoleContext';
@@ -115,7 +115,7 @@ export default function RequestsTab({ projectId }: { projectId: string }) {
     setLoading(true);
     setError('');
     try {
-      const data = await callOps<PMRequest[]>('get_pm_requests', { project: projectId });
+      const data = await projectWorkspaceApi.getPmRequests<PMRequest[]>(projectId);
       setRequests(Array.isArray(data) ? data : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load requests');
@@ -169,7 +169,7 @@ export default function RequestsTab({ projectId }: { projectId: string }) {
 
       if (andSubmit) payload.status = 'Pending';
 
-      await callOps('create_pm_request', { data: JSON.stringify(payload) });
+      await projectWorkspaceApi.createPmRequest(payload);
       setShowCreate(false);
       setForm(emptyForm);
       await load();
@@ -185,7 +185,7 @@ export default function RequestsTab({ projectId }: { projectId: string }) {
   const doAction = async (action: string, name: string, remarks?: string) => {
     setActionLoading(name);
     try {
-      await callOps(action, { name, ...(remarks ? { remarks } : {}) });
+      await projectWorkspaceApi.runPmRequestAction(action, name, remarks);
       setDetail(null);
       await load();
     } catch (err) {

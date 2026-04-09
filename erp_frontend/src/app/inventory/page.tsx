@@ -128,18 +128,23 @@ export default function InventoryPage() {
       filterBar={
         <div className="flex items-center gap-2 text-sm">
           <Filter className="h-4 w-4 text-gray-400" />
-          <input value={projectFilter} onChange={e => setProjectFilter(e.target.value)} placeholder="Filter by project…" className="input w-48" />
+          <LinkPicker entity="project" value={projectFilter} onChange={setProjectFilter} placeholder="Filter by project…" className="w-48" />
           {projectFilter && <button onClick={() => setProjectFilter('')} className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-0.5"><X className="h-3 w-3" /> Clear</button>}
         </div>
       }
     >
+      <div className="mb-6 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+        Dispatch challans now follow the richer workbook-style <span className="font-semibold">OUT</span> schema. Use this screen to capture challan reference, issued-to, make/model, serials, and item-level remarks instead of treating dispatch like a minimal stub.
+      </div>
+
       {/* Dispatch Challans table */}
       <div className="shell-panel overflow-hidden mb-6">
         <div className="px-5 py-3 border-b border-gray-100"><h3 className="font-semibold text-gray-900">Dispatch Challans</h3></div>
+        <div className="overflow-x-auto">
         <table className="data-table text-sm">
           <thead><tr><th>Challan</th><th>Ref</th><th>Date</th><th>Type</th><th>From</th><th>To</th><th>Issued To</th><th>Project</th><th>Items</th><th>Qty</th><th>Status</th><th>Action</th></tr></thead>
           <tbody>
-            {filtered.length === 0 ? <tr><td colSpan={12} className="text-center py-8 text-gray-500">No challans found</td></tr> : filtered.map(c => (
+            {filtered.length === 0 ? <tr><td colSpan={12} className="text-center py-8 text-gray-500">{projectFilter ? 'No challans match the selected project.' : 'No dispatch challans have been created yet.'}</td></tr> : filtered.map(c => (
               <tr key={c.name}>
                 <td className="font-medium">{c.name}</td>
                 <td className="text-gray-600">{c.challan_reference || '-'}</td>
@@ -164,15 +169,17 @@ export default function InventoryPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Stock snapshot */}
       <div className="shell-panel overflow-hidden">
         <div className="px-5 py-3 border-b border-gray-100"><h3 className="font-semibold text-gray-900">Stock Snapshot</h3></div>
+        <div className="overflow-x-auto">
         <table className="data-table text-sm">
           <thead><tr><th>Item Code</th><th>Warehouse</th><th className="text-right">Actual Qty</th><th className="text-right">Reserved</th><th className="text-right">Ordered</th><th className="text-right">Projected</th></tr></thead>
           <tbody>
-            {stockBins.length === 0 ? <tr><td colSpan={6} className="text-center py-8 text-gray-500">No stock data</td></tr> : stockBins.map((b, i) => (
+            {stockBins.length === 0 ? <tr><td colSpan={6} className="text-center py-8 text-gray-500">No live stock snapshot is available yet.</td></tr> : stockBins.map((b, i) => (
               <tr key={i}>
                 <td className="font-medium">{b.item_code}</td><td className="text-gray-600">{b.warehouse}</td>
                 <td className="text-right">{b.actual_qty ?? 0}</td><td className="text-right text-gray-600">{b.reserved_qty ?? 0}</td>
@@ -181,6 +188,7 @@ export default function InventoryPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       <FormModal

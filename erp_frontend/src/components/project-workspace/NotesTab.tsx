@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { Loader2, Plus, Edit3, Trash2, Save, Eye, EyeOff, StickyNote } from 'lucide-react';
-import { callOps } from './workspace-types';
+import { projectWorkspaceApi } from '@/lib/typedApi';
 
 type ProjectNote = {
   name: string;
@@ -29,7 +29,7 @@ function NotesTab({ projectId }: { projectId: string }) {
   const loadNotes = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await callOps<ProjectNote[]>('get_project_notes', { project: projectId });
+      const data = await projectWorkspaceApi.getNotes<ProjectNote[]>(projectId);
       setNotes(Array.isArray(data) ? data : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load notes');
@@ -53,9 +53,9 @@ function NotesTab({ projectId }: { projectId: string }) {
     setSaving(true);
     try {
       if (editingId) {
-        await callOps('update_project_note', { name: editingId, data: { title: formTitle, content: formContent, is_private: formPrivate ? 1 : 0 } });
+        await projectWorkspaceApi.updateNote(editingId, { title: formTitle, content: formContent, is_private: formPrivate ? 1 : 0 });
       } else {
-        await callOps('create_project_note', { data: { linked_project: projectId, title: formTitle, content: formContent, is_private: formPrivate ? 1 : 0 } });
+        await projectWorkspaceApi.createNote({ linked_project: projectId, title: formTitle, content: formContent, is_private: formPrivate ? 1 : 0 });
       }
       resetForm();
       void loadNotes();
@@ -76,7 +76,7 @@ function NotesTab({ projectId }: { projectId: string }) {
 
   const handleDelete = async (name: string) => {
     try {
-      await callOps('delete_project_note', { name });
+      await projectWorkspaceApi.deleteNote(name);
       void loadNotes();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete note');

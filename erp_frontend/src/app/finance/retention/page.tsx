@@ -13,9 +13,9 @@ export default function RetentionPage() {
       createMethod="create_retention_ledger"
       createLabel="Create Retention Entry"
       createFields={[
-        { name: 'customer', label: 'Customer', placeholder: 'Customer name/id' },
-        { name: 'linked_project', label: 'Project', placeholder: 'Project code/name' },
-        { name: 'linked_invoice', label: 'Invoice', placeholder: 'Invoice ID' },
+        { name: 'customer', label: 'Customer', type: 'link', linkEntity: 'customer', placeholder: 'Search customer…' },
+        { name: 'linked_project', label: 'Project', type: 'link', linkEntity: 'project', placeholder: 'Search project…' },
+        { name: 'linked_invoice', label: 'Invoice', type: 'link', linkEntity: 'invoice', placeholder: 'Search invoice…' },
         { name: 'retention_percent', label: 'Retention %', type: 'number', defaultValue: 0 },
         { name: 'retention_amount', label: 'Retention Amount', type: 'number', defaultValue: 0 },
         { name: 'release_due_date', label: 'Release Due Date', type: 'date' },

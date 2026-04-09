@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-export type LookupEntity = 'project' | 'site' | 'item' | 'customer' | 'warehouse' | 'vendor' | 'invoice' | 'commercial_reference';
+export type LookupEntity = 'project' | 'site' | 'item' | 'customer' | 'warehouse' | 'vendor' | 'invoice' | 'commercial_reference' | 'purchase_order' | 'tender';
 
 interface LinkPickerProps {
   entity: LookupEntity;

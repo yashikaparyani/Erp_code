@@ -1,7 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { callFrappeMethod, jsonErrorResponse } from '../_lib/frappe';
+import { FRAPPE_URL, callFrappeMethod, jsonErrorResponse } from '../_lib/frappe';
 
 export const dynamic = 'force-dynamic';
+
+async function assertCostingQueueAccess(request: NextRequest) {
+  if (!request.cookies.get('sid')?.value) {
+    throw new Error('Authentication required.');
+  }
+
+  const response = await fetch(`${FRAPPE_URL}/api/method/gov_erp.api.get_session_context`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Cookie: request.headers.get('cookie') || '',
+      'X-Frappe-CSRF-Token': request.cookies.get('frappe_csrf_token')?.value || '',
+    },
+    cache: 'no-store',
+  });
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(payload?.message || payload?.exception || 'Authentication required.');
+  }
+
+  const data = (payload?.message ?? payload)?.data || {};
+  const roleSet = new Set<string>(Array.isArray(data.roles) ? data.roles : []);
+  const primaryRole = String(data.primary_role || '');
+  const allowed = primaryRole === 'Director' || primaryRole === 'Accounts' || roleSet.has('System Manager');
+
+  if (!allowed) {
+    throw new Error('Not permitted to access costing queue.');
+  }
+}
 
 /**
  * GET /api/costing?status=...&source_type=...
@@ -10,6 +41,7 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(request: NextRequest) {
   try {
+    await assertCostingQueueAccess(request);
     const sp = request.nextUrl.searchParams;
     const name = sp.get('name');
 
@@ -37,6 +69,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    await assertCostingQueueAccess(request);
     const body = await request.json();
     const { action, name, remarks } = body;
 

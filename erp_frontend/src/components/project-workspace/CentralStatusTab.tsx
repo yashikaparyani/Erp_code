@@ -6,7 +6,7 @@ import {
   Settings, ShoppingCart, DollarSign, Wrench, Users2,
   ChevronDown, ChevronUp,
 } from 'lucide-react';
-import { callOps } from './pm-helpers';
+import { projectWorkspaceApi } from '@/lib/typedApi';
 
 type CentralStatus = {
   engineering: {
@@ -63,7 +63,7 @@ export default function CentralStatusTab({ projectId }: { projectId: string }) {
     setLoading(true);
     setError('');
     try {
-      const result = await callOps<CentralStatus>('get_pm_central_status', { project: projectId });
+      const result = await projectWorkspaceApi.getCentralStatus<CentralStatus>(projectId);
       setData(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load central team status');

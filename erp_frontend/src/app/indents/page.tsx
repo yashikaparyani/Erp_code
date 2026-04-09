@@ -155,8 +155,8 @@ export default function IndentsPage() {
         description="Raise a material requirement from a project site."
         fields={[
           { name: 'material_request_type', label: 'Type', type: 'select', defaultValue: 'Purchase', options: [{ value: 'Purchase', label: 'Purchase' }, { value: 'Material Transfer', label: 'Material Transfer' }, { value: 'Material Issue', label: 'Material Issue' }] },
-          { name: 'project', label: 'Project', type: 'text' },
-          { name: 'set_warehouse', label: 'Warehouse', type: 'text' },
+          { name: 'project', label: 'Project', type: 'link', linkEntity: 'project' as const },
+          { name: 'set_warehouse', label: 'Warehouse', type: 'link', linkEntity: 'warehouse' as const },
           { name: 'schedule_date', label: 'Required By', type: 'date' },
         ]}
         busy={creating}

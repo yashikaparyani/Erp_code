@@ -48,13 +48,15 @@ export default function OperationsConsolePage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-xl font-bold text-gray-900">System Operations</h1>
         <p className="text-sm text-gray-500 mt-1">Trigger and inspect background maintenance jobs. Restricted to Director / System Manager.</p>
       </div>
 
-      {/* Job Cards */}
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        These controls are intentionally narrow. Use them when a release check or admin investigation needs reminder generation or dispatch to be forced from the UI.
+      </div>
+
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <JobCard
           icon={<Bell className="h-5 w-5 text-blue-600" />}
@@ -74,7 +76,6 @@ export default function OperationsConsolePage() {
         />
       </div>
 
-      {/* Run History */}
       <div className="card">
         <div className="card-header">
           <h2 className="font-semibold text-gray-900 flex items-center gap-2"><Clock className="h-4 w-4" /> Run History</h2>
@@ -82,7 +83,10 @@ export default function OperationsConsolePage() {
         </div>
         <div className="overflow-x-auto">
           {history.length === 0 ? (
-            <div className="py-12 text-center text-sm text-gray-500">No jobs have been run yet this session.</div>
+            <div className="py-12 text-center">
+              <div className="text-sm font-medium text-gray-700">No jobs have been run yet this session.</div>
+              <div className="mt-1 text-xs text-gray-500">The first run will be recorded here with counts, timestamps, and any error returned by the backend.</div>
+            </div>
           ) : (
             <table className="data-table text-sm">
               <thead>

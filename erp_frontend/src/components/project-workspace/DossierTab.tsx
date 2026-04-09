@@ -2,11 +2,12 @@
 
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { getFileProxyUrl } from '@/lib/fileLinks';
+import { projectWorkspaceApi } from '@/lib/typedApi';
 import {
   ChevronDown, AlertCircle, CheckCircle2, FileText, Download, Upload, Loader2, Shield, Clock,
 } from 'lucide-react';
 import { ExpiryBadge } from './FilesTab';
-import { callOps, DOSSIER_STAGE_ORDER, DOSSIER_STAGE_LABELS } from './workspace-types';
+import { DOSSIER_STAGE_ORDER, DOSSIER_STAGE_LABELS } from './workspace-types';
 
 type DossierDocument = {
   name: string;
@@ -211,7 +212,7 @@ function DossierTab({ projectId }: { projectId: string }) {
   useEffect(() => {
     if (!projectId) return;
     setLoading(true);
-    callOps<DossierData>('get_project_dossier', { project: projectId })
+    projectWorkspaceApi.getProjectDossier<DossierData>(projectId)
       .then((data) => setDossier(data))
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load dossier'))
       .finally(() => setLoading(false));
@@ -221,7 +222,7 @@ function DossierTab({ projectId }: { projectId: string }) {
     if (!dossier) return;
     const stages = DOSSIER_STAGE_ORDER.filter((s) => s !== 'Unclassified');
     for (const stage of stages) {
-      callOps<DossierCompletenessResult>('check_stage_document_completeness', { project: projectId, stage })
+      projectWorkspaceApi.getStageCompleteness<DossierCompletenessResult>(projectId, stage)
         .then((data) => setCompletenessMap((prev) => ({ ...prev, [stage]: data })))
         .catch(() => {});
     }

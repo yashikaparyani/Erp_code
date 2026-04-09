@@ -133,9 +133,9 @@ export default function ProcurementPage() {
         description="Start a new vendor comparison."
         busy={creating}
         fields={[
-          { name: 'linked_tender', label: 'Linked Tender', type: 'text' as const },
-          { name: 'linked_project', label: 'Linked Project', type: 'text' as const },
-          { name: 'supplier', label: 'Supplier', type: 'text' as const, required: true },
+          { name: 'linked_tender', label: 'Linked Tender', type: 'link' as const, linkEntity: 'tender' as const, placeholder: 'Search tender…' },
+          { name: 'linked_project', label: 'Linked Project', type: 'link' as const, linkEntity: 'project' as const, placeholder: 'Search project…' },
+          { name: 'supplier', label: 'Supplier', type: 'link' as const, linkEntity: 'vendor' as const, required: true, placeholder: 'Search supplier…' },
           { name: 'description', label: 'Description', type: 'text' as const, required: true },
           { name: 'qty', label: 'Qty', type: 'number' as const },
           { name: 'rate', label: 'Rate', type: 'number' as const },

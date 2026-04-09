@@ -414,7 +414,6 @@ const CONNECTED_METHODS = new Set([
   'submit_proforma_invoice',
   'update_proforma_invoice',
   'delete_proforma_invoice',
-  'seed_bookkeeping_demo',
   'approve_project_stage',
   'reject_project_stage',
   'override_project_stage',

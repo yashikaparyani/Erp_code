@@ -36,12 +36,12 @@ import { useAuth } from '../../context/AuthContext';
 import { usePermissions } from '../../context/PermissionContext';
 import { useWorkspacePermissions } from '../../context/WorkspacePermissionContext';
 import ReminderDrawer from '../reminders/ReminderDrawer';
+import { projectWorkspaceApi } from '@/lib/typedApi';
 
 // ── Shared types & constants ──
 import type {
   ProjectDetail, TabKey, DepartmentConfig,
 } from './workspace-types';
-import { callOps } from './workspace-types';
 import { TabErrorBoundary } from './workspace-helpers';
 
 // Re-export types so existing consumers keep working
@@ -140,14 +140,14 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
   const [isFavorite, setIsFavorite] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   useEffect(() => {
-    callOps<string[]>('get_project_favorites').then((favs) => {
+    projectWorkspaceApi.getFavorites<string[]>().then((favs) => {
       if (Array.isArray(favs) && favs.includes(projectId)) setIsFavorite(true);
     }).catch(() => {});
   }, [projectId]);
   const toggleFavorite = useCallback(async () => {
     setFavoriteLoading(true);
     try {
-      const res = await callOps<{ is_favorite: boolean }>('toggle_project_favorite', { project: projectId });
+      const res = await projectWorkspaceApi.toggleFavorite<{ is_favorite: boolean }>(projectId);
       setIsFavorite(res.is_favorite);
     } catch { /* ignore */ }
     setFavoriteLoading(false);
@@ -163,10 +163,10 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
       setLoading(true);
       setError('');
       try {
-        const data = await callOps<ProjectDetail>('get_project_spine_detail', {
-          project: projectId,
-          ...(config.departmentKey !== 'all' ? { department: config.departmentKey } : {}),
-        });
+        const data = await projectWorkspaceApi.getDetail<ProjectDetail>(
+          projectId,
+          config.departmentKey !== 'all' ? config.departmentKey : undefined,
+        );
         if (!active) return;
         setDetail(data);
       } catch (err) {

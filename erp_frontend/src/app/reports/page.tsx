@@ -65,16 +65,10 @@ function formatCurrency(value?: number) {
   }).format(value || 0);
 }
 
-async function callOps<T>(method: string, args?: Record<string, unknown>): Promise<T> {
-  const response = await fetch('/api/ops', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ method, args }),
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok || payload.success === false) {
-    throw new Error(payload.message || 'Failed to load data');
-  }
+async function fetchJson<T>(url: string): Promise<T> {
+  const res = await fetch(url);
+  const payload = await res.json().catch(() => ({}));
+  if (!res.ok || payload.success === false) throw new Error(payload.message || 'Failed to load');
   return (payload.data ?? payload) as T;
 }
 
@@ -130,16 +124,16 @@ export default function ReportsPage() {
     setTabLoading(true);
     try {
       if (tab === 'projects') {
-        const data = await callOps<ProjectRow[]>('get_project_spine_list');
+        const data = await fetchJson<ProjectRow[]>('/api/projects');
         setProjects(data);
       } else if (tab === 'purchase_orders') {
-        const data = await callOps<PORow[]>('get_purchase_orders');
+        const data = await fetchJson<PORow[]>('/api/purchase-orders');
         setPos(data);
       } else if (tab === 'invoices') {
-        const data = await callOps<InvoiceRow[]>('get_invoices');
+        const data = await fetchJson<InvoiceRow[]>('/api/invoices');
         setInvoices(data);
       } else if (tab === 'tenders') {
-        const data = await callOps<TenderRow[]>('get_tenders');
+        const data = await fetchJson<TenderRow[]>('/api/tenders');
         setTenders(data);
       }
     } catch {

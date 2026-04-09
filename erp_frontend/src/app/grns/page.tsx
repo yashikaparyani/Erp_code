@@ -74,10 +74,10 @@ export default function GRNsPage() {
         description="Receive goods against a purchase order."
         busy={creating}
         fields={[
-          { name: 'purchase_order', label: 'Purchase Order', type: 'text' as const, placeholder: 'e.g. PO-00001' },
-          { name: 'supplier', label: 'Supplier', type: 'text' as const },
-          { name: 'project', label: 'Project', type: 'text' as const },
-          { name: 'set_warehouse', label: 'Warehouse', type: 'text' as const },
+          { name: 'purchase_order', label: 'Purchase Order', type: 'link' as const, linkEntity: 'purchase_order' as const, placeholder: 'Search PO…' },
+          { name: 'supplier', label: 'Supplier', type: 'link' as const, linkEntity: 'vendor' as const },
+          { name: 'project', label: 'Project', type: 'link' as const, linkEntity: 'project' as const },
+          { name: 'set_warehouse', label: 'Warehouse', type: 'link' as const, linkEntity: 'warehouse' as const },
           { name: 'posting_date', label: 'Posting Date', type: 'date' as const },
         ]}
         onConfirm={handleCreate}

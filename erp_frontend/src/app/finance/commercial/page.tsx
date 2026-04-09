@@ -24,7 +24,6 @@ export default function CommercialPage() {
   const [docFile, setDocFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [seeding, setSeeding] = useState(false);
   const [busyAction, setBusyAction] = useState('');
   const [error, setError] = useState('');
 
@@ -60,8 +59,6 @@ export default function CommercialPage() {
 
   useEffect(() => { loadAll(); }, []);
   useEffect(() => { void loadContext(selectedCustomer); }, [selectedCustomer]);
-
-  const seedDemo = async () => { setSeeding(true); try { await callOps('seed_bookkeeping_demo'); setLoading(true); loadAll(); } finally { setSeeding(false); } };
 
   const addComment = async () => {
     setBusyAction('comment'); setError('');
@@ -112,7 +109,7 @@ export default function CommercialPage() {
       title="Commercial Bookkeeping" description="Estimate-to-collection control layer"
       loading={loading} error={error} onRetry={loadAll} empty={false}
       stats={bookkeepingCards}
-      headerActions={<button className="btn btn-secondary" onClick={seedDemo} disabled={seeding}>{seeding ? 'Seeding...' : 'Seed Demo Data'}</button>}
+      headerActions={undefined}
     >
       {/* ── Nav cards ── */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4 mb-6">
@@ -160,6 +157,10 @@ export default function CommercialPage() {
         <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3"><div className="text-xs uppercase tracking-wide text-blue-700">Customers In Aging</div><div className="mt-1 text-xl font-semibold text-blue-900">{aging.length}</div></div>
       </div>
 
+      <div className="mb-6 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+        Use the customer selector below to keep transaction comments and shared documents tied to the same commercial record the backend is enforcing.
+      </div>
+
       {/* ── Transaction comments + Document exchange ── */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <div className="card">
@@ -181,7 +182,15 @@ export default function CommercialPage() {
             <textarea className="input min-h-24" placeholder="Add a transaction comment" value={commentForm.content} onChange={e => setCommentForm(p => ({...p, content: e.target.value}))} />
             <div className="flex justify-end"><button className="btn btn-primary" disabled={busyAction==='comment'} onClick={addComment}>{busyAction==='comment'?'Saving...':'Add Comment'}</button></div>
             <div className="space-y-2">
-              {!commentItems.length ? <div className="text-sm text-gray-500">No comments</div> : commentItems.slice(0,6).map(c => (
+              {!selectedCustomer ? (
+                <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-5 text-sm text-gray-500">
+                  Pick a customer to load transaction comments for estimates, proformas, invoices, and follow-ups.
+                </div>
+              ) : !commentItems.length ? (
+                <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-5 text-sm text-gray-500">
+                  No transaction comments are recorded for this customer yet.
+                </div>
+              ) : commentItems.slice(0,6).map(c => (
                 <div key={c.name} className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
                   <div className="text-sm font-medium text-gray-900">{c.reference_doctype} | {c.reference_name}</div>
                   <div className="text-sm text-gray-600 mt-1">{c.content}</div>
@@ -229,10 +238,19 @@ export default function CommercialPage() {
                 </label>
               )}
             </div>
+            <div className="text-xs text-gray-500">Uploads are stored first, then linked to the selected commercial record so the backend can keep customer and reference integrity intact.</div>
             <textarea className="input min-h-24" placeholder="Remarks" value={documentForm.remarks} onChange={e => setDocumentForm(p => ({...p, remarks: e.target.value}))} />
             <div className="flex justify-end"><button className="btn btn-primary" disabled={busyAction==='document' || uploading} onClick={addDocument}>{uploading ? 'Uploading…' : busyAction==='document' ? 'Sharing...' : 'Share Document'}</button></div>
             <div className="space-y-2">
-              {!documentItems.length ? <div className="text-sm text-gray-500">No documents</div> : documentItems.slice(0,6).map(d => (
+              {!selectedCustomer ? (
+                <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-5 text-sm text-gray-500">
+                  Pick a customer to review or add exchanged documents.
+                </div>
+              ) : !documentItems.length ? (
+                <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-5 text-sm text-gray-500">
+                  No shared commercial documents are stored for this customer yet.
+                </div>
+              ) : documentItems.slice(0,6).map(d => (
                 <div key={d.name} className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
                   <div className="text-sm font-medium text-gray-900">{d.document_name}</div>
                   <div className="text-xs text-gray-500">{d.customer} | {d.reference_doctype} | {d.reference_name}</div>

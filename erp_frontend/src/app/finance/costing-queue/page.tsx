@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Filter } from 'lucide-react';
 import RegisterPage from '@/components/shells/RegisterPage';
 import ActionModal from '@/components/ui/ActionModal';
-import { callApi, formatCurrency, formatDate } from '@/components/finance/fin-helpers';
+import { formatCurrency, formatDate, hasAnyRole, useAuth } from '@/components/finance/fin-helpers';
 import { costingApi } from '@/lib/typedApi';
 
 interface QueueItem {
@@ -23,6 +23,7 @@ const STATUSES = ['', 'Pending', 'Released', 'Held', 'Rejected'];
 type ActionType = 'release' | 'hold' | 'reject';
 
 export default function CostingQueuePage() {
+  const { currentUser } = useAuth();
   const [items, setItems] = useState<QueueItem[]>([]);
   const [stats, setStats] = useState<Stats>({});
   const [loading, setLoading] = useState(true);
@@ -33,6 +34,7 @@ export default function CostingQueuePage() {
   const [actionType, setActionType] = useState<ActionType | null>(null);
   const [remarks, setRemarks] = useState('');
   const [busy, setBusy] = useState(false);
+  const canAct = hasAnyRole(currentUser?.roles, 'Accounts', 'Director', 'System Manager');
 
   const load = useCallback(async () => {
     setLoading(true); setError('');
@@ -69,7 +71,12 @@ export default function CostingQueuePage() {
   return (
     <RegisterPage
       title="Costing Queue" description="PH-approved items awaiting costing release or disbursement"
-      loading={loading} error={error} onRetry={load} empty={!items.length && !loading}
+      loading={loading}
+      error={error}
+      onRetry={load}
+      empty={!items.length && !loading}
+      emptyTitle="No costing items in queue"
+      emptyDescription={statusFilter ? `No entries are currently marked "${statusFilter}".` : 'No PH-approved items are waiting for finance action right now.'}
       stats={[
         { label: 'Pending', value: stats.pending ?? 0, variant: 'warning' },
         { label: 'Released', value: stats.released ?? 0, variant: 'success' },
@@ -106,7 +113,7 @@ export default function CostingQueuePage() {
                     <div className="flex items-center gap-1 justify-end">
                       {item.linked_record && <Link href={item.linked_record} className="text-xs text-blue-600 hover:underline">Source</Link>}
                       <Link href={`/finance/costing-queue/${encodeURIComponent(item.name)}`} className="text-xs text-blue-600 font-medium">Details</Link>
-                      {(!item.disbursement_status || item.disbursement_status === 'Pending') && <>
+                      {canAct && (!item.disbursement_status || item.disbursement_status === 'Pending') && <>
                         <button className="px-2 py-0.5 text-xs font-medium text-green-700 bg-green-50 rounded hover:bg-green-100" onClick={() => { setActionTarget(item); setActionType('release'); setRemarks(''); }}>Release</button>
                         <button className="px-2 py-0.5 text-xs font-medium text-amber-700 bg-amber-50 rounded hover:bg-amber-100" onClick={() => { setActionTarget(item); setActionType('hold'); setRemarks(''); }}>Hold</button>
                         <button className="px-2 py-0.5 text-xs font-medium text-red-700 bg-red-50 rounded hover:bg-red-100" onClick={() => { setActionTarget(item); setActionType('reject'); setRemarks(''); }}>Reject</button>

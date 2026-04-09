@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { ClipboardList, ClipboardCheck, Loader2 } from 'lucide-react';
-import { callOps } from './workspace-types';
+import { projectWorkspaceApi } from '@/lib/typedApi';
 
 type PHApprovalItem = {
   name: string;
@@ -40,10 +40,10 @@ function ApprovalsTab({ projectId }: { projectId: string }) {
     setLoading(true);
     setError('');
     try {
-      const data = await callOps<PHApprovalItem[]>('get_ph_approval_items', {
-        tab: activeTab === 'po' ? 'PO' : activeTab === 'rma_po' ? 'RMA PO' : 'Petty Cash',
-        project: projectId,
-      });
+      const data = await projectWorkspaceApi.getPhApprovalItems<PHApprovalItem[]>(
+        projectId,
+        activeTab === 'po' ? 'PO' : activeTab === 'rma_po' ? 'RMA PO' : 'Petty Cash',
+      );
       setItems(data);
     } catch (err) { setError(err instanceof Error ? err.message : 'Failed to load approval items'); }
     finally { setLoading(false); }
@@ -54,7 +54,7 @@ function ApprovalsTab({ projectId }: { projectId: string }) {
   const handleAction = async (name: string, action: 'ph_approve_item' | 'ph_reject_item') => {
     setActionBusy(name);
     try {
-      await callOps(action, { name });
+      await projectWorkspaceApi.runPhApprovalAction(action, name);
       await loadItems();
     } catch (err) { setError(err instanceof Error ? err.message : 'Action failed'); }
     setActionBusy('');

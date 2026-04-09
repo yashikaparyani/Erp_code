@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { AlertCircle, Loader2, Plus, RefreshCcw, X } from 'lucide-react';
-import { callOps } from './pm-helpers';
+import { projectWorkspaceApi } from '@/lib/typedApi';
 
 type PettyCashEntry = {
   name: string;
@@ -42,7 +42,7 @@ export default function PettyCashTab({ projectId }: { projectId: string }) {
     setLoading(true);
     setError('');
     try {
-      const data = await callOps<PettyCashEntry[]>('get_petty_cash_entries', { project: projectId });
+      const data = await projectWorkspaceApi.getPettyCashEntries<PettyCashEntry[]>(projectId);
       setEntries(Array.isArray(data) ? data : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load petty cash entries');
@@ -62,16 +62,14 @@ export default function PettyCashTab({ projectId }: { projectId: string }) {
     if (!form.description.trim() || isNaN(amt) || amt <= 0) return;
     setCreating(true);
     try {
-      await callOps('create_petty_cash_entry', {
-        data: JSON.stringify({
-          linked_project: projectId,
-          description: form.description.trim(),
-          amount: amt,
-          category: form.category.trim() || undefined,
-          paid_to: form.paid_to.trim() || undefined,
-          entry_date: form.entry_date || new Date().toISOString().split('T')[0],
-          status: 'Pending',
-        }),
+      await projectWorkspaceApi.createPettyCashEntry({
+        linked_project: projectId,
+        description: form.description.trim(),
+        amount: amt,
+        category: form.category.trim() || undefined,
+        paid_to: form.paid_to.trim() || undefined,
+        entry_date: form.entry_date || new Date().toISOString().split('T')[0],
+        status: 'Pending',
       });
       setShowCreate(false);
       setForm({ description: '', amount: '', category: '', paid_to: '', entry_date: '' });

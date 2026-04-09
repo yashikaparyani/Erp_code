@@ -57,21 +57,16 @@ export default function ProjectManagerDprPage() {
     setCreating(true);
     setError('');
     try {
-      const res = await fetch('/api/ops', {
+      const res = await fetch('/api/dprs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          method: 'create_dpr',
-          args: {
-            data: JSON.stringify({
-              linked_project: selectedProject,
-              linked_site: values.linked_site,
-              report_date: values.report_date || undefined,
-              summary: values.summary || undefined,
-              manpower_on_site: Number(values.manpower_on_site) || 0,
-              equipment_count: Number(values.equipment_count) || 0,
-            }),
-          },
+          linked_project: selectedProject,
+          linked_site: values.linked_site,
+          report_date: values.report_date || undefined,
+          summary: values.summary || undefined,
+          manpower_on_site: Number(values.manpower_on_site) || 0,
+          equipment_count: Number(values.equipment_count) || 0,
         }),
       });
       const payload = await res.json().catch(() => ({}));

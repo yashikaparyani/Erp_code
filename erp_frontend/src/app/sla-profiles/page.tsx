@@ -100,7 +100,7 @@ export default function SLAProfilesPage() {
         confirmLabel="Create"
         fields={[
           { name: 'profile_name', label: 'Profile Name', type: 'text', required: true },
-          { name: 'linked_project', label: 'Project', type: 'text' },
+          { name: 'linked_project', label: 'Project', type: 'link', linkEntity: 'project' as const, placeholder: 'Search project…' },
           { name: 'response_minutes', label: 'Response Time (min)', type: 'number', defaultValue: '60' },
           { name: 'resolution_minutes', label: 'Resolution Time (min)', type: 'number', defaultValue: '480' },
           { name: 'working_hours_type', label: 'Working Hours', type: 'select', defaultValue: 'Business Hours', options: [

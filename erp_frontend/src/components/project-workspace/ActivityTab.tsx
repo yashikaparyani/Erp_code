@@ -3,10 +3,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
+import { projectWorkspaceApi } from '@/lib/typedApi';
 import RecordComments from '../collaboration/RecordComments';
 import MentionsPanel from '../mentions/MentionsPanel';
 import type { ActivityEntry } from './workspace-types';
-import { callOps, STAGE_LABELS } from './workspace-types';
+import { STAGE_LABELS } from './workspace-types';
 
 const ACTIVITY_FILTERS = [
   { key: 'all', label: 'All' },
@@ -31,7 +32,7 @@ function ActivityTab({ projectId }: { projectId: string }) {
     (async () => {
       setLoading(true);
       try {
-        const data = await callOps<ActivityEntry[]>('get_project_activity', { project: projectId, limit: 50 });
+        const data = await projectWorkspaceApi.getActivity<ActivityEntry[]>(projectId, 50);
         if (active) setEntries(Array.isArray(data) ? data : []);
       } catch (err) {
         if (active) setError(err instanceof Error ? err.message : 'Failed to load activity');

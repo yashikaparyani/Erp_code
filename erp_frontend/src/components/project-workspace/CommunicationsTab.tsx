@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { AlertCircle, Loader2, Plus, RefreshCcw, X, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
-import { callOps } from './pm-helpers';
+import { projectWorkspaceApi } from '@/lib/typedApi';
 
 type CommLog = {
   name: string;
@@ -46,7 +46,7 @@ export default function CommunicationsTab({ projectId }: { projectId: string }) 
     setLoading(true);
     setError('');
     try {
-      const data = await callOps<CommLog[]>('get_comm_logs', { project: projectId });
+      const data = await projectWorkspaceApi.getCommLogs<CommLog[]>(projectId);
       setLogs(Array.isArray(data) ? data : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load communications');
@@ -63,19 +63,17 @@ export default function CommunicationsTab({ projectId }: { projectId: string }) 
     if (!form.subject.trim()) return;
     setCreating(true);
     try {
-      await callOps('create_comm_log', {
-        data: JSON.stringify({
-          linked_project: projectId,
-          subject: form.subject.trim(),
-          summary: form.summary.trim() || form.subject.trim(),
-          communication_type: form.communication_type,
-          direction: form.direction,
-          counterparty_name: form.counterparty_name.trim() || undefined,
-          counterparty_role: form.counterparty_role.trim() || undefined,
-          follow_up_required: form.follow_up_required ? 1 : 0,
-          follow_up_date: form.follow_up_date || undefined,
-          communication_date: form.communication_date || new Date().toISOString().split('T')[0],
-        }),
+      await projectWorkspaceApi.createCommLog({
+        linked_project: projectId,
+        subject: form.subject.trim(),
+        summary: form.summary.trim() || form.subject.trim(),
+        communication_type: form.communication_type,
+        direction: form.direction,
+        counterparty_name: form.counterparty_name.trim() || undefined,
+        counterparty_role: form.counterparty_role.trim() || undefined,
+        follow_up_required: form.follow_up_required ? 1 : 0,
+        follow_up_date: form.follow_up_date || undefined,
+        communication_date: form.communication_date || new Date().toISOString().split('T')[0],
       });
       setShowCreate(false);
       setForm({

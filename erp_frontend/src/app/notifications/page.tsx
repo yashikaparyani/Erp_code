@@ -60,15 +60,11 @@ interface NotificationData {
 type FilterType = 'all' | 'alerts' | 'reminders' | 'mentions' | 'documents' | 'tenders' | 'approvals';
 
 /* ── Helpers ── */
-async function callOps<T>(method: string, args: Record<string, unknown> = {}): Promise<T> {
-  const res = await fetch('/api/ops', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ method, args }),
-  });
+async function fetchNotifications(): Promise<NotificationData> {
+  const res = await fetch('/api/notifications');
   const payload = await res.json();
   if (!res.ok || !payload.success) throw new Error(payload.message || 'API error');
-  return payload.data as T;
+  return payload.data as NotificationData;
 }
 
 function timeAgo(iso: string): string {
@@ -122,7 +118,7 @@ export default function NotificationsPage() {
 
   const loadData = useCallback(async () => {
     try {
-      const result = await callOps<NotificationData>('get_notification_center', {});
+      const result = await fetchNotifications();
       setData(result);
     } catch {
       // Silent fail - show empty state

@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ExternalLink, ShieldAlert, Loader2, Send, CheckCircle2, X, ClipboardCheck, FileWarning, AlertCircle } from 'lucide-react';
+import { projectWorkspaceApi } from '@/lib/typedApi';
 import { formatPercent } from '../dashboards/shared';
 import { useAuth } from '../../context/AuthContext';
 import { WorkspacePermissions } from '../../context/WorkspacePermissionContext';
@@ -13,7 +14,7 @@ import type {
   WorkflowHistoryEntry,
 } from './workspace-types';
 import {
-  callOps, STAGE_LABELS, SPINE_STAGES, formatWorkflowText,
+  STAGE_LABELS, SPINE_STAGES, formatWorkflowText,
 } from './workspace-types';
 import { StatPill, SectionHeader } from './workspace-helpers';
 
@@ -35,7 +36,7 @@ function WorkflowControlPanel({
     setLoading(true);
     setError('');
     try {
-      const data = await callOps<WorkflowState>('get_project_workflow_state', { project: projectId });
+      const data = await projectWorkspaceApi.getWorkflowState<WorkflowState>(projectId);
       setState(data);
       setOverrideStage(data.next_stage || data.stage || '');
     } catch (err) {
@@ -60,7 +61,7 @@ function WorkflowControlPanel({
       if (method === 'override_project_stage') {
         args.new_stage = overrideStage;
       }
-      const data = await callOps<WorkflowState>(method, args);
+      const data = await projectWorkspaceApi.runWorkflowAction<WorkflowState>(method, args);
       setState(data);
       setRemarks('');
       if (data.next_stage) {
@@ -694,10 +695,7 @@ function ActionItemsPreview({ projectId, onViewAll, config }: { projectId: strin
     let active = true;
     (async () => {
       try {
-        const data = await callOps<PMCockpitSummary>('get_pm_cockpit_summary', {
-          project: projectId,
-          stages: config.allowedStages || [],
-        });
+        const data = await projectWorkspaceApi.getCockpitSummary<PMCockpitSummary>(projectId);
         if (active) setItems(data.action_items || []);
       } catch {
         // Silently skip — overview still works without action items
@@ -752,7 +750,7 @@ function RecentActivityPreview({ projectId, onViewAll }: { projectId: string; on
     let active = true;
     (async () => {
       try {
-        const data = await callOps<ActivityEntry[]>('get_project_activity', { project: projectId, limit: 5 });
+        const data = await projectWorkspaceApi.getActivity<ActivityEntry[]>(projectId, 5);
         if (active) setEntries(data);
       } catch {
         // Silently skip — overview still works without activity

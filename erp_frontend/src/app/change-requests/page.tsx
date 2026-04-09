@@ -29,7 +29,7 @@ function statusBadge(s?: string) {
 
 const CREATE_FIELDS: FormField[] = [
   { name: 'cr_number', label: 'CR Number', type: 'text', placeholder: 'e.g. CR-001' },
-  { name: 'linked_project', label: 'Project', type: 'text', required: true, placeholder: 'Project name' },
+  { name: 'linked_project', label: 'Project', type: 'link', linkEntity: 'project', required: true, placeholder: 'Search project…' },
   { name: 'cost_impact', label: 'Cost Impact (₹)', type: 'number', placeholder: '0' },
   { name: 'schedule_impact_days', label: 'Schedule Impact (days)', type: 'number', placeholder: '0' },
 ];

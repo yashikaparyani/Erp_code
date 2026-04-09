@@ -2,12 +2,12 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { projectWorkspaceApi } from '@/lib/typedApi';
 import {
   Loader2, Wrench, ClipboardCheck, FileWarning, ShieldAlert,
   CheckCircle2, AlertCircle, History, Flag, ExternalLink,
 } from 'lucide-react';
 import type { PMCockpitSummary, DepartmentConfig } from './workspace-types';
-import { callOps } from './workspace-types';
 import { SectionHeader } from './workspace-helpers';
 
 function OpsTab({ projectId, config }: { projectId: string; config: DepartmentConfig }) {
@@ -20,10 +20,7 @@ function OpsTab({ projectId, config }: { projectId: string; config: DepartmentCo
     (async () => {
       setLoading(true);
       try {
-        const result = await callOps<PMCockpitSummary>('get_pm_cockpit_summary', {
-          project: projectId,
-          stages: config.allowedStages || [],
-        });
+        const result = await projectWorkspaceApi.getCockpitSummary<PMCockpitSummary>(projectId);
         if (active) setData(result);
       } catch (err) {
         if (active) setError(err instanceof Error ? err.message : 'Failed to load operations data');

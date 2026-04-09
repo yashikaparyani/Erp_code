@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Loader2, Search, AlertCircle } from 'lucide-react';
+import { projectWorkspaceApi } from '@/lib/typedApi';
 import { formatPercent } from '../dashboards/shared';
 
 /* ─── types ──────────────────────────────────────────────── */
@@ -31,21 +32,6 @@ export type DeptProjectListConfig = {
   allowedStages?: string[];
 };
 
-/* ─── API helper ─────────────────────────────────────────── */
-
-async function callOps<T>(method: string, args?: Record<string, unknown>): Promise<T> {
-  const response = await fetch('/api/ops', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ method, args }),
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok || payload.success === false) {
-    throw new Error(payload.message || 'Failed to load data');
-  }
-  return (payload.data ?? payload) as T;
-}
-
 /* ─── Component ──────────────────────────────────────────── */
 
 export default function DepartmentProjectList({ config }: { config: DeptProjectListConfig }) {
@@ -58,9 +44,9 @@ export default function DepartmentProjectList({ config }: { config: DeptProjectL
     let active = true;
     (async () => {
       try {
-        const data = await callOps<ProjectListItem[]>('get_project_spine_list', {
-          ...(config.departmentKey !== 'all' ? { department: config.departmentKey } : {}),
-        });
+        const data = await projectWorkspaceApi.listProjects<ProjectListItem[]>(
+          config.departmentKey !== 'all' ? config.departmentKey : undefined,
+        );
         if (active) setProjects(data);
       } catch (err) {
         if (active) setError(err instanceof Error ? err.message : 'Failed to load projects');

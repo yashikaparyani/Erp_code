@@ -195,8 +195,8 @@ export default function RMAPage() {
         confirmLabel="Create RMA"
         fields={[
           { name: 'linked_ticket', label: 'Linked Ticket', type: 'select', options: tickets.map(t => ({ value: t.name, label: `${t.name} - ${t.title || 'Untitled'}` })) },
-          { name: 'linked_project', label: 'Project', type: 'text' },
-          { name: 'item_link', label: 'Item', type: 'text' },
+          { name: 'linked_project', label: 'Project', type: 'link', linkEntity: 'project' as const, placeholder: 'Search project…' },
+          { name: 'item_link', label: 'Item', type: 'link', linkEntity: 'item' as const, placeholder: 'Search item…' },
           { name: 'asset_serial_number', label: 'Asset Serial', type: 'text' },
           { name: 'qty', label: 'Quantity', type: 'number', defaultValue: '1' },
           { name: 'faulty_date', label: 'Faulty Date', type: 'date' },

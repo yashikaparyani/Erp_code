@@ -4,7 +4,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import {
   Loader2, Columns3, ListFilter, Plus, CheckCircle2, Edit3, Trash2, Save, Users,
 } from 'lucide-react';
-import { callOps } from './workspace-types';
+import { projectWorkspaceApi } from '@/lib/typedApi';
 
 type ProjectTask = {
   name: string;
@@ -73,8 +73,8 @@ function TasksTab({ projectId }: { projectId: string }) {
     setLoading(true);
     try {
       const [t, s] = await Promise.all([
-        callOps<ProjectTask[]>('get_project_tasks', { project: projectId }),
-        callOps<TaskSummary>('get_task_summary', { project: projectId }),
+        projectWorkspaceApi.getTasks<ProjectTask[]>(projectId),
+        projectWorkspaceApi.getTaskSummary<TaskSummary>(projectId),
       ]);
       setTasks(Array.isArray(t) ? t : []);
       setSummary(s);
@@ -110,10 +110,10 @@ function TasksTab({ projectId }: { projectId: string }) {
         description: formDescription || undefined, points: parseInt(formPoints) || 0,
       };
       if (editingTask) {
-        await callOps('update_project_task', { name: editingTask.name, data: payload });
+        await projectWorkspaceApi.updateTask(editingTask.name, payload);
       } else {
         payload.linked_project = projectId;
-        await callOps('create_project_task', { data: payload });
+        await projectWorkspaceApi.createTask(payload);
       }
       resetForm(); void load();
     } catch (err) { setError(err instanceof Error ? err.message : 'Failed to save task'); }
@@ -121,12 +121,12 @@ function TasksTab({ projectId }: { projectId: string }) {
   };
 
   const handleDelete = async (name: string) => {
-    try { await callOps('delete_project_task', { name }); void load(); }
+    try { await projectWorkspaceApi.deleteTask(name); void load(); }
     catch (err) { setError(err instanceof Error ? err.message : 'Failed to delete task'); }
   };
 
   const handleStatusChange = async (name: string, status: string) => {
-    try { await callOps('update_task_status', { name, status }); void load(); }
+    try { await projectWorkspaceApi.updateTaskStatus(name, status); void load(); }
     catch (err) { setError(err instanceof Error ? err.message : 'Failed to update status'); }
   };
 

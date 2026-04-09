@@ -103,9 +103,9 @@ export default function PurchaseOrdersPage() {
       <FormModal
         open={showCreate} title="Create Purchase Order" description="Create a new PO with initial line item."
         fields={[
-          { name: 'supplier', label: 'Supplier', type: 'text', required: true, placeholder: 'Supplier name' },
-          { name: 'project', label: 'Project', type: 'text' },
-          { name: 'set_warehouse', label: 'Warehouse', type: 'text' },
+          { name: 'supplier', label: 'Supplier', type: 'link' as const, linkEntity: 'vendor' as const, required: true, placeholder: 'Search supplier…' },
+          { name: 'project', label: 'Project', type: 'link' as const, linkEntity: 'project' as const },
+          { name: 'set_warehouse', label: 'Warehouse', type: 'link' as const, linkEntity: 'warehouse' as const },
         ]}
         busy={creating} confirmLabel="Create"
         onConfirm={async vals => {

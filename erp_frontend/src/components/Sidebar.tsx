@@ -68,8 +68,11 @@ interface NavLink {
 
 const SIDEBAR_EXPANDED_STORAGE_KEY = 'erp.sidebar.expanded.v1';
 const SIDEBAR_SCROLL_STORAGE_KEY = 'erp.sidebar.scroll.v1';
+const ADMIN_ONLY_SETTINGS_PATHS = ['/settings/operations', '/settings/anda-import'] as const;
+const FINANCE_APPROVAL_PATHS = ['/finance/costing-queue'] as const;
 
 const matchesPath = (pathname: string, href: string) => pathname === href || pathname.startsWith(href + '/');
+const matchesRestrictedPrefix = (href: string, prefix: string) => href === prefix || href.startsWith(prefix + '/');
 
 const isItemActive = (pathname: string, item: SubMenuItem) => {
   if (matchesPath(pathname, item.href)) {
@@ -79,20 +82,30 @@ const isItemActive = (pathname: string, item: SubMenuItem) => {
   return item.children?.some((child) => isItemActive(pathname, child)) ?? false;
 };
 
-const isRoleAllowedForItem = (item: Pick<SubMenuItem, 'href'>, role: Role) => {
+const isRoleAllowedForItem = (item: Pick<SubMenuItem, 'href'>, role: Role, roleNames: string[] = []) => {
+  const roleSet = new Set(roleNames);
+
   if (item.href === '/pre-sales/approvals') {
     return role === 'Director';
+  }
+
+  if (ADMIN_ONLY_SETTINGS_PATHS.some((prefix) => matchesRestrictedPrefix(item.href, prefix))) {
+    return role === 'Director' || roleSet.has('System Manager');
+  }
+
+  if (FINANCE_APPROVAL_PATHS.some((prefix) => matchesRestrictedPrefix(item.href, prefix))) {
+    return role === 'Director' || role === 'Accounts' || roleSet.has('System Manager');
   }
 
   const allowedPaths = roleAccess[role] ?? [];
   return allowedPaths.some((allowedPath) => item.href === allowedPath || item.href.startsWith(allowedPath + '/'));
 };
 
-const filterAccessibleItems = (items: SubMenuItem[], hasAccess: (path: string) => boolean, role: Role): SubMenuItem[] => {
+const filterAccessibleItems = (items: SubMenuItem[], hasAccess: (path: string) => boolean, role: Role, roleNames: string[] = []): SubMenuItem[] => {
   return items.reduce<SubMenuItem[]>((visibleItems, item) => {
-    const visibleChildren = item.children ? filterAccessibleItems(item.children, hasAccess, role) : undefined;
+    const visibleChildren = item.children ? filterAccessibleItems(item.children, hasAccess, role, roleNames) : undefined;
 
-    if (isRoleAllowedForItem(item, role) && (hasAccess(item.href) || (visibleChildren?.length ?? 0) > 0)) {
+    if (isRoleAllowedForItem(item, role, roleNames) && (hasAccess(item.href) || (visibleChildren?.length ?? 0) > 0)) {
       visibleItems.push({
         ...item,
         children: visibleChildren,
@@ -103,11 +116,11 @@ const filterAccessibleItems = (items: SubMenuItem[], hasAccess: (path: string) =
   }, []);
 };
 
-const filterAccessibleNavLinks = (links: NavLink[], hasAccess: (path: string) => boolean, role: Role): NavLink[] => {
+const filterAccessibleNavLinks = (links: NavLink[], hasAccess: (path: string) => boolean, role: Role, roleNames: string[] = []): NavLink[] => {
   return links.reduce<NavLink[]>((visibleLinks, link) => {
-    const visibleChildren = link.children ? filterAccessibleItems(link.children, hasAccess, role) : undefined;
+    const visibleChildren = link.children ? filterAccessibleItems(link.children, hasAccess, role, roleNames) : undefined;
 
-    if (isRoleAllowedForItem(link, role) && (hasAccess(link.href) || (visibleChildren?.length ?? 0) > 0)) {
+    if (isRoleAllowedForItem(link, role, roleNames) && (hasAccess(link.href) || (visibleChildren?.length ?? 0) > 0)) {
       visibleLinks.push({
         ...link,
         children: visibleChildren,
@@ -205,6 +218,7 @@ const navLinks: NavLink[] = [
     icon: Wrench,
     children: [
       { name: 'Project Workspace', href: '/execution/projects', icon: Layers3 },
+      { name: 'Site Register', href: '/execution/sites', icon: MapPin },
       { name: 'Dependencies', href: '/execution/dependencies', icon: GitBranch },
       { name: 'Project Structure', href: '/execution/project-structure', icon: FolderTree },
       {
@@ -226,7 +240,9 @@ const navLinks: NavLink[] = [
     href: '/finance',
     icon: DollarSign,
     children: [
+      { name: 'Project Workspace', href: '/finance/projects', icon: Layers3 },
       { name: 'Commercial Hub', href: '/finance/commercial', icon: Briefcase },
+      { name: 'Petty Cash', href: '/petty-cash', icon: Banknote },
       { name: 'Estimates', href: '/finance/estimates', icon: FileText },
       { name: 'Proformas', href: '/finance/proformas', icon: ScrollText },
       { name: 'Costing', href: '/finance/costing', icon: PieChart },
@@ -322,19 +338,21 @@ function SubMenu({
   onNavigate,
   expandedItems,
   onToggle,
+  roleNames,
 }: {
   items: SubMenuItem[];
   level?: number;
   onNavigate?: () => void;
   expandedItems: Record<string, boolean | undefined>;
   onToggle: (href: string, isExpanded: boolean) => void;
+  roleNames: string[];
 }) {
   const pathname = usePathname() || '';
   const { hasAccess, currentRole } = useRole();
   if (!currentRole) {
     return null;
   }
-  const accessibleItems = filterAccessibleItems(items, hasAccess, currentRole);
+  const accessibleItems = filterAccessibleItems(items, hasAccess, currentRole, roleNames);
   const menuClasses = getSubMenuClasses(level);
 
   return (
@@ -384,6 +402,7 @@ function SubMenu({
                 onNavigate={onNavigate}
                 expandedItems={expandedItems}
                 onToggle={onToggle}
+                roleNames={roleNames}
               />
             ) : null}
           </li>
@@ -406,6 +425,7 @@ export default function Sidebar() {
       sourceLinks.filter((link) => shouldShowNavLinkForRole(link, currentRole, isPermissionLoaded)),
       hasAccess,
       currentRole,
+      currentUser.roles || [],
     )
     : [];
 
@@ -621,6 +641,7 @@ export default function Sidebar() {
                       onNavigate={handleLinkClick}
                       expandedItems={expandedMenus}
                       onToggle={toggleMenu}
+                      roleNames={currentUser.roles || []}
                     />
                   ) : null}
                 </li>

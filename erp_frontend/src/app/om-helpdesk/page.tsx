@@ -164,8 +164,8 @@ export default function OMHelpdeskPage() {
             { value: 'CRITICAL', label: 'Critical' }, { value: 'HIGH', label: 'High' },
             { value: 'MEDIUM', label: 'Medium' }, { value: 'LOW', label: 'Low' },
           ]},
-          { name: 'linked_project', label: 'Project', type: 'text' },
-          { name: 'linked_site', label: 'Site', type: 'text' },
+          { name: 'linked_project', label: 'Project', type: 'link', linkEntity: 'project' as const, placeholder: 'Search project…' },
+          { name: 'linked_site', label: 'Site', type: 'link', linkEntity: 'site' as const, placeholder: 'Search site…' },
           { name: 'asset_serial_no', label: 'Asset Serial No', type: 'text' },
           { name: 'description', label: 'Description', type: 'textarea' },
         ]}

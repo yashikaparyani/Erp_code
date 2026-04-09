@@ -389,7 +389,7 @@ export const DOSSIER_STAGE_LABELS: Record<string, string> = {
    ═══════════════════════════════════════════════════════════ */
 
 export async function callOps<T>(method: string, args?: Record<string, unknown>): Promise<T> {
-  const response = await fetch('/api/ops', {
+  const response = await fetch('/api/project-workspace', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ method, args }),
