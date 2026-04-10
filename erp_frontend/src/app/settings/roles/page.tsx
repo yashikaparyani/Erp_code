@@ -76,12 +76,13 @@ function ScopeModePill({ scope, mode }: { scope: string; mode: string }) {
   );
 }
 
-function RoleRow({ role, packs, allPacks, isExpanded, onToggle }: {
+function RoleRow({ role, packs, allPacks, isExpanded, onToggle, onEdit }: {
   role: RoleEntry;
   packs: PackMapping[];
   allPacks: PackInfo[];
   isExpanded: boolean;
   onToggle: () => void;
+  onEdit: () => void;
 }) {
   const packMap = new Map(packs.map(p => [p.pack_key, p]));
   const assignedCount = packs.length;
@@ -121,6 +122,14 @@ function RoleRow({ role, packs, allPacks, isExpanded, onToggle }: {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {/* Edit button */}
+          <button
+            onClick={(e) => { e.stopPropagation(); onEdit(); }}
+            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+            title="Edit pack assignments"
+          >
+            <Edit3 className="w-4 h-4" />
+          </button>
           {/* Pack dots preview */}
           <div className="hidden sm:flex items-center gap-1">
             {allPacks.map(pack => {
@@ -191,6 +200,9 @@ export default function RolesPage() {
   const [error, setError] = useState('');
   const [expandedRoles, setExpandedRoles] = useState<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState('');
+  const [editingRole, setEditingRole] = useState<RoleEntry | null>(null);
+  const [editPacks, setEditPacks] = useState<Record<string, { enabled: boolean; scope: string; mode: string; isSystem: boolean }>>({});
+  const [saving, setSaving] = useState(false);
 
   const fetchMatrix = useCallback(async () => {
     try {
@@ -224,6 +236,43 @@ export default function RolesPage() {
   };
 
   const collapseAll = () => setExpandedRoles({});
+
+  const openEdit = (role: RoleEntry) => {
+    const packState: Record<string, { enabled: boolean; scope: string; mode: string; isSystem: boolean }> = {};
+    const packMap = new Map(role.packs.map(p => [p.pack_key, p]));
+    (matrix?.packs || []).forEach(pack => {
+      const mapping = packMap.get(pack.pack_key);
+      packState[pack.pack_key] = {
+        enabled: !!mapping,
+        scope: mapping?.scope || 'own',
+        mode: mapping?.mode || 'read',
+        isSystem: mapping ? !!mapping.is_system_default : false,
+      };
+    });
+    setEditPacks(packState);
+    setEditingRole(role);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingRole) return;
+    setSaving(true);
+    try {
+      const packs = Object.entries(editPacks)
+        .filter(([, v]) => v.enabled)
+        .map(([pack_key, v]) => ({ pack_key, scope: v.scope, mode: v.mode }));
+      const res = await fetch('/api/rbac/role-matrix', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: editingRole.role, packs }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setEditingRole(null);
+        fetchMatrix();
+      }
+    } catch (e) { console.error('Failed to save role packs:', e); }
+    finally { setSaving(false); }
+  };
 
   const filteredRoles = (matrix?.roles || []).filter(r => {
     if (!searchQuery) return true;
@@ -355,12 +404,98 @@ export default function RolesPage() {
                       allPacks={matrix.packs}
                       isExpanded={!!expandedRoles[role.role]}
                       onToggle={() => toggleRole(role.role)}
+                      onEdit={() => openEdit(role)}
                     />
                   ))}
                 </div>
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Edit Role Packs Modal */}
+      {editingRole && matrix && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setEditingRole(null)} />
+          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-800">
+                Edit Packs — {editingRole.role}
+              </h3>
+              <button onClick={() => setEditingRole(null)} className="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto flex-1 space-y-2">
+              {matrix.packs.map(pack => {
+                const state = editPacks[pack.pack_key];
+                if (!state) return null;
+                return (
+                  <div key={pack.pack_key} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border ${state.enabled ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-100'}`}>
+                    <input
+                      type="checkbox"
+                      checked={state.enabled}
+                      disabled={state.isSystem}
+                      onChange={(e) => setEditPacks(prev => ({
+                        ...prev,
+                        [pack.pack_key]: { ...prev[pack.pack_key], enabled: e.target.checked },
+                      }))}
+                      className="w-4 h-4 text-[#1e6b87] rounded border-gray-300 focus:ring-[#1e6b87]"
+                    />
+                    <span className={`flex-1 text-sm font-medium ${state.enabled ? 'text-gray-800' : 'text-gray-400'}`}>
+                      {pack.pack_label}
+                      {state.isSystem && <span className="ml-1 text-[10px] text-gray-400">(system)</span>}
+                    </span>
+                    {state.enabled && (
+                      <>
+                        <select
+                          value={state.scope}
+                          disabled={state.isSystem}
+                          onChange={(e) => setEditPacks(prev => ({
+                            ...prev,
+                            [pack.pack_key]: { ...prev[pack.pack_key], scope: e.target.value },
+                          }))}
+                          className="px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-[#1e6b87]"
+                        >
+                          {Object.entries(SCOPE_LABELS).map(([k, v]) => (
+                            <option key={k} value={k}>{v}</option>
+                          ))}
+                        </select>
+                        <select
+                          value={state.mode}
+                          disabled={state.isSystem}
+                          onChange={(e) => setEditPacks(prev => ({
+                            ...prev,
+                            [pack.pack_key]: { ...prev[pack.pack_key], mode: e.target.value },
+                          }))}
+                          className="px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-[#1e6b87]"
+                        >
+                          {Object.keys(MODE_ICONS_MAP).map(m => (
+                            <option key={m} value={m}>{m.charAt(0).toUpperCase() + m.slice(1)}</option>
+                          ))}
+                        </select>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
+              <p className="text-[11px] text-gray-400 flex items-center gap-1">
+                <Info className="w-3 h-3" />
+                System-default packs cannot be removed
+              </p>
+              <div className="flex items-center gap-3">
+                <button onClick={() => setEditingRole(null)} className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 text-sm font-medium">
+                  Cancel
+                </button>
+                <button onClick={handleSaveEdit} disabled={saving} className="px-4 py-2 bg-[#1e6b87] text-white rounded-lg hover:bg-[#185a73] text-sm font-medium disabled:opacity-50">
+                  {saving ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

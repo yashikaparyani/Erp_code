@@ -58,6 +58,20 @@ def create_department(data):
 
 
 @frappe.whitelist()
+def rename_department(name, new_name):
+	"""Rename a Department master."""
+	_require_roles(ROLE_PRESALES_HEAD, ROLE_HR_MANAGER, ROLE_DEPARTMENT_HEAD, ROLE_DIRECTOR)
+	new_name = (new_name or "").strip()
+	if not new_name:
+		frappe.throw("New department name is required")
+	doc = frappe.get_doc("Department", name)
+	doc.department_name = new_name
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Department renamed"}
+
+
+@frappe.whitelist()
 def toggle_department(name):
 	"""Toggle a Department's disabled state."""
 	_require_roles(ROLE_PRESALES_HEAD, ROLE_HR_MANAGER, ROLE_DEPARTMENT_HEAD, ROLE_DIRECTOR)
@@ -102,6 +116,20 @@ def create_designation(data):
 	doc.insert()
 	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": "Designation created"}
+
+
+@frappe.whitelist()
+def rename_designation(name, new_name):
+	"""Rename a Designation master."""
+	_require_roles(ROLE_PRESALES_HEAD, ROLE_HR_MANAGER, ROLE_DEPARTMENT_HEAD, ROLE_DIRECTOR)
+	new_name = (new_name or "").strip()
+	if not new_name:
+		frappe.throw("New designation name is required")
+	doc = frappe.get_doc("Designation", name)
+	doc.designation_name = new_name
+	doc.save()
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Designation renamed"}
 
 
 @frappe.whitelist()
