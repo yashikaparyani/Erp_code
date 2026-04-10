@@ -412,10 +412,6 @@ export function getDocumentExtension(fileUrl?: string) {
   return cleaned.includes('.') ? cleaned.split('.').pop() || '' : '';
 }
 
-export function isPreviewableDocument(fileUrl?: string) {
-  return ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'gif'].includes(getDocumentExtension(fileUrl));
-}
-
 export function formatWorkflowText(value?: string | null) {
   return value ? value.replaceAll('_', ' ') : '-';
 }

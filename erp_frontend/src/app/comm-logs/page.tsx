@@ -120,7 +120,7 @@ export default function CommLogsPage() {
                   <td className="max-w-xs truncate">{item.issue_summary || '-'}</td>
                   <td><span className={statusBadge(item.response_status)}>{item.response_status || 'Pending'}</span></td>
                   <td>{item.linked_project || '-'}</td>
-                  <td>{item.attachment ? <a href={`/api/files/download?url=${encodeURIComponent(item.attachment)}&filename=${encodeURIComponent(item.subject || item.name)}`} className="inline-flex items-center gap-1 text-sm text-blue-700 hover:underline"><Download className="h-3.5 w-3.5" />Download</a> : '-'}</td>
+                  <td>{item.attachment ? <a href={`/api/files?url=${encodeURIComponent(item.attachment)}&download=1`} className="inline-flex items-center gap-1 text-sm text-blue-700 hover:underline"><Download className="h-3.5 w-3.5" />Download</a> : '-'}</td>
                 </tr>
               ))}
             </tbody>

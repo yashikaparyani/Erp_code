@@ -470,22 +470,41 @@ export async function fetchFrappeResource(
   resourcePathOrUrl: string,
   request?: NextRequest,
 ): Promise<Response> {
-  const authHeaders = request && hasFrappeSessionCookie(request)
-    ? await getAuthHeaders(request, false)
-    : await getAuthHeaders(undefined, false);
+  const usingUserSession = request != null && hasFrappeSessionCookie(request);
 
-  const response = await fetch(normalizeFrappeResourceUrl(resourcePathOrUrl), {
-    method: 'GET',
-    headers: {
-      Accept: '*/*',
-      ...authHeaders,
-    },
-    cache: 'no-store',
-  });
+  const doFetch = async (retryAfterRefresh = false): Promise<Response> => {
+    if (retryAfterRefresh && !usingUserSession) {
+      // Clear stale service session so getAuthHeaders rebuilds it
+      cachedSession = null;
+    }
+    const authHeaders = usingUserSession
+      ? await getAuthHeaders(request, false)
+      : await getAuthHeaders(undefined, false);
+
+    return fetch(normalizeFrappeResourceUrl(resourcePathOrUrl), {
+      method: 'GET',
+      headers: {
+        Accept: '*/*',
+        ...authHeaders,
+      },
+      cache: 'no-store',
+    });
+  };
+
+  let response = await doFetch();
+
+  // Service-account session may have expired — retry once with a fresh login
+  if (!response.ok && !usingUserSession && (response.status === 401 || response.status === 403)) {
+    response = await doFetch(true);
+  }
 
   if (!response.ok) {
     const text = await response.text().catch(() => '');
-    throw new Error(text || `Failed to fetch file (${response.status})`);
+    const statusText = response.statusText || `HTTP ${response.status}`;
+    throw Object.assign(
+      new Error(text || `Failed to fetch file (${statusText})`),
+      { httpStatus: response.status },
+    );
   }
 
   return response;
