@@ -1,5 +1,6 @@
 'use client';
 
+import { apiFetch } from '@/lib/api-client';
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -129,14 +130,14 @@ export default function ReportsPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/boqs/stats').then((r) => r.json()).catch(() => ({ data: {} })),
-      fetch('/api/cost-sheets/stats').then((r) => r.json()).catch(() => ({ data: {} })),
-      fetch('/api/invoices/stats').then((r) => r.json()).catch(() => ({ data: {} })),
-      fetch('/api/dispatch-challans/stats').then((r) => r.json()).catch(() => ({ data: {} })),
-      fetch('/api/dprs/stats').then((r) => r.json()).catch(() => ({ data: {} })),
-      fetch('/api/rma-trackers/stats').then((r) => r.json()).catch(() => ({ data: {} })),
-      fetch('/api/sites').then((r) => r.json()).catch(() => ({ data: [] })),
-      fetch('/api/vendor-comparisons/stats').then((r) => r.json()).catch(() => ({ data: {} })),
+      apiFetch('/api/boqs/stats').catch(() => ({ data: {} })),
+      apiFetch('/api/cost-sheets/stats').catch(() => ({ data: {} })),
+      apiFetch('/api/invoices/stats').catch(() => ({ data: {} })),
+      apiFetch('/api/dispatch-challans/stats').catch(() => ({ data: {} })),
+      apiFetch('/api/dprs/stats').catch(() => ({ data: {} })),
+      apiFetch('/api/rma-trackers/stats').catch(() => ({ data: {} })),
+      apiFetch('/api/sites').catch(() => ({ data: [] })),
+      apiFetch('/api/vendor-comparisons/stats').catch(() => ({ data: {} })),
     ])
       .then(([boqRes, costRes, invoiceRes, dispatchRes, dprRes, rmaRes, sitesRes, procurementRes]) => {
         setCards([

@@ -1,6 +1,7 @@
 'use client';
 
 import { type ComponentType, type ReactNode, useEffect, useState } from 'react';
+import { apiFetch } from '@/lib/api-client';
 import Link from 'next/link';
 import { Box, Briefcase, Pencil, Plus, Trash2, Users, X } from 'lucide-react';
 
@@ -147,15 +148,21 @@ export default function ProjectStructurePage() {
 
   const loadData = async () => {
     setLoading(true);
-    const [membersRes, assetsRes, staffingRes] = await Promise.all([
-      fetch('/api/execution/project-team-members').then((r) => r.json()).catch(() => ({ data: [] })),
-      fetch('/api/execution/project-assets').then((r) => r.json()).catch(() => ({ data: [] })),
-      fetch('/api/execution/staffing-assignments').then((r) => r.json()).catch(() => ({ data: [] })),
-    ]);
-    setMembers(membersRes.data || []);
-    setAssets(assetsRes.data || []);
-    setStaffingAssignments(staffingRes.data || []);
-    setLoading(false);
+    setError('');
+    try {
+      const [membersRes, assetsRes, staffingRes] = await Promise.all([
+        apiFetch('/api/execution/project-team-members').catch(() => ({ data: [] })),
+        apiFetch('/api/execution/project-assets').catch(() => ({ data: [] })),
+        apiFetch('/api/execution/staffing-assignments').catch(() => ({ data: [] })),
+      ]);
+      setMembers(membersRes.data || []);
+      setAssets(assetsRes.data || []);
+      setStaffingAssignments(staffingRes.data || []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load data');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {

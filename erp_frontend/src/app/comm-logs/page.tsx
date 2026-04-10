@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { apiFetch } from '@/lib/api-client';
 import Link from 'next/link';
 import { ArrowUpRight, ArrowDownLeft, Download, FileText, MessageSquare, Plus, X } from 'lucide-react';
 import RegisterPage from '@/components/shells/RegisterPage';
@@ -44,9 +45,15 @@ export default function CommLogsPage() {
 
   const loadData = async () => {
     setLoading(true);
-    const res = await fetch('/api/comm-logs').then((r) => r.json()).catch(() => ({ data: [] }));
-    setItems(res.data || []);
-    setLoading(false);
+    setError('');
+    try {
+      const res = await apiFetch('/api/comm-logs');
+      setItems(res.data || []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load data');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { loadData(); }, []);

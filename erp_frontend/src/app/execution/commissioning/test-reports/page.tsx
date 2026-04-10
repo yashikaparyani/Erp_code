@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { apiFetch } from '@/lib/api-client';
 import Link from 'next/link';
 import { CheckCircle, ClipboardList, ExternalLink, FileText, Plus, X } from 'lucide-react';
 
@@ -92,15 +93,21 @@ export default function CommissioningTestReportsPage() {
 
   const loadData = async () => {
     setLoading(true);
-    const [repRes, clRes, soRes] = await Promise.all([
-      fetch('/api/execution/commissioning/test-reports').then(r => r.json()).catch(() => ({ data: [] })),
-      fetch('/api/execution/commissioning/checklists').then(r => r.json()).catch(() => ({ data: [] })),
-      fetch('/api/execution/commissioning/client-signoffs').then(r => r.json()).catch(() => ({ data: [] })),
-    ]);
-    setReports(repRes.data || []);
-    setChecklists(clRes.data || []);
-    setSignoffs(soRes.data || []);
-    setLoading(false);
+    setError('');
+    try {
+      const [repRes, clRes, soRes] = await Promise.all([
+        apiFetch('/api/execution/commissioning/test-reports').catch(() => ({ data: [] })),
+        apiFetch('/api/execution/commissioning/checklists').catch(() => ({ data: [] })),
+        apiFetch('/api/execution/commissioning/client-signoffs').catch(() => ({ data: [] })),
+      ]);
+      setReports(repRes.data || []);
+      setChecklists(clRes.data || []);
+      setSignoffs(soRes.data || []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load data');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {

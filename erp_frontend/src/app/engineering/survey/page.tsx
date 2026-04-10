@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { apiFetch } from '@/lib/api-client';
 import Link from 'next/link';
 import { Eye, Plus, RefreshCw } from 'lucide-react';
 import RegisterPage from '@/components/shells/RegisterPage';
@@ -45,8 +46,8 @@ export default function EngineeringSurveyPage() {
 
     try {
       const [surveyRes, siteRes] = await Promise.all([
-        fetch('/api/surveys').then((r) => r.json()).catch(() => ({ data: [] })),
-        fetch('/api/sites').then((r) => r.json()).catch(() => ({ data: [] })),
+        apiFetch('/api/surveys').catch(() => ({ data: [] })),
+        apiFetch('/api/sites').catch(() => ({ data: [] })),
       ]);
       setSurveys(Array.isArray(surveyRes.data) ? surveyRes.data : []);
       setSites(Array.isArray(siteRes.data) ? siteRes.data : []);

@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { apiFetch } from '@/lib/api-client';
 import Link from 'next/link';
 import { AlertTriangle, CheckCircle2, Clock, Plus, X, XCircle } from 'lucide-react';
 
@@ -56,9 +57,15 @@ export default function TechnicalDeviationsPage() {
 
   const loadData = async () => {
     setLoading(true);
-    const response = await fetch('/api/engineering/technical-deviations').then(r => r.json()).catch(() => ({ data: [] }));
-    setItems(response.data || []);
-    setLoading(false);
+    setError('');
+    try {
+      const response = await apiFetch('/api/engineering/technical-deviations');
+      setItems(response.data || []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load data');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { loadData(); }, []);

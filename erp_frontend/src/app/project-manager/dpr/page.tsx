@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { apiFetch } from '@/lib/api-client';
 import { Plus } from 'lucide-react';
 import Link from 'next/link';
 import RegisterPage from '@/components/shells/RegisterPage';
@@ -31,7 +32,7 @@ export default function ProjectManagerDprPage() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`/api/dprs?project=${encodeURIComponent(project)}`).then((r) => r.json()).catch(() => ({ data: [] }));
+      const res = await apiFetch(`/api/dprs?project=${encodeURIComponent(project)}`);
       setDprs(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load DPR data');

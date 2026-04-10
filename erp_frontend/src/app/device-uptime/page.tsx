@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { apiFetch } from '@/lib/api-client';
 import { Activity, Plus, X } from 'lucide-react';
 
 interface DeviceUptimeLog {
@@ -33,9 +34,15 @@ export default function DeviceUptimePage() {
 
   const loadData = async () => {
     setLoading(true);
-    const res = await fetch('/api/device-uptime').then(r => r.json()).catch(() => ({ data: [] }));
-    setItems(res.data || []);
-    setLoading(false);
+    setError('');
+    try {
+      const res = await apiFetch('/api/device-uptime');
+      setItems(res.data || []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load data');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { loadData(); }, []);

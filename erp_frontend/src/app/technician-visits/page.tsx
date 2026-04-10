@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { apiFetch } from '@/lib/api-client';
 import { Wrench, Plus, CheckCircle2, Clock, X } from 'lucide-react';
 
 interface TechnicianVisit {
@@ -29,9 +30,15 @@ export default function TechnicianVisitsPage() {
 
   const loadData = async () => {
     setLoading(true);
-    const res = await fetch('/api/technician-visits').then(r => r.json()).catch(() => ({ data: [] }));
-    setItems(res.data || []);
-    setLoading(false);
+    setError('');
+    try {
+      const res = await apiFetch('/api/technician-visits');
+      setItems(res.data || []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load data');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { loadData(); }, []);

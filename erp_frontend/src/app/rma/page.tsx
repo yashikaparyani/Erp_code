@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { apiFetch } from '@/lib/api-client';
 import Link from 'next/link';
 import RegisterPage, { StatItem } from '@/components/shells/RegisterPage';
 import FormModal from '@/components/shells/FormModal';
@@ -55,9 +56,9 @@ export default function RMAPage() {
     setLoading(true); setError('');
     try {
       const [listRes, statsRes, ticketRes] = await Promise.all([
-        fetch('/api/rma-trackers').then(r => r.json()).catch(() => ({ data: [] })),
-        fetch('/api/rma-trackers/stats').then(r => r.json()).catch(() => ({ data: {} })),
-        fetch('/api/tickets').then(r => r.json()).catch(() => ({ data: [] })),
+        apiFetch('/api/rma-trackers').catch(() => ({ data: [] })),
+        apiFetch('/api/rma-trackers/stats').catch(() => ({ data: {} })),
+        apiFetch('/api/tickets').catch(() => ({ data: [] })),
       ]);
       setItems(listRes.data || []);
       setStats(statsRes.data || {});

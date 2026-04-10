@@ -1,5 +1,6 @@
 'use client';
 
+import { apiFetch } from '@/lib/api-client';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, Clock3, FileSpreadsheet, IndianRupee, RefreshCw, Plus, X } from 'lucide-react';
@@ -92,8 +93,8 @@ export default function EngineeringBoqPage() {
 
     try {
       const [boqRes, statsRes] = await Promise.all([
-        fetch('/api/boqs').then((response) => response.json()).catch(() => ({ data: [] })),
-        fetch('/api/boqs/stats').then((response) => response.json()).catch(() => ({ data: {} })),
+        apiFetch('/api/boqs').catch(() => ({ data: [] })),
+        apiFetch('/api/boqs/stats').catch(() => ({ data: {} })),
       ]);
       setBoqs(boqRes.data || []);
       setStats(statsRes.data || {});
