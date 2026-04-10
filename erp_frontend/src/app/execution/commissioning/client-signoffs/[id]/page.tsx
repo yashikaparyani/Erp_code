@@ -139,7 +139,7 @@ export default function ClientSignoffDetailPage() {
             ))}
           </dl>
           {data.attachment && (
-            <div className="mt-4"><a href={data.attachment} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:underline"><FileText className="h-3.5 w-3.5" /> View Attachment</a></div>
+            <div className="mt-4"><a href={`/api/files?url=${encodeURIComponent(data.attachment)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:underline"><FileText className="h-3.5 w-3.5" /> View Attachment</a></div>
           )}
           {data.remarks && (
             <div className="mt-4">

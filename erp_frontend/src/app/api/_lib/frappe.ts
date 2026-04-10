@@ -330,9 +330,7 @@ export async function callFrappeMethod<T = any>(
   args?: Record<string, any>,
   request?: NextRequest,
 ): Promise<T> {
-  const authHeaders = await getAuthHeaders(request, true);
   const body = new URLSearchParams();
-
   Object.entries(args || {}).forEach(([key, value]) => {
     if (value === undefined || value === null) return;
     body.set(key, typeof value === 'string' ? value : JSON.stringify(value));
@@ -340,18 +338,29 @@ export async function callFrappeMethod<T = any>(
 
   const qualifiedMethod = method.includes('.') ? method : `gov_erp.api.${method}`;
 
-  const response = await fetch(`${FRAPPE_URL}/api/method/${qualifiedMethod}`, {
-    method: 'POST',
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/x-www-form-urlencoded',
-      ...authHeaders,
-    },
-    body: body.toString(),
-    cache: 'no-store',
-  });
+  const execute = async () => {
+    const authHeaders = await getAuthHeaders(request, true);
+    const response = await fetch(`${FRAPPE_URL}/api/method/${qualifiedMethod}`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        ...authHeaders,
+      },
+      body: body.toString(),
+      cache: 'no-store',
+    });
+    const payload = await response.json().catch(() => ({}));
+    return { response, payload };
+  };
 
-  const payload = await response.json().catch(() => ({}));
+  let { response, payload } = await execute();
+
+  // Service session may have expired — retry once with a fresh login
+  if (!response.ok && !request && (response.status === 401 || response.status === 403)) {
+    cachedSession = null;
+    ({ response, payload } = await execute());
+  }
 
   if (!response.ok) {
     throw new Error(extractServerMessage(payload));
@@ -371,26 +380,34 @@ export async function callPresalesMethod<T = any>(
   args?: Record<string, any>,
   request?: NextRequest,
 ): Promise<T> {
-  const authHeaders = await getAuthHeaders(request, true);
   const body = new URLSearchParams();
-
   Object.entries(args || {}).forEach(([key, value]) => {
     if (value === undefined || value === null) return;
     body.set(key, typeof value === 'string' ? value : JSON.stringify(value));
   });
 
-  const response = await fetch(`${FRAPPE_URL}/api/method/gov_erp.presales_api.${method}`, {
-    method: 'POST',
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/x-www-form-urlencoded',
-      ...authHeaders,
-    },
-    body: body.toString(),
-    cache: 'no-store',
-  });
+  const execute = async () => {
+    const authHeaders = await getAuthHeaders(request, true);
+    const response = await fetch(`${FRAPPE_URL}/api/method/gov_erp.presales_api.${method}`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        ...authHeaders,
+      },
+      body: body.toString(),
+      cache: 'no-store',
+    });
+    const payload = await response.json().catch(() => ({}));
+    return { response, payload };
+  };
 
-  const payload = await response.json().catch(() => ({}));
+  let { response, payload } = await execute();
+
+  if (!response.ok && !request && (response.status === 401 || response.status === 403)) {
+    cachedSession = null;
+    ({ response, payload } = await execute());
+  }
 
   if (!response.ok) {
     throw new Error(extractServerMessage(payload));
@@ -410,26 +427,34 @@ export async function callRbacMethod<T = any>(
   args?: Record<string, any>,
   request?: NextRequest,
 ): Promise<T> {
-  const authHeaders = await getAuthHeaders(request, true);
   const body = new URLSearchParams();
-
   Object.entries(args || {}).forEach(([key, value]) => {
     if (value === undefined || value === null) return;
     body.set(key, typeof value === 'string' ? value : JSON.stringify(value));
   });
 
-  const response = await fetch(`${FRAPPE_URL}/api/method/gov_erp.rbac_api.${method}`, {
-    method: 'POST',
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/x-www-form-urlencoded',
-      ...authHeaders,
-    },
-    body: body.toString(),
-    cache: 'no-store',
-  });
+  const execute = async () => {
+    const authHeaders = await getAuthHeaders(request, true);
+    const response = await fetch(`${FRAPPE_URL}/api/method/gov_erp.rbac_api.${method}`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        ...authHeaders,
+      },
+      body: body.toString(),
+      cache: 'no-store',
+    });
+    const payload = await response.json().catch(() => ({}));
+    return { response, payload };
+  };
 
-  const payload = await response.json().catch(() => ({}));
+  let { response, payload } = await execute();
+
+  if (!response.ok && !request && (response.status === 401 || response.status === 403)) {
+    cachedSession = null;
+    ({ response, payload } = await execute());
+  }
 
   if (!response.ok) {
     throw new Error(extractServerMessage(payload));
@@ -448,17 +473,27 @@ export async function callRawFrappeMethod<T = any>(
   request?: NextRequest,
   httpMethod: 'GET' | 'POST' = 'POST',
 ): Promise<T> {
-  const authHeaders = await getAuthHeaders(request, httpMethod !== 'GET');
-  const response = await fetch(`${FRAPPE_URL}/api/method/${method}`, {
-    method: httpMethod,
-    headers: {
-      Accept: 'application/json',
-      ...authHeaders,
-    },
-    cache: 'no-store',
-  });
+  const execute = async () => {
+    const authHeaders = await getAuthHeaders(request, httpMethod !== 'GET');
+    const response = await fetch(`${FRAPPE_URL}/api/method/${method}`, {
+      method: httpMethod,
+      headers: {
+        Accept: 'application/json',
+        ...authHeaders,
+      },
+      cache: 'no-store',
+    });
+    const payload = await response.json().catch(() => ({}));
+    return { response, payload };
+  };
 
-  const payload = await response.json().catch(() => ({}));
+  let { response, payload } = await execute();
+
+  if (!response.ok && !request && (response.status === 401 || response.status === 403)) {
+    cachedSession = null;
+    ({ response, payload } = await execute());
+  }
+
   if (!response.ok) {
     throw new Error(extractServerMessage(payload));
   }
@@ -514,17 +549,27 @@ export async function uploadFrappeFile(
   formData: FormData,
   request?: NextRequest,
 ): Promise<any> {
-  const authHeaders = await getAuthHeaders(request, true);
-  const response = await fetch(`${FRAPPE_URL}/api/method/upload_file`, {
-    method: 'POST',
-    headers: {
-      ...authHeaders,
-    },
-    body: formData,
-    cache: 'no-store',
-  });
+  const execute = async () => {
+    const authHeaders = await getAuthHeaders(request, true);
+    const response = await fetch(`${FRAPPE_URL}/api/method/upload_file`, {
+      method: 'POST',
+      headers: {
+        ...authHeaders,
+      },
+      body: formData,
+      cache: 'no-store',
+    });
+    const payload = await response.json().catch(() => ({}));
+    return { response, payload };
+  };
 
-  const payload = await response.json().catch(() => ({}));
+  let { response, payload } = await execute();
+
+  if (!response.ok && !request && (response.status === 401 || response.status === 403)) {
+    cachedSession = null;
+    ({ response, payload } = await execute());
+  }
+
   if (!response.ok) {
     throw new Error(extractServerMessage(payload));
   }

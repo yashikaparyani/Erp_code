@@ -237,7 +237,7 @@ export default function ApprovalDetailPage() {
                     {d.supporting_docs.map(doc => (
                       <li key={doc.name}>
                         {doc.file_url
-                          ? <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-blue-600 hover:underline"><FileText className="w-4 h-4" />{doc.file_name || doc.name}</a>
+                          ? <a href={`/api/files?url=${encodeURIComponent(doc.file_url)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-blue-600 hover:underline"><FileText className="w-4 h-4" />{doc.file_name || doc.name}</a>
                           : <span className="text-sm text-gray-600">{doc.file_name || doc.name}</span>}
                       </li>
                     ))}

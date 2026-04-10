@@ -382,7 +382,7 @@ export default function CommissioningTestReportsPage() {
                     <td><span className={`badge ${SIGNOFF_STATUS[s.status || ''] || 'badge-gray'}`}>{s.status || '-'}</span></td>
                     <td>
                       {s.attachment ? (
-                        <a href={s.attachment} target="_blank" className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:underline">
+                        <a href={`/api/files?url=${encodeURIComponent(s.attachment)}`} target="_blank" className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:underline">
                           <ExternalLink className="w-4 h-4" />
                           Open
                         </a>

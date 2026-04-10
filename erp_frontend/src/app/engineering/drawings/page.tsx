@@ -43,7 +43,7 @@ export default function DrawingsPage() {
           label: 'File',
           render: (row) => row.file_url ? (
             <a
-              href={`${FRAPPE_URL}${row.file_url}`}
+              href={`/api/files?url=${encodeURIComponent(row.file_url)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"

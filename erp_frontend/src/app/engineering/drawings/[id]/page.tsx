@@ -232,7 +232,7 @@ export default function DrawingDetailPage() {
           <div className="card-body space-y-4">
             {data.file_url ? (
               <a
-                href={`${FRAPPE_URL}${data.file_url}`}
+                href={`/api/files?url=${encodeURIComponent(data.file_url)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-700 hover:bg-blue-100 transition"

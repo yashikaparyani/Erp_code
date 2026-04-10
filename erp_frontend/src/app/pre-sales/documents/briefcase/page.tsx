@@ -210,7 +210,7 @@ export default function DocumentBriefCasePage() {
                     <td className="px-3 py-3 text-center">
                       <div className="flex items-center justify-center gap-2">
                         {row.file_url && (
-                          <a href={row.file_url} target="_blank" rel="noopener noreferrer" className="p-1 text-gray-500 hover:text-blue-600">
+                          <a href={`/api/files?url=${encodeURIComponent(row.file_url)}`} target="_blank" rel="noopener noreferrer" className="p-1 text-gray-500 hover:text-blue-600">
                             <Eye className="w-4 h-4" />
                           </a>
                         )}
