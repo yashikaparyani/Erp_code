@@ -963,6 +963,168 @@ def get_director_dashboard():
 
 
 @frappe.whitelist()
+def get_director_project_performance(limit=200):
+	"""Project-wise performance matrix for director governance.
+
+	Returns survey + BOQ progress per project and performer attribution so
+	director can see who performed what and current completion posture.
+	"""
+	_require_roles(ROLE_DIRECTOR)
+	limit = cint(limit or 200)
+
+	projects = frappe.get_all(
+		"Project",
+		fields=["name", "project_name", "status", "current_project_stage", "spine_progress_pct", "total_sites"],
+		order_by="modified desc",
+		limit_page_length=max(limit, 1),
+	)
+	project_names = [p.name for p in projects]
+
+	if not project_names:
+		return {"success": True, "data": {"summary": {}, "projects": []}}
+
+	survey_rows = frappe.get_all(
+		"GE Survey",
+		filters={"linked_project": ["in", project_names]},
+		fields=["name", "linked_project", "status", "surveyed_by", "owner", "modified_by"],
+		limit_page_length=10000,
+	)
+
+	boq_rows = frappe.get_all(
+		"GE BOQ",
+		filters={"linked_project": ["in", project_names]},
+		fields=[
+			"name", "linked_project", "status", "total_amount",
+			"created_by_user", "approved_by", "rejected_by", "owner", "modified_by",
+		],
+		limit_page_length=10000,
+	)
+
+	project_map = {p.name: p for p in projects}
+	aggregates = {}
+	for project_name in project_names:
+		aggregates[project_name] = {
+			"survey_total": 0,
+			"survey_completed": 0,
+			"survey_in_progress": 0,
+			"survey_pending": 0,
+			"boq_total": 0,
+			"boq_draft": 0,
+			"boq_pending_approval": 0,
+			"boq_approved": 0,
+			"boq_rejected": 0,
+			"boq_total_value": 0.0,
+			"survey_performer_counts": {},
+			"boq_creator_counts": {},
+			"boq_approver_counts": {},
+		}
+
+	def _bump(counter, key):
+		name = cstr(key or "").strip()
+		if not name:
+			return
+		counter[name] = counter.get(name, 0) + 1
+
+	for row in survey_rows:
+		project_name = row.linked_project
+		if project_name not in aggregates:
+			continue
+		a = aggregates[project_name]
+		a["survey_total"] += 1
+		status = cstr(row.status or "").strip().upper().replace(" ", "_")
+		if status == "COMPLETED":
+			a["survey_completed"] += 1
+		elif status in ("IN_PROGRESS", "SUBMITTED"):
+			a["survey_in_progress"] += 1
+		else:
+			a["survey_pending"] += 1
+
+		actor = row.surveyed_by or row.modified_by or row.owner
+		_bump(a["survey_performer_counts"], actor)
+
+	for row in boq_rows:
+		project_name = row.linked_project
+		if project_name not in aggregates:
+			continue
+		a = aggregates[project_name]
+		a["boq_total"] += 1
+		a["boq_total_value"] += flt(row.total_amount)
+
+		status = cstr(row.status or "").strip().upper().replace(" ", "_")
+		if status == "DRAFT":
+			a["boq_draft"] += 1
+		elif status == "PENDING_APPROVAL":
+			a["boq_pending_approval"] += 1
+		elif status == "APPROVED":
+			a["boq_approved"] += 1
+		elif status == "REJECTED":
+			a["boq_rejected"] += 1
+
+		creator = row.created_by_user or row.owner
+		_bump(a["boq_creator_counts"], creator)
+		_bump(a["boq_approver_counts"], row.approved_by)
+		_bump(a["boq_approver_counts"], row.rejected_by)
+
+	def _top_three(counter):
+		items = [{"user": user, "count": count} for user, count in counter.items()]
+		items.sort(key=lambda x: x["count"], reverse=True)
+		return items[:3]
+
+	rows = []
+	for project_name in project_names:
+		p = project_map.get(project_name)
+		a = aggregates.get(project_name, {})
+		rows.append({
+			"project": project_name,
+			"project_name": p.project_name if p else project_name,
+			"status": p.status if p else "",
+			"current_stage": p.current_project_stage if p else "",
+			"project_progress_pct": flt(p.spine_progress_pct if p else 0),
+			"total_sites": cint(p.total_sites if p else 0),
+			"survey": {
+				"total": cint(a.get("survey_total", 0)),
+				"completed": cint(a.get("survey_completed", 0)),
+				"in_progress": cint(a.get("survey_in_progress", 0)),
+				"pending": cint(a.get("survey_pending", 0)),
+				"completion_pct": round(
+					(cint(a.get("survey_completed", 0)) * 100.0 / max(cint(a.get("survey_total", 0)), 1)),
+					1,
+				) if cint(a.get("survey_total", 0)) else 0,
+				"top_performers": _top_three(a.get("survey_performer_counts", {})),
+			},
+			"boq": {
+				"total": cint(a.get("boq_total", 0)),
+				"draft": cint(a.get("boq_draft", 0)),
+				"pending_approval": cint(a.get("boq_pending_approval", 0)),
+				"approved": cint(a.get("boq_approved", 0)),
+				"rejected": cint(a.get("boq_rejected", 0)),
+				"approval_pct": round(
+					(cint(a.get("boq_approved", 0)) * 100.0 / max(cint(a.get("boq_total", 0)), 1)),
+					1,
+				) if cint(a.get("boq_total", 0)) else 0,
+				"total_value": flt(a.get("boq_total_value", 0)),
+				"top_creators": _top_three(a.get("boq_creator_counts", {})),
+				"top_approvers": _top_three(a.get("boq_approver_counts", {})),
+			},
+		})
+
+	return {
+		"success": True,
+		"data": {
+			"summary": {
+				"projects": len(rows),
+				"surveys_total": sum(r["survey"]["total"] for r in rows),
+				"surveys_completed": sum(r["survey"]["completed"] for r in rows),
+				"boqs_total": sum(r["boq"]["total"] for r in rows),
+				"boqs_approved": sum(r["boq"]["approved"] for r in rows),
+				"boq_total_value": sum(r["boq"]["total_value"] for r in rows),
+			},
+			"projects": rows,
+		},
+	}
+
+
+@frappe.whitelist()
 def get_pm_cockpit_summary(project=None, stages=None):
 	"""Aggregated PM cockpit summary with DPRs, commissioning, and dependencies.
 

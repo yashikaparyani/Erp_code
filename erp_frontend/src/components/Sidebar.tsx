@@ -278,6 +278,7 @@ const navLinks: NavLink[] = [
   },
   { name: 'RMA', href: '/rma', icon: RefreshCcw },
   { name: 'Notifications', href: '/notifications', icon: AlertTriangle },
+  { name: 'LOI Submission', href: '/letter-of-submission', icon: ScrollText },
   {
     name: 'O&M & Helpdesk',
     href: '/om-helpdesk',

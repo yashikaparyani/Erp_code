@@ -71,7 +71,6 @@ export default function EngineeringBoqPage() {
   };
 
   const canCreateOrSubmit = hasAnyRole(
-    'Director',
     'System Manager',
     'Presales Tendering Head',
     'Presales Executive',

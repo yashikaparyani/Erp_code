@@ -91,6 +91,41 @@ function getFileExtension(fileUrl?: string) {
   return cleaned.includes('.') ? cleaned.split('.').pop() || '' : '';
 }
 
+/**
+ * Normalize file URLs to standard Frappe format.
+ * Handles mixed case paths like /Files/ -> /files/
+ * Returns proper URL for API usage
+ */
+function normalizeFileUrl(fileUrl?: string) {
+  if (!fileUrl) return '';
+  const trimmed = fileUrl.trim();
+  
+  // If already using /api/files gateway, normalize the url param inside
+  if (trimmed.startsWith('/api/files?')) {
+    const query = trimmed.split('?', 2)[1] || '';
+    const params = new URLSearchParams(query);
+    const originalUrl = params.get('url') || '';
+    
+    // Normalize the inner URL
+    const normalized = normalizeFileUrl(originalUrl);
+    if (normalized && normalized !== originalUrl) {
+      params.set('url', normalized);
+      return `/api/files?${params.toString()}`;
+    }
+    return trimmed;
+  }
+  
+  // Direct file path - normalize case for /files/ and /private/files/
+  const lower = trimmed.toLowerCase();
+  if (lower.startsWith('/files/')) {
+    return '/files/' + trimmed.substring(7);
+  } else if (lower.startsWith('/private/files/')) {
+    return '/private/files/' + trimmed.substring(15);
+  }
+  
+  return trimmed;
+}
+
 function isPreviewable(fileUrl?: string) {
   return ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'gif'].includes(getFileExtension(fileUrl));
 }

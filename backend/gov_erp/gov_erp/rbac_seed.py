@@ -415,6 +415,7 @@ ROLE_PACK_MAPPINGS = [
 	("Director",                "engineering",      "all",              "action"),
 	("Director",                "procurement",      "all",              "action"),
 	("Director",                "inventory",        "all",              "action"),
+	("Director",                "execution_ic",     "all",              "action"),
 	("Director",                "finance",          "all",              "approve"),
 	("Director",                "hr_manpower",      "all",              "action"),
 	("Director",                "om_rma",           "all",              "action"),

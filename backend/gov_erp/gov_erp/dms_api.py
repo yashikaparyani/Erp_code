@@ -1,4 +1,6 @@
 """Auto-extracted domain module. All public functions are re-exported by api.py."""
+import os
+
 from gov_erp.api_utils import *  # noqa: F401,F403 — shared utilities
 
 _TEMP_UPLOAD_REFERENCE_FIELDS = (
@@ -8,6 +10,25 @@ _TEMP_UPLOAD_REFERENCE_FIELDS = (
 	("GE Employee Document", "file"),
 	("GE Commercial Document", "file_url"),
 )
+
+
+def _file_url_exists_on_disk(file_url):
+	"""Check whether a /files or /private/files URL resolves to a physical file on this site."""
+	if not file_url or not isinstance(file_url, str):
+		return False
+
+	normalized = file_url.strip()
+	if normalized.lower().startswith("/files/"):
+		rel_name = normalized[7:]
+		full_path = frappe.get_site_path("public", "files", rel_name)
+		return os.path.exists(full_path)
+	if normalized.lower().startswith("/private/files/"):
+		rel_name = normalized[15:]
+		full_path = frappe.get_site_path("private", "files", rel_name)
+		return os.path.exists(full_path)
+
+	# For non-standard/absolute links we skip local disk checks.
+	return True
 
 @frappe.whitelist()
 def get_documents(folder=None):
@@ -275,7 +296,57 @@ def upload_project_document(data):
 	values.setdefault("submitted_by", frappe.session.user)
 	values.setdefault("submitted_on", frappe.utils.now_datetime())
 	values.setdefault("status", "Submitted")
-	values["file"] = _require_param(values.get("file"), "file")
+	file_ref = _require_param(values.get("file"), "file")
+	file_ref = (file_ref or "").strip()
+
+	# Guardrail: ensure we persist a real, resolvable file URL.
+	if file_ref.startswith("/"):
+		normalized_ref = file_ref
+		if file_ref.lower().startswith("/files/"):
+			normalized_ref = "/files/" + file_ref[7:]
+		elif file_ref.lower().startswith("/private/files/"):
+			normalized_ref = "/private/files/" + file_ref[15:]
+
+		candidate_refs = [normalized_ref]
+		if normalized_ref.startswith("/files/"):
+			candidate_refs.append("/private/files/" + normalized_ref[7:])
+		elif normalized_ref.startswith("/private/files/"):
+			candidate_refs.append("/files/" + normalized_ref[15:])
+
+		chosen_ref = None
+		for candidate in candidate_refs:
+			if frappe.db.exists("File", {"file_url": candidate}) and _file_url_exists_on_disk(candidate):
+				chosen_ref = candidate
+				break
+
+		if not chosen_ref:
+			basename = normalized_ref.split("/")[-1] if "/" in normalized_ref else normalized_ref
+			nearby = frappe.get_all(
+				"File",
+				filters={"file_name": basename},
+				fields=["file_url"],
+				order_by="modified desc",
+				limit_page_length=12,
+			)
+			for row in nearby:
+				candidate_url = (row.get("file_url") or "").strip()
+				if candidate_url and _file_url_exists_on_disk(candidate_url):
+					chosen_ref = candidate_url
+					break
+
+		if not chosen_ref:
+			frappe.throw("File link exists in record but binary object is missing in storage. Re-upload with a unique filename.")
+
+		values["file"] = chosen_ref
+	else:
+		# Sometimes callers pass File docname instead of file_url.
+		resolved_url = frappe.db.get_value("File", file_ref, "file_url")
+		if not resolved_url:
+			frappe.throw("Invalid file reference. Please upload the file again and attach via file picker.")
+		if not _file_url_exists_on_disk(resolved_url):
+			frappe.throw("Resolved file record exists but binary object is missing. Please re-upload the file.")
+		values["file"] = resolved_url
+
 	values["linked_project"] = _require_param(values.get("linked_project"), "linked_project")
 	if not values.get("version"):
 		latest_version = (

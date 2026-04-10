@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export const FRAPPE_URL = process.env.FRAPPE_URL || 'http://127.0.0.1:8000';
+const FRAPPE_SITE_NAME = process.env.FRAPPE_SITE_NAME || (() => {
+  try {
+    return new URL(FRAPPE_URL).hostname;
+  } catch {
+    return 'dev.localhost';
+  }
+})();
+const FRAPPE_HOST_HEADER = (() => {
+  try {
+    return new URL(FRAPPE_URL).host;
+  } catch {
+    return '127.0.0.1:8000';
+  }
+})();
 const FRAPPE_API_KEY = process.env.FRAPPE_API_KEY;
 const FRAPPE_API_SECRET = process.env.FRAPPE_API_SECRET;
 const FRAPPE_USERNAME = process.env.FRAPPE_USERNAME || 'Administrator';
@@ -265,6 +279,8 @@ async function getAuthHeaders(request?: NextRequest, needsCsrf = false): Promise
   if (FRAPPE_API_KEY && FRAPPE_API_SECRET) {
     return {
       Authorization: `token ${FRAPPE_API_KEY}:${FRAPPE_API_SECRET}`,
+      'X-Frappe-Site-Name': FRAPPE_SITE_NAME,
+      Host: FRAPPE_HOST_HEADER,
     };
   }
 
@@ -275,6 +291,8 @@ async function getAuthHeaders(request?: NextRequest, needsCsrf = false): Promise
 
     const headers: Record<string, string> = {
       Cookie: getRequestCookieHeader(request),
+      'X-Frappe-Site-Name': FRAPPE_SITE_NAME,
+      Host: FRAPPE_HOST_HEADER,
     };
 
     if (needsCsrf) {
@@ -291,6 +309,8 @@ async function getAuthHeaders(request?: NextRequest, needsCsrf = false): Promise
   const serviceSession = await getServiceSessionAuth();
   const headers: Record<string, string> = {
     Cookie: serviceSession.cookie,
+    'X-Frappe-Site-Name': FRAPPE_SITE_NAME,
+    Host: FRAPPE_HOST_HEADER,
   };
   if (needsCsrf) {
     headers['X-Frappe-CSRF-Token'] = serviceSession.csrfToken;

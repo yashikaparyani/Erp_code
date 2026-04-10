@@ -9,6 +9,10 @@ export const dynamic = 'force-dynamic';
  */
 const PROJECT_WORKSPACE_METHODS = new Set([
   // Spine & overview
+  'get_project',
+  'update_project',
+  'delete_project',
+  'add_project_sites',
   'get_project_spine_detail',
   'get_project_spine_list',
   'get_project_spine_summary',

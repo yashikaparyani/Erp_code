@@ -174,7 +174,7 @@ export default function BidsPage() {
                     <td className="px-3 py-3 text-[var(--text-soft)]">{index + 1}</td>
                     <td className="px-3 py-3 font-mono font-semibold text-[var(--text-main)]">{bid.name}</td>
                     <td className="px-3 py-3">
-                      <Link href={`/pre-sales/${bid.tender}`} className="text-[var(--accent)] hover:underline">
+                      <Link href={`/pre-sales/${encodeURIComponent(bid.tender)}`} className="text-[var(--accent)] hover:underline">
                         {bid.tender}
                       </Link>
                     </td>

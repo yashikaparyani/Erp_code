@@ -4,7 +4,8 @@ import { FRAPPE_URL, getFrappeAuthHeaders, jsonErrorResponse } from '../../_lib/
 export const dynamic = 'force-dynamic';
 
 function isAllowedFilePath(fileUrl: string) {
-  return fileUrl.startsWith('/files/') || fileUrl.startsWith('/private/files/');
+  const lowerUrl = fileUrl.toLowerCase();
+  return lowerUrl.startsWith('/files/') || lowerUrl.startsWith('/private/files/');
 }
 
 export async function GET(request: NextRequest) {

@@ -292,7 +292,7 @@ export default function FunnelTenderTable({ tenders, filters, onSortChange, isLo
                 {/* Actions */}
                 <td className="px-3 py-3 text-right">
                   <Link
-                    href={`/pre-sales/${tender.name}`}
+                    href={`/pre-sales/${encodeURIComponent(tender.name)}`}
                     className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[10px] font-semibold bg-white border border-[var(--border-subtle)] text-[var(--text-main)] opacity-0 group-hover:opacity-100 transition-all hover:border-[var(--accent)] hover:text-[var(--accent)]"
                   >
                     Open <ExternalLink className="w-2.5 h-2.5" />

@@ -99,6 +99,7 @@ export const roleAccess: Record<Role, string[]> = {
     '/device-uptime',
     '/dispatch-challans',
     '/sla-penalties',
+    '/letter-of-submission',
   ],
   'Department Head': [
     '/',
@@ -138,6 +139,7 @@ export const roleAccess: Record<Role, string[]> = {
     '/device-uptime',
     '/dispatch-challans',
     '/sla-penalties',
+    '/letter-of-submission',
   ],
   'Project Head': [
     '/',
@@ -165,6 +167,7 @@ export const roleAccess: Record<Role, string[]> = {
     '/finance/penalties',
     '/engineering/drawings',
     '/engineering/change-requests',
+    '/letter-of-submission',
   ],
   'HR Manager': [
     '/',
@@ -172,6 +175,7 @@ export const roleAccess: Record<Role, string[]> = {
     '/hr',
     '/reports',
     '/documents',
+    '/letter-of-submission',
   ],
   'Presales Tendering Head': [
     '/',
@@ -201,6 +205,7 @@ export const roleAccess: Record<Role, string[]> = {
     '/hr/technician-visits',
     '/engineering/drawings',
     '/engineering/change-requests',
+    '/letter-of-submission',
   ],
   'Engineer': [
     '/',
@@ -214,6 +219,7 @@ export const roleAccess: Record<Role, string[]> = {
     '/hr/technician-visits',
     '/engineering/drawings',
     '/engineering/change-requests',
+    '/letter-of-submission',
   ],
   'Procurement Manager': [
     '/',
@@ -230,6 +236,7 @@ export const roleAccess: Record<Role, string[]> = {
     '/stock-position',
     '/stock-aging',
     '/dispatch-challans',
+    '/letter-of-submission',
   ],
   'Purchase': [
     '/',
@@ -244,6 +251,7 @@ export const roleAccess: Record<Role, string[]> = {
     '/stock-position',
     '/stock-aging',
     '/dispatch-challans',
+    '/letter-of-submission',
   ],
   'Store Manager': [
     '/',
@@ -258,6 +266,7 @@ export const roleAccess: Record<Role, string[]> = {
     '/indents',
     '/purchase-orders',
     '/dispatch-challans',
+    '/letter-of-submission',
   ],
   'Stores Logistics Head': [
     '/',
@@ -272,6 +281,7 @@ export const roleAccess: Record<Role, string[]> = {
     '/indents',
     '/purchase-orders',
     '/dispatch-challans',
+    '/letter-of-submission',
   ],
   'Project Manager': [
     '/',
@@ -282,6 +292,7 @@ export const roleAccess: Record<Role, string[]> = {
     '/project-manager/petty-cash',
     '/project-manager/requests',
     '/comm-logs',
+    '/letter-of-submission',
   ],
   'Accounts': [
     '/',
@@ -292,6 +303,7 @@ export const roleAccess: Record<Role, string[]> = {
     '/finance/payment-receipts',
     '/finance/retention',
     '/finance/penalties',
+    '/letter-of-submission',
   ],
   'Field Technician': [
     '/',
@@ -319,6 +331,7 @@ export const roleAccess: Record<Role, string[]> = {
     '/hr/technician-visits',
     '/sla-profiles',
     '/device-uptime',
+    '/letter-of-submission',
   ],
   'OM Operator': [
     '/',
@@ -332,6 +345,7 @@ export const roleAccess: Record<Role, string[]> = {
     '/sla-profiles',
     '/device-uptime',
     '/sla-penalties',
+    '/letter-of-submission',
   ],
 };
 
@@ -394,6 +408,25 @@ export function RoleProvider({ children }: { children: ReactNode }) {
 
     if (path === '/finance/costing-queue' || path.startsWith('/finance/costing-queue/')) {
       return currentRole === 'Director' || currentRole === 'Accounts' || isSystemManager;
+    }
+
+    if (path === '/letter-of-submission' || path.startsWith('/letter-of-submission/')) {
+      return [
+        'Director',
+        'Department Head',
+        'Project Head',
+        'Project Manager',
+        'HR Manager',
+        'Engineering Head',
+        'Engineer',
+        'Procurement Manager',
+        'Purchase',
+        'Store Manager',
+        'Stores Logistics Head',
+        'Accounts',
+        'RMA Manager',
+        'OM Operator',
+      ].includes(currentRole);
     }
 
     // ── Backend RBAC truth (Phase 5) ──

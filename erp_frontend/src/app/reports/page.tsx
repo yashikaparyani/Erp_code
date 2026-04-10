@@ -6,6 +6,7 @@ import {
   Boxes, ClipboardList, Download, FileText, Filter,
   Loader2, MapPin, Receipt, RefreshCw, ShieldAlert, Target,
 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 type StatCard = {
   title: string;
@@ -57,6 +58,34 @@ type TenderRow = {
 
 type ReportTab = 'overview' | 'projects' | 'purchase_orders' | 'invoices' | 'tenders';
 
+type DirectorProjectPerformanceRow = {
+  project: string;
+  project_name: string;
+  status: string;
+  current_stage: string;
+  project_progress_pct: number;
+  total_sites: number;
+  survey: {
+    total: number;
+    completed: number;
+    in_progress: number;
+    pending: number;
+    completion_pct: number;
+    top_performers: { user: string; count: number }[];
+  };
+  boq: {
+    total: number;
+    draft: number;
+    pending_approval: number;
+    approved: number;
+    rejected: number;
+    approval_pct: number;
+    total_value: number;
+    top_creators: { user: string; count: number }[];
+    top_approvers: { user: string; count: number }[];
+  };
+};
+
 function formatCurrency(value?: number) {
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
@@ -73,14 +102,18 @@ async function fetchJson<T>(url: string): Promise<T> {
 }
 
 export default function ReportsPage() {
+  const { currentUser } = useAuth();
+  const isDirector = (currentUser?.roles || []).includes('Director') || currentUser?.role === 'Director';
+
   const [cards, setCards] = useState<StatCard[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<ReportTab>('overview');
+  const [activeTab, setActiveTab] = useState<ReportTab | 'director_performance'>('overview');
 
   const [projects, setProjects] = useState<ProjectRow[]>([]);
   const [pos, setPos] = useState<PORow[]>([]);
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
   const [tenders, setTenders] = useState<TenderRow[]>([]);
+  const [directorPerformance, setDirectorPerformance] = useState<DirectorProjectPerformanceRow[]>([]);
   const [tabLoading, setTabLoading] = useState(false);
 
   const exportCsv = (headers: string[], rows: string[][], filename: string) => {
@@ -119,7 +152,7 @@ export default function ReportsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const loadTabData = useCallback(async (tab: ReportTab) => {
+  const loadTabData = useCallback(async (tab: ReportTab | 'director_performance') => {
     if (tab === 'overview') return;
     setTabLoading(true);
     try {
@@ -135,6 +168,9 @@ export default function ReportsPage() {
       } else if (tab === 'tenders') {
         const data = await fetchJson<TenderRow[]>('/api/tenders');
         setTenders(data);
+      } else if (tab === 'director_performance') {
+        const payload = await fetchJson<{ projects?: DirectorProjectPerformanceRow[] }>('/api/director/project-performance');
+        setDirectorPerformance(Array.isArray(payload?.projects) ? payload.projects : []);
       }
     } catch {
       // silently fail — table stays empty
@@ -146,12 +182,13 @@ export default function ReportsPage() {
     void loadTabData(activeTab);
   }, [activeTab, loadTabData]);
 
-  const tabs: { key: ReportTab; label: string }[] = [
+  const tabs: { key: ReportTab | 'director_performance'; label: string }[] = [
     { key: 'overview', label: 'Summary' },
     { key: 'projects', label: 'Projects' },
     { key: 'purchase_orders', label: 'Purchase Orders' },
     { key: 'invoices', label: 'Invoices' },
     { key: 'tenders', label: 'Tenders' },
+    ...(isDirector ? [{ key: 'director_performance' as const, label: 'Director Performance' }] : []),
   ];
 
   return (
@@ -281,6 +318,123 @@ export default function ReportsPage() {
                 {projects.length === 0 && (
                   <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">No projects found</td></tr>
                 )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Director performance tab */}
+      {activeTab === 'director_performance' && !tabLoading && (
+        <div className="card">
+          <div className="card-header flex items-center justify-between">
+            <h3 className="font-semibold text-gray-900">Project-wise Survey / BOQ Governance ({directorPerformance.length})</h3>
+            <button
+              onClick={() => exportCsv(
+                [
+                  'Project', 'Status', 'Stage', 'Project Progress %',
+                  'Survey Total', 'Survey Completed', 'Survey In Progress', 'Survey Pending', 'Survey Completion %',
+                  'BOQ Total', 'BOQ Approved', 'BOQ Pending Approval', 'BOQ Draft', 'BOQ Rejected', 'BOQ Approval %', 'BOQ Value',
+                ],
+                directorPerformance.map((r) => [
+                  r.project_name || r.project,
+                  r.status || '',
+                  r.current_stage || '',
+                  String(r.project_progress_pct || 0),
+                  String(r.survey?.total || 0),
+                  String(r.survey?.completed || 0),
+                  String(r.survey?.in_progress || 0),
+                  String(r.survey?.pending || 0),
+                  String(r.survey?.completion_pct || 0),
+                  String(r.boq?.total || 0),
+                  String(r.boq?.approved || 0),
+                  String(r.boq?.pending_approval || 0),
+                  String(r.boq?.draft || 0),
+                  String(r.boq?.rejected || 0),
+                  String(r.boq?.approval_pct || 0),
+                  String(r.boq?.total_value || 0),
+                ]),
+                'director-project-performance.csv',
+              )}
+              className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800"
+            >
+              <Download className="h-3.5 w-3.5" /> Export CSV
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200 text-left text-xs font-medium text-gray-500">
+                  <th className="px-4 py-3">Project</th>
+                  <th className="px-4 py-3">Progress</th>
+                  <th className="px-4 py-3">Survey</th>
+                  <th className="px-4 py-3">Survey Performers</th>
+                  <th className="px-4 py-3">BOQ</th>
+                  <th className="px-4 py-3">BOQ Performers</th>
+                </tr>
+              </thead>
+              <tbody>
+                {directorPerformance.map((row) => (
+                  <tr key={row.project} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-gray-900">{row.project_name || row.project}</div>
+                      <div className="text-xs text-gray-500">{row.status || '-'} · {(row.current_stage || '').replace(/_/g, ' ')}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-sm font-medium text-gray-900">{Math.round(row.project_progress_pct || 0)}%</div>
+                      <div className="text-xs text-gray-500">{row.total_sites || 0} sites</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-xs text-gray-700">Total: {row.survey?.total || 0}</div>
+                      <div className="text-xs text-emerald-700">Completed: {row.survey?.completed || 0}</div>
+                      <div className="text-xs text-amber-700">In Progress: {row.survey?.in_progress || 0}</div>
+                      <div className="text-xs text-gray-500">Pending: {row.survey?.pending || 0}</div>
+                      <div className="mt-1 text-[11px] font-medium text-blue-700">Completion: {row.survey?.completion_pct || 0}%</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      {(row.survey?.top_performers || []).length ? (
+                        <div className="space-y-1">
+                          {(row.survey?.top_performers || []).map((u) => (
+                            <div key={`${row.project}-sv-${u.user}`} className="text-xs text-gray-700">{u.user}: {u.count}</div>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400">No performers</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-xs text-gray-700">Total: {row.boq?.total || 0}</div>
+                      <div className="text-xs text-emerald-700">Approved: {row.boq?.approved || 0}</div>
+                      <div className="text-xs text-amber-700">Pending: {row.boq?.pending_approval || 0}</div>
+                      <div className="text-xs text-gray-500">Draft: {row.boq?.draft || 0} · Rejected: {row.boq?.rejected || 0}</div>
+                      <div className="mt-1 text-[11px] font-medium text-blue-700">Approval: {row.boq?.approval_pct || 0}%</div>
+                      <div className="text-[11px] text-violet-700">{formatCurrency(row.boq?.total_value)}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="space-y-1">
+                        {(row.boq?.top_creators || []).length ? (
+                          <>
+                            <div className="text-[11px] font-medium text-gray-500">Creators</div>
+                            {(row.boq?.top_creators || []).map((u) => (
+                              <div key={`${row.project}-bc-${u.user}`} className="text-xs text-gray-700">{u.user}: {u.count}</div>
+                            ))}
+                          </>
+                        ) : null}
+                        {(row.boq?.top_approvers || []).length ? (
+                          <>
+                            <div className="pt-1 text-[11px] font-medium text-gray-500">Approvers</div>
+                            {(row.boq?.top_approvers || []).map((u) => (
+                              <div key={`${row.project}-ba-${u.user}`} className="text-xs text-gray-700">{u.user}: {u.count}</div>
+                            ))}
+                          </>
+                        ) : null}
+                        {!(row.boq?.top_creators || []).length && !(row.boq?.top_approvers || []).length ? (
+                          <span className="text-xs text-gray-400">No performers</span>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -432,7 +586,7 @@ export default function ReportsPage() {
                 {tenders.map((t) => (
                   <tr key={t.name} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
                     <td className="px-4 py-3">
-                      <Link href={`/pre-sales/${t.name}`} className="font-medium text-blue-600 hover:text-blue-800">{t.name}</Link>
+                      <Link href={`/pre-sales/${encodeURIComponent(t.name)}`} className="font-medium text-blue-600 hover:text-blue-800">{t.name}</Link>
                     </td>
                     <td className="px-4 py-3 text-gray-700">{t.title || '-'}</td>
                     <td className="px-4 py-3 text-gray-700">{t.client || '-'}</td>

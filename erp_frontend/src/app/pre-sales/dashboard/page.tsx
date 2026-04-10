@@ -1,14 +1,12 @@
 'use client';
 import React, { useState, useEffect, useCallback, useMemo, useTransition } from 'react';
-import { RefreshCw, LayoutDashboard, Palette, TrendingUp, AlertCircle, CheckCircle, Clock, DollarSign, Plus, Pencil, Trash2 } from 'lucide-react';
+import { RefreshCw, LayoutDashboard, Palette, TrendingUp, AlertCircle, CheckCircle, Clock, DollarSign, Plus } from 'lucide-react';
 import FunnelColorCard from '../../../components/presales/FunnelColorCard';
 import FunnelFilterStrip, { DashboardFilters, DEFAULT_FILTERS, loadSavedFilters, saveFilters } from '../../../components/presales/FunnelFilterStrip';
 import ActiveFilterChips from '../../../components/presales/ActiveFilterChips';
 import FunnelTenderTable from '../../../components/presales/FunnelTenderTable';
 import ColorLegendPage from '../../../components/presales/ColorLegendPage';
 import CreateTenderModal from '../../../components/CreateTenderModal';
-import FormModal from '../../../components/shells/FormModal';
-import ActionModal from '../../../components/ui/ActionModal';
 import { FunnelColorKey, SYSTEM_FUNNEL_META, USER_SLOT_DEFAULTS, PresalesColorConfig } from '../../../components/tenderFunnel';
 
 // ─────────────────────────────────────────────────── Types
@@ -26,18 +24,7 @@ interface StatsData {
   };
 }
 
-interface CompetitorStats {
-  win_rate?: number;
-  total_bids?: number;
-  wins?: number;
-}
 
-interface CompetitorRow {
-  name: string;
-  competitor_name?: string;
-  region?: string;
-  category?: string;
-}
 
 type Tab = 'dashboard' | 'color-legend';
 
@@ -120,12 +107,6 @@ export default function PresalesDashboard() {
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [isPending, startTransition] = useTransition();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [competitorStats, setCompetitorStats] = useState<CompetitorStats | null>(null);
-  const [competitors, setCompetitors] = useState<CompetitorRow[]>([]);
-  const [competitorBusy, setCompetitorBusy] = useState(false);
-  const [competitorModalMode, setCompetitorModalMode] = useState<'create' | 'edit' | null>(null);
-  const [competitorDraft, setCompetitorDraft] = useState<CompetitorRow | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<CompetitorRow | null>(null);
 
   // Load saved filters on mount
   useEffect(() => {
@@ -147,82 +128,6 @@ export default function PresalesDashboard() {
       setIsLoadingStats(false);
     }
   }, []);
-
-  const callCompetitorApi = useCallback(async <T,>(path: string, init?: RequestInit): Promise<T> => {
-    const res = await fetch(path, init);
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok || json.success === false) throw new Error(json.message || 'Competitor request failed');
-    return (json.data ?? json) as T;
-  }, []);
-
-  const fetchCompetitorStats = useCallback(async () => {
-    try {
-      const [stats, list] = await Promise.all([
-        callCompetitorApi<CompetitorStats>('/api/competitors/stats'),
-        callCompetitorApi<CompetitorRow[]>('/api/competitors'),
-      ]);
-      setCompetitorStats(stats || null);
-      setCompetitors(Array.isArray(list) ? list : []);
-    } catch {
-      setCompetitorStats(null);
-      setCompetitors([]);
-    }
-  }, [callCompetitorApi]);
-
-  const openCreateCompetitor = () => {
-    setCompetitorDraft({ name: '', competitor_name: '', region: '', category: '' });
-    setCompetitorModalMode('create');
-  };
-
-  const openEditCompetitor = (row: CompetitorRow) => {
-    setCompetitorDraft(row);
-    setCompetitorModalMode('edit');
-  };
-
-  const saveCompetitor = async (values: Record<string, string>) => {
-    const competitor_name = (values.competitor_name || '').trim();
-    if (!competitor_name) throw new Error('Competitor name is required');
-    try {
-      setCompetitorBusy(true);
-      const payload = JSON.stringify({
-        competitor_name,
-        region: (values.region || '').trim(),
-        category: (values.category || '').trim(),
-      });
-      if (competitorModalMode === 'edit' && competitorDraft?.name) {
-        await callCompetitorApi(`/api/competitors/${encodeURIComponent(competitorDraft.name)}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: payload,
-        });
-      } else {
-        await callCompetitorApi('/api/competitors', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: payload,
-        });
-      }
-      await fetchCompetitorStats();
-      setCompetitorModalMode(null);
-      setCompetitorDraft(null);
-    } finally {
-      setCompetitorBusy(false);
-    }
-  };
-
-  const deleteCompetitor = async () => {
-    if (!deleteTarget?.name) return;
-    try {
-      setCompetitorBusy(true);
-      await callCompetitorApi(`/api/competitors/${encodeURIComponent(deleteTarget.name)}`, {
-        method: 'DELETE',
-      });
-      await fetchCompetitorStats();
-      setDeleteTarget(null);
-    } finally {
-      setCompetitorBusy(false);
-    }
-  };
 
   // Fetch color config
   const fetchColorConfig = useCallback(async () => {
@@ -255,8 +160,7 @@ export default function PresalesDashboard() {
   useEffect(() => {
     void fetchStats();
     void fetchColorConfig();
-    void fetchCompetitorStats();
-  }, [fetchStats, fetchColorConfig, fetchCompetitorStats]);
+  }, [fetchStats, fetchColorConfig]);
 
   // Fetch tenders when filters change
   useEffect(() => {
@@ -272,7 +176,6 @@ export default function PresalesDashboard() {
     fetchStats();
     fetchTenders(filters);
     fetchColorConfig();
-    fetchCompetitorStats();
   };
 
   const handleFilterChange = (partial: Partial<DashboardFilters>) => {
@@ -423,13 +326,6 @@ export default function PresalesDashboard() {
               <QuickStat icon={AlertCircle} label="Overdue" value={stats.quick_stats.overdue} accent="#ef4444" />
               <QuickStat icon={Clock} label="Due This Week" value={stats.quick_stats.due_this_week} accent="#f97316" />
               <QuickStat icon={AlertCircle} label="EMD Pending Refund" value={stats.quick_stats.emd_pending_refund} accent="#eab308" />
-              <QuickStat
-                icon={TrendingUp}
-                label="Competitor Win Rate"
-                value={`${Number(competitorStats?.win_rate || 0).toFixed(1)}%`}
-                accent="#0ea5e9"
-                sub={`Bids ${competitorStats?.total_bids || 0} · Wins ${competitorStats?.wins || 0}`}
-              />
             </div>
           )}
 
@@ -450,51 +346,6 @@ export default function PresalesDashboard() {
               </div>
             </section>
           )}
-
-          <section className="rounded-2xl border border-[var(--border-subtle)] bg-white p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h3 className="text-sm font-semibold text-[var(--text-main)]">Competitor Management</h3>
-                <p className="text-xs text-[var(--text-soft)]">Create, update, and delete competitor master rows from dashboard.</p>
-              </div>
-              <button
-                onClick={openCreateCompetitor}
-                disabled={competitorBusy}
-                className="inline-flex items-center gap-1 rounded-lg bg-[var(--accent)] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
-              >
-                <Plus className="h-3.5 w-3.5" /> Add Competitor
-              </button>
-            </div>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {competitors.slice(0, 9).map((row) => (
-                <div key={row.name} className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-3">
-                  <div className="text-sm font-semibold text-[var(--text-main)]">{row.competitor_name || row.name}</div>
-                  <div className="mt-1 text-xs text-[var(--text-soft)]">{row.region || 'Region not set'} | {row.category || 'Category not set'}</div>
-                  <div className="mt-2 flex gap-2">
-                    <button
-                      onClick={() => openEditCompetitor(row)}
-                      disabled={competitorBusy}
-                      className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700 disabled:opacity-60"
-                    >
-                      <Pencil className="h-3 w-3" /> Update
-                    </button>
-                    <button
-                      onClick={() => setDeleteTarget(row)}
-                      disabled={competitorBusy}
-                      className="inline-flex items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700 disabled:opacity-60"
-                    >
-                      <Trash2 className="h-3 w-3" /> Delete
-                    </button>
-                  </div>
-                </div>
-              ))}
-              {!competitors.length && (
-                <div className="rounded-xl border border-dashed border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-5 text-xs text-[var(--text-soft)]">
-                  No competitors found.
-                </div>
-              )}
-            </div>
-          </section>
 
           {/* ── 12-Color Funnel Bar ─── */}
           <div className="space-y-3">
@@ -599,33 +450,6 @@ export default function PresalesDashboard() {
           setIsCreateOpen(false);
           handleRefresh();
         }}
-      />
-      <FormModal
-        open={competitorModalMode !== null}
-        title={competitorModalMode === 'edit' ? 'Update Competitor' : 'Add Competitor'}
-        description="Manage competitor master rows through a proper form."
-        busy={competitorBusy}
-        confirmLabel={competitorModalMode === 'edit' ? 'Save Changes' : 'Create Competitor'}
-        fields={[
-          { name: 'competitor_name', label: 'Competitor Name', type: 'text', required: true, defaultValue: competitorDraft?.competitor_name || competitorDraft?.name || '' },
-          { name: 'region', label: 'Region', type: 'text', defaultValue: competitorDraft?.region || '', placeholder: 'North, South, National…' },
-          { name: 'category', label: 'Category', type: 'text', defaultValue: competitorDraft?.category || '', placeholder: 'OEM, SI, EPC…' },
-        ]}
-        onConfirm={saveCompetitor}
-        onCancel={() => {
-          setCompetitorModalMode(null);
-          setCompetitorDraft(null);
-        }}
-      />
-      <ActionModal
-        open={!!deleteTarget}
-        title="Delete Competitor"
-        description={`Delete competitor ${deleteTarget?.competitor_name || deleteTarget?.name || ''}?`}
-        variant="danger"
-        confirmLabel="Delete"
-        busy={competitorBusy}
-        onConfirm={deleteCompetitor}
-        onCancel={() => setDeleteTarget(null)}
       />
     </div>
   );

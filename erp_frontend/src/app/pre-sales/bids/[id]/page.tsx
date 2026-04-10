@@ -192,24 +192,25 @@ export default function BidWorkspacePage() {
   }, [bid]);
 
   const inProcess = bid?.status === 'WON' && bid?.loi_decision_status === 'ACCEPTED';
+  const isPresalesLeadOrDirector = currentRole === 'Presales Tendering Head' || currentRole === 'Director';
   const daysLeft = getDaysLeft(bid?.tender_detail?.tenure_end_date);
-  const canDecideLoi = currentRole === 'Presales Tendering Head' && bid?.status === 'WON' && loiSummary.allReceived && bid?.loi_decision_status !== 'ACCEPTED';
+  const canDecideLoi = isPresalesLeadOrDirector && bid?.status === 'WON' && loiSummary.allReceived && bid?.loi_decision_status !== 'ACCEPTED';
   const isLegacyBid = bid?.status === 'DRAFT' || bid?.status === 'SUBMITTED';
   const locRequestStatus = bid?.loc_request_status || 'NOT_REQUESTED';
   const linkedProject = bid?.tender_detail?.linked_project || '-';
   const hasLinkedProject = linkedProject !== '-';
   const canSendLoiRequest =
-    currentRole === 'Presales Tendering Head'
+    isPresalesLeadOrDirector
     && bid?.status === 'WON'
     && bid?.loi_decision_status !== 'ACCEPTED';
   const canSendLocRequest =
-    currentRole === 'Presales Tendering Head'
+    isPresalesLeadOrDirector
     && inProcess
     && daysLeft !== null
     && daysLeft <= 90
     && locRequestStatus === 'NOT_REQUESTED';
   const canConvertToProject =
-    currentRole === 'Presales Tendering Head'
+    isPresalesLeadOrDirector
     && bid?.status === 'WON'
     && !hasLinkedProject
     && bid?.tender_detail?.status !== 'CONVERTED_TO_PROJECT';
@@ -605,7 +606,7 @@ export default function BidWorkspacePage() {
           ) : null}
 
           <Link
-            href={`/pre-sales/${bid.tender}`}
+            href={`/pre-sales/${encodeURIComponent(bid.tender)}`}
             className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-white px-3 py-2 text-sm font-medium text-[var(--text-main)] hover:border-[var(--accent)]"
           >
             <FileStack className="w-4 h-4" /> Open Tender Workspace

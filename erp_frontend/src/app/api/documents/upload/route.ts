@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { callFrappeMethod, uploadFrappeFile } from '../../_lib/frappe';
+import { callFrappeMethod, fetchFrappeResource, uploadFrappeFile } from '../../_lib/frappe';
 
 const ALLOWED_EXTENSIONS = new Set(['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg']);
 const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
@@ -10,6 +10,35 @@ function getExtension(filename: string) {
   const cleaned = filename.split('?')[0].trim().toLowerCase();
   const parts = cleaned.split('.');
   return parts.length > 1 ? parts.pop() || '' : '';
+}
+
+function normalizePathCase(url: string) {
+  const trimmed = (url || '').trim();
+  const lower = trimmed.toLowerCase();
+  if (lower.startsWith('/files/')) return '/files/' + trimmed.substring(7);
+  if (lower.startsWith('/private/files/')) return '/private/files/' + trimmed.substring(15);
+  return trimmed;
+}
+
+function addCandidateUrl(candidates: string[], seen: Set<string>, candidate?: string | null) {
+  const value = normalizePathCase((candidate || '').trim());
+  if (!value) return;
+  if (!seen.has(value)) {
+    seen.add(value);
+    candidates.push(value);
+  }
+}
+
+async function pickReachableUrl(candidates: string[], request: NextRequest) {
+  for (const candidate of candidates) {
+    try {
+      await fetchFrappeResource(candidate, request);
+      return candidate;
+    } catch {
+      // Try next candidate.
+    }
+  }
+  return '';
 }
 
 export async function POST(request: NextRequest) {
@@ -95,10 +124,52 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Step 2: Create the GE Project Document record with the real file URL
+    // Step 2: Resolve to a reachable file URL before creating the document record.
+    const candidates: string[] = [];
+    const seen = new Set<string>();
+    addCandidateUrl(candidates, seen, fileUrl);
+
+    const normalizedUploaded = normalizePathCase(fileUrl);
+    if (normalizedUploaded.startsWith('/files/')) {
+      addCandidateUrl(candidates, seen, `/private/files/${normalizedUploaded.substring(7)}`);
+    } else if (normalizedUploaded.startsWith('/private/files/')) {
+      addCandidateUrl(candidates, seen, `/files/${normalizedUploaded.substring(15)}`);
+    }
+
+    try {
+      const nearby = await callFrappeMethod<Array<{ file_url?: string }>>(
+        'frappe.client.get_list',
+        {
+          doctype: 'File',
+          filters: { file_name: file.name },
+          fields: ['file_url'],
+          order_by: 'modified desc',
+          limit_page_length: 12,
+        },
+        request,
+      );
+      if (Array.isArray(nearby)) {
+        for (const row of nearby) addCandidateUrl(candidates, seen, row?.file_url);
+      }
+    } catch {
+      // Non-fatal; we'll still attempt with direct upload URL candidates.
+    }
+
+    const reachableFileUrl = await pickReachableUrl(candidates, request);
+    if (!reachableFileUrl) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Upload created a stale link. None of the resolved URLs are readable for file ${file.name}. Please retry once; if it repeats, run document-link repair.`,
+        },
+        { status: 500 },
+      );
+    }
+
+    // Step 3: Create the GE Project Document record with a verified file URL
     const docData: Record<string, string> = {
       document_name: documentName,
-      file: fileUrl,
+      file: reachableFileUrl,
     };
     if (linkedProject) docData.linked_project = linkedProject;
     if (linkedSite) docData.linked_site = linkedSite;
@@ -127,7 +198,7 @@ export async function POST(request: NextRequest) {
       );
     } catch (error) {
       try {
-        await callFrappeMethod('delete_uploaded_project_file', { file_url: fileUrl }, request);
+        await callFrappeMethod('delete_uploaded_project_file', { file_url: reachableFileUrl }, request);
       } catch (cleanupError) {
         console.error('Failed to clean up orphan uploaded file:', cleanupError);
       }
@@ -137,7 +208,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: result.data,
-      fileUrl,
+      fileUrl: reachableFileUrl,
       message: result.message || 'Document uploaded successfully',
     });
   } catch (error) {

@@ -219,8 +219,9 @@ export default function SiteDossierPage() {
     })
       .then((r) => r.json())
       .then((res) => {
-        if (res.success && res.data?.data) {
-          setDossier(res.data.data);
+        const dossierData = res?.data?.data ?? res?.data;
+        if (res.success && dossierData) {
+          setDossier(dossierData);
         } else {
           setError(res.message || 'Failed to load site dossier');
         }
@@ -243,8 +244,9 @@ export default function SiteDossierPage() {
       })
         .then((r) => r.json())
         .then((res) => {
-          if (res.success && res.data?.data) {
-            setCompletenessMap((prev) => ({ ...prev, [stage]: res.data.data }));
+          const completenessData = res?.data?.data ?? res?.data;
+          if (res.success && completenessData) {
+            setCompletenessMap((prev) => ({ ...prev, [stage]: completenessData }));
           }
         })
         .catch(() => {});

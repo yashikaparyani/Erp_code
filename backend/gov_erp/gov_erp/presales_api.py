@@ -25,12 +25,17 @@ from gov_erp.role_utils import (
     ROLE_DIRECTOR,
     ROLE_DEPARTMENT_HEAD,
     ROLE_PROJECT_HEAD,
+    ROLE_PROJECT_MANAGER,
     ROLE_SYSTEM_MANAGER,
     ROLE_ENGINEERING_HEAD,
+    ROLE_ENGINEER,
     ROLE_ACCOUNTS,
     ROLE_HR_MANAGER,
     ROLE_PROCUREMENT_MANAGER,
+    ROLE_PURCHASE,
+    ROLE_STORE_MANAGER,
     ROLE_STORES_LOGISTICS_HEAD,
+    ROLE_OM_OPERATOR,
     ROLE_RMA_MANAGER,
 )
 
@@ -74,6 +79,52 @@ def _project_head_submission_access():
         ROLE_SYSTEM_MANAGER,
         ROLE_PRESALES_HEAD,
     )
+
+
+LOI_DEPARTMENT_TARGETS = [
+    {"label": "Engineering", "role": ROLE_ENGINEERING_HEAD, "department_key": "engineering", "submit_roles": [ROLE_ENGINEERING_HEAD, ROLE_ENGINEER]},
+    {"label": "Procurement", "role": ROLE_PROCUREMENT_MANAGER, "department_key": "procurement", "submit_roles": [ROLE_PROCUREMENT_MANAGER, ROLE_PURCHASE]},
+    {"label": "Accounts", "role": ROLE_ACCOUNTS, "department_key": "accounts", "submit_roles": [ROLE_ACCOUNTS]},
+    {"label": "HR", "role": ROLE_HR_MANAGER, "department_key": "hr", "submit_roles": [ROLE_HR_MANAGER]},
+    {"label": "Stores", "role": ROLE_STORES_LOGISTICS_HEAD, "department_key": "stores", "submit_roles": [ROLE_STORES_LOGISTICS_HEAD, ROLE_STORE_MANAGER]},
+    {"label": "O&M / RMA", "role": ROLE_RMA_MANAGER, "department_key": "om_rma", "submit_roles": [ROLE_RMA_MANAGER, ROLE_OM_OPERATOR]},
+    {"label": "Project", "role": ROLE_PROJECT_HEAD, "department_key": "project", "submit_roles": [ROLE_PROJECT_HEAD, ROLE_PROJECT_MANAGER]},
+]
+
+
+def _department_loi_submission_access():
+    _require_roles(
+        ROLE_DIRECTOR,
+        ROLE_SYSTEM_MANAGER,
+        ROLE_DEPARTMENT_HEAD,
+        ROLE_PROJECT_HEAD,
+        ROLE_PROJECT_MANAGER,
+        ROLE_ENGINEERING_HEAD,
+        ROLE_ACCOUNTS,
+        ROLE_HR_MANAGER,
+        ROLE_PROCUREMENT_MANAGER,
+        ROLE_PURCHASE,
+        ROLE_STORE_MANAGER,
+        ROLE_STORES_LOGISTICS_HEAD,
+        ROLE_OM_OPERATOR,
+        ROLE_RMA_MANAGER,
+        ROLE_PRESALES_HEAD,
+        ROLE_PRESALES_EXECUTIVE,
+    )
+
+
+def _get_user_loi_department_links():
+    user_roles = set(frappe.get_roles(frappe.session.user) or [])
+    if user_roles.intersection({ROLE_DIRECTOR, ROLE_SYSTEM_MANAGER, ROLE_PRESALES_HEAD, ROLE_PRESALES_EXECUTIVE, ROLE_DEPARTMENT_HEAD}):
+        return None
+
+    links = set()
+    for target in LOI_DEPARTMENT_TARGETS:
+        if user_roles.intersection(set(target.get("submit_roles") or [])):
+            department_link = _resolve_department_link(target["department_key"], target["label"])
+            if department_link:
+                links.add(department_link)
+    return links
 
 
 def _get_users_for_role(role_name):
@@ -1103,16 +1154,27 @@ def create_loi_tracker(bid, department=None, loi_expected_by=None, remarks=None)
 
 
 @frappe.whitelist()
-def mark_loi_received(name, loi_received_date=None, loi_document=None):
-    """Mark a LOI row as received."""
-    _ps_write_access()
+def mark_loi_received(name, loi_received_date=None, loi_document=None, remarks=None):
+    """Mark a LOI row as received.
+
+    Presales leadership may act on any LOI row.
+    Department users may only submit rows that belong to their mapped department.
+    """
+    _department_loi_submission_access()
     name = _local_require_param(name)
     doc = frappe.get_doc("GE LOI Tracker", name)
+
+    allowed_department_links = _get_user_loi_department_links()
+    if allowed_department_links is not None and cstr(doc.department or "").strip() not in allowed_department_links:
+        frappe.throw("You can only submit LOIs for your own department", frappe.PermissionError)
+
     doc.loi_received = 1
     doc.loi_received_date = loi_received_date or today()
     if loi_document:
         doc.loi_document = loi_document
-    doc.save()
+    if remarks is not None:
+        doc.remarks = cstr(remarks or "").strip()
+    doc.save(ignore_permissions=True)
     frappe.db.commit()
     loi_summary = get_loi_status(doc.bid).get("data")
     return {
@@ -1124,6 +1186,69 @@ def mark_loi_received(name, loi_received_date=None, loi_document=None):
 
 
 @frappe.whitelist()
+def get_department_loi_requests(status=None):
+    """Return LOI tracker rows visible to the current department submitter."""
+    _department_loi_submission_access()
+    filters = {}
+    status_key = cstr(status or "").strip().lower()
+    if status_key == "pending":
+        filters["loi_received"] = 0
+    elif status_key == "submitted":
+        filters["loi_received"] = 1
+
+    allowed_department_links = _get_user_loi_department_links()
+    if allowed_department_links is not None:
+        if not allowed_department_links:
+            return {"success": True, "data": []}
+        filters["department"] = ["in", list(allowed_department_links)]
+
+    rows = frappe.get_all(
+        "GE LOI Tracker",
+        filters=filters,
+        fields=[
+            "name", "bid", "tender", "department", "loi_expected_by",
+            "loi_received", "loi_received_date", "loi_document", "remarks",
+        ],
+        order_by="creation desc",
+    ) or []
+
+    result = []
+    for row in rows:
+        bid_doc = frappe.db.get_value(
+            "GE Bid",
+            row.get("bid"),
+            ["name", "status", "bid_date", "bid_amount", "result_date"],
+            as_dict=1,
+        ) or {}
+        tender_doc = frappe.db.get_value(
+            "GE Tender",
+            row.get("tender"),
+            ["name", "tender_number", "title", "client", "organization"],
+            as_dict=1,
+        ) or {}
+        result.append({
+            "name": row.get("name"),
+            "bid": row.get("bid"),
+            "bid_status": bid_doc.get("status") or "",
+            "bid_date": bid_doc.get("bid_date") or "",
+            "bid_amount": bid_doc.get("bid_amount") or 0,
+            "result_date": bid_doc.get("result_date") or "",
+            "tender": row.get("tender"),
+            "tender_number": tender_doc.get("tender_number") or row.get("tender"),
+            "tender_title": tender_doc.get("title") or "",
+            "client": tender_doc.get("client") or "",
+            "organization": tender_doc.get("organization") or "",
+            "department": row.get("department") or "",
+            "loi_expected_by": row.get("loi_expected_by") or "",
+            "loi_received": row.get("loi_received") or 0,
+            "loi_received_date": row.get("loi_received_date") or "",
+            "loi_document": row.get("loi_document") or "",
+            "remarks": row.get("remarks") or "",
+        })
+    return {"success": True, "data": result}
+
+
+@frappe.whitelist()
 def send_loi_request_to_departments(name, loi_expected_by=None, remarks=None):
     """Create missing LOI tracker rows and notify all departments except Director."""
     _ps_write_access()
@@ -1132,15 +1257,7 @@ def send_loi_request_to_departments(name, loi_expected_by=None, remarks=None):
     if bid_doc.status != "WON":
         return {"success": False, "message": "LOI requests can only be sent for won bids"}
 
-    target_departments = [
-        {"label": "Engineering", "role": ROLE_ENGINEERING_HEAD, "department_key": "engineering"},
-        {"label": "Procurement", "role": ROLE_PROCUREMENT_MANAGER, "department_key": "procurement"},
-        {"label": "Accounts", "role": ROLE_ACCOUNTS, "department_key": "accounts"},
-        {"label": "HR", "role": ROLE_HR_MANAGER, "department_key": "hr"},
-        {"label": "Stores", "role": ROLE_STORES_LOGISTICS_HEAD, "department_key": "stores"},
-        {"label": "O&M / RMA", "role": ROLE_RMA_MANAGER, "department_key": "om_rma"},
-        {"label": "Project", "role": ROLE_PROJECT_HEAD, "department_key": "project"},
-    ]
+    target_departments = LOI_DEPARTMENT_TARGETS
 
     existing_rows = frappe.get_all(
         "GE LOI Tracker",

@@ -87,7 +87,22 @@ export default function SurveyDetailView({
       if (!res.ok || !result.success) {
         throw new Error(result.message || 'Failed to update status');
       }
-      showSuccess(`Status updated to ${newStatus}`);
+
+      // If marked as Completed, check if all surveys are now complete
+      let successMsg = `Status updated to ${newStatus}`;
+      if (newStatus === 'Completed' && data?.linked_project) {
+        try {
+          const checkRes = await fetch(`/api/surveys/check-complete?project=${encodeURIComponent(data.linked_project)}`);
+          const checkResult = await checkRes.json();
+          if (checkResult.success && checkResult.data?.complete) {
+            successMsg = `✓ Survey marked complete. All surveys done! Sites auto-advancing to BOQ_DESIGN stage...`;
+          }
+        } catch {
+          // Silently fail - just show basic success message
+        }
+      }
+
+      showSuccess(successMsg);
       await loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update status');

@@ -170,7 +170,7 @@ export default function TendersListPage() {
                 {filtered.map((t) => (
                   <tr key={t.name} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
                     <td className="px-4 py-3">
-                      <Link href={`/pre-sales/${t.name}`} className="font-medium text-blue-600 hover:text-blue-800">{t.title || t.name}</Link>
+                      <Link href={`/pre-sales/${encodeURIComponent(t.name)}`} className="font-medium text-blue-600 hover:text-blue-800">{t.title || t.name}</Link>
                       <div className="text-[10px] text-gray-400">{t.name}</div>
                     </td>
                     <td className="px-4 py-3 text-gray-700">{t.client || '-'}</td>

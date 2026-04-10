@@ -41,7 +41,7 @@ function getDocTypeRoute(doctype: string, name: string): string | null {
   const routes: Record<string, string> = {
     Project: `/projects/${name}`,
     'GE Site': `/execution?site=${name}`,
-    'GE Tender': `/pre-sales/${name}`,
+    'GE Tender': `/pre-sales/${encodeURIComponent(name)}`,
     'GE Milestone': `/milestones?id=${name}`,
     'GE Drawing': `/drawings?id=${name}`,
     'GE Project Document': `/documents?id=${name}`,

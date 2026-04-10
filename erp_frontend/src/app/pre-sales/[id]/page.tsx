@@ -44,6 +44,12 @@ type Tender = {
   bid_denied_reason?: string;
   tender_document?: string;
   rfp_document?: string;
+  consultant_name?: string;
+  consultant_contact?: string;
+  contract_scope?: string;
+  tenure_years?: number;
+  tenure_end_date?: string;
+  pbg_percent?: number;
   /* Contract lifecycle fields */
   loa_date?: string;
   work_order_date?: string;
@@ -273,6 +279,24 @@ export default function TenderWorkspacePage() {
   const [technicalRemark, setTechnicalRemark] = useState('');
   const [technicalFile, setTechnicalFile] = useState<File | null>(null);
   const [viewDocUrl, setViewDocUrl] = useState<string | null>(null);
+  const [showTenderEditModal, setShowTenderEditModal] = useState(false);
+  const [tenderEditForm, setTenderEditForm] = useState({
+    pbg_percent: '',
+    consultant_name: '',
+    consultant_contact: '',
+    contract_scope: '',
+    tenure_years: '',
+    tenure_end_date: '',
+    loa_date: '',
+    work_order_date: '',
+    work_order_no: '',
+    agreement_date: '',
+    awarded_value: '',
+    go_live_date: '',
+    om_start_date: '',
+    implementation_completion_date: '',
+    physical_completion_date: '',
+  });
 
   const loadWorkspace = useCallback(async () => {
     try {
@@ -608,6 +632,49 @@ export default function TenderWorkspacePage() {
     }
   };
 
+  const openTenderEditModal = () => {
+    if (!tender) return;
+    setTenderEditForm({
+      pbg_percent: tender.pbg_percent ? String(tender.pbg_percent) : '',
+      consultant_name: tender.consultant_name || '',
+      consultant_contact: tender.consultant_contact || '',
+      contract_scope: tender.contract_scope || '',
+      tenure_years: tender.tenure_years ? String(tender.tenure_years) : '',
+      tenure_end_date: tender.tenure_end_date || '',
+      loa_date: tender.loa_date || '',
+      work_order_date: tender.work_order_date || '',
+      work_order_no: tender.work_order_no || '',
+      agreement_date: tender.agreement_date || '',
+      awarded_value: tender.awarded_value ? String(tender.awarded_value) : '',
+      go_live_date: tender.go_live_date || '',
+      om_start_date: tender.om_start_date || '',
+      implementation_completion_date: tender.implementation_completion_date || '',
+      physical_completion_date: tender.physical_completion_date || '',
+    });
+    setShowTenderEditModal(true);
+  };
+
+  const saveTenderLifecycleDetails = async () => {
+    await updateTender({
+      pbg_percent: tenderEditForm.pbg_percent ? Number(tenderEditForm.pbg_percent) : 0,
+      consultant_name: tenderEditForm.consultant_name.trim(),
+      consultant_contact: tenderEditForm.consultant_contact.trim(),
+      contract_scope: tenderEditForm.contract_scope,
+      tenure_years: tenderEditForm.tenure_years ? Number(tenderEditForm.tenure_years) : 0,
+      tenure_end_date: tenderEditForm.tenure_end_date || '',
+      loa_date: tenderEditForm.loa_date || '',
+      work_order_date: tenderEditForm.work_order_date || '',
+      work_order_no: tenderEditForm.work_order_no.trim(),
+      agreement_date: tenderEditForm.agreement_date || '',
+      awarded_value: tenderEditForm.awarded_value ? Number(tenderEditForm.awarded_value) : 0,
+      go_live_date: tenderEditForm.go_live_date || '',
+      om_start_date: tenderEditForm.om_start_date || '',
+      implementation_completion_date: tenderEditForm.implementation_completion_date || '',
+      physical_completion_date: tenderEditForm.physical_completion_date || '',
+    });
+    setShowTenderEditModal(false);
+  };
+
   if (loading) {
     return <div className="flex min-h-[420px] items-center justify-center gap-3 text-sm text-gray-500"><Loader2 className="h-5 w-5 animate-spin" />Loading tender workspace...</div>;
   }
@@ -762,6 +829,9 @@ export default function TenderWorkspacePage() {
               </div>
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
+              <ActionButton tone="light" onClick={openTenderEditModal} disabled={busy.length > 0}>
+                Edit Tender Details
+              </ActionButton>
               <ActionButton tone="light" onClick={() => setShowInstrumentModal(true)} disabled={busy.length > 0}>
                 Add Instrument
               </ActionButton>
@@ -1155,6 +1225,145 @@ export default function TenderWorkspacePage() {
               Update Reason
             </ActionButton>
           </div>
+        </div>
+      </ModalFrame>
+
+      <ModalFrame
+        open={showTenderEditModal}
+        onClose={() => setShowTenderEditModal(false)}
+        title="Edit Tender Lifecycle Details"
+        widthClassName="max-w-4xl"
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="text-sm text-gray-600">PBG Percent
+            <input
+              className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm"
+              value={tenderEditForm.pbg_percent}
+              onChange={(event) => setTenderEditForm((prev) => ({ ...prev, pbg_percent: event.target.value }))}
+              placeholder="5"
+            />
+          </label>
+          <label className="text-sm text-gray-600">Contract Scope
+            <select
+              className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm"
+              value={tenderEditForm.contract_scope}
+              onChange={(event) => setTenderEditForm((prev) => ({ ...prev, contract_scope: event.target.value }))}
+            >
+              <option value="">Select contract scope</option>
+              <option value="I&C Only">I&amp;C Only</option>
+              <option value="I&C + O&M">I&amp;C + O&amp;M</option>
+            </select>
+          </label>
+          <label className="text-sm text-gray-600">Consultant Name
+            <input
+              className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm"
+              value={tenderEditForm.consultant_name}
+              onChange={(event) => setTenderEditForm((prev) => ({ ...prev, consultant_name: event.target.value }))}
+              placeholder="UAT Infra Consultants Pvt Ltd"
+            />
+          </label>
+          <label className="text-sm text-gray-600">Consultant Contact
+            <input
+              className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm"
+              value={tenderEditForm.consultant_contact}
+              onChange={(event) => setTenderEditForm((prev) => ({ ...prev, consultant_contact: event.target.value }))}
+              placeholder="9876543210"
+            />
+          </label>
+          <label className="text-sm text-gray-600">Tenure Years
+            <input
+              className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm"
+              value={tenderEditForm.tenure_years}
+              onChange={(event) => setTenderEditForm((prev) => ({ ...prev, tenure_years: event.target.value }))}
+              placeholder="5"
+            />
+          </label>
+          <label className="text-sm text-gray-600">Tenure End Date
+            <input
+              type="date"
+              className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm"
+              value={tenderEditForm.tenure_end_date}
+              onChange={(event) => setTenderEditForm((prev) => ({ ...prev, tenure_end_date: event.target.value }))}
+            />
+          </label>
+          <label className="text-sm text-gray-600">LOA Date
+            <input
+              type="date"
+              className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm"
+              value={tenderEditForm.loa_date}
+              onChange={(event) => setTenderEditForm((prev) => ({ ...prev, loa_date: event.target.value }))}
+            />
+          </label>
+          <label className="text-sm text-gray-600">Work Order Date
+            <input
+              type="date"
+              className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm"
+              value={tenderEditForm.work_order_date}
+              onChange={(event) => setTenderEditForm((prev) => ({ ...prev, work_order_date: event.target.value }))}
+            />
+          </label>
+          <label className="text-sm text-gray-600">Work Order No
+            <input
+              className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm"
+              value={tenderEditForm.work_order_no}
+              onChange={(event) => setTenderEditForm((prev) => ({ ...prev, work_order_no: event.target.value }))}
+              placeholder="WO/UAT/SAFECITY/2026/019"
+            />
+          </label>
+          <label className="text-sm text-gray-600">Agreement Date
+            <input
+              type="date"
+              className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm"
+              value={tenderEditForm.agreement_date}
+              onChange={(event) => setTenderEditForm((prev) => ({ ...prev, agreement_date: event.target.value }))}
+            />
+          </label>
+          <label className="text-sm text-gray-600">Awarded Value
+            <input
+              className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm"
+              value={tenderEditForm.awarded_value}
+              onChange={(event) => setTenderEditForm((prev) => ({ ...prev, awarded_value: event.target.value }))}
+              placeholder="118500000"
+            />
+          </label>
+          <label className="text-sm text-gray-600">Go-Live Date
+            <input
+              type="date"
+              className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm"
+              value={tenderEditForm.go_live_date}
+              onChange={(event) => setTenderEditForm((prev) => ({ ...prev, go_live_date: event.target.value }))}
+            />
+          </label>
+          <label className="text-sm text-gray-600">O&amp;M Start Date
+            <input
+              type="date"
+              className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm"
+              value={tenderEditForm.om_start_date}
+              onChange={(event) => setTenderEditForm((prev) => ({ ...prev, om_start_date: event.target.value }))}
+            />
+          </label>
+          <label className="text-sm text-gray-600">Implementation Completion Date
+            <input
+              type="date"
+              className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm"
+              value={tenderEditForm.implementation_completion_date}
+              onChange={(event) => setTenderEditForm((prev) => ({ ...prev, implementation_completion_date: event.target.value }))}
+            />
+          </label>
+          <label className="text-sm text-gray-600">Physical Completion Date
+            <input
+              type="date"
+              className="mt-1 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm"
+              value={tenderEditForm.physical_completion_date}
+              onChange={(event) => setTenderEditForm((prev) => ({ ...prev, physical_completion_date: event.target.value }))}
+            />
+          </label>
+        </div>
+        <div className="mt-4 flex justify-end gap-2">
+          <ActionButton tone="ghost" onClick={() => setShowTenderEditModal(false)}>Cancel</ActionButton>
+          <ActionButton onClick={() => void saveTenderLifecycleDetails()} disabled={busy.length > 0}>
+            Save Details
+          </ActionButton>
         </div>
       </ModalFrame>
 

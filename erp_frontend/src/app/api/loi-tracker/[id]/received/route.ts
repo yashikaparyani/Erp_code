@@ -9,6 +9,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       name: params.id,
       loi_received_date: body.loi_received_date,
       loi_document: body.loi_document,
+      remarks: body.remarks,
     }, request);
     return NextResponse.json({ success: true, data: result.data, loi_summary: result.loi_summary, message: result.message });
   } catch (error) {

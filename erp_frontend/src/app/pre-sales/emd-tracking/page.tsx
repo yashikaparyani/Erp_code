@@ -124,6 +124,11 @@ export default function EmdTrackingPage() {
   const [submittingEmd, setSubmittingEmd] = useState(false);
   const [emdError, setEmdError] = useState('');
 
+  const getTenderEmdAmount = (tenderId?: string) => {
+    if (!tenderId) return undefined;
+    return rows.find((row) => row.tender_id === tenderId)?.emd_amount;
+  };
+
   const fetchRows = async () => {
     setLoading(true);
     setError('');
@@ -156,8 +161,13 @@ export default function EmdTrackingPage() {
   };
 
   const handleEditEmdClick = (instrument: EmdInstrument) => {
+    const tenderEmdAmount = getTenderEmdAmount(instrument.linked_tender);
     setIsEditingEmd(true);
-    setEmdForm({ instrument_type: 'EMD', ...instrument });
+    setEmdForm({
+      instrument_type: instrument.instrument_type || 'EMD',
+      ...instrument,
+      amount: tenderEmdAmount ?? instrument.amount,
+    });
     setEmdError('');
     setShowEmdModal(true);
   };
@@ -179,6 +189,10 @@ export default function EmdTrackingPage() {
       const payload = {
         ...emdForm,
         instrument_type: emdForm.instrument_type || 'EMD',
+        amount:
+          emdForm.instrument_type === 'EMD'
+            ? (getTenderEmdAmount(emdForm.linked_tender) ?? emdForm.amount)
+            : emdForm.amount,
         refund_status: toRefundCode(emdForm.refund_status),
       };
       if (isEditingEmd && emdForm.name) {
@@ -213,6 +227,11 @@ export default function EmdTrackingPage() {
         .some((value) => value?.toLowerCase().includes(search)),
     );
   }, [query, rows]);
+
+  const lockedTenderEmdAmount = useMemo(() => {
+    if ((emdForm.instrument_type || 'EMD') !== 'EMD') return undefined;
+    return getTenderEmdAmount(emdForm.linked_tender);
+  }, [emdForm.instrument_type, emdForm.linked_tender, rows]);
 
   return (
     <div className="min-h-screen bg-[var(--bg)] p-6 space-y-5">
@@ -433,7 +452,14 @@ export default function EmdTrackingPage() {
                 <LinkPicker
                   entity="tender"
                   value={emdForm.linked_tender || ''}
-                  onChange={(value) => setEmdForm({ ...emdForm, linked_tender: value })}
+                  onChange={(value) => {
+                    const tenderAmount = getTenderEmdAmount(value);
+                    setEmdForm({
+                      ...emdForm,
+                      linked_tender: value,
+                      amount: (emdForm.instrument_type || 'EMD') === 'EMD' && tenderAmount != null ? tenderAmount : emdForm.amount,
+                    });
+                  }}
                   className="mt-1"
                   placeholder="Search tender..."
                 />
@@ -458,7 +484,15 @@ export default function EmdTrackingPage() {
                 </label>
                 <select
                   value={emdForm.instrument_type || ''}
-                  onChange={(e) => setEmdForm({ ...emdForm, instrument_type: e.target.value })}
+                  onChange={(e) => {
+                    const instrumentType = e.target.value;
+                    const tenderAmount = getTenderEmdAmount(emdForm.linked_tender);
+                    setEmdForm({
+                      ...emdForm,
+                      instrument_type: instrumentType,
+                      amount: instrumentType === 'EMD' && tenderAmount != null ? tenderAmount : emdForm.amount,
+                    });
+                  }}
                   className="mt-1 w-full rounded-lg border border-[var(--border-subtle)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
                 >
                   <option value="">Select type</option>
@@ -510,11 +544,17 @@ export default function EmdTrackingPage() {
                 </label>
                 <input
                   type="number"
-                  value={emdForm.amount || ''}
+                  value={lockedTenderEmdAmount ?? emdForm.amount ?? ''}
                   onChange={(e) => setEmdForm({ ...emdForm, amount: Number.parseFloat(e.target.value) || undefined })}
-                  className="mt-1 w-full rounded-lg border border-[var(--border-subtle)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+                  disabled={lockedTenderEmdAmount != null}
+                  className="mt-1 w-full rounded-lg border border-[var(--border-subtle)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)] disabled:bg-slate-50 disabled:text-slate-500"
                   placeholder="In INR"
                 />
+                {lockedTenderEmdAmount != null ? (
+                  <p className="mt-1 text-[11px] text-[var(--text-soft)]">
+                    Auto-filled from tender EMD amount and locked for consistency.
+                  </p>
+                ) : null}
               </div>
 
               <div>
