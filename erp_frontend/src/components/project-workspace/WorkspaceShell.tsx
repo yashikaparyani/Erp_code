@@ -6,14 +6,17 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   ArrowLeft,
   Columns3,
+  Edit3,
   FileText,
   Flag,
   FolderTree,
   History,
   LayoutDashboard,
   Loader2,
+  Plus,
   ShieldAlert,
   AlertCircle,
+  Trash2,
   Upload,
   MessageSquare,
   Wallet,
@@ -37,11 +40,13 @@ import { usePermissions } from '../../context/PermissionContext';
 import { useWorkspacePermissions } from '../../context/WorkspacePermissionContext';
 import ReminderDrawer from '../reminders/ReminderDrawer';
 import { projectWorkspaceApi } from '@/lib/typedApi';
+import ActionModal from '../ui/ActionModal';
 
 // ── Shared types & constants ──
 import type {
   ProjectDetail, TabKey, DepartmentConfig,
 } from './workspace-types';
+import { callOps } from './workspace-types';
 import { TabErrorBoundary } from './workspace-helpers';
 
 // Re-export types so existing consumers keep working
@@ -108,6 +113,41 @@ const TAB_META: Record<TabKey, { label: string; icon: typeof LayoutDashboard }> 
   closeout:         { label: 'Closeout',         icon: Award },
 };
 
+const STAGE_OPTIONS = [
+  { value: 'SURVEY', label: 'Survey' },
+  { value: 'BOQ_DESIGN', label: 'BOQ / Design' },
+  { value: 'COSTING', label: 'Costing' },
+  { value: 'PROCUREMENT', label: 'Procurement' },
+  { value: 'STORES_DISPATCH', label: 'Stores / Dispatch' },
+  { value: 'EXECUTION', label: 'Execution / I&C' },
+  { value: 'BILLING_PAYMENT', label: 'Billing / Payment' },
+  { value: 'OM_RMA', label: 'O&M / RMA' },
+  { value: 'CLOSED', label: 'Closed' },
+] as const;
+
+type DirectoryUser = {
+  name: string;
+  full_name?: string;
+  roles?: string[];
+};
+
+type ProjectEditForm = {
+  project_name: string;
+  customer: string;
+  expected_start_date: string;
+  expected_end_date: string;
+  project_head: string;
+  project_manager_user: string;
+  current_project_stage: string;
+  linked_tender: string;
+  notes: string;
+  status: string;
+  estimated_costing: string;
+  percent_complete: string;
+  spine_blocked: boolean;
+  blocker_summary: string;
+};
+
 /* ═══════════════════════════════════════════════════════════
    Main Workspace Shell
    ═══════════════════════════════════════════════════════════ */
@@ -116,6 +156,7 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { currentUser } = useAuth();
   const { permissions, isLoaded: isPermissionLoaded } = usePermissions();
   const { wp, isLoaded: isWpLoaded, loadForProject } = useWorkspacePermissions();
 
@@ -155,6 +196,179 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
 
   /* ── Actions dropdown ── */
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [notice, setNotice] = useState<{ tone: 'success' | 'error'; message: string } | null>(null);
+  const [showUpdateProject, setShowUpdateProject] = useState(false);
+  const [showAddSites, setShowAddSites] = useState(false);
+  const [showDeleteProject, setShowDeleteProject] = useState(false);
+  const [savingProject, setSavingProject] = useState(false);
+  const [addingSites, setAddingSites] = useState(false);
+  const [deletingProject, setDeletingProject] = useState(false);
+  const [directory, setDirectory] = useState<DirectoryUser[]>([]);
+  const [directoryLoading, setDirectoryLoading] = useState(false);
+  const [directoryError, setDirectoryError] = useState('');
+  const [siteRowsText, setSiteRowsText] = useState('');
+  const [editForm, setEditForm] = useState<ProjectEditForm>({
+    project_name: '',
+    customer: '',
+    expected_start_date: '',
+    expected_end_date: '',
+    project_head: '',
+    project_manager_user: '',
+    current_project_stage: 'SURVEY',
+    linked_tender: '',
+    notes: '',
+    status: 'Open',
+    estimated_costing: '',
+    percent_complete: '',
+    spine_blocked: false,
+    blocker_summary: '',
+  });
+
+  const roleSet = new Set(currentUser?.roles || []);
+  const canManageProject =
+    currentUser?.role === 'Director'
+    || roleSet.has('Director')
+    || roleSet.has('Presales Tendering Head')
+    || roleSet.has('Project Head')
+    || roleSet.has('System Manager')
+    || roleSet.has('Project Manager');
+  const canDeleteProject =
+    currentUser?.role === 'Director'
+    || roleSet.has('Director')
+    || roleSet.has('Presales Tendering Head')
+    || roleSet.has('Project Head')
+    || roleSet.has('System Manager');
+
+  const projectHeadOptions = directory.filter((u) => (u.roles || []).includes('Project Head'));
+  const projectManagerOptions = directory.filter((u) => (u.roles || []).includes('Project Manager'));
+
+  const loadDirectory = useCallback(async () => {
+    if (directory.length || directoryLoading) return;
+    setDirectoryLoading(true);
+    try {
+      const response = await fetch('/api/users-list', { cache: 'no-store' });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || payload.success === false) {
+        throw new Error(payload.message || 'Failed to load project owner directory');
+      }
+      setDirectory(Array.isArray(payload.data) ? payload.data : []);
+      setDirectoryError('');
+    } catch (err) {
+      setDirectoryError(err instanceof Error ? err.message : 'Failed to load project owner directory');
+    } finally {
+      setDirectoryLoading(false);
+    }
+  }, [directory.length, directoryLoading]);
+
+  const openUpdateProjectModal = useCallback(async () => {
+    setActionsOpen(false);
+    setNotice(null);
+    await loadDirectory();
+    try {
+      const project = await callOps<any>('get_project', { name: projectId });
+      setEditForm({
+        project_name: project.project_name || '',
+        customer: project.customer || '',
+        expected_start_date: project.expected_start_date || '',
+        expected_end_date: project.expected_end_date || '',
+        project_head: project.project_head || '',
+        project_manager_user: project.project_manager_user || '',
+        current_project_stage: project.current_project_stage || 'SURVEY',
+        linked_tender: project.linked_tender || '',
+        notes: project.notes || '',
+        status: project.status || 'Open',
+        estimated_costing: project.estimated_costing != null ? String(project.estimated_costing) : '',
+        percent_complete: project.percent_complete != null ? String(project.percent_complete) : '',
+        spine_blocked: (project.spine_blocked || 0) > 0,
+        blocker_summary: project.blocker_summary || '',
+      });
+      setShowUpdateProject(true);
+    } catch (err) {
+      setNotice({ tone: 'error', message: err instanceof Error ? err.message : 'Failed to load project for editing' });
+    }
+  }, [loadDirectory, projectId]);
+
+  const handleUpdateProject = useCallback(async () => {
+    if (!editForm.project_name.trim()) return;
+    setSavingProject(true);
+    setNotice(null);
+    try {
+      await callOps('update_project', {
+        name: projectId,
+        data: {
+          project_name: editForm.project_name.trim(),
+          customer: editForm.customer.trim() || undefined,
+          expected_start_date: editForm.expected_start_date || undefined,
+          expected_end_date: editForm.expected_end_date || undefined,
+          project_head: editForm.project_head || undefined,
+          project_manager_user: editForm.project_manager_user || undefined,
+          current_project_stage: editForm.current_project_stage || 'SURVEY',
+          linked_tender: editForm.linked_tender.trim() || undefined,
+          notes: editForm.notes.trim() || undefined,
+          status: editForm.status || 'Open',
+          estimated_costing: editForm.estimated_costing ? Number(editForm.estimated_costing) : undefined,
+          percent_complete: editForm.percent_complete ? Number(editForm.percent_complete) : undefined,
+          spine_blocked: editForm.spine_blocked ? 1 : 0,
+          blocker_summary: editForm.spine_blocked ? editForm.blocker_summary.trim() || undefined : undefined,
+        },
+      });
+      setShowUpdateProject(false);
+      setReloadKey((k) => k + 1);
+      setNotice({ tone: 'success', message: 'Project updated successfully.' });
+    } catch (err) {
+      setNotice({ tone: 'error', message: err instanceof Error ? err.message : 'Failed to update project' });
+    } finally {
+      setSavingProject(false);
+    }
+  }, [editForm, projectId]);
+
+  const handleAddSites = useCallback(async () => {
+    const parsed = siteRowsText
+      .split('\n')
+      .map((row) => row.trim())
+      .filter(Boolean)
+      .map((row) => {
+        const [site_name, site_code] = row.split('|').map((part) => part.trim());
+        return { site_name, site_code: site_code || '' };
+      })
+      .filter((site) => site.site_name);
+
+    if (!parsed.length) {
+      setNotice({ tone: 'error', message: 'Add at least one site row before saving.' });
+      return;
+    }
+
+    setAddingSites(true);
+    setNotice(null);
+    try {
+      await callOps('add_project_sites', {
+        project: projectId,
+        data: { initial_sites: parsed },
+      });
+      setShowAddSites(false);
+      setSiteRowsText('');
+      setReloadKey((k) => k + 1);
+      setNotice({ tone: 'success', message: `${parsed.length} site${parsed.length === 1 ? '' : 's'} added.` });
+    } catch (err) {
+      setNotice({ tone: 'error', message: err instanceof Error ? err.message : 'Failed to add sites' });
+    } finally {
+      setAddingSites(false);
+    }
+  }, [projectId, siteRowsText]);
+
+  const handleDeleteProject = useCallback(async () => {
+    setDeletingProject(true);
+    setNotice(null);
+    try {
+      await callOps('delete_project', { name: projectId });
+      setShowDeleteProject(false);
+      router.push(config.backHref);
+    } catch (err) {
+      setNotice({ tone: 'error', message: err instanceof Error ? err.message : 'Failed to delete project' });
+    } finally {
+      setDeletingProject(false);
+    }
+  }, [config.backHref, projectId, router]);
 
   useEffect(() => {
     let active = true;
@@ -321,6 +535,22 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
                       >
                         <Activity className="h-3.5 w-3.5" /> Refresh Workspace
                       </button>
+                      {canManageProject && (
+                        <button
+                          onClick={() => { setActionsOpen(false); setSiteRowsText(''); setShowAddSites(true); }}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-xs text-[var(--text-main)] hover:bg-[var(--surface-raised)]"
+                        >
+                          <Plus className="h-3.5 w-3.5" /> Add Sites
+                        </button>
+                      )}
+                      {canManageProject && (
+                        <button
+                          onClick={() => { void openUpdateProjectModal(); }}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-xs text-[var(--text-main)] hover:bg-[var(--surface-raised)]"
+                        >
+                          <Edit3 className="h-3.5 w-3.5" /> Update Project
+                        </button>
+                      )}
                       <button
                         onClick={() => { setActionsOpen(false); handleTabChange('notes'); }}
                         className="flex w-full items-center gap-2 px-3 py-2 text-xs text-[var(--text-main)] hover:bg-[var(--surface-raised)]"
@@ -346,6 +576,17 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
                       >
                         <MessageSquare className="h-3.5 w-3.5" /> Communications
                       </button>
+                      {canDeleteProject && (
+                        <>
+                          <div className="my-1 border-t border-[var(--border-subtle)]" />
+                          <button
+                            onClick={() => { setActionsOpen(false); setShowDeleteProject(true); }}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-xs text-rose-700 hover:bg-rose-50"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" /> Delete Project
+                          </button>
+                        </>
+                      )}
                     </div>
                   </>
                 )}
@@ -354,6 +595,18 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
           </div>
         </div>
       </div>
+
+      {notice && (
+        <div
+          className={`mb-4 rounded-2xl border px-4 py-3 text-sm ${
+            notice.tone === 'success'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+              : 'border-rose-200 bg-rose-50 text-rose-700'
+          }`}
+        >
+          {notice.message}
+        </div>
+      )}
 
       {/* ── Tab Bar ── */}
       <div className="mb-6 border-b border-[var(--border-subtle)]">
@@ -400,6 +653,131 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
       {activeTab === 'accountability' && <AccountabilityTab projectId={projectId} />}
       {activeTab === 'approvals' && <ApprovalsTab projectId={projectId} />}
       {activeTab === 'closeout' && <CloseoutTab projectId={projectId} />}
+
+      <ActionModal
+        open={showAddSites}
+        title="Add Sites"
+        description="One site per line. Optional format: Site Name | SITE-CODE"
+        variant="default"
+        confirmLabel="Add Sites"
+        busy={addingSites}
+        onCancel={() => { if (!addingSites) setShowAddSites(false); }}
+        onConfirm={handleAddSites}
+      >
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700">Site Rows</label>
+          <textarea
+            rows={7}
+            value={siteRowsText}
+            onChange={(e) => setSiteRowsText(e.target.value)}
+            placeholder={'Site Alpha | S01\nSite Bravo | S02\nSite Charlie'}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <p className="text-xs text-gray-500">If site code is skipped, backend will auto-generate it.</p>
+        </div>
+      </ActionModal>
+
+      <ActionModal
+        open={showUpdateProject}
+        title="Update Project"
+        description="Update project header information for this workspace."
+        variant="default"
+        confirmLabel="Save Changes"
+        busy={savingProject}
+        onCancel={() => { if (!savingProject) setShowUpdateProject(false); }}
+        onConfirm={handleUpdateProject}
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">Project Name <span className="text-rose-500">*</span></label>
+            <input type="text" value={editForm.project_name} onChange={(e) => setEditForm((p) => ({ ...p, project_name: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">Customer</label>
+            <input type="text" value={editForm.customer} onChange={(e) => setEditForm((p) => ({ ...p, customer: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">Linked Tender</label>
+            <input type="text" value={editForm.linked_tender} onChange={(e) => setEditForm((p) => ({ ...p, linked_tender: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">Expected Start Date</label>
+            <input type="date" value={editForm.expected_start_date} onChange={(e) => setEditForm((p) => ({ ...p, expected_start_date: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">Expected End Date</label>
+            <input type="date" value={editForm.expected_end_date} onChange={(e) => setEditForm((p) => ({ ...p, expected_end_date: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">Project Head</label>
+            <select value={editForm.project_head} onChange={(e) => setEditForm((p) => ({ ...p, project_head: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">Select project head...</option>
+              {projectHeadOptions.map((u) => (<option key={u.name} value={u.name}>{u.full_name || u.name}</option>))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">Project Manager</label>
+            <select value={editForm.project_manager_user} onChange={(e) => setEditForm((p) => ({ ...p, project_manager_user: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">Select project manager...</option>
+              {projectManagerOptions.map((u) => (<option key={u.name} value={u.name}>{u.full_name || u.name}</option>))}
+            </select>
+          </div>
+          <div className="sm:col-span-2">
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">Current Stage</label>
+            <select value={editForm.current_project_stage} onChange={(e) => setEditForm((p) => ({ ...p, current_project_stage: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              {STAGE_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">Status</label>
+            <select value={editForm.status} onChange={(e) => setEditForm((p) => ({ ...p, status: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="Open">Open</option>
+              <option value="Completed">Completed</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">Estimated Costing</label>
+            <input type="number" min="0" step="0.01" value={editForm.estimated_costing} onChange={(e) => setEditForm((p) => ({ ...p, estimated_costing: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">Percent Complete</label>
+            <input type="number" min="0" max="100" step="0.1" value={editForm.percent_complete} onChange={(e) => setEditForm((p) => ({ ...p, percent_complete: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="mb-1.5 flex items-center gap-2 text-sm font-medium text-gray-700">
+              <input type="checkbox" checked={editForm.spine_blocked} onChange={(e) => setEditForm((p) => ({ ...p, spine_blocked: e.target.checked }))} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+              Blocked
+            </label>
+          </div>
+          {editForm.spine_blocked && (
+            <div className="sm:col-span-2">
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">Blocker Summary</label>
+              <input type="text" value={editForm.blocker_summary} onChange={(e) => setEditForm((p) => ({ ...p, blocker_summary: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+          )}
+          <div className="sm:col-span-2">
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">Notes</label>
+            <textarea rows={3} value={editForm.notes} onChange={(e) => setEditForm((p) => ({ ...p, notes: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          {(directoryLoading || directoryError) && (
+            <div className="sm:col-span-2 text-sm text-amber-700">
+              {directoryLoading ? 'Loading project owner directory...' : directoryError}
+            </div>
+          )}
+        </div>
+      </ActionModal>
+
+      <ActionModal
+        open={showDeleteProject}
+        title="Delete Project"
+        description={`Delete ${ps?.project_name || projectId}? This only succeeds if linked records are already cleared.`}
+        variant="danger"
+        confirmLabel="Delete Project"
+        busy={deletingProject}
+        onCancel={() => { if (!deletingProject) setShowDeleteProject(false); }}
+        onConfirm={handleDeleteProject}
+      />
     </div>
   );
 }

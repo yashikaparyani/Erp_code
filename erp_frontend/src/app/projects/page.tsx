@@ -7,14 +7,11 @@ import {
   AlertCircle,
   ArrowRight,
   ChevronDown,
-  Edit3,
-  Eye,
   FolderTree,
   Plus,
   RefreshCcw,
   Search,
   ShieldAlert,
-  Trash2,
 } from 'lucide-react';
 import ActionModal from '@/components/ui/ActionModal';
 import RegisterPage from '@/components/shells/RegisterPage';
@@ -343,9 +340,7 @@ export default function ProjectsDashboardPage() {
   const [directoryError, setDirectoryError] = useState('');
 
   // ── Row actions ──
-  const [openRowActions, setOpenRowActions] = useState<string | null>(null);
   const actionsRef = useRef<HTMLDivElement>(null);
-  const rowActionsRef = useRef<HTMLDivElement>(null);
 
   // ── Create form ──
   const [createForm, setCreateForm] = useState({
@@ -441,15 +436,6 @@ export default function ProjectsDashboardPage() {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [showActions]);
-
-  useEffect(() => {
-    if (!openRowActions) return;
-    const handler = (e: MouseEvent) => {
-      if (rowActionsRef.current && !rowActionsRef.current.contains(e.target as Node)) setOpenRowActions(null);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [openRowActions]);
 
   // ── Derived data ──
   const filteredProjects = useMemo(() => {
@@ -579,7 +565,6 @@ export default function ProjectsDashboardPage() {
   // ── CRUD handlers ──
   const openCreateModal = async () => {
     setShowActions(false);
-    setOpenRowActions(null);
     setNotice(null);
     resetCreateForm();
     setShowCreate(true);
@@ -858,7 +843,7 @@ export default function ProjectsDashboardPage() {
                   <th className="px-4 py-4 font-medium">Progress</th>
                   <th className="px-4 py-4 font-medium">Project Manager</th>
                   <th className="px-4 py-4 font-medium">Status</th>
-                  <th className="px-6 py-4 font-medium text-right">Actions</th>
+                  <th className="px-6 py-4 font-medium text-right">Open Workspace</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border-subtle)]">
@@ -935,85 +920,12 @@ export default function ProjectsDashboardPage() {
                         )}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <div
-                          className="relative inline-flex justify-end"
-                          ref={openRowActions === project.name ? rowActionsRef : undefined}
+                        <Link
+                          href={href}
+                          className="inline-flex items-center gap-2 rounded-xl border border-[var(--accent)] bg-[var(--accent)] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[var(--accent-strong)]"
                         >
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setOpenRowActions((c) => (c === project.name ? null : project.name))
-                            }
-                            className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-white px-3 py-1.5 text-xs font-medium text-[var(--text-main)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent-strong)]"
-                          >
-                            Actions <ChevronDown className="h-3.5 w-3.5" />
-                          </button>
-                          {openRowActions === project.name && (
-                            <div className="absolute right-0 top-[calc(100%+0.45rem)] z-10 min-w-[220px] rounded-2xl border border-[var(--border-subtle)] bg-white p-2 text-left shadow-[0_18px_45px_rgba(15,23,42,0.12)]">
-                              <Link
-                                href={href}
-                                onClick={() => setOpenRowActions(null)}
-                                className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-[var(--text-main)] transition hover:bg-[var(--surface-raised)]"
-                              >
-                                <Eye className="h-4 w-4 text-[var(--accent-strong)]" />
-                                <span>
-                                  <span className="block font-medium">Open Workspace</span>
-                                  <span className="block text-xs text-[var(--text-muted)]">
-                                    View overview, sites, files, and activity
-                                  </span>
-                                </span>
-                              </Link>
-                              {canEditProject && (
-                                <button
-                                  type="button"
-                                  onClick={() => void openEditModal(project.name)}
-                                  className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm text-[var(--text-main)] transition hover:bg-[var(--surface-raised)]"
-                                >
-                                  <Edit3 className="h-4 w-4 text-[var(--accent-strong)]" />
-                                  <span>
-                                    <span className="block font-medium">Edit Project</span>
-                                    <span className="block text-xs text-[var(--text-muted)]">
-                                      Update owners, stage, dates, and notes
-                                    </span>
-                                  </span>
-                                </button>
-                              )}
-                              {canEditProject && (
-                                <button
-                                  type="button"
-                                  onClick={() => openAddSitesModal(project)}
-                                  className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm text-[var(--text-main)] transition hover:bg-[var(--surface-raised)]"
-                                >
-                                  <Plus className="h-4 w-4 text-[var(--accent-strong)]" />
-                                  <span>
-                                    <span className="block font-medium">Add Sites</span>
-                                    <span className="block text-xs text-[var(--text-muted)]">
-                                      Append site names and codes after project creation
-                                    </span>
-                                  </span>
-                                </button>
-                              )}
-                              {canDeleteProject && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setOpenRowActions(null);
-                                    setDeleteTarget(project);
-                                  }}
-                                  className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm text-rose-700 transition hover:bg-rose-50"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                  <span>
-                                    <span className="block font-medium">Delete Project</span>
-                                    <span className="block text-xs text-rose-500">
-                                      Only works if linked records are cleared
-                                    </span>
-                                  </span>
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </div>
+                          Open Workspace
+                        </Link>
                       </td>
                     </tr>
                   );

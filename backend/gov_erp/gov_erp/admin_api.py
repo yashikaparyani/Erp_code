@@ -148,7 +148,7 @@ def toggle_role(name):
 @frappe.whitelist()
 def get_users():
 	"""Return Frappe system users, enriched with role and employee context."""
-	_require_roles(ROLE_PRESALES_HEAD, ROLE_HR_MANAGER, ROLE_DEPARTMENT_HEAD, ROLE_DIRECTOR)
+	_require_roles(ROLE_PRESALES_HEAD, ROLE_HR_MANAGER, ROLE_DEPARTMENT_HEAD, ROLE_PROJECT_HEAD, ROLE_DIRECTOR)
 	users = frappe.get_all(
 		"User",
 		filters={"name": ["not in", ["Administrator", "Guest"]], "user_type": "System User"},
