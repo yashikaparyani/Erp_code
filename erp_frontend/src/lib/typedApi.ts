@@ -206,6 +206,64 @@ export const andaApi = {
     }),
 };
 
+/* ── Communication Logs ──────────────────────────────────── */
+
+export const commLogApi = {
+  list: <T = unknown>(params?: { project?: string; site?: string; comm_type?: string; direction?: string }) =>
+    typedFetch<T>(`/api/comm-logs${qs(params || {})}`),
+
+  get: <T = unknown>(id: string) =>
+    typedFetch<T>(`/api/comm-logs/${encodeURIComponent(id)}`),
+
+  create: <T = unknown>(data: Record<string, unknown>) =>
+    typedFetch<T>('/api/comm-logs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }),
+
+  update: <T = unknown>(id: string, data: Record<string, unknown>) =>
+    typedFetch<T>(`/api/comm-logs/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }),
+
+  delete: <T = unknown>(id: string) =>
+    typedFetch<T>(`/api/comm-logs/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    }),
+};
+
+/* ── EMD / PBG Instruments ───────────────────────────────── */
+
+export const emdPbgApi = {
+  list: <T = unknown>(params?: { tender?: string; type?: string }) =>
+    typedFetch<T>(`/api/emd-pbg${qs(params || {})}`),
+
+  get: <T = unknown>(id: string) =>
+    typedFetch<T>(`/api/emd-pbg/${encodeURIComponent(id)}`),
+
+  create: <T = unknown>(data: Record<string, unknown>) =>
+    typedFetch<T>('/api/emd-pbg', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }),
+
+  update: <T = unknown>(id: string, data: Record<string, unknown>) =>
+    typedFetch<T>(`/api/emd-pbg/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }),
+
+  delete: <T = unknown>(id: string) =>
+    typedFetch<T>(`/api/emd-pbg/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    }),
+};
+
 /* ── Execution Summary ────────────────────────────────────── */
 
 export const executionApi = {
@@ -360,11 +418,29 @@ export const projectWorkspaceApi = {
   updateIssue: <T = unknown>(name: string, data: Record<string, unknown>) =>
     projectWorkspaceFetch<T>('update_project_issue', { name, data: JSON.stringify(data) }),
 
+  deleteIssue: <T = unknown>(name: string) =>
+    projectWorkspaceFetch<T>('delete_project_issue', { name }),
+
   getPettyCashEntries: <T = unknown>(project: string) =>
     projectWorkspaceFetch<T>('get_petty_cash_entries', { project }),
 
   createPettyCashEntry: <T = unknown>(data: Record<string, unknown>) =>
     projectWorkspaceFetch<T>('create_petty_cash_entry', { data: JSON.stringify(data) }),
+
+  updatePettyCashEntry: <T = unknown>(name: string, data: Record<string, unknown>) =>
+    projectWorkspaceFetch<T>('update_petty_cash_entry', { name, data: JSON.stringify(data) }),
+
+  approvePettyCashEntry: <T = unknown>(name: string) =>
+    projectWorkspaceFetch<T>('approve_petty_cash_entry', { name }),
+
+  rejectPettyCashEntry: <T = unknown>(name: string, reason?: string) =>
+    projectWorkspaceFetch<T>('reject_petty_cash_entry', { name, reason }),
+
+  deletePettyCashEntry: <T = unknown>(name: string) =>
+    projectWorkspaceFetch<T>('delete_petty_cash_entry', { name }),
+
+  submitPettyCashToPh: <T = unknown>(name: string, remarks?: string) =>
+    projectWorkspaceFetch<T>('submit_petty_cash_to_ph', { name, ...(remarks ? { remarks } : {}) }),
 
   getCommLogs: <T = unknown>(project: string) =>
     projectWorkspaceFetch<T>('get_comm_logs', { project }),
@@ -392,6 +468,15 @@ export const projectWorkspaceApi = {
 
   getProjectTeamMembers: <T = unknown>(project: string) =>
     projectWorkspaceFetch<T>('get_project_team_members', { project }),
+
+  createTeamMember: <T = unknown>(data: Record<string, unknown>) =>
+    projectWorkspaceFetch<T>('create_project_team_member', { data: JSON.stringify(data) }),
+
+  updateTeamMember: <T = unknown>(name: string, data: Record<string, unknown>) =>
+    projectWorkspaceFetch<T>('update_project_team_member', { name, data: JSON.stringify(data) }),
+
+  deleteTeamMember: <T = unknown>(name: string) =>
+    projectWorkspaceFetch<T>('delete_project_team_member', { name }),
 
   getManpowerSummary: <T = unknown>(project: string) =>
     projectWorkspaceFetch<T>('get_manpower_summary', { project }),
@@ -456,4 +541,334 @@ export const dprApi = {
 export const notificationApi = {
   get: <T = unknown>() =>
     typedFetch<T>('/api/notifications'),
+};
+
+/* ── Tenders ──────────────────────────────────────────────── */
+
+export const tendersApi = {
+  list: <T = unknown>(params?: { status?: string; limit?: number; offset?: number }) =>
+    typedFetch<T>(`/api/tenders${qs(params || {})}`),
+
+  get: <T = unknown>(id: string) =>
+    typedFetch<T>(`/api/tenders/${encodeURIComponent(id)}`),
+
+  create: <T = unknown>(data: Record<string, unknown>) =>
+    typedFetch<T>('/api/tenders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }),
+
+  update: <T = unknown>(id: string, data: Record<string, unknown>) =>
+    typedFetch<T>(`/api/tenders/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }),
+
+  patch: <T = unknown>(data: Record<string, unknown>) =>
+    typedFetch<T>('/api/tenders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }),
+
+  delete: <T = unknown>(id: string) =>
+    typedFetch<T>(`/api/tenders/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+
+  stats: <T = unknown>() =>
+    typedFetch<T>('/api/tenders/stats'),
+
+  transitionStatus: <T = unknown>(id: string, target_status: string) =>
+    typedFetch<T>(`/api/tenders/${encodeURIComponent(id)}/status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target_status }),
+    }),
+
+  workflow: <T = unknown>(id: string, action: string, reason?: string) =>
+    typedFetch<T>(`/api/tenders/${encodeURIComponent(id)}/workflow`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, reason }),
+    }),
+
+  assignUserColor: <T = unknown>(id: string, slot: string, remarks?: string) =>
+    typedFetch<T>(`/api/tenders/${encodeURIComponent(id)}/user-color`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slot, remarks }),
+    }),
+
+  closure: <T = unknown>(id: string, action: string, data?: Record<string, unknown>) =>
+    typedFetch<T>(`/api/tenders/${encodeURIComponent(id)}/closure`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, ...data }),
+    }),
+};
+
+/* ── Bids ─────────────────────────────────────────────────── */
+
+export const bidsApi = {
+  list: <T = unknown>(params?: { tender?: string; status?: string; is_latest?: string; loi_decision_status?: string }) =>
+    typedFetch<T>(`/api/bids${qs(params || {})}`),
+
+  get: <T = unknown>(id: string) =>
+    typedFetch<T>(`/api/bids/${encodeURIComponent(id)}`),
+
+  create: <T = unknown>(data: Record<string, unknown>) =>
+    typedFetch<T>('/api/bids', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }),
+
+  update: <T = unknown>(id: string, data: Record<string, unknown>) =>
+    typedFetch<T>(`/api/bids/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }),
+
+  submit: <T = unknown>(id: string) =>
+    typedFetch<T>(`/api/bids/${encodeURIComponent(id)}/submit`, { method: 'POST' }),
+
+  markWon: <T = unknown>(id: string, result_date?: string, remarks?: string) =>
+    typedFetch<T>(`/api/bids/${encodeURIComponent(id)}/won`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ result_date, remarks }),
+    }),
+
+  markLost: <T = unknown>(id: string, result_date?: string, remarks?: string) =>
+    typedFetch<T>(`/api/bids/${encodeURIComponent(id)}/lost`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ result_date, remarks }),
+    }),
+
+  cancel: <T = unknown>(id: string, reason: string) =>
+    typedFetch<T>(`/api/bids/${encodeURIComponent(id)}/cancel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason }),
+    }),
+
+  underEvaluation: <T = unknown>(id: string) =>
+    typedFetch<T>(`/api/bids/${encodeURIComponent(id)}/under-evaluation`, { method: 'POST' }),
+
+  retender: <T = unknown>(id: string, reason: string) =>
+    typedFetch<T>(`/api/bids/${encodeURIComponent(id)}/retender`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason }),
+    }),
+
+  loiRequest: <T = unknown>(id: string, loi_expected_by?: string, remarks?: string) =>
+    typedFetch<T>(`/api/bids/${encodeURIComponent(id)}/loi-request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ loi_expected_by, remarks }),
+    }),
+
+  loiDecision: <T = unknown>(id: string, decision: string, reason?: string) =>
+    typedFetch<T>(`/api/bids/${encodeURIComponent(id)}/loi-decision`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ decision, reason }),
+    }),
+
+  locRequest: <T = unknown>(id: string) =>
+    typedFetch<T>(`/api/bids/${encodeURIComponent(id)}/loc-request`, { method: 'POST' }),
+
+  locSubmit: <T = unknown>(id: string, submission_date?: string, remarks?: string) =>
+    typedFetch<T>(`/api/bids/${encodeURIComponent(id)}/loc-submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ submission_date, remarks }),
+    }),
+};
+
+/* ── Parties ──────────────────────────────────────────────── */
+
+export const partiesApi = {
+  list: <T = unknown>(params?: { type?: string; active?: string }) =>
+    typedFetch<T>(`/api/parties${qs(params || {})}`),
+
+  create: <T = unknown>(data: Record<string, unknown>) =>
+    typedFetch<T>('/api/parties', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }),
+
+  update: <T = unknown>(data: Record<string, unknown>) =>
+    typedFetch<T>('/api/parties', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }),
+
+  delete: <T = unknown>(name: string) =>
+    typedFetch<T>(`/api/parties?name=${encodeURIComponent(name)}`, { method: 'DELETE' }),
+};
+
+/* ── Organizations ────────────────────────────────────────── */
+
+export const organizationsApi = {
+  list: <T = unknown>(params?: { active?: string }) =>
+    typedFetch<T>(`/api/organizations${qs(params || {})}`),
+
+  create: <T = unknown>(data: Record<string, unknown>) =>
+    typedFetch<T>('/api/organizations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }),
+};
+
+/* ── Tender Approvals ─────────────────────────────────────── */
+
+export const tenderApprovalsApi = {
+  list: <T = unknown>(params?: { tender?: string; status?: string }) =>
+    typedFetch<T>(`/api/tender-approvals${qs(params || {})}`),
+
+  submit: <T = unknown>(name: string, approval_type: string, remarks?: string) =>
+    typedFetch<T>('/api/tender-approvals', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, approval_type, remarks }),
+    }),
+
+  action: <T = unknown>(id: string, action: 'approve' | 'reject', remarks?: string) =>
+    typedFetch<T>(`/api/tender-approvals/${encodeURIComponent(id)}/actions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, remarks }),
+    }),
+};
+
+/* ── Tender Checklists ────────────────────────────────────── */
+
+export const tenderChecklistsApi = {
+  list: <T = unknown>(params?: { status?: string; checklist_type?: string }) =>
+    typedFetch<T>(`/api/tender-checklists${qs(params || {})}`),
+
+  get: <T = unknown>(id: string) =>
+    typedFetch<T>(`/api/tender-checklists/${encodeURIComponent(id)}`),
+
+  create: <T = unknown>(data: Record<string, unknown>) =>
+    typedFetch<T>('/api/tender-checklists', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }),
+
+  update: <T = unknown>(id: string, data: Record<string, unknown>) =>
+    typedFetch<T>(`/api/tender-checklists/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }),
+
+  delete: <T = unknown>(id: string) =>
+    typedFetch<T>(`/api/tender-checklists/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+};
+
+/* ── Tender Reminders ─────────────────────────────────────── */
+
+export const tenderRemindersApi = {
+  list: <T = unknown>(params?: { tender?: string; status?: string }) =>
+    typedFetch<T>(`/api/tender-reminders${qs(params || {})}`),
+
+  get: <T = unknown>(id: string) =>
+    typedFetch<T>(`/api/tender-reminders/${encodeURIComponent(id)}`),
+
+  create: <T = unknown>(data: Record<string, unknown>) =>
+    typedFetch<T>('/api/tender-reminders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }),
+
+  update: <T = unknown>(id: string, data: Record<string, unknown>) =>
+    typedFetch<T>(`/api/tender-reminders/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }),
+
+  delete: <T = unknown>(id: string) =>
+    typedFetch<T>(`/api/tender-reminders/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+};
+
+/* ── Tender Organizations ─────────────────────────────────── */
+
+export const tenderOrganizationsApi = {
+  list: <T = unknown>(params?: { tender?: string }) =>
+    typedFetch<T>(`/api/tender-organizations${qs(params || {})}`),
+
+  create: <T = unknown>(data: Record<string, unknown>) =>
+    typedFetch<T>('/api/tender-organizations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }),
+
+  delete: <T = unknown>(name: string) =>
+    typedFetch<T>(`/api/tender-organizations?name=${encodeURIComponent(name)}`, { method: 'DELETE' }),
+};
+
+/* ── LOI Tracker ──────────────────────────────────────────── */
+
+export const loiTrackerApi = {
+  getStatus: <T = unknown>(bid: string) =>
+    typedFetch<T>(`/api/loi-tracker${qs({ bid })}`),
+
+  create: <T = unknown>(data: { bid: string; department?: string; loi_expected_by?: string; remarks?: string }) =>
+    typedFetch<T>('/api/loi-tracker', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }),
+
+  markReceived: <T = unknown>(id: string, loi_received_date?: string, loi_document?: string) =>
+    typedFetch<T>(`/api/loi-tracker/${encodeURIComponent(id)}/received`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ loi_received_date, loi_document }),
+    }),
+};
+
+/* ── Presales Color Config ────────────────────────────────── */
+
+export const presalesConfigApi = {
+  get: <T = unknown>() =>
+    typedFetch<T>('/api/presales/color-config'),
+
+  update: <T = unknown>(slot: number, color: string, label: string, description?: string) =>
+    typedFetch<T>('/api/presales/color-config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slot, color, label, description }),
+    }),
+};
+
+/* ── Tender Convert ───────────────────────────────────────── */
+
+export const tenderConvertApi = {
+  convert: <T = unknown>(tender_name: string) =>
+    typedFetch<T>('/api/tender-convert', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tender_name }),
+    }),
+};
+
+/* ── Tender Workspace ─────────────────────────────────────── */
+
+export const tenderWorkspaceApi = {
+  get: <T = unknown>(id: string) =>
+    typedFetch<T>(`/api/tender-workspace/${encodeURIComponent(id)}`),
 };

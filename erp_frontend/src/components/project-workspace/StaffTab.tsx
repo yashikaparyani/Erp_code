@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { AlertCircle, Loader2, RefreshCcw, Users2 } from 'lucide-react';
+import { AlertCircle, Loader2, Plus, RefreshCcw, Users2, Trash2, X } from 'lucide-react';
 import { projectWorkspaceApi } from '@/lib/typedApi';
 
 type TeamMember = {
@@ -39,6 +39,9 @@ export default function StaffTab({ projectId }: { projectId: string }) {
   const [recentLogs, setRecentLogs] = useState<ManpowerLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showAdd, setShowAdd] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [memberForm, setMemberForm] = useState({ user: '', role_in_project: '', linked_site: '' });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -61,6 +64,37 @@ export default function StaffTab({ projectId }: { projectId: string }) {
 
   useEffect(() => { void load(); }, [load]);
 
+  const addMember = async () => {
+    if (!memberForm.user.trim() || !memberForm.role_in_project.trim()) return;
+    setAdding(true);
+    try {
+      await projectWorkspaceApi.createTeamMember({
+        linked_project: projectId,
+        user: memberForm.user.trim(),
+        role_in_project: memberForm.role_in_project.trim(),
+        linked_site: memberForm.linked_site.trim() || undefined,
+        is_active: true,
+      });
+      setShowAdd(false);
+      setMemberForm({ user: '', role_in_project: '', linked_site: '' });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add team member');
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const removeMember = async (name: string) => {
+    if (!confirm('Remove this team member from the project?')) return;
+    try {
+      await projectWorkspaceApi.deleteTeamMember(name);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to remove team member');
+    }
+  };
+
   const activeMembers = team.filter((m) => m.is_active);
   const inactiveMembers = team.filter((m) => !m.is_active);
 
@@ -80,9 +114,12 @@ export default function StaffTab({ projectId }: { projectId: string }) {
         </div>
       )}
 
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-end gap-2">
         <button onClick={() => void load()} className="btn btn-secondary text-xs">
           <RefreshCcw className="h-3.5 w-3.5" /> Refresh
+        </button>
+        <button onClick={() => setShowAdd(true)} className="btn btn-primary text-xs">
+          <Plus className="h-3.5 w-3.5" /> Add Member
         </button>
       </div>
 
@@ -113,6 +150,7 @@ export default function StaffTab({ projectId }: { projectId: string }) {
                   <th>Role</th>
                   <th>Site</th>
                   <th>Since</th>
+                  <th className="text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -122,6 +160,11 @@ export default function StaffTab({ projectId }: { projectId: string }) {
                     <td>{m.role_in_project || '—'}</td>
                     <td>{m.linked_site || 'All sites'}</td>
                     <td className="text-xs text-[var(--text-muted)]">{m.start_date || '—'}</td>
+                    <td className="text-right">
+                      <button onClick={() => void removeMember(m.name)} className="text-gray-400 hover:text-rose-600" title="Remove">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -190,6 +233,38 @@ export default function StaffTab({ projectId }: { projectId: string }) {
             </table>
           </div>
         </section>
+      )}
+
+      {/* Add member modal */}
+      {showAdd && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">Add Team Member</h3>
+              <button onClick={() => setShowAdd(false)} className="text-gray-400 hover:text-gray-600"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">User / Email *</label>
+                <input className="input" placeholder="e.g. john@company.com" value={memberForm.user} onChange={(e) => setMemberForm((p) => ({ ...p, user: e.target.value }))} />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Role in Project *</label>
+                <input className="input" placeholder="e.g. Site Engineer, Supervisor" value={memberForm.role_in_project} onChange={(e) => setMemberForm((p) => ({ ...p, role_in_project: e.target.value }))} />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Linked Site (optional)</label>
+                <input className="input" placeholder="Site name" value={memberForm.linked_site} onChange={(e) => setMemberForm((p) => ({ ...p, linked_site: e.target.value }))} />
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button onClick={() => setShowAdd(false)} className="btn btn-secondary">Cancel</button>
+              <button onClick={() => void addMember()} disabled={adding || !memberForm.user.trim() || !memberForm.role_in_project.trim()} className="btn btn-primary">
+                {adding ? 'Adding...' : 'Add Member'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Clock3, FileSpreadsheet, IndianRupee, RefreshCw } from 'lucide-react';
+import { CheckCircle2, Clock3, FileSpreadsheet, IndianRupee, RefreshCw, Plus, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import ActionModal from '@/components/ui/ActionModal';
 
@@ -61,6 +61,9 @@ export default function EngineeringBoqPage() {
   const [actionLoadingName, setActionLoadingName] = useState<string | null>(null);
   const [rejectTarget, setRejectTarget] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [showCreate, setShowCreate] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createForm, setCreateForm] = useState({ linked_tender: '', linked_project: '', description: '' });
 
   const hasAnyRole = (...roles: string[]) => {
     const assigned = new Set(currentUser?.roles || []);
@@ -123,22 +126,32 @@ export default function EngineeringBoqPage() {
     [boqs],
   );
 
-  const runBoqAction = async (boqName: string, action: 'submit' | 'approve' | 'reject' | 'revise', extra?: Record<string, string>) => {
+  const runBoqAction = async (boqName: string, action: 'submit' | 'approve' | 'reject' | 'revise' | 'delete', extra?: Record<string, string>) => {
     setActionLoadingName(boqName);
     setError('');
 
     try {
-      let payload: Record<string, string> = { action, ...extra };
+      if (action === 'delete') {
+        const response = await fetch('/api/ops', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ method: 'delete_boq', args: { name: boqName } }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.success) throw new Error(result.message || 'Failed to delete BOQ');
+      } else {
+        let payload: Record<string, string> = { action, ...extra };
 
-      const response = await fetch(`/api/boqs/${encodeURIComponent(boqName)}/actions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const result = await response.json().catch(() => ({}));
+        const response = await fetch(`/api/boqs/${encodeURIComponent(boqName)}/actions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const result = await response.json().catch(() => ({}));
 
-      if (!response.ok || !result.success) {
-        throw new Error(result.message || `Failed to ${action} BOQ`);
+        if (!response.ok || !result.success) {
+          throw new Error(result.message || `Failed to ${action} BOQ`);
+        }
       }
 
       await loadData(false);
@@ -147,6 +160,23 @@ export default function EngineeringBoqPage() {
     } finally {
       setActionLoadingName(null);
     }
+  };
+
+  const handleCreateBoq = async () => {
+    if (!createForm.linked_tender.trim()) { setError('Linked Tender is required.'); return; }
+    setCreating(true); setError('');
+    try {
+      const res = await fetch('/api/boqs', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(createForm),
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok || !result.success) throw new Error(result.message || 'Failed to create BOQ');
+      setShowCreate(false);
+      setCreateForm({ linked_tender: '', linked_project: '', description: '' });
+      await loadData(false);
+    } catch (e) { setError(e instanceof Error ? e.message : 'Failed to create BOQ'); }
+    finally { setCreating(false); }
   };
 
   return (
@@ -162,6 +192,15 @@ export default function EngineeringBoqPage() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
+              {canCreateOrSubmit && (
+                <button
+                  onClick={() => setShowCreate(true)}
+                  className="btn bg-emerald-400 text-slate-900 hover:bg-emerald-300 border-0"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create BOQ
+                </button>
+              )}
               <Link href="/engineering" className="btn bg-white/10 text-white hover:bg-white/20 border-0">
                 Open Engineering Hub
               </Link>
@@ -428,6 +467,15 @@ export default function EngineeringBoqPage() {
                             Revise
                           </button>
                         ) : null}
+                        {(boq.status === 'DRAFT' || boq.status === 'REJECTED') && canCreateOrSubmit ? (
+                          <button
+                            className="text-sm font-medium text-gray-500 hover:text-red-600"
+                            disabled={actionLoadingName === boq.name}
+                            onClick={() => { if (confirm(`Delete BOQ ${boq.name}?`)) runBoqAction(boq.name, 'delete'); }}
+                          >
+                            Delete
+                          </button>
+                        ) : null}
                         {!canCreateOrSubmit && !canApproveReject ? (
                           <span className="text-xs text-gray-500">View only</span>
                         ) : null}
@@ -455,6 +503,25 @@ export default function EngineeringBoqPage() {
         }}
         onCancel={() => setRejectTarget(null)}
       />
+
+      {/* Create BOQ modal */}
+      {showCreate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b"><h2 className="text-lg font-semibold">Create BOQ</h2><button className="p-2 rounded-lg hover:bg-gray-100" onClick={() => setShowCreate(false)}><X className="w-5 h-5" /></button></div>
+            <div className="p-6 grid grid-cols-1 gap-4">
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Linked Tender *</label><input className="input" value={createForm.linked_tender} onChange={e => setCreateForm(p => ({ ...p, linked_tender: e.target.value }))} placeholder="Tender ID" /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Linked Project</label><input className="input" value={createForm.linked_project} onChange={e => setCreateForm(p => ({ ...p, linked_project: e.target.value }))} placeholder="Project ID" /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Description</label><textarea className="input min-h-20" value={createForm.description} onChange={e => setCreateForm(p => ({ ...p, description: e.target.value }))} placeholder="BOQ description…" /></div>
+            </div>
+            {error && <p className="px-6 pb-2 text-sm text-red-600">{error}</p>}
+            <div className="flex justify-end gap-2 px-6 py-4 border-t">
+              <button className="btn btn-secondary" onClick={() => setShowCreate(false)}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleCreateBoq} disabled={creating}>{creating ? 'Creating…' : 'Create BOQ'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

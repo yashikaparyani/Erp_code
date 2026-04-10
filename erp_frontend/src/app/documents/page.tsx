@@ -81,12 +81,18 @@ const DOC_STAGES = ['All', 'Survey', 'BOM_BOQ', 'Drawing', 'Indent', 'Quotation_
 const DOC_STATUSES = ['Draft', 'Submitted', 'Assigned', 'Accepted', 'In Review', 'Blocked', 'Escalated', 'Approved', 'Rejected', 'Closed'] as const;
 
 function getFileExtension(fileUrl?: string) {
-  const cleaned = (fileUrl || '').split('?', 1)[0].trim().toLowerCase();
+  let source = (fileUrl || '').trim().toLowerCase();
+  if (source.startsWith('/api/files?')) {
+    const query = source.split('?', 2)[1] || '';
+    const params = new URLSearchParams(query);
+    source = params.get('url') || source;
+  }
+  const cleaned = source.split('?', 1)[0].trim().toLowerCase();
   return cleaned.includes('.') ? cleaned.split('.').pop() || '' : '';
 }
 
 function isPreviewable(fileUrl?: string) {
-  return ['pdf', 'jpg', 'jpeg'].includes(getFileExtension(fileUrl));
+  return ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'gif'].includes(getFileExtension(fileUrl));
 }
 
 function getFolderAccent(label: string) {

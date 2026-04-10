@@ -157,15 +157,29 @@ export default function IndentsPage() {
           { name: 'material_request_type', label: 'Type', type: 'select', defaultValue: 'Purchase', options: [{ value: 'Purchase', label: 'Purchase' }, { value: 'Material Transfer', label: 'Material Transfer' }, { value: 'Material Issue', label: 'Material Issue' }] },
           { name: 'project', label: 'Project', type: 'link', linkEntity: 'project' as const },
           { name: 'set_warehouse', label: 'Warehouse', type: 'link', linkEntity: 'warehouse' as const },
+          { name: 'item_code', label: 'Item', type: 'link', linkEntity: 'item' as const, required: true },
+          { name: 'qty', label: 'Required Qty', type: 'number', required: true, defaultValue: '1' },
           { name: 'schedule_date', label: 'Required By', type: 'date' },
         ]}
         busy={creating}
         confirmLabel="Create Indent"
         onConfirm={async (vals) => {
+          if (!vals.item_code?.trim()) { setError('Item is required'); return; }
           setCreating(true);
           setError('');
           try {
-            const res = await fetch('/api/indents', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(vals) });
+            const payload = {
+              material_request_type: vals.material_request_type,
+              project: vals.project?.trim() || undefined,
+              set_warehouse: vals.set_warehouse?.trim() || undefined,
+              schedule_date: vals.schedule_date || undefined,
+              items: [{
+                item_code: vals.item_code.trim(),
+                qty: Number(vals.qty || '1') || 1,
+                schedule_date: vals.schedule_date || undefined,
+              }],
+            };
+            const res = await fetch('/api/indents', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             const p = await res.json().catch(() => ({}));
             if (!res.ok || !p.success) throw new Error(p.message || 'Failed');
             setShowCreate(false);

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { FRAPPE_URL } from '../../_lib/frappe';
+import { FRAPPE_URL, applySessionContextCookies } from '../../_lib/frappe';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,10 +29,12 @@ export async function GET(request: NextRequest) {
     }
 
     const result = payload?.message ?? payload;
-    return NextResponse.json({
+    const nextResponse = NextResponse.json({
       success: true,
       data: result.data,
     });
+    applySessionContextCookies(nextResponse, result.data);
+    return nextResponse;
   } catch (error) {
     return NextResponse.json(
       { success: false, message: error instanceof Error ? error.message : 'Unauthenticated' },

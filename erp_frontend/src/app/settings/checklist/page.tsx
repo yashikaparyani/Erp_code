@@ -1,269 +1,279 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { Plus, Edit2, Trash2, ChevronsLeft, ChevronsRight, X } from 'lucide-react';
+
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Edit2, Plus, Search, Trash2 } from 'lucide-react';
+import RegisterPage from '@/components/shells/RegisterPage';
+import FormModal from '@/components/shells/FormModal';
 import ActionModal from '@/components/ui/ActionModal';
 
-interface CheckListData {
-  id: string;
-  checkListName: string;
-  createdBy: string;
-  createdDateTime: string;
-}
+type ChecklistRow = {
+  name: string;
+  checklist_name: string;
+  checklist_type?: string;
+  description?: string;
+  status?: string;
+  owner?: string;
+  creation?: string;
+  modified?: string;
+};
+
+type ModalMode = 'create' | 'edit' | null;
 
 export default function CheckListPage() {
-  const [data, setData] = useState<CheckListData[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [showModal, setShowModal] = useState(false);
-  const [newCheckList, setNewCheckList] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const [actionError, setActionError] = useState('');
+  const [rows, setRows] = useState<ChecklistRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [query, setQuery] = useState('');
+  const [modalMode, setModalMode] = useState<ModalMode>(null);
+  const [editing, setEditing] = useState<ChecklistRow | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<ChecklistRow | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
-  const loadChecklists = async () => {
-    setIsLoading(true);
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError('');
     try {
       const response = await fetch('/api/tender-checklists');
-      const payload = await response.json();
-      if (payload.success) {
-        setData((payload.data || []).map((row: any) => ({
-          id: row.name,
-          checkListName: row.checklist_name,
-          createdBy: row.owner || 'System',
-          createdDateTime: row.creation ? new Date(row.creation).toLocaleDateString('en-GB').replace(/\//g, '-') : '-',
-        })));
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || payload.success === false) {
+        throw new Error(payload.message || 'Failed to load checklists');
       }
-    } catch (error) {
-      console.error('Failed to fetch checklists:', error);
+      setRows(Array.isArray(payload.data) ? payload.data : []);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : 'Failed to load checklists');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    loadChecklists();
   }, []);
 
-  const totalPages = Math.ceil(data.length / itemsPerPage) || 1;
+  useEffect(() => {
+    void load();
+  }, [load]);
 
-  const filteredData = data.filter(item =>
-    item.checkListName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredRows = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) return rows;
+    return rows.filter((row) =>
+      [row.checklist_name, row.checklist_type, row.owner, row.status]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(normalized)),
+    );
+  }, [query, rows]);
 
-  const handleCreate = () => {
-    if (newCheckList.trim()) {
-      (async () => {
-        try {
-          const response = await fetch('/api/tender-checklists', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              checklist_name: newCheckList,
-              checklist_type: 'Compliance',
-              status: 'Active',
-              items: [],
-            }),
-          });
-          const payload = await response.json();
-          if (!payload.success) {
-            setActionError(payload.message || 'Failed to create checklist');
-            return;
-          }
-          setNewCheckList('');
-          setShowModal(false);
-          loadChecklists();
-        } catch (error) {
-          console.error('Failed to create checklist:', error);
-          setActionError('Failed to create checklist');
-        }
-      })();
+  const stats = useMemo(() => ([
+    { label: 'Total Templates', value: rows.length },
+    { label: 'Active', value: rows.filter((row) => (row.status || '').toLowerCase() === 'active').length, variant: 'success' as const },
+    { label: 'Compliance', value: rows.filter((row) => (row.checklist_type || '').toLowerCase() === 'compliance').length, variant: 'info' as const },
+    { label: 'Filtered', value: filteredRows.length, variant: query ? 'warning' as const : undefined },
+  ]), [filteredRows.length, query, rows]);
+
+  const openCreate = () => {
+    setEditing(null);
+    setModalMode('create');
+  };
+
+  const openEdit = (row: ChecklistRow) => {
+    setEditing(row);
+    setModalMode('edit');
+  };
+
+  const saveChecklist = async (values: Record<string, string>) => {
+    setSaving(true);
+    setError('');
+    try {
+      const payload = {
+        checklist_name: (values.checklist_name || '').trim(),
+        checklist_type: values.checklist_type || 'Compliance',
+        description: (values.description || '').trim(),
+        status: values.status || 'Active',
+        items: editing?.name ? undefined : [],
+      };
+      const response = await fetch(
+        editing?.name ? `/api/tender-checklists/${encodeURIComponent(editing.name)}` : '/api/tender-checklists',
+        {
+          method: editing?.name ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        },
+      );
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.success === false) {
+        throw new Error(result.message || 'Failed to save checklist');
+      }
+      setModalMode(null);
+      setEditing(null);
+      await load();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Failed to save checklist');
+      throw saveError;
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleDelete = (id: string) => {
-    (async () => {
-        try {
-          const response = await fetch(`/api/tender-checklists/${encodeURIComponent(id)}`, {
-            method: 'DELETE',
-          });
-          const payload = await response.json();
-          if (!payload.success) {
-            setActionError(payload.message || 'Failed to delete checklist');
-            return;
-          }
-          loadChecklists();
-        } catch (error) {
-          console.error('Failed to delete checklist:', error);
-          setActionError('Failed to delete checklist');
-        }
-      })();
+  const deleteChecklist = async () => {
+    if (!deleteTarget?.name) return;
+    setDeleteBusy(true);
+    setError('');
+    try {
+      const response = await fetch(`/api/tender-checklists/${encodeURIComponent(deleteTarget.name)}`, {
+        method: 'DELETE',
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.success === false) {
+        throw new Error(result.message || 'Failed to delete checklist');
+      }
+      setDeleteTarget(null);
+      await load();
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : 'Failed to delete checklist');
+    } finally {
+      setDeleteBusy(false);
+    }
   };
 
   return (
-    <div className="p-3 sm:p-4 md:p-6 bg-gray-50 min-h-screen">
-      {actionError && (
-        <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700 flex items-center justify-between">
-          {actionError}
-          <button onClick={() => setActionError('')} className="ml-2 font-medium underline">Dismiss</button>
-        </div>
-      )}
-      {/* Header */}
-      <div className="mb-4 sm:mb-6">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Check List</h1>
-        <p className="text-gray-500 text-xs sm:text-sm mt-1">Manage process checklists</p>
-      </div>
-
-      {/* Action Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-        <div></div>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          <button
-            onClick={() => setShowModal(true)}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-[#1e6b87] text-white rounded-lg hover:bg-[#185a73] transition-colors text-sm font-medium"
-          >
+    <>
+      <RegisterPage
+        title="Checklist Templates"
+        description="Govern tender and presales checklist templates with the same design language as the rest of the app."
+        loading={loading}
+        error={error}
+        empty={!loading && filteredRows.length === 0}
+        emptyTitle="No checklist templates"
+        emptyDescription={query ? 'No templates match this search.' : 'Create the first checklist template to start governing presales readiness.'}
+        onRetry={load}
+        stats={stats}
+        headerActions={(
+          <button className="btn btn-primary" onClick={openCreate}>
             <Plus className="w-4 h-4" />
-            Add Check List
+            New Checklist
           </button>
-          <input
-            type="text"
-            placeholder="Search..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-48"
-          />
-        </div>
-      </div>
-
-      {/* Data Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-[#1e6b87] text-white">
-                <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider w-16">#</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider">Check List Name</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider">Created By</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider">Created Date & Time</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider w-28">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
-                    Loading checklists...
-                  </td>
-                </tr>
-              ) : filteredData.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
-                    No data found.
-                  </td>
-                </tr>
-              ) : (
-                filteredData.map((row, index) => (
-                  <tr key={row.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-900 text-center">{index + 1}</td>
-                    <td className="px-4 py-3 text-sm text-blue-600 text-center font-medium">{row.checkListName}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900 text-center">{row.createdBy}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600 text-center">{row.createdDateTime}</td>
-                    <td className="px-4 py-3 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <button className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded">
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button 
-                          onClick={() => setDeleteTarget(row.id)}
-                          className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        <div className="px-4 py-3 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <span>Show</span>
-            <select
-              value={itemsPerPage}
-              onChange={(e) => setItemsPerPage(Number(e.target.value))}
-              className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-            </select>
-            <span>Page {currentPage} of {totalPages}</span>
+        )}
+        filterBar={(
+          <div className="relative min-w-[220px]">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
+            <input
+              type="text"
+              placeholder="Search template, owner, type…"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              className="input pl-9"
+            />
           </div>
-          
-          <div className="flex items-center gap-1">
-            <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-50 disabled:cursor-not-allowed">
-              <ChevronsLeft className="w-4 h-4" />
-            </button>
-            <button onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1} className="px-2 py-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-50 disabled:cursor-not-allowed text-sm">
-              Prev
-            </button>
-            <span className="px-3 py-1 bg-[#1e6b87] text-white rounded text-sm font-medium">{currentPage}</span>
-            <button onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} disabled={currentPage === totalPages} className="px-2 py-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-50 disabled:cursor-not-allowed text-sm">
-              Next
-            </button>
-            <button onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-50 disabled:cursor-not-allowed">
-              <ChevronsRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </div>
+        )}
+      >
+        <div className="grid gap-4 lg:grid-cols-2">
+          {filteredRows.map((row) => (
+            <div key={row.name} className="card">
+              <div className="card-body space-y-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-[var(--text-main)]">{row.checklist_name}</div>
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      <span className="badge badge-info">{row.checklist_type || 'General'}</span>
+                      <span className={`badge ${(row.status || '').toLowerCase() === 'active' ? 'badge-green' : 'badge-gray'}`}>
+                        {row.status || 'Draft'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => openEdit(row)}
+                      className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-blue-700"
+                      title="Edit checklist"
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => setDeleteTarget(row)}
+                      className="rounded-lg p-2 text-slate-500 transition hover:bg-rose-50 hover:text-rose-700"
+                      title="Delete checklist"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
 
-      {/* Add Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowModal(false)} />
-          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-800">Add Check List</h3>
-              <button onClick={() => setShowModal(false)} className="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Check List Name</label>
-              <input
-                type="text"
-                value={newCheckList}
-                onChange={(e) => setNewCheckList(e.target.value)}
-                placeholder="Enter check list name"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div className="flex items-center justify-end gap-3 px-4 py-3 border-t border-gray-200">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 text-sm font-medium">Cancel</button>
-              <button onClick={handleCreate} className="px-4 py-2 bg-[#1e6b87] text-white rounded-lg hover:bg-[#185a73] text-sm font-medium">Create</button>
-            </div>
-          </div>
-        </div>
-      )}
+                <p className="text-sm leading-6 text-[var(--text-muted)]">
+                  {row.description || 'No description has been added yet. Use this template to structure tender readiness and submission checks.'}
+                </p>
 
-      <ActionModal
-        open={deleteTarget !== null}
-        title="Delete Checklist"
-        description="Are you sure you want to delete this checklist?"
-        confirmLabel="Delete"
-        variant="danger"
-        fields={[]}
-        onCancel={() => setDeleteTarget(null)}
-        onConfirm={async () => {
-          if (deleteTarget) handleDelete(deleteTarget);
-          setDeleteTarget(null);
+                <div className="grid grid-cols-2 gap-3 text-xs text-[var(--text-muted)] sm:grid-cols-4">
+                  <div>
+                    <div className="font-semibold uppercase tracking-[0.18em]">Template</div>
+                    <div className="mt-1 text-[var(--text-main)]">{row.name}</div>
+                  </div>
+                  <div>
+                    <div className="font-semibold uppercase tracking-[0.18em]">Owner</div>
+                    <div className="mt-1 text-[var(--text-main)]">{row.owner || 'System'}</div>
+                  </div>
+                  <div>
+                    <div className="font-semibold uppercase tracking-[0.18em]">Created</div>
+                    <div className="mt-1 text-[var(--text-main)]">{row.creation ? new Date(row.creation).toLocaleDateString('en-GB') : '-'}</div>
+                  </div>
+                  <div>
+                    <div className="font-semibold uppercase tracking-[0.18em]">Updated</div>
+                    <div className="mt-1 text-[var(--text-main)]">{row.modified ? new Date(row.modified).toLocaleDateString('en-GB') : '-'}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </RegisterPage>
+
+      <FormModal
+        open={modalMode !== null}
+        title={modalMode === 'edit' ? 'Edit Checklist Template' : 'Create Checklist Template'}
+        description="Keep checklist metadata structured and professional so the settings module feels like the rest of the product."
+        size="lg"
+        busy={saving}
+        confirmLabel={modalMode === 'edit' ? 'Save Changes' : 'Create Template'}
+        fields={[
+          { name: 'checklist_name', label: 'Checklist Name', type: 'text', required: true, defaultValue: editing?.checklist_name || '' },
+          {
+            name: 'checklist_type',
+            label: 'Checklist Type',
+            type: 'select',
+            defaultValue: editing?.checklist_type || 'Compliance',
+            options: [
+              { value: 'Compliance', label: 'Compliance' },
+              { value: 'Technical', label: 'Technical' },
+              { value: 'Commercial', label: 'Commercial' },
+              { value: 'Documentation', label: 'Documentation' },
+            ],
+          },
+          {
+            name: 'status',
+            label: 'Status',
+            type: 'select',
+            defaultValue: editing?.status || 'Active',
+            options: [
+              { value: 'Active', label: 'Active' },
+              { value: 'Inactive', label: 'Inactive' },
+            ],
+          },
+          { name: 'description', label: 'Description', type: 'textarea', defaultValue: editing?.description || '', placeholder: 'Describe when this checklist should be used and what it governs.' },
+        ]}
+        onConfirm={saveChecklist}
+        onCancel={() => {
+          setModalMode(null);
+          setEditing(null);
         }}
       />
-    </div>
+
+      <ActionModal
+        open={!!deleteTarget}
+        title="Delete Checklist Template"
+        description={`Delete checklist template ${deleteTarget?.checklist_name || ''}?`}
+        variant="danger"
+        confirmLabel="Delete"
+        busy={deleteBusy}
+        onConfirm={deleteChecklist}
+        onCancel={() => setDeleteTarget(null)}
+      />
+    </>
   );
 }

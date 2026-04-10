@@ -15,6 +15,7 @@ import {
   ChevronRight,
   X,
 } from 'lucide-react';
+import LinkPicker from '@/components/ui/LinkPicker';
 
 type OnboardingRow = {
   name: string;
@@ -158,6 +159,14 @@ function Section({
       </div>
       <div className="card-body">{children}</div>
     </div>
+  );
+}
+
+function SectionLink({ href, label }: { href: string; label: string }) {
+  return (
+    <Link href={href} className="text-xs font-semibold text-[#1e6b87] hover:text-[#185a73]">
+      {label}
+    </Link>
   );
 }
 
@@ -407,7 +416,11 @@ export default function HRPage() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
-        <Section title="Recent Onboardings" subtitle="Latest employee intake and review status">
+        <Section
+          title="Recent Onboardings"
+          subtitle="Latest employee intake and review status"
+          action={<SectionLink href="/hr/onboarding" label="Open onboarding register" />}
+        >
           <div className="overflow-x-auto">
             <table className="data-table">
               <thead>
@@ -438,7 +451,12 @@ export default function HRPage() {
         </Section>
 
         <Section title="Recent Attendance" subtitle="Field and office attendance activity"
-          action={<button className="btn-primary text-xs flex items-center gap-1" onClick={() => setShowAttModal(true)}><Plus className="w-3 h-3" /> Add</button>}
+          action={
+            <div className="flex items-center gap-3">
+              <SectionLink href="/hr/attendance" label="Manage attendance" />
+              <button className="btn-primary text-xs flex items-center gap-1" onClick={() => setShowAttModal(true)}><Plus className="w-3 h-3" /> Add</button>
+            </div>
+          }
         >
           <div className="overflow-x-auto">
             <table className="data-table">
@@ -472,7 +490,9 @@ export default function HRPage() {
 
         <Section title="Travel and Overtime" subtitle="Recent movement approvals and extra hours"
           action={
-            <div className="flex gap-2">
+            <div className="flex items-center gap-3">
+              <SectionLink href="/hr/travel-logs" label="Travel register" />
+              <SectionLink href="/hr/overtime" label="Overtime register" />
               <button className="btn-primary text-xs flex items-center gap-1" onClick={() => setShowTravelModal(true)}><Plus className="w-3 h-3" /> Travel</button>
               <button className="btn-primary text-xs flex items-center gap-1" onClick={() => setShowOtModal(true)}><Plus className="w-3 h-3" /> Overtime</button>
             </div>
@@ -522,7 +542,16 @@ export default function HRPage() {
           </div>
         </Section>
 
-        <Section title="Compliance and Field Visits" subtitle="PF/ESIC bookkeeping and technician movement">
+        <Section
+          title="Compliance and Field Visits"
+          subtitle="PF/ESIC bookkeeping and technician movement"
+          action={
+            <div className="flex items-center gap-3">
+              <SectionLink href="/hr/reports" label="Compliance reports" />
+              <SectionLink href="/hr/technician-visits" label="Visit register" />
+            </div>
+          }
+        >
           <div className="space-y-4">
             <div>
               <h4 className="text-sm font-semibold text-gray-900 mb-2">Statutory Ledger</h4>
@@ -579,7 +608,7 @@ export default function HRPage() {
             </div>
             <div className="p-5 space-y-3">
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Employee *</label>
-                <input className="input w-full" value={attForm.employee} onChange={e => setAttForm({ ...attForm, employee: e.target.value })} /></div>
+                <LinkPicker entity="employee" value={attForm.employee} onChange={value => setAttForm({ ...attForm, employee: value })} placeholder="Search employee…" /></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
                 <input type="date" className="input w-full" value={attForm.attendance_date} onChange={e => setAttForm({ ...attForm, attendance_date: e.target.value })} /></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
@@ -607,7 +636,7 @@ export default function HRPage() {
             </div>
             <div className="p-5 space-y-3">
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Employee *</label>
-                <input className="input w-full" value={travelForm.employee} onChange={e => setTravelForm({ ...travelForm, employee: e.target.value })} /></div>
+                <LinkPicker entity="employee" value={travelForm.employee} onChange={value => setTravelForm({ ...travelForm, employee: value })} placeholder="Search employee…" /></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Travel Date *</label>
                 <input type="date" className="input w-full" value={travelForm.travel_date} onChange={e => setTravelForm({ ...travelForm, travel_date: e.target.value })} /></div>
               <div className="grid grid-cols-2 gap-3">
@@ -637,7 +666,7 @@ export default function HRPage() {
             </div>
             <div className="p-5 space-y-3">
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Employee *</label>
-                <input className="input w-full" value={otForm.employee} onChange={e => setOtForm({ ...otForm, employee: e.target.value })} /></div>
+                <LinkPicker entity="employee" value={otForm.employee} onChange={value => setOtForm({ ...otForm, employee: value })} placeholder="Search employee…" /></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
                 <input type="date" className="input w-full" value={otForm.overtime_date} onChange={e => setOtForm({ ...otForm, overtime_date: e.target.value })} /></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Hours *</label>

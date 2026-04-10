@@ -5,7 +5,14 @@ import { Download } from 'lucide-react';
 import RegisterPage from '@/components/shells/RegisterPage';
 import { callOps, formatCurrency } from '@/components/finance/fin-helpers';
 
-type Row = { customer?: string; current?: number; '30'?: number; '60'?: number; '90'?: number; above_90?: number; total?: number };
+type Row = {
+  customer?: string;
+  bucket_0_30?: number;
+  bucket_31_60?: number;
+  bucket_61_90?: number;
+  bucket_90_plus?: number;
+  total?: number;
+};
 
 export default function ReceivableAgingPage() {
   const [rows, setRows] = useState<Row[]>([]);
@@ -24,8 +31,8 @@ export default function ReceivableAgingPage() {
   const sum = (k: keyof Row) => rows.reduce((t, r) => t + Number(r[k] || 0), 0);
 
   const exportCSV = () => {
-    const hdr = 'Customer,Current,30 Days,60 Days,90 Days,>90 Days,Total';
-    const csv = [hdr, ...rows.map(r => [r.customer, r.current, r['30'], r['60'], r['90'], r.above_90, r.total].join(','))].join('\n');
+    const hdr = 'Customer,0-30 Days,31-60 Days,61-90 Days,>90 Days,Total';
+    const csv = [hdr, ...rows.map(r => [r.customer, r.bucket_0_30, r.bucket_31_60, r.bucket_61_90, r.bucket_90_plus, r.total].join(','))].join('\n');
     const a = document.createElement('a'); a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv); a.download = `receivable_aging_${new Date().toISOString().slice(0,10)}.csv`; a.click();
   };
 
@@ -34,26 +41,25 @@ export default function ReceivableAgingPage() {
       title="Receivable Aging" description="Outstanding exposure by customer and aging bucket"
       loading={loading} error={error} onRetry={load} empty={!loading && !rows.length}
       stats={[
-        { label: 'Current', value: formatCurrency(sum('current')) },
-        { label: '30 Days', value: formatCurrency(sum('30')) },
-        { label: '60 Days', value: formatCurrency(sum('60')), variant: 'warning' },
-        { label: '90+ Days', value: formatCurrency(sum('90') + sum('above_90')), variant: 'error' },
+        { label: '0-30 Days', value: formatCurrency(sum('bucket_0_30')) },
+        { label: '31-60 Days', value: formatCurrency(sum('bucket_31_60')) },
+        { label: '61-90 Days', value: formatCurrency(sum('bucket_61_90')), variant: 'warning' },
+        { label: '90+ Days', value: formatCurrency(sum('bucket_90_plus')), variant: 'error' },
       ]}
       headerActions={<button className="btn btn-secondary" onClick={exportCSV}><Download className="h-4 w-4" />Export CSV</button>}
     >
       <div className="card">
         <div className="overflow-x-auto">
           <table className="data-table">
-            <thead><tr><th>Customer</th><th className="text-right">Current</th><th className="text-right">30 Days</th><th className="text-right">60 Days</th><th className="text-right">90 Days</th><th className="text-right">&gt;90 Days</th><th className="text-right">Total</th></tr></thead>
+            <thead><tr><th>Customer</th><th className="text-right">0-30 Days</th><th className="text-right">31-60 Days</th><th className="text-right">61-90 Days</th><th className="text-right">&gt;90 Days</th><th className="text-right">Total</th></tr></thead>
             <tbody>
               {rows.map((r, i) => (
                 <tr key={`${r.customer}-${i}`}>
                   <td>{r.customer || '-'}</td>
-                  <td className="text-right">{formatCurrency(r.current)}</td>
-                  <td className="text-right">{formatCurrency(r['30'])}</td>
-                  <td className="text-right">{formatCurrency(r['60'])}</td>
-                  <td className="text-right">{formatCurrency(r['90'])}</td>
-                  <td className="text-right">{formatCurrency(r.above_90)}</td>
+                  <td className="text-right">{formatCurrency(r.bucket_0_30)}</td>
+                  <td className="text-right">{formatCurrency(r.bucket_31_60)}</td>
+                  <td className="text-right">{formatCurrency(r.bucket_61_90)}</td>
+                  <td className="text-right">{formatCurrency(r.bucket_90_plus)}</td>
                   <td className="text-right font-semibold">{formatCurrency(r.total)}</td>
                 </tr>
               ))}

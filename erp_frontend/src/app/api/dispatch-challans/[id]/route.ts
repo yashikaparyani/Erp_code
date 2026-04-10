@@ -40,3 +40,20 @@ export async function PATCH(
     );
   }
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await params;
+    const challanName = decodeURIComponent(id);
+    const result = await callFrappeMethod('delete_dispatch_challan', { name: challanName }, request);
+    return NextResponse.json({ success: true, message: result.message || 'Deleted' });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, message: error instanceof Error ? error.message : 'Failed to delete dispatch challan' },
+      { status: 500 },
+    );
+  }
+}

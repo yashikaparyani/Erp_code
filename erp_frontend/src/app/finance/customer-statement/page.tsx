@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Search } from 'lucide-react';
 import RegisterPage from '@/components/shells/RegisterPage';
 import { callOps } from '@/components/finance/fin-helpers';
+import LinkPicker from '@/components/ui/LinkPicker';
 
 type Entry = { date?: string; type?: string; reference?: string; debit?: number; credit?: number; balance?: number };
 type Statement = { customer?: string; entries?: Entry[]; summary?: Record<string, number> };
@@ -38,7 +39,13 @@ export default function CustomerStatementPage() {
       <div className="card mb-6">
         <div className="card-body">
           <div className="flex flex-col gap-3 sm:flex-row">
-            <input className="input flex-1" placeholder="Customer name from GE Party" value={customer} onChange={e => setCustomer(e.target.value)} />
+            <LinkPicker
+              entity="customer"
+              value={customer}
+              onChange={setCustomer}
+              placeholder="Search customer from GE Party…"
+              className="flex-1"
+            />
             <button className="btn btn-primary" onClick={run} disabled={loading}><Search className="h-4 w-4" />{loading ? 'Loading...' : 'Load Statement'}</button>
           </div>
           {error && <div className="mt-3 text-sm text-red-600">{error}</div>}

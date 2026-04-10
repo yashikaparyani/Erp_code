@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Eye, Plus, X } from 'lucide-react';
 import RegisterPage from '@/components/shells/RegisterPage';
 import ActionModal from '@/components/ui/ActionModal';
+import LinkPicker from '@/components/ui/LinkPicker';
 import {
   callApi, formatCurrency, badge, COST_SHEET_BADGES, hasAnyRole,
 } from '@/components/finance/fin-helpers';
@@ -93,7 +94,21 @@ export default function FinanceCostingPage() {
         { label: 'Gross Margin', value: formatCurrency(variance), variant: variance >= 0 ? 'success' : 'error' },
         { label: 'Cost Sheets', value: stats.total ?? rows.length },
       ]}
-      headerActions={<button className="btn btn-primary" onClick={() => { setForm(INIT); setShowCreate(true); }}><Plus className="w-4 h-4" /> New Cost Sheet</button>}
+      headerActions={
+        <div className="flex gap-2">
+          <button className="btn btn-secondary" onClick={async () => {
+            const boq = prompt('Enter BOQ ID to create cost sheet from:');
+            if (!boq) return;
+            setBusyName('_from_boq'); setError('');
+            try {
+              await callApi('/api/ops', { method: 'POST', body: { method: 'create_cost_sheet_from_boq', args: { boq_name: boq } } });
+              await load();
+            } catch (e) { setError(e instanceof Error ? e.message : 'Failed'); }
+            setBusyName(null);
+          }} disabled={busyName === '_from_boq'}>From BOQ</button>
+          <button className="btn btn-primary" onClick={() => { setForm(INIT); setShowCreate(true); }}><Plus className="w-4 h-4" /> New Cost Sheet</button>
+        </div>
+      }
     >
       <div className="card">
         <div className="card-header"><h3 className="font-semibold text-gray-900">Cost Sheet Register</h3></div>
@@ -122,6 +137,7 @@ export default function FinanceCostingPage() {
                         <button disabled={busyName===r.name} onClick={() => setReasonTarget({ name: r.name, action: 'reject' })} className="text-red-600 text-sm font-medium">Reject</button>
                       </>}
                       {(r.status === 'APPROVED' || r.status === 'REJECTED') && canSubmit && <button disabled={busyName===r.name} onClick={() => setReasonTarget({ name: r.name, action: 'revise' })} className="text-orange-600 text-sm font-medium">Revise</button>}
+                      {r.status === 'DRAFT' && canSubmit && <button disabled={busyName===r.name} onClick={() => { if (confirm(`Delete cost sheet ${r.name}?`)) runAction(r.name,'delete'); }} className="text-gray-500 text-sm font-medium hover:text-red-600">Delete</button>}
                     </div>
                   </td>
                 </tr>
@@ -136,7 +152,10 @@ export default function FinanceCostingPage() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b"><h2 className="text-lg font-semibold">Create Cost Sheet</h2><button className="p-2 rounded-lg hover:bg-gray-100" onClick={() => setShowCreate(false)}><X className="w-5 h-5" /></button></div>
             <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Linked Tender *</label><input className="input" value={form.linked_tender} onChange={e => setForm(p => ({...p, linked_tender: e.target.value}))} /></div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Linked Tender *</label>
+                <LinkPicker entity="tender" value={form.linked_tender} onChange={(value) => setForm((p) => ({ ...p, linked_tender: value }))} placeholder="Search tender…" />
+              </div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Linked BOQ</label><input className="input" value={form.linked_boq} onChange={e => setForm(p => ({...p, linked_boq: e.target.value}))} /></div>
               <div className="sm:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Description *</label><textarea className="input min-h-24" value={form.description} onChange={e => setForm(p => ({...p, description: e.target.value}))} /></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Cost Type</label><select className="input" value={form.cost_type} onChange={e => setForm(p => ({...p, cost_type: e.target.value}))}><option>Material</option><option>Service</option><option>Labour</option><option>Overhead</option><option>Other</option></select></div>

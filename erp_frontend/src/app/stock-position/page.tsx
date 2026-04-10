@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import RegisterPage from '@/components/shells/RegisterPage';
 import { formatCurrency } from '@/components/procurement/proc-helpers';
 
@@ -32,6 +33,12 @@ export default function StockPositionPage() {
         { label: 'Warehouses', value: warehouses.length },
         { label: 'Total Qty', value: totalQty.toLocaleString() },
       ]}
+      headerActions={(
+        <div className="flex flex-wrap gap-2">
+          <Link href="/inventory" className="btn btn-primary">Open Inventory</Link>
+          <Link href="/dispatch-challans" className="btn btn-secondary">Dispatch Challans</Link>
+        </div>
+      )}
     >
       <table className="data-table">
         <thead><tr><th>Item Code</th><th>Warehouse</th><th className="text-right">Actual Qty</th><th className="text-right">Reserved</th><th className="text-right">Ordered</th><th className="text-right">Projected</th><th className="text-right">Valuation Rate</th><th className="text-right">Value</th></tr></thead>

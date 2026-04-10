@@ -2,11 +2,14 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
+import { Fragment } from 'react';
 import {
   ArrowDownLeft, ArrowUpRight, Calendar, ChevronDown, ChevronRight,
   Download, Filter, Loader2, Mail, MessageSquare, Phone, Plus, RefreshCw,
   Users, X,
 } from 'lucide-react';
+import LinkPicker from '@/components/ui/LinkPicker';
+import { commLogApi } from '@/lib/typedApi';
 
 type CommLog = {
   name: string;
@@ -29,19 +32,6 @@ type CommLog = {
   modified: string;
 };
 
-async function callOps<T>(method: string, args?: Record<string, unknown>): Promise<T> {
-  const response = await fetch('/api/ops', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ method, args }),
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok || payload.success === false) {
-    throw new Error(payload.message || 'Request failed');
-  }
-  return (payload.data ?? payload) as T;
-}
-
 const typeIcon: Record<string, typeof Mail> = { Email: Mail, Call: Phone, Meeting: Users };
 const typeColor: Record<string, string> = {
   Email: 'bg-blue-100 text-blue-700',
@@ -57,49 +47,62 @@ export default function CommLogsPage() {
 
   /* filters */
   const [fProject, setFProject] = useState('');
+  const [fSite, setFSite] = useState('');
   const [fType, setFType] = useState('');
   const [fDirection, setFDirection] = useState('');
+  const [error, setError] = useState('');
 
   const loadLogs = useCallback(async () => {
     setLoading(true);
+    setError('');
     try {
-      const args: Record<string, string> = {};
-      if (fProject) args.project = fProject;
-      if (fType) args.comm_type = fType;
-      if (fDirection) args.direction = fDirection;
-      const data = await callOps<CommLog[]>('get_comm_logs', args);
+      const data = await commLogApi.list<CommLog[]>({
+        project: fProject || undefined,
+        site: fSite || undefined,
+        comm_type: fType || undefined,
+        direction: fDirection || undefined,
+      });
       setLogs(data);
-    } catch {
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load communication logs');
       setLogs([]);
     }
     setLoading(false);
-  }, [fProject, fType, fDirection]);
+  }, [fProject, fSite, fType, fDirection]);
 
   useEffect(() => { void loadLogs(); }, [loadLogs]);
 
   /* create form state */
   const [form, setForm] = useState({ project: '', site: '', comm_type: 'Email', direction: 'Outbound', subject: '', summary: '', counterparty_name: '' });
   const handleCreate = async () => {
-    await callOps('create_comm_log', {
-      data: JSON.stringify({
+    setError('');
+    try {
+      await commLogApi.create({
         linked_project: form.project,
-        linked_site: form.site,
+        linked_site: form.site || undefined,
         communication_type: form.comm_type,
         direction: form.direction,
         subject: form.subject,
         issue_summary: form.summary,
         counterparty_name: form.counterparty_name,
-      }),
-    });
-    setShowCreate(false);
-    setForm({ project: '', site: '', comm_type: 'Email', direction: 'Outbound', subject: '', summary: '', counterparty_name: '' });
-    void loadLogs();
+      });
+      setShowCreate(false);
+      setForm({ project: '', site: '', comm_type: 'Email', direction: 'Outbound', subject: '', summary: '', counterparty_name: '' });
+      void loadLogs();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create communication log');
+    }
   };
 
   const handleDelete = async (name: string) => {
     if (!confirm('Delete this communication log?')) return;
-    await callOps('delete_comm_log', { name });
-    void loadLogs();
+    setError('');
+    try {
+      await commLogApi.delete(name);
+      void loadLogs();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete communication log');
+    }
   };
 
   const exportCsv = () => {
@@ -139,6 +142,12 @@ export default function CommLogsPage() {
         </div>
       </div>
 
+      {error ? (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      ) : null}
+
       {/* Stats row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
         {[
@@ -157,7 +166,12 @@ export default function CommLogsPage() {
       {/* Filters */}
       <div className="flex flex-wrap gap-2 mb-4 items-center text-sm">
         <Filter className="h-4 w-4 text-gray-400" />
-        <input value={fProject} onChange={(e) => setFProject(e.target.value)} placeholder="Project" className="border rounded px-2 py-1 text-sm w-32" />
+        <div className="w-48">
+          <LinkPicker entity="project" value={fProject} onChange={setFProject} placeholder="Search project..." />
+        </div>
+        <div className="w-48">
+          <LinkPicker entity="site" value={fSite} onChange={setFSite} placeholder="Search site..." filters={fProject ? { project: fProject } : undefined} />
+        </div>
         <select value={fType} onChange={(e) => setFType(e.target.value)} className="border rounded px-2 py-1 text-sm">
           <option value="">All Types</option>
           <option>Email</option>
@@ -169,8 +183,8 @@ export default function CommLogsPage() {
           <option>Inbound</option>
           <option>Outbound</option>
         </select>
-        {(fProject || fType || fDirection) && (
-          <button onClick={() => { setFProject(''); setFType(''); setFDirection(''); }} className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-0.5">
+        {(fProject || fSite || fType || fDirection) && (
+          <button onClick={() => { setFProject(''); setFSite(''); setFType(''); setFDirection(''); }} className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-0.5">
             <X className="h-3 w-3" /> Clear
           </button>
         )}
@@ -209,9 +223,8 @@ export default function CommLogsPage() {
                   const isExpanded = expanded === log.name;
                   const TypeIcon = typeIcon[log.communication_type] || MessageSquare;
                   return (
-                    <>
+                    <Fragment key={log.name}>
                       <tr
-                        key={log.name}
                         onClick={() => setExpanded(isExpanded ? null : log.name)}
                         className="border-b border-gray-100 last:border-0 hover:bg-gray-50 cursor-pointer"
                       >
@@ -243,7 +256,7 @@ export default function CommLogsPage() {
                         </td>
                       </tr>
                       {isExpanded && (
-                        <tr key={`${log.name}-detail`} className="bg-gray-50">
+                        <tr className="bg-gray-50">
                           <td colSpan={9} className="px-6 py-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                               <div>
@@ -271,7 +284,7 @@ export default function CommLogsPage() {
                           </td>
                         </tr>
                       )}
-                    </>
+                    </Fragment>
                   );
                 })}
                 {logs.length === 0 && (
@@ -289,8 +302,14 @@ export default function CommLogsPage() {
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-gray-900 mb-4">New Communication Log</h3>
             <div className="grid grid-cols-2 gap-3">
-              <input value={form.project} onChange={(e) => setForm({ ...form, project: e.target.value })} placeholder="Project" className="border rounded px-3 py-2 text-sm" />
-              <input value={form.site} onChange={(e) => setForm({ ...form, site: e.target.value })} placeholder="Site" className="border rounded px-3 py-2 text-sm" />
+              <div className="col-span-2 md:col-span-1">
+                <label className="mb-1 block text-xs font-medium text-gray-600">Project</label>
+                <LinkPicker entity="project" value={form.project} onChange={(value) => setForm({ ...form, project: value, site: '' })} placeholder="Search project..." />
+              </div>
+              <div className="col-span-2 md:col-span-1">
+                <label className="mb-1 block text-xs font-medium text-gray-600">Site</label>
+                <LinkPicker entity="site" value={form.site} onChange={(value) => setForm({ ...form, site: value })} placeholder="Search site..." filters={form.project ? { project: form.project } : undefined} />
+              </div>
               <select value={form.comm_type} onChange={(e) => setForm({ ...form, comm_type: e.target.value })} className="border rounded px-3 py-2 text-sm">
                 <option>Email</option><option>Call</option><option>Meeting</option>
               </select>

@@ -6,6 +6,8 @@ const FRAPPE_API_SECRET = process.env.FRAPPE_API_SECRET;
 const FRAPPE_USERNAME = process.env.FRAPPE_USERNAME || 'Administrator';
 const FRAPPE_PASSWORD = process.env.FRAPPE_PASSWORD || 'admin';
 const FRAPPE_CSRF_COOKIE = 'frappe_csrf_token';
+const APP_ROLE_COOKIE = 'app_role';
+const APP_ROLES_COOKIE = 'app_roles';
 
 type CookiePair = {
   name: string;
@@ -180,8 +182,33 @@ export function applyFrappeCookies(response: NextResponse, session: SessionAuth)
   });
 }
 
+export function applySessionContextCookies(
+  response: NextResponse,
+  context?: { primary_role?: string; roles?: string[] } | null,
+) {
+  if (context?.primary_role) {
+    response.cookies.set({
+      name: APP_ROLE_COOKIE,
+      value: context.primary_role,
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/',
+    });
+  }
+
+  if (Array.isArray(context?.roles)) {
+    response.cookies.set({
+      name: APP_ROLES_COOKIE,
+      value: context.roles.join('|'),
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/',
+    });
+  }
+}
+
 export function clearFrappeCookies(response: NextResponse) {
-  for (const cookieName of ['sid', 'system_user', 'full_name', 'user_id', 'user_image', FRAPPE_CSRF_COOKIE]) {
+  for (const cookieName of ['sid', 'system_user', 'full_name', 'user_id', 'user_image', FRAPPE_CSRF_COOKIE, APP_ROLE_COOKIE, APP_ROLES_COOKIE]) {
     response.cookies.set({
       name: cookieName,
       value: '',

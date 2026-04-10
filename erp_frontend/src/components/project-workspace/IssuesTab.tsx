@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { AlertCircle, Plus, RefreshCcw, Loader2, X } from 'lucide-react';
+import { AlertCircle, Plus, RefreshCcw, Loader2, X, Pencil, Trash2 } from 'lucide-react';
 import { projectWorkspaceApi } from '@/lib/typedApi';
 
 type ProjectIssue = {
@@ -43,6 +43,7 @@ export default function IssuesTab({ projectId }: { projectId: string }) {
   const [filter, setFilter] = useState<'all' | 'Open' | 'In Progress' | 'Resolved' | 'Closed'>('all');
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [editTarget, setEditTarget] = useState<ProjectIssue | null>(null);
   const [form, setForm] = useState({
     title: '', severity: 'Medium', category: '', assigned_to: '', description: '', target_date: '',
   });
@@ -101,6 +102,50 @@ export default function IssuesTab({ projectId }: { projectId: string }) {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update issue');
+    }
+  };
+
+  const deleteIssue = async (name: string) => {
+    if (!confirm('Delete this issue?')) return;
+    try {
+      await projectWorkspaceApi.deleteIssue(name);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete issue');
+    }
+  };
+
+  const openEdit = (issue: ProjectIssue) => {
+    setEditTarget(issue);
+    setForm({
+      title: issue.title,
+      severity: issue.severity,
+      category: issue.category || '',
+      assigned_to: issue.assigned_to || '',
+      description: issue.description || '',
+      target_date: issue.target_date || '',
+    });
+  };
+
+  const submitEdit = async () => {
+    if (!editTarget || !form.title.trim()) return;
+    setCreating(true);
+    try {
+      await projectWorkspaceApi.updateIssue(editTarget.name, {
+        title: form.title.trim(),
+        severity: form.severity,
+        category: form.category.trim() || undefined,
+        assigned_to: form.assigned_to.trim() || undefined,
+        description: form.description.trim() || undefined,
+        target_date: form.target_date || undefined,
+      });
+      setEditTarget(null);
+      setForm({ title: '', severity: 'Medium', category: '', assigned_to: '', description: '', target_date: '' });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update issue');
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -181,6 +226,12 @@ export default function IssuesTab({ projectId }: { projectId: string }) {
                   </div>
                 </div>
                 <div className="flex flex-shrink-0 gap-1">
+                  <button onClick={() => openEdit(issue)} className="text-xs text-gray-400 hover:text-blue-600" title="Edit">
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button onClick={() => void deleteIssue(issue.name)} className="text-xs text-gray-400 hover:text-rose-600" title="Delete">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
                   {issue.status === 'Open' && (
                     <button onClick={() => void updateStatus(issue.name, 'In Progress')} className="text-xs text-blue-600 hover:text-blue-800">
                       Start
@@ -203,13 +254,13 @@ export default function IssuesTab({ projectId }: { projectId: string }) {
         </div>
       )}
 
-      {/* Create modal */}
-      {showCreate && (
+      {/* Create / Edit modal */}
+      {(showCreate || editTarget) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">Report Issue / Blocker</h3>
-              <button onClick={() => setShowCreate(false)} className="text-gray-400 hover:text-gray-600">
+              <h3 className="text-lg font-semibold text-gray-900">{editTarget ? 'Edit Issue' : 'Report Issue / Blocker'}</h3>
+              <button onClick={() => { setShowCreate(false); setEditTarget(null); }} className="text-gray-400 hover:text-gray-600">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -249,9 +300,9 @@ export default function IssuesTab({ projectId }: { projectId: string }) {
               </div>
             </div>
             <div className="mt-5 flex justify-end gap-2">
-              <button onClick={() => setShowCreate(false)} className="btn btn-secondary">Cancel</button>
-              <button onClick={() => void submitCreate()} disabled={creating || !form.title.trim()} className="btn btn-primary">
-                {creating ? 'Saving...' : 'Submit Issue'}
+              <button onClick={() => { setShowCreate(false); setEditTarget(null); }} className="btn btn-secondary">Cancel</button>
+              <button onClick={() => void (editTarget ? submitEdit() : submitCreate())} disabled={creating || !form.title.trim()} className="btn btn-primary">
+                {creating ? 'Saving...' : editTarget ? 'Update Issue' : 'Submit Issue'}
               </button>
             </div>
           </div>

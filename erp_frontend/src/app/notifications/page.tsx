@@ -115,6 +115,7 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterType>('all');
   const [refreshing, setRefreshing] = useState(false);
+  const [markingKey, setMarkingKey] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -152,6 +153,27 @@ export default function NotificationsPage() {
       });
       await loadData();
     } catch { /* silent */ }
+  };
+
+  const handleMarkRead = async (item: FeedItem) => {
+    if (item.type !== 'alert' || !item.source_name) return;
+    setMarkingKey(item.source_name);
+    try {
+      const response = await fetch('/api/alerts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'mark_read', alert_name: item.source_name }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || payload.success === false) {
+        throw new Error(payload.message || 'Failed to mark alert as read');
+      }
+      await loadData();
+    } catch {
+      // keep notification center resilient; refresh remains available
+    } finally {
+      setMarkingKey(null);
+    }
   };
 
   if (loading) {
@@ -347,7 +369,12 @@ export default function NotificationsPage() {
             </div>
           ) : (
             filteredFeed.map((item, idx) => (
-              <FeedItemRow key={`${item.source_name}-${idx}`} item={item} />
+              <FeedItemRow
+                key={`${item.source_name}-${idx}`}
+                item={item}
+                onMarkRead={handleMarkRead}
+                busy={markingKey === item.source_name}
+              />
             ))
           )}
         </div>
@@ -441,7 +468,15 @@ function SummaryCard({
   );
 }
 
-function FeedItemRow({ item }: { item: FeedItem }) {
+function FeedItemRow({
+  item,
+  onMarkRead,
+  busy,
+}: {
+  item: FeedItem;
+  onMarkRead: (item: FeedItem) => void;
+  busy: boolean;
+}) {
   const Icon = TYPE_ICONS[item.type] || Bell;
   const colorClass = TYPE_COLORS[item.type] || TYPE_COLORS.alert;
 
@@ -481,9 +516,20 @@ function FeedItemRow({ item }: { item: FeedItem }) {
           </div>
         )}
       </div>
-      {!item.is_read && (
-        <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 mt-2" />
-      )}
+      <div className="flex flex-col items-end gap-2">
+        {!item.is_read && (
+          <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 mt-2" />
+        )}
+        {item.type === 'alert' && !item.is_read && (
+          <button
+            onClick={() => onMarkRead(item)}
+            disabled={busy}
+            className="rounded-full border border-blue-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-50 disabled:opacity-60"
+          >
+            {busy ? 'Saving…' : 'Mark read'}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

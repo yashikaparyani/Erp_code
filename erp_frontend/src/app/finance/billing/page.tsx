@@ -176,6 +176,7 @@ export default function FinanceBillingPage() {
                       <div className="flex flex-wrap gap-1 items-center">
                         <Link href={`/finance/billing/${encodeURIComponent(inv.name)}`} className="text-blue-600 text-sm font-medium flex items-center gap-1"><Eye className="w-3.5 h-3.5" />View</Link>
                         {inv.status === 'DRAFT' && canSubmit && <button disabled={busyName===inv.name} onClick={() => runAction(inv.name,'submit')} className="text-indigo-600 text-sm font-medium">Submit</button>}
+                        {inv.status === 'DRAFT' && canSubmit && <button disabled={busyName===inv.name} onClick={() => { if (confirm(`Delete invoice ${inv.name}?`)) runAction(inv.name,'delete'); }} className="text-gray-500 text-sm font-medium hover:text-red-600">Delete</button>}
                         {inv.status === 'SUBMITTED' && canApprove && <>
                           <button disabled={busyName===inv.name} onClick={() => runAction(inv.name,'approve')} className="text-green-600 text-sm font-medium">Approve</button>
                           <button disabled={busyName===inv.name} onClick={() => setReasonTarget({ name: inv.name, action: 'reject' })} className="text-red-600 text-sm font-medium">Reject</button>

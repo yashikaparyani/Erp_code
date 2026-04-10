@@ -402,12 +402,18 @@ export async function callOps<T>(method: string, args?: Record<string, unknown>)
 }
 
 export function getDocumentExtension(fileUrl?: string) {
-  const cleaned = (fileUrl || '').split('?', 1)[0].trim().toLowerCase();
+  let source = (fileUrl || '').trim().toLowerCase();
+  if (source.startsWith('/api/files?')) {
+    const query = source.split('?', 2)[1] || '';
+    const params = new URLSearchParams(query);
+    source = params.get('url') || source;
+  }
+  const cleaned = source.split('?', 1)[0].trim().toLowerCase();
   return cleaned.includes('.') ? cleaned.split('.').pop() || '' : '';
 }
 
 export function isPreviewableDocument(fileUrl?: string) {
-  return ['pdf', 'jpg', 'jpeg'].includes(getDocumentExtension(fileUrl));
+  return ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'gif'].includes(getDocumentExtension(fileUrl));
 }
 
 export function formatWorkflowText(value?: string | null) {

@@ -106,13 +106,31 @@ export default function PurchaseOrdersPage() {
           { name: 'supplier', label: 'Supplier', type: 'link' as const, linkEntity: 'vendor' as const, required: true, placeholder: 'Search supplier…' },
           { name: 'project', label: 'Project', type: 'link' as const, linkEntity: 'project' as const },
           { name: 'set_warehouse', label: 'Warehouse', type: 'link' as const, linkEntity: 'warehouse' as const },
+          { name: 'item_code', label: 'Item', type: 'link' as const, linkEntity: 'item' as const, required: true, placeholder: 'Search item…' },
+          { name: 'qty', label: 'Qty', type: 'number', required: true, defaultValue: '1' },
+          { name: 'rate', label: 'Rate', type: 'number', defaultValue: '0' },
+          { name: 'schedule_date', label: 'Required By', type: 'date' },
         ]}
         busy={creating} confirmLabel="Create"
         onConfirm={async vals => {
-          if (!vals.supplier?.trim()) { setError('Supplier required'); return; }
+          if (!vals.supplier?.trim() || !vals.item_code?.trim()) { setError('Supplier and item are required'); return; }
           setCreating(true); setError('');
           try {
-            const res = await fetch('/api/purchase-orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ supplier: vals.supplier.trim(), project: vals.project?.trim() || undefined, set_warehouse: vals.set_warehouse?.trim() || undefined, items: [{ item_code: 'Item', qty: 1, rate: 0, schedule_date: new Date().toISOString().split('T')[0] }] }) });
+            const res = await fetch('/api/purchase-orders', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                supplier: vals.supplier.trim(),
+                project: vals.project?.trim() || undefined,
+                set_warehouse: vals.set_warehouse?.trim() || undefined,
+                items: [{
+                  item_code: vals.item_code.trim(),
+                  qty: Number(vals.qty || '1') || 1,
+                  rate: Number(vals.rate || '0') || 0,
+                  schedule_date: vals.schedule_date || new Date().toISOString().split('T')[0],
+                }],
+              }),
+            });
             const r = await res.json(); if (!r.success) throw new Error(r.message);
             setShowCreate(false); router.push(`/purchase-orders/${encodeURIComponent(r.data?.name || '')}`);
           } catch (e) { setError(e instanceof Error ? e.message : 'Failed'); }

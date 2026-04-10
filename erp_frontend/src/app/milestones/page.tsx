@@ -25,6 +25,7 @@ export default function MilestonesPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
+  const [deletingName, setDeletingName] = useState<string | null>(null);
   const [form, setForm] = useState({ milestone_name: '', linked_project: '', linked_site: '', planned_date: '' });
 
   const loadData = async () => {
@@ -47,6 +48,18 @@ export default function MilestonesPage() {
       setForm({ milestone_name: '', linked_project: '', linked_site: '', planned_date: '' });
       await loadData();
     } catch (e) { setError(e instanceof Error ? e.message : 'Failed'); } finally { setCreating(false); }
+  };
+
+  const handleDelete = async (name: string) => {
+    if (!confirm(`Delete milestone ${name}?`)) return;
+    setDeletingName(name);
+    try {
+      const res = await fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method: 'delete_milestone', args: { name } }) });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok || !payload.success) throw new Error(payload.message || 'Failed');
+      await loadData();
+    } catch (e) { setError(e instanceof Error ? e.message : 'Failed'); }
+    finally { setDeletingName(null); }
   };
 
   if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full" /></div>;
@@ -73,9 +86,9 @@ export default function MilestonesPage() {
         <div className="card-header"><h3 className="font-semibold text-gray-900">All Milestones</h3></div>
         <div className="overflow-x-auto">
           <table className="data-table">
-            <thead><tr><th>ID</th><th>Milestone</th><th>Project</th><th>Site</th><th>Planned Date</th><th>Actual Date</th><th>Owner</th><th>Status</th></tr></thead>
+            <thead><tr><th>ID</th><th>Milestone</th><th>Project</th><th>Site</th><th>Planned Date</th><th>Actual Date</th><th>Owner</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody>
-              {items.length === 0 ? <tr><td colSpan={8} className="text-center py-8 text-gray-500">No milestones found</td></tr> : items.map(item => (
+              {items.length === 0 ? <tr><td colSpan={9} className="text-center py-8 text-gray-500">No milestones found</td></tr> : items.map(item => (
                 <tr key={item.name}>
                   <td><Link href={`/milestones/${encodeURIComponent(item.name)}`} className="font-medium text-blue-700 hover:text-blue-900 hover:underline">{item.name}</Link></td>
                   <td><div className="text-sm text-gray-900">{item.milestone_name || '-'}</div></td>
@@ -85,6 +98,7 @@ export default function MilestonesPage() {
                   <td><div className="text-sm text-gray-700">{item.actual_date || '-'}</div></td>
                   <td><div className="text-sm text-gray-700">{item.owner_user || '-'}</div></td>
                   <td><span className={`badge ${statusBadge(item.status)}`}>{item.status || '-'}</span></td>
+                  <td><button disabled={deletingName === item.name} onClick={() => handleDelete(item.name)} className="text-gray-500 text-sm font-medium hover:text-red-600">Delete</button></td>
                 </tr>
               ))}
             </tbody>

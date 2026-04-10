@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import RegisterPage, { StatItem } from '@/components/shells/RegisterPage';
 import FormModal from '@/components/shells/FormModal';
 import ActionModal from '@/components/ui/ActionModal';
@@ -27,6 +28,7 @@ interface Ticket {
 
 export default function OMHelpdeskPage() {
   const { currentUser } = useAuth();
+  const searchParams = useSearchParams();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -48,12 +50,16 @@ export default function OMHelpdeskPage() {
   useEffect(() => { load(); }, [load]);
 
   const canManage = hasAnyRole(currentUser?.roles, 'Director', 'System Manager', 'OM Operator');
+  const projectFilter = (searchParams?.get('project') || '').trim();
+  const visibleTickets = projectFilter
+    ? tickets.filter((ticket) => (ticket.linked_project || '').toLowerCase() === projectFilter.toLowerCase())
+    : tickets;
 
-  const total = tickets.length;
-  const open = tickets.filter(t => t.status === 'NEW' || t.status === 'ASSIGNED').length;
-  const inProgress = tickets.filter(t => t.status === 'IN_PROGRESS' || t.status === 'ON_HOLD').length;
-  const resolved = tickets.filter(t => t.status === 'RESOLVED' || t.status === 'CLOSED').length;
-  const critical = tickets.filter(t => t.priority === 'CRITICAL').length;
+  const total = visibleTickets.length;
+  const open = visibleTickets.filter(t => t.status === 'NEW' || t.status === 'ASSIGNED').length;
+  const inProgress = visibleTickets.filter(t => t.status === 'IN_PROGRESS' || t.status === 'ON_HOLD').length;
+  const resolved = visibleTickets.filter(t => t.status === 'RESOLVED' || t.status === 'CLOSED').length;
+  const critical = visibleTickets.filter(t => t.priority === 'CRITICAL').length;
 
   const stats: StatItem[] = [
     { label: 'Total Tickets', value: total },
@@ -85,10 +91,10 @@ export default function OMHelpdeskPage() {
     <>
       <RegisterPage
         title="O&M & Helpdesk"
-        description="Operations, maintenance, and ticket management"
+        description={projectFilter ? `Operations, maintenance, and ticket management for ${projectFilter}` : 'Operations, maintenance, and ticket management'}
         loading={loading}
         error={error}
-        empty={!loading && tickets.length === 0}
+        empty={!loading && visibleTickets.length === 0}
         emptyTitle="No tickets"
         emptyDescription="No helpdesk tickets found"
         onRetry={load}
@@ -113,7 +119,7 @@ export default function OMHelpdeskPage() {
               </tr>
             </thead>
             <tbody>
-              {tickets.map(t => {
+              {visibleTickets.map(t => {
                 const st = t.status || 'NEW';
                 return (
                   <tr key={t.name}>

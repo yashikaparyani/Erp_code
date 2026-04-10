@@ -47,6 +47,10 @@ export async function POST(request: NextRequest) {
       issue_date: body.issue_date,
       expiry_date: body.expiry_date,
       status: body.status || 'Pending',
+      refund_status: body.refund_status,
+      refund_date: body.refund_date,
+      refund_reference: body.refund_reference,
+      refund_remarks: body.refund_remarks,
       remarks: body.remarks,
     };
     const result = await callFrappeMethod('create_emd_pbg_instrument', {

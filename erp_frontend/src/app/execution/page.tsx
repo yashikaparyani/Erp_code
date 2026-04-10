@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { executionApi } from '@/lib/typedApi';
 import { Plus, Wrench, Camera, Activity, CheckCircle2, Eye, X, ClipboardCheck, FileCheck2, GitBranch, ArrowRight, AlertTriangle, Upload, Download } from 'lucide-react';
@@ -57,6 +58,7 @@ interface BulkUploadResult {
 
 export default function ExecutionPage() {
   const { currentUser } = useAuth();
+  const searchParams = useSearchParams();
   const [sites, setSites] = useState<Site[]>([]);
   const [dprs, setDprs] = useState<DPR[]>([]);
   const [dprStats, setDprStats] = useState<DPRStats>({});
@@ -84,6 +86,7 @@ export default function ExecutionPage() {
   const [downloadingTemplate, setDownloadingTemplate] = useState(false);
   const requestIdRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
+  const projectFilter = (searchParams?.get('project') || '').trim();
 
   const loadData = useCallback(async () => {
     const requestId = requestIdRef.current + 1;
@@ -262,7 +265,18 @@ export default function ExecutionPage() {
     );
   }
 
-  const statusCounts = sites.reduce((acc, s) => {
+  const visibleSites = projectFilter
+    ? sites.filter((site) => (site.linked_project || '').toLowerCase() === projectFilter.toLowerCase())
+    : sites;
+  const visibleDprs = projectFilter
+    ? dprs.filter((dpr) => (dpr.linked_project || '').toLowerCase() === projectFilter.toLowerCase())
+    : dprs;
+  const filteredDprStats = {
+    total_reports: visibleDprs.length,
+    total_manpower_logged: visibleDprs.reduce((sum, row) => sum + (row.manpower_on_site || 0), 0),
+    total_equipment_logged: visibleDprs.reduce((sum, row) => sum + (row.equipment_count || 0), 0),
+  };
+  const statusCounts = visibleSites.reduce((acc, s) => {
     const st = s.status || 'Unknown';
     acc[st] = (acc[st] || 0) + 1;
     return acc;
@@ -270,7 +284,7 @@ export default function ExecutionPage() {
   const topExecutionSignals = [
     commSummary?.blocked_count ? `${commSummary.blocked_count} site blockers are active in the execution lane.` : null,
     commSummary && commSummary.ready_for_commissioning > 0 ? `${commSummary.ready_for_commissioning} site${commSummary.ready_for_commissioning > 1 ? 's are' : ' is'} ready to push into commissioning.` : null,
-    (dprStats.total_reports || 0) === 0 ? 'No DPRs are visible yet. Field reporting should start before the lane drifts out of sync.' : null,
+    (filteredDprStats.total_reports || 0) === 0 ? 'No DPRs are visible yet. Field reporting should start before the lane drifts out of sync.' : null,
   ].filter(Boolean) as string[];
   const roleFocus = currentUser?.role || currentUser?.roles?.[0] || 'Engineer';
 
@@ -280,7 +294,10 @@ export default function ExecutionPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Execution (I&C)</h1>
-          <p className="text-xs sm:text-sm text-gray-500 mt-1">Installation, commissioning, and site progress tracking</p>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">
+            Installation, commissioning, and site progress tracking
+            {projectFilter ? ` · Project scoped to ${projectFilter}` : ''}
+          </p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <button className="btn btn-secondary w-full sm:w-auto" onClick={handleDownloadTemplate} disabled={downloadingTemplate}>
@@ -312,10 +329,10 @@ export default function ExecutionPage() {
             </p>
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <MetricChip label="Sites" value={sites.length} tone="blue" />
+            <MetricChip label="Sites" value={visibleSites.length} tone="blue" />
             <MetricChip label="Blocked" value={commSummary?.blocked_count || 0} tone={(commSummary?.blocked_count || 0) > 0 ? 'rose' : 'emerald'} />
             <MetricChip label="Ready for I&C" value={commSummary?.ready_for_commissioning || 0} tone="emerald" />
-            <MetricChip label="DPRs" value={dprStats.total_reports || 0} tone="amber" />
+            <MetricChip label="DPRs" value={filteredDprStats.total_reports || 0} tone="amber" />
           </div>
         </div>
 
@@ -385,7 +402,7 @@ export default function ExecutionPage() {
             </div>
             <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Linked Project *</label><input className="input" value={dprForm.linked_project} onChange={(e) => setDprForm(p => ({ ...p, linked_project: e.target.value }))} /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Linked Site *</label><select className="input" value={dprForm.linked_site} onChange={(e) => setDprForm(p => ({ ...p, linked_site: e.target.value }))}><option value="">Select site</option>{sites.map(s => <option key={s.name} value={s.name}>{s.site_name || s.name}</option>)}</select></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Linked Site *</label><select className="input" value={dprForm.linked_site} onChange={(e) => setDprForm(p => ({ ...p, linked_site: e.target.value }))}><option value="">Select site</option>{visibleSites.map(s => <option key={s.name} value={s.name}>{s.site_name || s.name}</option>)}</select></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Report Date</label><input className="input" type="date" value={dprForm.report_date} onChange={(e) => setDprForm(p => ({ ...p, report_date: e.target.value }))} /></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Manpower On Site</label><input className="input" type="number" min="0" value={dprForm.manpower_on_site} onChange={(e) => setDprForm(p => ({ ...p, manpower_on_site: Number(e.target.value) }))} /></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Equipment Count</label><input className="input" type="number" min="0" value={dprForm.equipment_count} onChange={(e) => setDprForm(p => ({ ...p, equipment_count: Number(e.target.value) }))} /></div>
@@ -643,7 +660,7 @@ export default function ExecutionPage() {
               <Wrench className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <div className="stat-value">{sites.length}</div>
+              <div className="stat-value">{visibleSites.length}</div>
               <div className="stat-label">Total Sites</div>
             </div>
           </div>
@@ -656,7 +673,7 @@ export default function ExecutionPage() {
               <Camera className="w-5 h-5 text-green-600" />
             </div>
             <div>
-              <div className="stat-value">{dprStats.total_reports ?? 0}</div>
+              <div className="stat-value">{filteredDprStats.total_reports ?? 0}</div>
               <div className="stat-label">DPR Reports</div>
             </div>
           </div>
@@ -669,11 +686,11 @@ export default function ExecutionPage() {
               <Activity className="w-5 h-5 text-purple-600" />
             </div>
             <div>
-              <div className="stat-value">{dprStats.total_manpower_logged ?? 0}</div>
+              <div className="stat-value">{filteredDprStats.total_manpower_logged ?? 0}</div>
               <div className="stat-label">Manpower Logged</div>
             </div>
           </div>
-          <div className="text-xs text-gray-500 mt-2">{dprStats.total_equipment_logged ?? 0} equipment</div>
+          <div className="text-xs text-gray-500 mt-2">{filteredDprStats.total_equipment_logged ?? 0} equipment</div>
         </div>
         
         <div className="stat-card">
@@ -689,7 +706,7 @@ export default function ExecutionPage() {
                     {st}: {cnt}{i < Object.entries(statusCounts).length - 1 ? ' •' : ''}
                   </span>
                 ))}
-                {sites.length === 0 && <span className="text-gray-400">No sites yet</span>}
+                {visibleSites.length === 0 && <span className="text-gray-400">No sites yet</span>}
               </div>
             </div>
           </div>
@@ -749,9 +766,9 @@ export default function ExecutionPage() {
               </tr>
             </thead>
             <tbody>
-              {sites.length === 0 ? (
+              {visibleSites.length === 0 ? (
                 <tr><td colSpan={6} className="text-center py-8 text-gray-500">No execution sites found</td></tr>
-              ) : sites.map(site => (
+              ) : visibleSites.map(site => (
                 <tr key={site.name}>
                   <td>
                     <Link href={`/execution/sites/${encodeURIComponent(site.name)}`} className="font-medium text-blue-700 hover:text-blue-900 hover:underline">{site.name}</Link>
@@ -802,9 +819,9 @@ export default function ExecutionPage() {
         </div>
         <div className="card-body">
           <div className="space-y-4">
-            {dprs.length === 0 ? (
+            {visibleDprs.length === 0 ? (
               <div className="text-center py-8 text-gray-500">No DPR reports yet</div>
-            ) : dprs.slice(0, 5).map(dpr => (
+            ) : visibleDprs.slice(0, 5).map(dpr => (
               <div key={dpr.name} className="flex items-start gap-4 p-3 bg-gray-50 rounded-lg">
                 <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                   <Activity className="w-5 h-5 text-blue-600" />

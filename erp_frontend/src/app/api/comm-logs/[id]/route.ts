@@ -39,3 +39,23 @@ export async function PATCH(
     );
   }
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await params;
+    const result = await callFrappeMethod(
+      'delete_comm_log',
+      { name: decodeURIComponent(id) },
+      request,
+    );
+    return NextResponse.json({ success: true, data: result });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, message: error instanceof Error ? error.message : 'Failed to delete comm log' },
+      { status: 500 },
+    );
+  }
+}

@@ -3,7 +3,7 @@ import { callFrappeMethod, jsonErrorResponse } from '../_lib/frappe';
 
 export const dynamic = 'force-dynamic';
 
-type Entity = 'project' | 'site' | 'item' | 'customer' | 'warehouse' | 'vendor' | 'invoice' | 'commercial_reference' | 'purchase_order' | 'tender';
+type Entity = 'project' | 'site' | 'item' | 'customer' | 'warehouse' | 'vendor' | 'invoice' | 'commercial_reference' | 'purchase_order' | 'tender' | 'employee' | 'bid' | 'organization';
 
 const COMMERCIAL_REFERENCE_DOCTYPES = new Set([
   'GE Estimate',
@@ -76,6 +76,23 @@ export async function GET(request: NextRequest) {
         }, request);
         const list = Array.isArray(rows) ? rows : [];
         data = list.map((r: any) => ({ value: r.party_name || r.name, label: r.party_name || r.name, sub: `${r.name}${r.city ? ` · ${r.city}` : ''}` }));
+        break;
+      }
+
+      case 'employee': {
+        const rows = await callFrappeMethod('frappe.client.get_list', {
+          doctype: 'Employee',
+          fields: ['name', 'employee_name', 'designation', 'department', 'status'],
+          filters: q ? [['employee_name', 'like', `%${q}%`]] : [],
+          limit_page_length: 30,
+          order_by: 'employee_name asc',
+        }, request);
+        const list = Array.isArray(rows) ? rows : [];
+        data = list.map((r: any) => ({
+          value: r.name,
+          label: r.employee_name || r.name,
+          sub: [r.name, r.designation, r.department, r.status].filter(Boolean).join(' · '),
+        }));
         break;
       }
 
@@ -161,6 +178,32 @@ export async function GET(request: NextRequest) {
         }, request);
         const list = Array.isArray(rows) ? rows : [];
         data = list.map((r: any) => ({ value: r.name, label: r.name, sub: doctype }));
+        break;
+      }
+
+      case 'bid': {
+        const rows = await callFrappeMethod('frappe.client.get_list', {
+          doctype: 'GE Bid',
+          fields: ['name', 'tender', 'status', 'bid_amount', 'bid_date', 'is_latest'],
+          filters: q ? [['name', 'like', `%${q}%`]] : [],
+          limit_page_length: 30,
+          order_by: 'creation desc',
+        }, request);
+        const list = Array.isArray(rows) ? rows : [];
+        data = list.map((r: any) => ({ value: r.name, label: r.name, sub: `${r.tender || ''} · ${r.status || ''}${r.bid_amount ? ` · ₹${r.bid_amount}` : ''}` }));
+        break;
+      }
+
+      case 'organization': {
+        const rows = await callFrappeMethod('frappe.client.get_list', {
+          doctype: 'GE Organization',
+          fields: ['name', 'organization_name', 'city', 'state', 'active'],
+          filters: q ? [['organization_name', 'like', `%${q}%`]] : [],
+          limit_page_length: 30,
+          order_by: 'organization_name asc',
+        }, request);
+        const list = Array.isArray(rows) ? rows : [];
+        data = list.map((r: any) => ({ value: r.name, label: r.organization_name || r.name, sub: [r.name, r.city, r.state].filter(Boolean).join(' · ') }));
         break;
       }
 

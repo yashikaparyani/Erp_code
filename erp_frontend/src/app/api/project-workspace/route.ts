@@ -59,6 +59,11 @@ const PROJECT_WORKSPACE_METHODS = new Set([
   'get_petty_cash_entries',
   'get_petty_cash_entry',
   'create_petty_cash_entry',
+  'update_petty_cash_entry',
+  'approve_petty_cash_entry',
+  'reject_petty_cash_entry',
+  'delete_petty_cash_entry',
+  'submit_petty_cash_to_ph',
   // Communications
   'get_comm_logs',
   'get_comm_log',
@@ -86,7 +91,11 @@ const PROJECT_WORKSPACE_METHODS = new Set([
   'get_project_team_members',
   'get_project_team_member',
   'create_project_team_member',
+  'update_project_team_member',
   'delete_project_team_member',
+  // Manpower
+  'get_manpower_summary',
+  'get_manpower_logs',
   // Milestones
   'get_milestones',
   'get_milestone',
@@ -95,6 +104,10 @@ const PROJECT_WORKSPACE_METHODS = new Set([
   'update_milestone',
   // Dependencies
   'evaluate_task_dependencies',
+  // PH Approvals
+  'get_ph_approval_items',
+  'ph_approve_item',
+  'ph_reject_item',
 ]);
 
 export async function POST(request: NextRequest) {

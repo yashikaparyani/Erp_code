@@ -7,6 +7,8 @@ import ActiveFilterChips from '../../../components/presales/ActiveFilterChips';
 import FunnelTenderTable from '../../../components/presales/FunnelTenderTable';
 import ColorLegendPage from '../../../components/presales/ColorLegendPage';
 import CreateTenderModal from '../../../components/CreateTenderModal';
+import FormModal from '../../../components/shells/FormModal';
+import ActionModal from '../../../components/ui/ActionModal';
 import { FunnelColorKey, SYSTEM_FUNNEL_META, USER_SLOT_DEFAULTS, PresalesColorConfig } from '../../../components/tenderFunnel';
 
 // ─────────────────────────────────────────────────── Types
@@ -121,6 +123,9 @@ export default function PresalesDashboard() {
   const [competitorStats, setCompetitorStats] = useState<CompetitorStats | null>(null);
   const [competitors, setCompetitors] = useState<CompetitorRow[]>([]);
   const [competitorBusy, setCompetitorBusy] = useState(false);
+  const [competitorModalMode, setCompetitorModalMode] = useState<'create' | 'edit' | null>(null);
+  const [competitorDraft, setCompetitorDraft] = useState<CompetitorRow | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<CompetitorRow | null>(null);
 
   // Load saved filters on mount
   useEffect(() => {
@@ -143,22 +148,18 @@ export default function PresalesDashboard() {
     }
   }, []);
 
-  const callOps = useCallback(async <T,>(method: string, args?: Record<string, unknown>): Promise<T> => {
-    const res = await fetch('/api/ops', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ method, args }),
-    });
+  const callCompetitorApi = useCallback(async <T,>(path: string, init?: RequestInit): Promise<T> => {
+    const res = await fetch(path, init);
     const json = await res.json().catch(() => ({}));
-    if (!res.ok || json.success === false) throw new Error(json.message || `Failed: ${method}`);
+    if (!res.ok || json.success === false) throw new Error(json.message || 'Competitor request failed');
     return (json.data ?? json) as T;
   }, []);
 
   const fetchCompetitorStats = useCallback(async () => {
     try {
       const [stats, list] = await Promise.all([
-        callOps<CompetitorStats>('get_competitor_stats', {}),
-        callOps<CompetitorRow[]>('get_competitors', {}),
+        callCompetitorApi<CompetitorStats>('/api/competitors/stats'),
+        callCompetitorApi<CompetitorRow[]>('/api/competitors'),
       ]);
       setCompetitorStats(stats || null);
       setCompetitors(Array.isArray(list) ? list : []);
@@ -166,42 +167,58 @@ export default function PresalesDashboard() {
       setCompetitorStats(null);
       setCompetitors([]);
     }
-  }, [callOps]);
+  }, [callCompetitorApi]);
 
-  const createCompetitor = async () => {
-    const competitor_name = window.prompt('Competitor name');
-    if (!competitor_name) return;
-    const region = window.prompt('Region (optional)') || '';
-    const category = window.prompt('Category (optional)') || '';
+  const openCreateCompetitor = () => {
+    setCompetitorDraft({ name: '', competitor_name: '', region: '', category: '' });
+    setCompetitorModalMode('create');
+  };
+
+  const openEditCompetitor = (row: CompetitorRow) => {
+    setCompetitorDraft(row);
+    setCompetitorModalMode('edit');
+  };
+
+  const saveCompetitor = async (values: Record<string, string>) => {
+    const competitor_name = (values.competitor_name || '').trim();
+    if (!competitor_name) throw new Error('Competitor name is required');
     try {
       setCompetitorBusy(true);
-      await callOps('create_competitor', { data: JSON.stringify({ competitor_name, region, category }) });
+      const payload = JSON.stringify({
+        competitor_name,
+        region: (values.region || '').trim(),
+        category: (values.category || '').trim(),
+      });
+      if (competitorModalMode === 'edit' && competitorDraft?.name) {
+        await callCompetitorApi(`/api/competitors/${encodeURIComponent(competitorDraft.name)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: payload,
+        });
+      } else {
+        await callCompetitorApi('/api/competitors', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: payload,
+        });
+      }
       await fetchCompetitorStats();
+      setCompetitorModalMode(null);
+      setCompetitorDraft(null);
     } finally {
       setCompetitorBusy(false);
     }
   };
 
-  const updateCompetitor = async (row: CompetitorRow) => {
-    const competitor_name = window.prompt('Competitor name', row.competitor_name || row.name);
-    if (!competitor_name) return;
-    const region = window.prompt('Region (optional)', row.region || '') || '';
-    const category = window.prompt('Category (optional)', row.category || '') || '';
+  const deleteCompetitor = async () => {
+    if (!deleteTarget?.name) return;
     try {
       setCompetitorBusy(true);
-      await callOps('update_competitor', { name: row.name, data: JSON.stringify({ competitor_name, region, category }) });
+      await callCompetitorApi(`/api/competitors/${encodeURIComponent(deleteTarget.name)}`, {
+        method: 'DELETE',
+      });
       await fetchCompetitorStats();
-    } finally {
-      setCompetitorBusy(false);
-    }
-  };
-
-  const deleteCompetitor = async (row: CompetitorRow) => {
-    if (!window.confirm(`Delete competitor ${row.competitor_name || row.name}?`)) return;
-    try {
-      setCompetitorBusy(true);
-      await callOps('delete_competitor', { name: row.name });
-      await fetchCompetitorStats();
+      setDeleteTarget(null);
     } finally {
       setCompetitorBusy(false);
     }
@@ -441,7 +458,7 @@ export default function PresalesDashboard() {
                 <p className="text-xs text-[var(--text-soft)]">Create, update, and delete competitor master rows from dashboard.</p>
               </div>
               <button
-                onClick={() => void createCompetitor()}
+                onClick={openCreateCompetitor}
                 disabled={competitorBusy}
                 className="inline-flex items-center gap-1 rounded-lg bg-[var(--accent)] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
               >
@@ -455,14 +472,14 @@ export default function PresalesDashboard() {
                   <div className="mt-1 text-xs text-[var(--text-soft)]">{row.region || 'Region not set'} | {row.category || 'Category not set'}</div>
                   <div className="mt-2 flex gap-2">
                     <button
-                      onClick={() => void updateCompetitor(row)}
+                      onClick={() => openEditCompetitor(row)}
                       disabled={competitorBusy}
                       className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700 disabled:opacity-60"
                     >
                       <Pencil className="h-3 w-3" /> Update
                     </button>
                     <button
-                      onClick={() => void deleteCompetitor(row)}
+                      onClick={() => setDeleteTarget(row)}
                       disabled={competitorBusy}
                       className="inline-flex items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700 disabled:opacity-60"
                     >
@@ -582,6 +599,33 @@ export default function PresalesDashboard() {
           setIsCreateOpen(false);
           handleRefresh();
         }}
+      />
+      <FormModal
+        open={competitorModalMode !== null}
+        title={competitorModalMode === 'edit' ? 'Update Competitor' : 'Add Competitor'}
+        description="Manage competitor master rows through a proper form."
+        busy={competitorBusy}
+        confirmLabel={competitorModalMode === 'edit' ? 'Save Changes' : 'Create Competitor'}
+        fields={[
+          { name: 'competitor_name', label: 'Competitor Name', type: 'text', required: true, defaultValue: competitorDraft?.competitor_name || competitorDraft?.name || '' },
+          { name: 'region', label: 'Region', type: 'text', defaultValue: competitorDraft?.region || '', placeholder: 'North, South, National…' },
+          { name: 'category', label: 'Category', type: 'text', defaultValue: competitorDraft?.category || '', placeholder: 'OEM, SI, EPC…' },
+        ]}
+        onConfirm={saveCompetitor}
+        onCancel={() => {
+          setCompetitorModalMode(null);
+          setCompetitorDraft(null);
+        }}
+      />
+      <ActionModal
+        open={!!deleteTarget}
+        title="Delete Competitor"
+        description={`Delete competitor ${deleteTarget?.competitor_name || deleteTarget?.name || ''}?`}
+        variant="danger"
+        confirmLabel="Delete"
+        busy={competitorBusy}
+        onConfirm={deleteCompetitor}
+        onCancel={() => setDeleteTarget(null)}
       />
     </div>
   );

@@ -1,8 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { AlertCircle, Loader2, Plus, RefreshCcw, X } from 'lucide-react';
+import { AlertCircle, Loader2, Plus, RefreshCcw, X, CheckCircle2, XCircle, Trash2, Send } from 'lucide-react';
 import { projectWorkspaceApi } from '@/lib/typedApi';
+import { useAuth } from '@/context/AuthContext';
 
 type PettyCashEntry = {
   name: string;
@@ -29,11 +30,14 @@ const STATUS_TONES: Record<string, string> = {
 };
 
 export default function PettyCashTab({ projectId }: { projectId: string }) {
+  const { currentUser } = useAuth();
+  const canApprove = currentUser?.role === 'Project Head' || currentUser?.role === 'Director';
   const [entries, setEntries] = useState<PettyCashEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [actionBusy, setActionBusy] = useState('');
   const [form, setForm] = useState({
     description: '', amount: '', category: '', paid_to: '', entry_date: '',
   });
@@ -79,6 +83,29 @@ export default function PettyCashTab({ projectId }: { projectId: string }) {
     } finally {
       setCreating(false);
     }
+  };
+
+  const runAction = async (name: string, action: 'approve' | 'reject' | 'delete' | 'submit_ph') => {
+    if (action === 'delete' && !confirm('Delete this petty cash entry?')) return;
+    if (action === 'reject') {
+      const reason = prompt('Rejection reason:');
+      if (!reason?.trim()) return;
+      setActionBusy(name);
+      try {
+        await projectWorkspaceApi.rejectPettyCashEntry(name, reason.trim());
+        await load();
+      } catch (err) { setError(err instanceof Error ? err.message : 'Failed'); }
+      finally { setActionBusy(''); }
+      return;
+    }
+    setActionBusy(name);
+    try {
+      if (action === 'approve') await projectWorkspaceApi.approvePettyCashEntry(name);
+      else if (action === 'delete') await projectWorkspaceApi.deletePettyCashEntry(name);
+      else if (action === 'submit_ph') await projectWorkspaceApi.submitPettyCashToPh(name);
+      await load();
+    } catch (err) { setError(err instanceof Error ? err.message : 'Action failed'); }
+    finally { setActionBusy(''); }
   };
 
   if (loading) {
@@ -128,6 +155,7 @@ export default function PettyCashTab({ projectId }: { projectId: string }) {
                 <th>Amount</th>
                 <th>Paid To</th>
                 <th>Status</th>
+                <th className="text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -142,6 +170,34 @@ export default function PettyCashTab({ projectId }: { projectId: string }) {
                     <span className={`inline-block rounded px-2 py-0.5 text-[10px] font-semibold ${STATUS_TONES[entry.status] || 'bg-gray-100 text-gray-600'}`}>
                       {entry.status}
                     </span>
+                  </td>
+                  <td className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      {entry.status === 'Pending' && canApprove && (
+                        <>
+                          <button onClick={() => void runAction(entry.name, 'approve')} disabled={actionBusy === entry.name}
+                            className="inline-flex items-center gap-0.5 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 hover:bg-emerald-100">
+                            <CheckCircle2 className="h-3 w-3" /> Approve
+                          </button>
+                          <button onClick={() => void runAction(entry.name, 'reject')} disabled={actionBusy === entry.name}
+                            className="inline-flex items-center gap-0.5 rounded bg-rose-50 px-1.5 py-0.5 text-[10px] font-medium text-rose-700 hover:bg-rose-100">
+                            <XCircle className="h-3 w-3" /> Reject
+                          </button>
+                        </>
+                      )}
+                      {entry.status === 'Draft' && (
+                        <button onClick={() => void runAction(entry.name, 'submit_ph')} disabled={actionBusy === entry.name}
+                          className="inline-flex items-center gap-0.5 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 hover:bg-blue-100">
+                          <Send className="h-3 w-3" /> Submit to PH
+                        </button>
+                      )}
+                      {(entry.status === 'Draft' || entry.status === 'Pending') && (
+                        <button onClick={() => void runAction(entry.name, 'delete')} disabled={actionBusy === entry.name}
+                          className="text-gray-400 hover:text-rose-600">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

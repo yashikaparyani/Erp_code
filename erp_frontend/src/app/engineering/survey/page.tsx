@@ -379,13 +379,29 @@ export default function EngineeringSurveyPage() {
                   </td>
                   <td>
                     {latestSurvey ? (
-                      <Link
-                        href={`/engineering/survey/${encodeURIComponent(latestSurvey.name)}`}
-                        className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700"
-                      >
-                        <Eye className="h-4 w-4" />
-                        View
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/engineering/survey/${encodeURIComponent(latestSurvey.name)}`}
+                          className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700"
+                        >
+                          <Eye className="h-4 w-4" />
+                          View
+                        </Link>
+                        <button
+                          className="text-sm font-medium text-gray-500 hover:text-red-600"
+                          onClick={async () => {
+                            if (!confirm(`Delete survey ${latestSurvey.name}?`)) return;
+                            try {
+                              const res = await fetch(`/api/surveys/${encodeURIComponent(latestSurvey.name)}`, { method: 'DELETE' });
+                              const p = await res.json().catch(() => ({}));
+                              if (!res.ok || !p.success) throw new Error(p.message || 'Failed');
+                              await loadData(false);
+                            } catch (e) { setError(e instanceof Error ? e.message : 'Failed to delete'); }
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </div>
                     ) : (
                       <button
                         className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700"

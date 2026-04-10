@@ -39,6 +39,7 @@ export default function SiteRegisterPage() {
   const [error, setError] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [deletingName, setDeletingName] = useState<string | null>(null);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -96,6 +97,21 @@ export default function SiteRegisterPage() {
     } finally {
       setCreating(false);
     }
+  };
+
+  const handleDelete = async (name: string) => {
+    if (!confirm(`Delete site ${name}?`)) return;
+    setDeletingName(name); setError('');
+    try {
+      const res = await fetch('/api/ops', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ method: 'delete_site', args: { name } }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok || !payload.success) throw new Error(payload.message || 'Failed to delete site');
+      await loadSites();
+    } catch (e) { setError(e instanceof Error ? e.message : 'Failed to delete site'); }
+    finally { setDeletingName(null); }
   };
 
   // Client-side search filter on top of server filters
@@ -253,6 +269,13 @@ export default function SiteRegisterPage() {
                       >
                         <FileText className="w-3.5 h-3.5" /> Dossier
                       </Link>
+                      <button
+                        disabled={deletingName === site.name}
+                        onClick={() => handleDelete(site.name)}
+                        className="text-gray-500 hover:text-red-600 text-sm font-medium"
+                      >
+                        Delete
+                      </button>
                     </div>
                   </td>
                 </tr>

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import RegisterPage from '@/components/shells/RegisterPage';
-import { callOps, formatCurrency, formatDate, SLA_PENALTY_BADGES, badge } from '@/components/finance/fin-helpers';
+import { formatCurrency, formatDate, SLA_PENALTY_BADGES, badge } from '@/components/finance/fin-helpers';
 
 type SLA = { name?: string; ticket?: string; rule?: string; breach_type?: string; amount?: number; calculated_on?: string; status?: string; project?: string };
 
@@ -15,7 +15,12 @@ export default function SLAPenaltiesPage() {
 
   const load = useCallback(async () => {
     setLoading(true); setError('');
-    try { setRows(await callOps<SLA[]>('get_sla_penalties')); }
+    try {
+      const res = await fetch('/api/sla-penalties');
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok || payload.success === false) throw new Error(payload.message || 'Failed');
+      setRows(Array.isArray(payload.data) ? payload.data : []);
+    }
     catch (e) { setError(e instanceof Error ? e.message : 'Failed'); }
     setLoading(false);
   }, []);

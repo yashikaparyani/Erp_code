@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import RegisterPage from '@/components/shells/RegisterPage';
 
 interface AgingRow { warehouse?: string; item_code?: string; actual_qty?: number; earliest_date?: string; age_days?: number; }
@@ -33,6 +34,12 @@ export default function StockAgingPage() {
         { label: 'Slow Moving (90–180d)', value: slowMoving.length },
         { label: 'Dead Stock (>180d)', value: deadStock.length },
       ]}
+      headerActions={(
+        <div className="flex flex-wrap gap-2">
+          <Link href="/inventory" className="btn btn-primary">Open Inventory</Link>
+          <Link href="/stock-position" className="btn btn-secondary">Stock Position</Link>
+        </div>
+      )}
     >
       <table className="data-table">
         <thead><tr><th>Item Code</th><th>Warehouse</th><th className="text-right">Qty</th><th className="text-right">Age (days)</th><th>Category</th></tr></thead>

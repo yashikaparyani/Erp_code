@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { FRAPPE_URL, applyFrappeCookies, clearCachedServiceSession, loginToFrappe } from '../../_lib/frappe';
+import { FRAPPE_URL, applyFrappeCookies, applySessionContextCookies, clearCachedServiceSession, loginToFrappe } from '../../_lib/frappe';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
     });
 
     applyFrappeCookies(response, session);
+    applySessionContextCookies(response, context.data);
     return response;
   } catch (error) {
     return NextResponse.json(

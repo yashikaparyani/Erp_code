@@ -7,7 +7,7 @@ import ActionModal from '@/components/ui/ActionModal';
 import AccountabilityTimeline from '@/components/accountability/AccountabilityTimeline';
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
 import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
-import { callOps, formatCurrency, formatDate, SLA_PENALTY_BADGES, statusVariant, useAuth, hasAnyRole } from '@/components/finance/fin-helpers';
+import { formatCurrency, formatDate, SLA_PENALTY_BADGES, statusVariant, useAuth, hasAnyRole } from '@/components/finance/fin-helpers';
 
 type SLA = Record<string, any>;
 
@@ -21,7 +21,12 @@ export default function SLAPenaltyDetailPage() {
 
   const load = useCallback(async () => {
     setLoading(true); setError('');
-    try { setData(await callOps<SLA>('get_sla_penalty', { name: id })); }
+    try {
+      const res = await fetch(`/api/sla-penalties/${encodeURIComponent(id)}`);
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok || payload.success === false) throw new Error(payload.message || 'Failed');
+      setData(payload.data || null);
+    }
     catch (e) { setError(e instanceof Error ? e.message : 'Failed'); }
     setLoading(false);
   }, [id]);
@@ -82,7 +87,17 @@ export default function SLAPenaltyDetailPage() {
         open={!!action} title={`${action} SLA Penalty`}
         confirmLabel={action || ''} variant={action === 'Reject' ? 'danger' : 'default'}
         fields={[{ name: 'remarks', label: 'Remarks', type: 'textarea', required: action !== 'Approve' }]}
-        onConfirm={async (v) => { await callOps('action_sla_penalty', { name: id, action: action!.toLowerCase(), ...v }); setAction(null); load(); }}
+        onConfirm={async (v) => {
+          const res = await fetch(`/api/sla-penalties/${encodeURIComponent(id)}/actions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: action!.toLowerCase(), reason: v.remarks || '' }),
+          });
+          const payload = await res.json().catch(() => ({}));
+          if (!res.ok || payload.success === false) throw new Error(payload.message || 'Failed');
+          setAction(null);
+          load();
+        }}
         onCancel={() => setAction(null)}
       />
     </DetailPage>

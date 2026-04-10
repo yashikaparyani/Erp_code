@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Banknote, CheckCircle2, Clock3, RefreshCw, Search, Plus, Trash2, Edit2, X } from 'lucide-react';
+import LinkPicker from '@/components/ui/LinkPicker';
+import { emdPbgApi } from '@/lib/typedApi';
 
 type EmdTrackingRow = {
   tender_id: string;
@@ -108,17 +110,6 @@ function getStatusClasses(status: string) {
   }
 }
 
-async function callOps<T>(method: string, args?: Record<string, unknown>): Promise<T> {
-  const res = await fetch('/api/ops', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ method, args }),
-  });
-  const payload = await res.json().catch(() => ({}));
-  if (!res.ok || payload.success === false) throw new Error(payload.message || 'Failed');
-  return (payload.data ?? payload) as T;
-}
-
 export default function EmdTrackingPage() {
   const [rows, setRows] = useState<EmdTrackingRow[]>([]);
   const [summary, setSummary] = useState<Summary>(EMPTY_SUMMARY);
@@ -159,14 +150,14 @@ export default function EmdTrackingPage() {
 
   const handleCreateEmdClick = () => {
     setIsEditingEmd(false);
-    setEmdForm({});
+    setEmdForm({ instrument_type: 'EMD' });
     setEmdError('');
     setShowEmdModal(true);
   };
 
   const handleEditEmdClick = (instrument: EmdInstrument) => {
     setIsEditingEmd(true);
-    setEmdForm({ ...instrument });
+    setEmdForm({ instrument_type: 'EMD', ...instrument });
     setEmdError('');
     setShowEmdModal(true);
   };
@@ -187,12 +178,13 @@ export default function EmdTrackingPage() {
     try {
       const payload = {
         ...emdForm,
+        instrument_type: emdForm.instrument_type || 'EMD',
         refund_status: toRefundCode(emdForm.refund_status),
       };
       if (isEditingEmd && emdForm.name) {
-        await callOps('update_emd_pbg_instrument', { name: emdForm.name, ...payload });
+        await emdPbgApi.update(emdForm.name, payload);
       } else {
-        await callOps('create_emd_pbg_instrument', payload);
+        await emdPbgApi.create(payload);
       }
       setShowEmdModal(false);
       await fetchRows();
@@ -206,7 +198,7 @@ export default function EmdTrackingPage() {
   const handleDeleteEmd = async (name: string) => {
     if (!confirm('Delete this EMD instrument?')) return;
     try {
-      await callOps('delete_emd_pbg_instrument', { name });
+      await emdPbgApi.delete(name);
       await fetchRows();
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to delete');
@@ -438,12 +430,12 @@ export default function EmdTrackingPage() {
                 <label className="text-xs font-semibold uppercase tracking-wide text-[var(--text-soft)]">
                   Linked Tender *
                 </label>
-                <input
-                  type="text"
+                <LinkPicker
+                  entity="tender"
                   value={emdForm.linked_tender || ''}
-                  onChange={(e) => setEmdForm({ ...emdForm, linked_tender: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-[var(--border-subtle)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
-                  placeholder="e.g., TND-0001"
+                  onChange={(value) => setEmdForm({ ...emdForm, linked_tender: value })}
+                  className="mt-1"
+                  placeholder="Search tender..."
                 />
               </div>
 
@@ -519,7 +511,7 @@ export default function EmdTrackingPage() {
                 <input
                   type="number"
                   value={emdForm.amount || ''}
-                  onChange={(e) => setEmdForm({ ...emdForm, amount: parseInt(e.target.value) || undefined })}
+                  onChange={(e) => setEmdForm({ ...emdForm, amount: Number.parseFloat(e.target.value) || undefined })}
                   className="mt-1 w-full rounded-lg border border-[var(--border-subtle)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
                   placeholder="In INR"
                 />
