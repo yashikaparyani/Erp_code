@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   ArrowLeft,
   Columns3,
+  Copy,
   Edit3,
   FileText,
   Flag,
@@ -14,6 +15,7 @@ import {
   LayoutDashboard,
   Loader2,
   Plus,
+  RefreshCcw,
   ShieldAlert,
   AlertCircle,
   Trash2,
@@ -168,6 +170,22 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
+
+  // Listen for workspace-reload from child components (e.g. SitesTab advance/block)
+  useEffect(() => {
+    const handler = () => setReloadKey((k) => k + 1);
+    window.addEventListener('workspace-reload', handler);
+    return () => window.removeEventListener('workspace-reload', handler);
+  }, []);
+
+  // ── Clone Project state ──
+  const [showClone, setShowClone] = useState(false);
+  const [cloneName, setCloneName] = useState('');
+  const [cloneTasks, setCloneTasks] = useState(true);
+  const [cloneMilestones, setCloneMilestones] = useState(true);
+  const [cloneNotes, setCloneNotes] = useState(true);
+  const [cloning, setCloning] = useState(false);
+
   const initialTab = useMemo<TabKey>(() => {
     const requestedTab = searchParams?.get('tab') as TabKey | null;
     if (requestedTab && config.tabs.includes(requestedTab)) {
@@ -192,6 +210,48 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
       setIsFavorite(res.is_favorite);
     } catch { /* ignore */ }
     setFavoriteLoading(false);
+  }, [projectId]);
+
+  const handleCloneProject = useCallback(async () => {
+    if (!cloneName.trim()) return;
+    setCloning(true);
+    setNotice(null);
+    try {
+      await apiFetch('/api/ops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          method: 'clone_project',
+          source_project: projectId,
+          new_project_name: cloneName.trim(),
+          copy_tasks: cloneTasks ? 1 : 0,
+          copy_milestones: cloneMilestones ? 1 : 0,
+          copy_notes: cloneNotes ? 1 : 0,
+        }),
+      });
+      setShowClone(false);
+      setCloneName('');
+      setNotice({ tone: 'success', message: `Project cloned as "${cloneName.trim()}".` });
+    } catch (err) {
+      setNotice({ tone: 'error', message: err instanceof Error ? err.message : 'Failed to clone project' });
+    } finally {
+      setCloning(false);
+    }
+  }, [projectId, cloneName, cloneTasks, cloneMilestones, cloneNotes]);
+
+  const handleRefreshSpine = useCallback(async () => {
+    setNotice(null);
+    try {
+      await apiFetch('/api/ops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ method: 'refresh_project_spine', project: projectId }),
+      });
+      setReloadKey((k) => k + 1);
+      setNotice({ tone: 'success', message: 'Project spine recalculated.' });
+    } catch (err) {
+      setNotice({ tone: 'error', message: err instanceof Error ? err.message : 'Failed to refresh project spine' });
+    }
   }, [projectId]);
 
   /* ── Actions dropdown ── */
@@ -581,6 +641,20 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
                       >
                         <MessageSquare className="h-3.5 w-3.5" /> Communications
                       </button>
+                      {canManageProject && (
+                        <button
+                          onClick={() => { setActionsOpen(false); setCloneName(''); setShowClone(true); }}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-xs text-[var(--text-main)] hover:bg-[var(--surface-raised)]"
+                        >
+                          <Copy className="h-3.5 w-3.5" /> Clone Project
+                        </button>
+                      )}
+                      <button
+                        onClick={() => { setActionsOpen(false); void handleRefreshSpine(); }}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-xs text-[var(--text-main)] hover:bg-[var(--surface-raised)]"
+                      >
+                        <RefreshCcw className="h-3.5 w-3.5" /> Recalculate Spine
+                      </button>
                       {canDeleteProject && (
                         <>
                           <div className="my-1 border-t border-[var(--border-subtle)]" />
@@ -783,6 +857,42 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
         onCancel={() => { if (!deletingProject) setShowDeleteProject(false); }}
         onConfirm={handleDeleteProject}
       />
+
+      {/* ── Clone Project Modal ── */}
+      <ActionModal
+        open={showClone}
+        title="Clone Project"
+        description={`Create a copy of "${ps?.project_name || projectId}" with its tasks, milestones, and notes.`}
+        variant="default"
+        confirmLabel="Clone"
+        busy={cloning}
+        onCancel={() => { if (!cloning) setShowClone(false); }}
+        onConfirm={handleCloneProject}
+      >
+        <div className="space-y-3">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">New Project Name</label>
+            <input
+              type="text"
+              value={cloneName}
+              onChange={(e) => setCloneName(e.target.value)}
+              placeholder="e.g. Phase-2 Extension"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div className="flex flex-wrap gap-4">
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={cloneTasks} onChange={(e) => setCloneTasks(e.target.checked)} className="rounded" /> Copy Tasks
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={cloneMilestones} onChange={(e) => setCloneMilestones(e.target.checked)} className="rounded" /> Copy Milestones
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={cloneNotes} onChange={(e) => setCloneNotes(e.target.checked)} className="rounded" /> Copy Notes
+            </label>
+          </div>
+        </div>
+      </ActionModal>
     </div>
   );
 }

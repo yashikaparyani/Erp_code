@@ -1,17 +1,79 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Search, ShieldAlert, BookOpen } from 'lucide-react';
+import { Search, ShieldAlert, BookOpen, ArrowUpRight, Lock, Unlock } from 'lucide-react';
 import { formatPercent } from '../dashboards/shared';
 import { WorkspacePermissions } from '../../context/WorkspacePermissionContext';
 import type { SiteRow, DepartmentConfig } from './workspace-types';
-import { STAGE_LABELS } from './workspace-types';
+import { SPINE_STAGES, STAGE_LABELS } from './workspace-types';
+import { apiFetch } from '@/lib/api-client';
 
-function SitesTab({ sites, config }: { sites: SiteRow[]; config: DepartmentConfig; projectId: string; wp: WorkspacePermissions | null }) {
+function SitesTab({ sites, config, projectId, wp }: { sites: SiteRow[]; config: DepartmentConfig; projectId: string; wp: WorkspacePermissions | null }) {
   const [search, setSearch] = useState('');
   const [stageFilter, setStageFilter] = useState('');
   const [blockedOnly, setBlockedOnly] = useState(false);
+
+  // ── Advance / Block modals ──
+  const [advanceTarget, setAdvanceTarget] = useState<SiteRow | null>(null);
+  const [advanceStage, setAdvanceStage] = useState('');
+  const [advanceNotes, setAdvanceNotes] = useState('');
+  const [advancing, setAdvancing] = useState(false);
+
+  const [blockTarget, setBlockTarget] = useState<SiteRow | null>(null);
+  const [blockReason, setBlockReason] = useState('');
+  const [blocking, setBlocking] = useState(false);
+
+  const [actionError, setActionError] = useState('');
+
+  const handleAdvanceSite = useCallback(async () => {
+    if (!advanceTarget || !advanceStage) return;
+    setAdvancing(true);
+    setActionError('');
+    try {
+      await apiFetch('/api/ops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ method: 'advance_site_stage', site: advanceTarget.name, new_stage: advanceStage, notes: advanceNotes || undefined }),
+      });
+      setAdvanceTarget(null);
+      setAdvanceStage('');
+      setAdvanceNotes('');
+      // Trigger workspace reload
+      window.dispatchEvent(new CustomEvent('workspace-reload'));
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to advance site stage');
+    } finally {
+      setAdvancing(false);
+    }
+  }, [advanceTarget, advanceStage, advanceNotes]);
+
+  const handleToggleBlocked = useCallback(async () => {
+    if (!blockTarget) return;
+    const isBlocking = !blockTarget.site_blocked;
+    if (isBlocking && !blockReason.trim()) { setActionError('A reason is required when blocking a site.'); return; }
+    setBlocking(true);
+    setActionError('');
+    try {
+      await apiFetch('/api/ops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ method: 'toggle_site_blocked', site: blockTarget.name, blocked: isBlocking ? 1 : 0, reason: blockReason.trim() || undefined }),
+      });
+      setBlockTarget(null);
+      setBlockReason('');
+      window.dispatchEvent(new CustomEvent('workspace-reload'));
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to update site blocked status');
+    } finally {
+      setBlocking(false);
+    }
+  }, [blockTarget, blockReason]);
+
+  const getNextStages = useCallback((current?: string) => {
+    const idx = SPINE_STAGES.indexOf(current || 'SURVEY');
+    return SPINE_STAGES.slice(idx + 1);
+  }, []);
 
   const stages = useMemo(() => [...new Set(sites.map((s) => s.current_site_stage || 'SURVEY'))].sort(), [sites]);
   const totalBlocked = useMemo(() => sites.filter((s) => s.site_blocked).length, [sites]);
@@ -109,6 +171,7 @@ function SitesTab({ sites, config }: { sites: SiteRow[]; config: DepartmentConfi
                 <th className="px-4 py-3 font-medium">Deadline</th>
                 <th className="px-4 py-3 font-medium">Last Updated</th>
                 <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border-subtle)]">
@@ -180,11 +243,108 @@ function SitesTab({ sites, config }: { sites: SiteRow[]; config: DepartmentConfi
                       <span className="inline-block rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">{site.status || 'Active'}</span>
                     )}
                   </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1">
+                      {getNextStages(site.current_site_stage).length > 0 && (
+                        <button
+                          onClick={() => { setAdvanceTarget(site); setAdvanceStage(getNextStages(site.current_site_stage)[0]); setAdvanceNotes(''); setActionError(''); }}
+                          className="rounded-lg p-1.5 text-blue-600 hover:bg-blue-50"
+                          title="Advance Stage"
+                        >
+                          <ArrowUpRight className="h-4 w-4" />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => { setBlockTarget(site); setBlockReason(site.blocker_reason || ''); setActionError(''); }}
+                        className={`rounded-lg p-1.5 ${site.site_blocked ? 'text-emerald-600 hover:bg-emerald-50' : 'text-rose-600 hover:bg-rose-50'}`}
+                        title={site.site_blocked ? 'Unblock Site' : 'Block Site'}
+                      >
+                        {site.site_blocked ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </td>
                 </tr>
                 );
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* ── Advance Stage Modal ── */}
+      {advanceTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-sm rounded-2xl border border-[var(--border-subtle)] bg-white p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-[var(--text-main)]">Advance Site Stage</h3>
+            <p className="mt-1 text-sm text-[var(--text-muted)]">
+              {advanceTarget.site_name || advanceTarget.name} &mdash; currently <strong>{STAGE_LABELS[advanceTarget.current_site_stage || 'SURVEY']}</strong>
+            </p>
+            {actionError && <p className="mt-2 text-sm text-rose-600">{actionError}</p>}
+            <div className="mt-4 space-y-3">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">New Stage</label>
+                <select
+                  value={advanceStage}
+                  onChange={(e) => setAdvanceStage(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {getNextStages(advanceTarget.current_site_stage).map((s) => (
+                    <option key={s} value={s}>{STAGE_LABELS[s] || s}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Notes (optional)</label>
+                <textarea
+                  value={advanceNotes}
+                  onChange={(e) => setAdvanceNotes(e.target.value)}
+                  rows={2}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button onClick={() => setAdvanceTarget(null)} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50" disabled={advancing}>Cancel</button>
+              <button onClick={handleAdvanceSite} disabled={advancing || !advanceStage} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
+                {advancing ? 'Advancing...' : 'Advance'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Block / Unblock Modal ── */}
+      {blockTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-sm rounded-2xl border border-[var(--border-subtle)] bg-white p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-[var(--text-main)]">
+              {blockTarget.site_blocked ? 'Unblock Site' : 'Block Site'}
+            </h3>
+            <p className="mt-1 text-sm text-[var(--text-muted)]">{blockTarget.site_name || blockTarget.name}</p>
+            {actionError && <p className="mt-2 text-sm text-rose-600">{actionError}</p>}
+            {!blockTarget.site_blocked && (
+              <div className="mt-4">
+                <label className="mb-1 block text-sm font-medium text-gray-700">Blocking Reason (required)</label>
+                <textarea
+                  value={blockReason}
+                  onChange={(e) => setBlockReason(e.target.value)}
+                  rows={3}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Why is this site being blocked?"
+                />
+              </div>
+            )}
+            <div className="mt-5 flex justify-end gap-2">
+              <button onClick={() => setBlockTarget(null)} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50" disabled={blocking}>Cancel</button>
+              <button
+                onClick={handleToggleBlocked}
+                disabled={blocking}
+                className={`rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-50 ${blockTarget.site_blocked ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'}`}
+              >
+                {blocking ? (blockTarget.site_blocked ? 'Unblocking...' : 'Blocking...') : (blockTarget.site_blocked ? 'Unblock' : 'Block')}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

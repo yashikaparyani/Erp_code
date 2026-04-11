@@ -12,13 +12,14 @@ import {
   RefreshCcw,
   Search,
   ShieldAlert,
+  Star,
 } from 'lucide-react';
 import ActionModal from '@/components/ui/ActionModal';
 import RegisterPage from '@/components/shells/RegisterPage';
 import type { StatItem } from '@/components/shells/RegisterPage';
 import { formatPercent } from '@/components/dashboards/shared';
 import { useAuth } from '@/context/AuthContext';
-import { projectApi } from '@/lib/typedApi';
+import { projectApi, projectWorkspaceApi } from '@/lib/typedApi';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -318,6 +319,24 @@ export default function ProjectsDashboardPage() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [notice, setNotice] = useState<{ tone: 'success' | 'error'; message: string } | null>(null);
+
+  // ── Favorites ──
+  const [favoriteSet, setFavoriteSet] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    projectWorkspaceApi.getFavorites<string[]>().then((favs) => {
+      if (Array.isArray(favs)) setFavoriteSet(new Set(favs));
+    }).catch(() => {});
+  }, []);
+  const toggleFavorite = useCallback(async (projectName: string) => {
+    try {
+      const res = await projectWorkspaceApi.toggleFavorite<{ is_favorite: boolean }>(projectName);
+      setFavoriteSet((prev) => {
+        const next = new Set(prev);
+        if (res.is_favorite) next.add(projectName); else next.delete(projectName);
+        return next;
+      });
+    } catch { /* ignore */ }
+  }, []);
 
   // ── Modal state ──
   const [showActions, setShowActions] = useState(false);
@@ -852,15 +871,24 @@ export default function ProjectsDashboardPage() {
                   return (
                     <tr key={project.name} className="group hover:bg-[var(--surface-raised)]/55 transition-colors">
                       <td className="px-6 py-4">
-                        <Link href={href} className="block">
-                          <div className="font-semibold text-[var(--text-main)] group-hover:text-[var(--accent-strong)]">
-                            {project.project_name || project.name}
-                          </div>
-                          <div className="mt-1 text-xs text-[var(--text-muted)]">
-                            {resolveUserName(project.project_head) || 'No project head'}
-                            {blocked && ` · ${project.blocker_summary || 'Blocked'}`}
+                        <div className="flex items-start gap-2">
+                          <button
+                            onClick={() => void toggleFavorite(project.name)}
+                            className="mt-0.5 shrink-0 rounded p-0.5 transition-colors hover:bg-amber-50"
+                            title={favoriteSet.has(project.name) ? 'Remove from favorites' : 'Add to favorites'}
+                          >
+                            <Star className={`h-4 w-4 ${favoriteSet.has(project.name) ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`} />
+                          </button>
+                          <Link href={href} className="block">
+                            <div className="font-semibold text-[var(--text-main)] group-hover:text-[var(--accent-strong)]">
+                              {project.project_name || project.name}
+                            </div>
+                            <div className="mt-1 text-xs text-[var(--text-muted)]">
+                              {resolveUserName(project.project_head) || 'No project head'}
+                              {blocked && ` · ${project.blocker_summary || 'Blocked'}`}
                           </div>
                         </Link>
+                        </div>
                       </td>
                       <td className="px-4 py-4 text-[var(--text-muted)]">{project.customer || '—'}</td>
                       <td className="px-4 py-4">
