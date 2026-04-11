@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Banknote, CheckCircle2, Clock3, RefreshCw, Search, Plus, Trash2, Edit2, X } from 'lucide-react';
 import LinkPicker from '@/components/ui/LinkPicker';
 import { emdPbgApi } from '@/lib/typedApi';
@@ -39,6 +39,9 @@ type EmdInstrument = {
   amount?: number;
   status?: string;
   refund_status?: string;
+  refund_date?: string;
+  refund_reference?: string;
+  refund_remarks?: string;
   remarks?: string;
 };
 
@@ -124,10 +127,10 @@ export default function EmdTrackingPage() {
   const [submittingEmd, setSubmittingEmd] = useState(false);
   const [emdError, setEmdError] = useState('');
 
-  const getTenderEmdAmount = (tenderId?: string) => {
+  const getTenderEmdAmount = useCallback((tenderId?: string) => {
     if (!tenderId) return undefined;
     return rows.find((row) => row.tender_id === tenderId)?.emd_amount;
-  };
+  }, [rows]);
 
   const fetchRows = async () => {
     setLoading(true);
@@ -197,6 +200,22 @@ export default function EmdTrackingPage() {
       };
       if (isEditingEmd && emdForm.name) {
         await emdPbgApi.update(emdForm.name, payload);
+        // If refund status was changed, also call the dedicated audit endpoint
+        const refundCode = toRefundCode(emdForm.refund_status);
+        if (refundCode) {
+          await fetch('/api/ops', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              method: 'set_emd_refund_status',
+              name: emdForm.name,
+              refund_status: refundCode,
+              refund_date: emdForm.refund_date || undefined,
+              refund_reference: emdForm.refund_reference || undefined,
+              refund_remarks: emdForm.refund_remarks || undefined,
+            }),
+          });
+        }
       } else {
         await emdPbgApi.create(payload);
       }
@@ -231,7 +250,7 @@ export default function EmdTrackingPage() {
   const lockedTenderEmdAmount = useMemo(() => {
     if ((emdForm.instrument_type || 'EMD') !== 'EMD') return undefined;
     return getTenderEmdAmount(emdForm.linked_tender);
-  }, [emdForm.instrument_type, emdForm.linked_tender, rows]);
+  }, [emdForm.instrument_type, emdForm.linked_tender, getTenderEmdAmount]);
 
   return (
     <div className="min-h-screen bg-[var(--bg)] p-6 space-y-5">
@@ -398,7 +417,7 @@ export default function EmdTrackingPage() {
                   <td className="px-4 py-4 align-top whitespace-nowrap">
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => handleEditEmdClick({ name: row.instrument_name, linked_tender: row.tender_id, instrument_number: row.instrument_number, bank_name: row.bank_name, issue_date: row.issue_date, expiry_date: row.expiry_date, refund_status: row.refund_status })}
+                        onClick={() => handleEditEmdClick({ name: row.instrument_name, linked_tender: row.tender_id, instrument_number: row.instrument_number, bank_name: row.bank_name, issue_date: row.issue_date, expiry_date: row.expiry_date, refund_status: row.refund_status, remarks: row.remarks })}
                         className="rounded-lg p-1.5 hover:bg-blue-50 text-blue-600"
                         title="Edit EMD"
                       >
@@ -592,6 +611,47 @@ export default function EmdTrackingPage() {
                   <option value="Not Required">Not Required</option>
                 </select>
               </div>
+
+              {/* Refund audit fields — shown when status is Released or Forfeited */}
+              {(emdForm.refund_status === 'Released' || emdForm.refund_status === 'Forfeited') && (
+                <>
+                  <div>
+                    <label className="text-xs font-semibold uppercase tracking-wide text-[var(--text-soft)]">
+                      Refund Date
+                    </label>
+                    <input
+                      type="date"
+                      value={emdForm.refund_date || ''}
+                      onChange={(e) => setEmdForm({ ...emdForm, refund_date: e.target.value })}
+                      className="mt-1 w-full rounded-lg border border-[var(--border-subtle)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold uppercase tracking-wide text-[var(--text-soft)]">
+                      Refund Reference / UTR
+                    </label>
+                    <input
+                      type="text"
+                      value={emdForm.refund_reference || ''}
+                      onChange={(e) => setEmdForm({ ...emdForm, refund_reference: e.target.value })}
+                      className="mt-1 w-full rounded-lg border border-[var(--border-subtle)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+                      placeholder="Bank reference or UTR number"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold uppercase tracking-wide text-[var(--text-soft)]">
+                      Refund Remarks
+                    </label>
+                    <textarea
+                      value={emdForm.refund_remarks || ''}
+                      onChange={(e) => setEmdForm({ ...emdForm, refund_remarks: e.target.value })}
+                      className="mt-1 w-full rounded-lg border border-[var(--border-subtle)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+                      placeholder="Reason, notes, or conditions for the refund"
+                      rows={2}
+                    />
+                  </div>
+                </>
+              )}
 
               <div>
                 <label className="text-xs font-semibold uppercase tracking-wide text-[var(--text-soft)]">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, FileText, Loader2, Send } from 'lucide-react';
 import ModalFrame from '@/components/ui/ModalFrame';
 
@@ -49,7 +49,7 @@ export default function LetterOfSubmissionPage() {
   const [remarks, setRemarks] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const loadRows = async (status: 'pending' | 'submitted' = activeTab) => {
+  const loadRows = useCallback(async (status: 'pending' | 'submitted' = activeTab) => {
     try {
       setLoading(true);
       setError('');
@@ -63,11 +63,11 @@ export default function LetterOfSubmissionPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab]);
 
   useEffect(() => {
     void loadRows(activeTab);
-  }, [activeTab]);
+  }, [activeTab, loadRows]);
 
   const stats = useMemo(() => ({
     total: rows.length,

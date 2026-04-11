@@ -157,8 +157,11 @@ const navLinks: NavLink[] = [
     href: '/pre-sales/dashboard',
     icon: FileText,
     children: [
+      { name: 'Tenders', href: '/pre-sales/tenders', icon: FileText },
       { name: 'Bids', href: '/pre-sales/bids', icon: ListChecks },
       { name: 'EMD Tracking', href: '/pre-sales/emd-tracking', icon: CreditCard },
+      { name: 'Competitors', href: '/pre-sales/competitors', icon: Flag },
+      { name: 'Reminders', href: '/pre-sales/reminders', icon: CalendarCheck2 },
       { name: 'Approvals', href: '/pre-sales/approvals', icon: CheckSquare },
     ],
   },
