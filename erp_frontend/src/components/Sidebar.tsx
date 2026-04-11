@@ -158,9 +158,6 @@ const navLinks: NavLink[] = [
     icon: FileText,
     children: [
       { name: 'Bids', href: '/pre-sales/bids', icon: ListChecks },
-      { name: 'Won Bids & LOI', href: '/pre-sales/won-bids', icon: Banknote },
-      { name: 'In Process Bid', href: '/pre-sales/in-process-bid', icon: Clock },
-      { name: 'Cancel Bid', href: '/pre-sales/cancel-bid', icon: AlertTriangle },
       { name: 'EMD Tracking', href: '/pre-sales/emd-tracking', icon: CreditCard },
       { name: 'Approvals', href: '/pre-sales/approvals', icon: CheckSquare },
     ],
@@ -170,7 +167,6 @@ const navLinks: NavLink[] = [
     href: '/projects',
     icon: Briefcase,
     children: [
-      { name: 'Project Workspace', href: '/projects', icon: Layers3 },
       { name: 'Requests from PM', href: '/project-head/requests', icon: Send },
       { name: 'Communication Log', href: '/comm-logs', icon: ClipboardList },
       { name: 'Approval', href: '/project-head/approval', icon: CheckSquare },
@@ -182,7 +178,6 @@ const navLinks: NavLink[] = [
     href: '/engineering',
     icon: Settings,
     children: [
-      { name: 'Project Workspace', href: '/engineering/projects', icon: Layers3 },
       { name: 'Survey', href: '/survey', icon: MapPin },
       { name: 'BOQ', href: '/engineering/boq', icon: FileText },
       { name: 'Drawings', href: '/engineering/drawings', icon: FileText },
@@ -195,7 +190,6 @@ const navLinks: NavLink[] = [
     href: '/procurement',
     icon: ShoppingCart,
     children: [
-      { name: 'Project Workspace', href: '/procurement/projects', icon: Layers3 },
       { name: 'Vendor Comparisons', href: '/vendor-comparisons', icon: ClipboardList },
       { name: 'Indents', href: '/indents', icon: FileText },
       { name: 'Purchase Orders', href: '/purchase-orders', icon: ShoppingCart },
@@ -217,7 +211,6 @@ const navLinks: NavLink[] = [
     href: '/execution',
     icon: Wrench,
     children: [
-      { name: 'Project Workspace', href: '/execution/projects', icon: Layers3 },
       { name: 'Site Register', href: '/execution/sites', icon: MapPin },
       { name: 'Dependencies', href: '/execution/dependencies', icon: GitBranch },
       { name: 'Project Structure', href: '/execution/project-structure', icon: FolderTree },
@@ -240,20 +233,10 @@ const navLinks: NavLink[] = [
     href: '/finance',
     icon: DollarSign,
     children: [
-      { name: 'Project Workspace', href: '/finance/projects', icon: Layers3 },
       { name: 'Commercial Hub', href: '/finance/commercial', icon: Briefcase },
       { name: 'Petty Cash', href: '/petty-cash', icon: Banknote },
-      { name: 'Estimates', href: '/finance/estimates', icon: FileText },
-      { name: 'Proformas', href: '/finance/proformas', icon: ScrollText },
-      { name: 'Costing', href: '/finance/costing', icon: PieChart },
-      { name: 'Billing', href: '/finance/billing', icon: CreditCard },
-      { name: 'Payment Receipts', href: '/finance/payment-receipts', icon: CreditCard },
-      { name: 'Follow Ups', href: '/finance/follow-ups', icon: RefreshCcw },
-      { name: 'Customer Statement', href: '/finance/customer-statement', icon: BookOpen },
-      { name: 'Receivable Aging', href: '/finance/receivable-aging', icon: Clock },
-      { name: 'Retention Ledger', href: '/finance/retention', icon: ShieldCheck },
-      { name: 'Penalty Deductions', href: '/finance/penalties', icon: AlertTriangle },
-      { name: 'Costing Queue', href: '/finance/costing-queue', icon: CheckSquare },
+      { name: 'Pre-Billing', href: '/finance/prebilling-cluster', icon: FileText },
+      { name: 'Billing Cluster', href: '/finance/billing-cluster', icon: CreditCard },
     ],
   },
   {

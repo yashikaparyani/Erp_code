@@ -2,35 +2,46 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ExternalLink, Filter, ListChecks, RefreshCw } from 'lucide-react';
+import { Banknote, Ban, ExternalLink, ListChecks, RefreshCw, Timer } from 'lucide-react';
 
-type BidRow = {
-  name: string;
-  tender: string;
+type WonBidRow = {
+  tender_id: string;
+  tender_number: string;
+  tender_title: string;
+  bid_id: string;
+  bid_amount: number;
   bid_date?: string;
-  status?: string;
-  bid_amount?: number;
   result_date?: string;
-  result_remarks?: string;
-  is_latest?: number;
+  bid_status?: string;
+  loi_n_expected?: number;
+  loi_n_received?: number;
   loi_decision_status?: string;
 };
 
-const BID_STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  SUBMITTED: { bg: '#fef3c7', text: '#854d0e' },
-  UNDER_EVALUATION: { bg: '#e0e7ff', text: '#4338ca' },
-  WON: { bg: '#dcfce7', text: '#166534' },
-  LOST: { bg: '#fee2e2', text: '#991b1b' },
-  CANCEL: { bg: '#f1f5f9', text: '#475569' },
-  RETENDER: { bg: '#fce7f3', text: '#9d174d' },
+type InProcessBidRow = {
+  bid_id: string;
+  tender_number: string;
+  tender_title: string;
+  bid_amount: number;
+  tenure_years?: number;
+  tenure_end_date?: string;
+  days_left?: number | null;
+  closure_letter_received?: boolean;
+  completion_certificate_due?: boolean;
 };
 
-function getBidStatusLabel(status?: string) {
-  if (!status) return '-';
-  if (status === 'UNDER_EVALUATION') return 'UNDER CLARIFICATION';
-  if (status === 'CANCEL') return 'CANCELLED';
-  return status.replace(/_/g, ' ');
-}
+type CancelBidRow = {
+  bid_id: string;
+  tender_number: string;
+  tender_title: string;
+  bid_amount: number;
+  tender: string;
+  bid_date?: string;
+  result_date?: string;
+  cancel_reason?: string;
+};
+
+type BidInnerTab = 'won' | 'in-process' | 'cancel';
 
 function formatDate(value?: string) {
   if (!value) return '-';
@@ -49,36 +60,47 @@ function formatValue(value?: number) {
 }
 
 export default function BidsPage() {
-  const [bids, setBids] = useState<BidRow[]>([]);
+  const [activeTab, setActiveTab] = useState<BidInnerTab>('won');
+  const [wonRows, setWonRows] = useState<WonBidRow[]>([]);
+  const [inProcessRows, setInProcessRows] = useState<InProcessBidRow[]>([]);
+  const [cancelRows, setCancelRows] = useState<CancelBidRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState('');
-  const [latestOnly, setLatestOnly] = useState(true);
 
-  const fetchBids = useCallback(async () => {
+  const fetchRows = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (statusFilter) params.set('status', statusFilter);
-      if (latestOnly) params.set('is_latest', '1');
-
-      const response = await fetch(`/api/bids?${params.toString()}`, { cache: 'no-store' });
-      const payload = await response.json().catch(() => ({}));
-
-      if (payload?.success) {
-        setBids(Array.isArray(payload.data) ? payload.data : []);
+      if (activeTab === 'won') {
+        const response = await fetch('/api/pre-sales/won-bids', { cache: 'no-store' });
+        const payload = await response.json().catch(() => ({}));
+        setWonRows(payload?.success && Array.isArray(payload.data) ? payload.data : []);
+      } else if (activeTab === 'in-process') {
+        const response = await fetch('/api/pre-sales/in-process-bids', { cache: 'no-store' });
+        const payload = await response.json().catch(() => ({}));
+        setInProcessRows(payload?.success && Array.isArray(payload.data) ? payload.data : []);
       } else {
-        setBids([]);
+        const response = await fetch('/api/pre-sales/cancel-bids', { cache: 'no-store' });
+        const payload = await response.json().catch(() => ({}));
+        setCancelRows(payload?.success && Array.isArray(payload.data) ? payload.data : []);
       }
     } catch {
-      setBids([]);
+      if (activeTab === 'won') setWonRows([]);
+      else if (activeTab === 'in-process') setInProcessRows([]);
+      else setCancelRows([]);
     } finally {
       setLoading(false);
     }
-  }, [latestOnly, statusFilter]);
+  }, [activeTab]);
 
   useEffect(() => {
-    void fetchBids();
-  }, [fetchBids]);
+    void fetchRows();
+  }, [fetchRows]);
+
+  const currentCount =
+    activeTab === 'won' ? wonRows.length :
+      activeTab === 'in-process' ? inProcessRows.length :
+        cancelRows.length;
+
+  const wonTotal = wonRows.reduce((sum, row) => sum + (row.bid_amount || 0), 0);
 
   return (
     <div className="min-h-screen bg-[var(--bg)] p-3 sm:p-4 lg:p-6 space-y-5">
@@ -89,13 +111,13 @@ export default function BidsPage() {
             Bids Management
           </h1>
           <p className="text-xs text-[var(--text-soft)] mt-0.5">
-            Review converted bids, outcomes, cancellations, and retender cases
+            Sidebar mein sirf Bids rakha gaya hai. Neeche tabs se detail section dekho.
           </p>
         </div>
 
         <button
           type="button"
-          onClick={() => void fetchBids()}
+          onClick={() => void fetchRows()}
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-white border border-[var(--border-subtle)] hover:border-[var(--accent)] transition-all"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
@@ -103,113 +125,212 @@ export default function BidsPage() {
         </button>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 p-3 bg-white/80 rounded-2xl border border-[var(--border-subtle)]">
-        <Filter className="w-3.5 h-3.5 text-[var(--text-soft)]" />
-
-        <select
-          value={statusFilter}
-          onChange={(event) => setStatusFilter(event.target.value)}
-          className="text-xs rounded-xl border border-[var(--border-subtle)] px-2 py-1.5 bg-white"
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-[var(--border-subtle)] bg-white/80 p-3">
+        <button
+          type="button"
+          onClick={() => setActiveTab('won')}
+          className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition-all ${
+            activeTab === 'won'
+              ? 'border-green-200 bg-green-50 text-green-700'
+              : 'border-[var(--border-subtle)] bg-white text-[var(--text-muted)] hover:border-green-200 hover:text-green-700'
+          }`}
         >
-          <option value="">All Statuses</option>
-          {Object.keys(BID_STATUS_COLORS).map((status) => (
-            <option key={status} value={status}>
-              {getBidStatusLabel(status)}
-            </option>
-          ))}
-        </select>
+          <Banknote className="h-3.5 w-3.5" /> Won Bids & LOI
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('in-process')}
+          className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition-all ${
+            activeTab === 'in-process'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              : 'border-[var(--border-subtle)] bg-white text-[var(--text-muted)] hover:border-emerald-200 hover:text-emerald-700'
+          }`}
+        >
+          <Timer className="h-3.5 w-3.5" /> In Process Bid
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('cancel')}
+          className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition-all ${
+            activeTab === 'cancel'
+              ? 'border-slate-300 bg-slate-100 text-slate-700'
+              : 'border-[var(--border-subtle)] bg-white text-[var(--text-muted)] hover:border-slate-300 hover:text-slate-700'
+          }`}
+        >
+          <Ban className="h-3.5 w-3.5" /> Cancel Bid
+        </button>
 
-        <label className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] cursor-pointer">
-          <input
-            type="checkbox"
-            checked={latestOnly}
-            onChange={(event) => setLatestOnly(event.target.checked)}
-            className="rounded"
-          />
-          Latest bids only
-        </label>
-
-        <span className="text-xs text-[var(--text-soft)] sm:ml-auto">{bids.length} bids</span>
+        <span className="text-xs text-[var(--text-soft)] sm:ml-auto">
+          {currentCount} rows
+          {activeTab === 'won' ? ` · Total ${formatValue(wonTotal)}` : ''}
+        </span>
       </div>
 
       <div className="table-scroll rounded-2xl border border-[var(--border-subtle)] shadow-sm">
-        <table className="w-full min-w-[820px] text-xs">
-          <thead className="bg-[var(--surface)]">
-            <tr className="border-b border-[var(--border-subtle)]">
-              {['#', 'Bid ID', 'Tender', 'Bid Date', 'Bid Amount', 'Status', 'LOI Decision', 'Result Date', 'Remarks', 'Actions'].map((heading) => (
-                <th
-                  key={heading}
-                  className="text-left px-3 py-3 font-semibold text-[var(--text-soft)] uppercase tracking-wide"
-                >
-                  {heading}
-                </th>
-              ))}
-            </tr>
-          </thead>
-
-          <tbody className="divide-y divide-[var(--border-subtle)]">
-            {loading ? (
-              Array.from({ length: 5 }).map((_, index) => (
-                <tr key={index}>
-                  <td colSpan={10} className="px-3 py-3">
-                    <div className="h-4 bg-gray-100 rounded animate-pulse" />
-                  </td>
-                </tr>
-              ))
-            ) : bids.length === 0 ? (
-              <tr>
-                <td colSpan={10} className="px-3 py-8 text-center text-[var(--text-soft)]">
-                  No bids found
-                </td>
+        {activeTab === 'won' ? (
+          <table className="w-full min-w-[860px] text-xs">
+            <thead className="bg-[var(--surface)]">
+              <tr className="border-b border-[var(--border-subtle)]">
+                {['#', 'Bid ID', 'Tender', 'Bid Date', 'Won Value', 'Result Date', 'LOI Status', 'Decision', 'Actions'].map((heading) => (
+                  <th key={heading} className="text-left px-3 py-3 font-semibold text-[var(--text-soft)] uppercase tracking-wide">
+                    {heading}
+                  </th>
+                ))}
               </tr>
-            ) : (
-              bids.map((bid, index) => {
-                const statusColors = BID_STATUS_COLORS[bid.status || ''] || {
-                  bg: '#f3f4f6',
-                  text: '#374151',
-                };
-
-                return (
-                  <tr key={bid.name} className="hover:bg-[var(--surface-hover)] group">
+            </thead>
+            <tbody className="divide-y divide-[var(--border-subtle)]">
+              {loading ? (
+                Array.from({ length: 4 }).map((_, index) => (
+                  <tr key={index}>
+                    <td colSpan={9} className="px-3 py-3"><div className="h-4 animate-pulse rounded bg-green-50" /></td>
+                  </tr>
+                ))
+              ) : wonRows.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="px-3 py-10 text-center text-[var(--text-soft)]">No won bids are pending in the LOI stage</td>
+                </tr>
+              ) : (
+                wonRows.map((row, index) => {
+                  const allLoi = row.loi_n_expected ? row.loi_n_received === row.loi_n_expected : false;
+                  return (
+                    <tr key={row.bid_id} className="group hover:bg-green-50/30">
+                      <td className="px-3 py-3 text-[var(--text-soft)]">{index + 1}</td>
+                      <td className="px-3 py-3">
+                        <div className="font-mono font-semibold text-green-700">{row.bid_id}</div>
+                        {row.bid_status ? <div className="mt-1 text-[11px] text-[var(--text-soft)]">Status: {row.bid_status}</div> : null}
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="font-semibold text-[var(--text-main)]">{row.tender_number}</div>
+                        <div className="mt-1 text-[11px] text-[var(--text-soft)]">{row.tender_title || '-'}</div>
+                      </td>
+                      <td className="px-3 py-3">{formatDate(row.bid_date)}</td>
+                      <td className="px-3 py-3 font-bold text-green-700">{formatValue(row.bid_amount)}</td>
+                      <td className="px-3 py-3">{formatDate(row.result_date)}</td>
+                      <td className="px-3 py-3">
+                        {row.loi_n_expected ? (
+                          <span className={allLoi ? 'font-semibold text-green-700' : 'text-amber-600'}>{row.loi_n_received}/{row.loi_n_expected} received</span>
+                        ) : (
+                          <span className="text-[var(--text-muted)]">No LOI rows</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-3 text-[var(--text-soft)]">{row.loi_decision_status || 'PENDING'}</td>
+                      <td className="px-3 py-3">
+                        <Link href={`/pre-sales/bids/${row.bid_id}`} className="inline-flex items-center gap-1 rounded-lg border border-green-200 px-2 py-1 text-[10px] text-green-700 opacity-0 transition-all group-hover:opacity-100 hover:bg-green-50">
+                          Open Bid <ExternalLink className="h-2.5 w-2.5" />
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        ) : activeTab === 'in-process' ? (
+          <table className="w-full min-w-[860px] text-xs">
+            <thead className="bg-[var(--surface)]">
+              <tr className="border-b border-[var(--border-subtle)]">
+                {['#', 'Bid ID', 'Tender', 'Accepted Value', 'Tenure', 'End Date', 'Countdown', 'Completion', 'Actions'].map((heading) => (
+                  <th key={heading} className="text-left px-3 py-3 font-semibold text-[var(--text-soft)] uppercase tracking-wide">
+                    {heading}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--border-subtle)]">
+              {loading ? (
+                Array.from({ length: 4 }).map((_, index) => (
+                  <tr key={index}>
+                    <td colSpan={9} className="px-3 py-3"><div className="h-4 animate-pulse rounded bg-gray-100" /></td>
+                  </tr>
+                ))
+              ) : inProcessRows.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="px-3 py-10 text-center text-[var(--text-soft)]">No in-process bids available</td>
+                </tr>
+              ) : (
+                inProcessRows.map((row, index) => (
+                  <tr key={row.bid_id} className="group hover:bg-[var(--surface-hover)]">
                     <td className="px-3 py-3 text-[var(--text-soft)]">{index + 1}</td>
-                    <td className="px-3 py-3 font-mono font-semibold text-[var(--text-main)]">{bid.name}</td>
+                    <td className="px-3 py-3 font-mono font-semibold text-[var(--text-main)]">{row.bid_id}</td>
                     <td className="px-3 py-3">
-                      <Link href={`/pre-sales/${encodeURIComponent(bid.tender)}`} className="text-[var(--accent)] hover:underline">
-                        {bid.tender}
-                      </Link>
+                      <div className="font-semibold text-[var(--text-main)]">{row.tender_number}</div>
+                      <div className="mt-1 text-[11px] text-[var(--text-soft)]">{row.tender_title || '-'}</div>
                     </td>
-                    <td className="px-3 py-3">{formatDate(bid.bid_date)}</td>
-                    <td className="px-3 py-3 font-semibold">{formatValue(bid.bid_amount)}</td>
+                    <td className="px-3 py-3 font-semibold text-emerald-700">{formatValue(row.bid_amount)}</td>
+                    <td className="px-3 py-3">{row.tenure_years || 0} years</td>
+                    <td className="px-3 py-3">{formatDate(row.tenure_end_date)}</td>
                     <td className="px-3 py-3">
-                      <span
-                        className="px-2 py-0.5 rounded-full text-[10px] font-bold"
-                        style={{ backgroundColor: statusColors.bg, color: statusColors.text }}
-                      >
-                        {getBidStatusLabel(bid.status)}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3 text-[var(--text-muted)]">
-                      {bid.loi_decision_status || (bid.status === 'WON' ? 'PENDING' : '-')}
-                    </td>
-                    <td className="px-3 py-3">{formatDate(bid.result_date)}</td>
-                    <td className="px-3 py-3 max-w-[160px] truncate text-[var(--text-muted)]">
-                      {bid.result_remarks || '-'}
+                      {typeof row.days_left === 'number' ? (
+                        <span className={row.days_left <= 90 ? 'font-semibold text-amber-700' : 'text-[var(--text-main)]'}>{row.days_left} days</span>
+                      ) : (
+                        <span className="text-[var(--text-soft)]">-</span>
+                      )}
                     </td>
                     <td className="px-3 py-3">
-                      <Link
-                        href={`/pre-sales/bids/${bid.name}`}
-                        className="inline-flex items-center gap-1 px-2 py-1 text-[10px] rounded-lg border border-[var(--border-subtle)] opacity-0 group-hover:opacity-100 transition-all hover:border-[var(--accent)]"
-                      >
-                        Open Bid
-                        <ExternalLink className="w-2.5 h-2.5" />
+                      {row.closure_letter_received ? (
+                        <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">Received</span>
+                      ) : row.completion_certificate_due ? (
+                        <span className="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">Certificate Due</span>
+                      ) : (
+                        <span className="text-[var(--text-soft)]">Not due</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-3">
+                      <Link href={`/pre-sales/bids/${row.bid_id}`} className="inline-flex items-center gap-1 rounded-lg border border-[var(--border-subtle)] px-2 py-1 text-[10px] opacity-0 transition-all group-hover:opacity-100 hover:border-[var(--accent)]">
+                        Open Bid <ExternalLink className="h-2.5 w-2.5" />
                       </Link>
                     </td>
                   </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+                ))
+              )}
+            </tbody>
+          </table>
+        ) : (
+          <table className="w-full min-w-[860px] text-xs">
+            <thead className="bg-[var(--surface)]">
+              <tr className="border-b border-[var(--border-subtle)]">
+                {['#', 'Bid ID', 'Tender', 'Bid Date', 'Bid Amount', 'Result Date', 'Reason', 'Actions'].map((heading) => (
+                  <th key={heading} className="text-left px-3 py-3 font-semibold text-[var(--text-soft)] uppercase tracking-wide">
+                    {heading}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--border-subtle)]">
+              {loading ? (
+                Array.from({ length: 4 }).map((_, index) => (
+                  <tr key={index}>
+                    <td colSpan={8} className="px-3 py-3"><div className="h-4 animate-pulse rounded bg-gray-100" /></td>
+                  </tr>
+                ))
+              ) : cancelRows.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-3 py-10 text-center text-[var(--text-soft)]">No cancelled bids found</td>
+                </tr>
+              ) : (
+                cancelRows.map((row, index) => (
+                  <tr key={row.bid_id} className="group hover:bg-[var(--surface-hover)]">
+                    <td className="px-3 py-3 text-[var(--text-soft)]">{index + 1}</td>
+                    <td className="px-3 py-3 font-mono font-semibold text-[var(--text-main)]">{row.bid_id}</td>
+                    <td className="px-3 py-3">
+                      <div className="font-semibold text-[var(--text-main)]">{row.tender_number}</div>
+                      <div className="mt-1 text-[11px] text-[var(--text-soft)]">{row.tender_title || '-'}</div>
+                    </td>
+                    <td className="px-3 py-3">{formatDate(row.bid_date)}</td>
+                    <td className="px-3 py-3 font-semibold">{formatValue(row.bid_amount)}</td>
+                    <td className="px-3 py-3">{formatDate(row.result_date)}</td>
+                    <td className="max-w-[280px] px-3 py-3 text-[var(--text-soft)]">{row.cancel_reason || '-'}</td>
+                    <td className="px-3 py-3">
+                      <Link href={`/pre-sales/bids/${row.bid_id}`} className="inline-flex items-center gap-1 rounded-lg border border-[var(--border-subtle)] px-2 py-1 text-[10px] opacity-0 transition-all group-hover:opacity-100 hover:border-[var(--accent)]">
+                        Open Bid <ExternalLink className="h-2.5 w-2.5" />
+                      </Link>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

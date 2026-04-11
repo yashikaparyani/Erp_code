@@ -2,6 +2,49 @@
 from gov_erp.api_utils import *  # noqa: F401,F403 — shared utilities
 
 # ═══════════════════════════════════════════════════════════
+# PM Workspace – Project Spine / Listing (for department views)
+# ═══════════════════════════════════════════════════════════
+
+@frappe.whitelist()
+def get_project_spine_list(department=None):
+	"""Return all projects with spine fields, optionally filtered by department.
+	
+	Args:
+		department: Optional department filter ('accounts', 'engineering', etc.)
+	
+	Returns:
+		List of projects with spine information.
+	"""
+	# Verify user is authenticated (no specific department required for cross-dept workspace)
+	_require_authenticated_user()
+	
+	# Build filter - match projects where the given department has roles
+	filters = {}
+	
+	# Always fetch all projects with their spine metadata
+	projects = frappe.get_all(
+		"Project",
+		filters=filters,
+		fields=[
+			"name",
+			"project_name",
+			"customer", 
+			"status",
+			"current_project_stage",
+			"project_head",
+			"project_manager_user",
+			"total_sites",
+			"spine_progress_pct",
+			"spine_blocked",
+			"blocker_summary",
+		],
+		order_by="modified desc",
+	)
+	
+	return projects if projects else []
+
+
+# ═══════════════════════════════════════════════════════════
 # PM Workspace – Project Issues (Phase 1)
 # ═══════════════════════════════════════════════════════════
 

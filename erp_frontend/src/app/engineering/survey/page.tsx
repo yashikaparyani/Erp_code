@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { Eye, Plus, RefreshCw } from 'lucide-react';
 import RegisterPage from '@/components/shells/RegisterPage';
 import type { StatItem } from '@/components/shells/RegisterPage';
-import { useAuth } from '@/context/AuthContext';
 import {
   type SiteRecord,
   type Survey,
@@ -20,8 +19,6 @@ import {
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function EngineeringSurveyPage() {
-  const { currentUser } = useAuth();
-  const isDirector = (currentUser?.roles || []).includes('Director') || currentUser?.role === 'Director';
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [sites, setSites] = useState<SiteRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -183,19 +180,13 @@ export default function EngineeringSurveyPage() {
       stats={statItems}
       headerActions={
         <div className="flex flex-wrap gap-2">
-          {!isDirector ? (
-            <button
-              className="btn btn-primary"
-              onClick={() => setIsCreateOpen((c) => !c)}
-            >
-              <Plus className="h-4 w-4" />
-              {isCreateOpen ? 'Close Form' : 'Schedule Survey'}
-            </button>
-          ) : (
-            <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
-              Director view: survey scheduling and status changes are disabled.
-            </div>
-          )}
+          <button
+            className="btn btn-primary"
+            onClick={() => setIsCreateOpen((c) => !c)}
+          >
+            <Plus className="h-4 w-4" />
+            {isCreateOpen ? 'Close Form' : 'Schedule Survey'}
+          </button>
           <button
             className="btn btn-secondary"
             onClick={() => void loadData(false)}
@@ -235,7 +226,7 @@ export default function EngineeringSurveyPage() {
       }
     >
       {/* ── Create form (inline) ── */}
-      {!isDirector && isCreateOpen && (
+      {isCreateOpen && (
         <div className="border-b border-[var(--border-subtle)] px-5 py-4">
           <h3 className="mb-3 text-sm font-semibold text-[var(--text-main)]">Schedule New Survey</h3>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -375,7 +366,6 @@ export default function EngineeringSurveyPage() {
                         value={latestSurvey.status || 'Pending'}
                         onChange={(e) => void handleStatusUpdate(latestSurvey.name, e.target.value)}
                         className="input py-1 text-sm"
-                        disabled={isDirector}
                       >
                         <option value="Pending">Pending</option>
                         <option value="In Progress">In Progress</option>
@@ -397,38 +387,32 @@ export default function EngineeringSurveyPage() {
                           <Eye className="h-4 w-4" />
                           View
                         </Link>
-                        {!isDirector ? (
-                          <button
-                            className="text-sm font-medium text-gray-500 hover:text-red-600"
-                            onClick={async () => {
-                              if (!confirm(`Delete survey ${latestSurvey.name}?`)) return;
-                              try {
-                                const res = await fetch(`/api/surveys/${encodeURIComponent(latestSurvey.name)}`, { method: 'DELETE' });
-                                const p = await res.json().catch(() => ({}));
-                                if (!res.ok || !p.success) throw new Error(p.message || 'Failed');
-                                await loadData(false);
-                              } catch (e) { setError(e instanceof Error ? e.message : 'Failed to delete'); }
-                            }}
-                          >
-                            Delete
-                          </button>
-                        ) : null}
-                      </div>
-                    ) : (
-                      !isDirector ? (
                         <button
-                          className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700"
-                          onClick={() => {
-                            setCreateForm(prefillFromSite(site));
-                            setIsCreateOpen(true);
+                          className="text-sm font-medium text-gray-500 hover:text-red-600"
+                          onClick={async () => {
+                            if (!confirm(`Delete survey ${latestSurvey.name}?`)) return;
+                            try {
+                              const res = await fetch(`/api/surveys/${encodeURIComponent(latestSurvey.name)}`, { method: 'DELETE' });
+                              const p = await res.json().catch(() => ({}));
+                              if (!res.ok || !p.success) throw new Error(p.message || 'Failed');
+                              await loadData(false);
+                            } catch (e) { setError(e instanceof Error ? e.message : 'Failed to delete'); }
                           }}
                         >
-                          <Plus className="h-4 w-4" />
-                          Create
+                          Delete
                         </button>
-                      ) : (
-                        <span className="text-xs text-gray-500">View only</span>
-                      )
+                      </div>
+                    ) : (
+                      <button
+                        className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700"
+                        onClick={() => {
+                          setCreateForm(prefillFromSite(site));
+                          setIsCreateOpen(true);
+                        }}
+                      >
+                        <Plus className="h-4 w-4" />
+                        Create
+                      </button>
                     )}
                   </td>
                 </tr>

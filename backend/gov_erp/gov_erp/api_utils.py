@@ -497,6 +497,8 @@ def _get_permission_engine(user=None):
 def _require_capability(capability_key, project=None, site=None, required_mode=None):
 	"""Guard: throw PermissionError if user lacks the capability."""
 	_require_authenticated_user()
+	if ROLE_DIRECTOR in set(frappe.get_roles(frappe.session.user)):
+		return
 	_get_permission_engine().check_capability(
 		capability_key, project=project, site=site, required_mode=required_mode,
 	)
@@ -505,6 +507,8 @@ def _require_capability(capability_key, project=None, site=None, required_mode=N
 def _require_any_capability(*capability_keys, project=None, site=None):
 	"""Guard: throw PermissionError if user lacks ALL of the listed capabilities."""
 	_require_authenticated_user()
+	if ROLE_DIRECTOR in set(frappe.get_roles(frappe.session.user)):
+		return
 	_get_permission_engine().check_any_capability(
 		*capability_keys, project=project, site=site,
 	)
@@ -513,6 +517,8 @@ def _require_any_capability(*capability_keys, project=None, site=None):
 def _require_module_access(module_key):
 	"""Guard: throw PermissionError if user cannot access the module."""
 	_require_authenticated_user()
+	if ROLE_DIRECTOR in set(frappe.get_roles(frappe.session.user)):
+		return
 	_get_permission_engine().check_module_access(module_key)
 
 

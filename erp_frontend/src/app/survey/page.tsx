@@ -7,7 +7,6 @@ import RegisterPage from '@/components/shells/RegisterPage';
 import type { StatItem } from '@/components/shells/RegisterPage';
 import ActionModal from '@/components/ui/ActionModal';
 import { usePermissions } from '@/context/PermissionContext';
-import { useAuth } from '@/context/AuthContext';
 import {
   type SiteRecord,
   type SiteSurveyRow,
@@ -22,8 +21,6 @@ import {
 
 export default function SurveyPage() {
   const { permissions, isLoaded: isPermissionLoaded } = usePermissions();
-  const { currentUser } = useAuth();
-  const isDirector = (currentUser?.roles || []).includes('Director') || currentUser?.role === 'Director';
   const assignedProjects = useMemo(
     () => permissions?.user_context?.assigned_projects ?? [],
     [permissions?.user_context?.assigned_projects],
@@ -212,16 +209,10 @@ export default function SurveyPage() {
         emptyIcon={<MapPin className="h-10 w-10" />}
         stats={statItems}
         headerActions={
-          isDirector ? (
-            <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
-              Director view: survey execution actions are disabled.
-            </div>
-          ) : (
-            <button className="btn btn-primary" onClick={() => setIsCreateOpen(true)}>
-              <Plus className="h-4 w-4" />
-              New Survey
-            </button>
-          )
+          <button className="btn btn-primary" onClick={() => setIsCreateOpen(true)}>
+            <Plus className="h-4 w-4" />
+            New Survey
+          </button>
         }
         filterBar={
           <>
@@ -235,7 +226,7 @@ export default function SurveyPage() {
         }
       >
         {/* ── Create form (inline) ── */}
-        {!isDirector && isCreateOpen && (
+        {isCreateOpen && (
           <div className="border-b border-[var(--border-subtle)] px-5 py-4">
             <h3 className="mb-3 text-sm font-semibold text-[var(--text-main)]">Create Survey</h3>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -364,7 +355,6 @@ export default function SurveyPage() {
                         value={latestSurvey.status || 'Pending'}
                         onChange={(e) => handleStatusUpdate(latestSurvey.name, e.target.value)}
                         className="input py-1 text-xs"
-                        disabled={isDirector}
                       >
                         <option value="Pending">Pending</option>
                         <option value="In Progress">In Progress</option>
@@ -386,31 +376,25 @@ export default function SurveyPage() {
                           <Eye className="h-4 w-4" />
                           View
                         </Link>
-                        {!isDirector ? (
-                          <button
-                            className="inline-flex items-center gap-1 text-sm font-medium text-red-600 hover:text-red-800"
-                            onClick={() => setDeleteTarget(latestSurvey.name)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            Delete
-                          </button>
-                        ) : null}
+                        <button
+                          className="inline-flex items-center gap-1 text-sm font-medium text-red-600 hover:text-red-800"
+                          onClick={() => setDeleteTarget(latestSurvey.name)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Delete
+                        </button>
                       </div>
                     ) : (
-                      !isDirector ? (
-                        <button
-                          className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800"
-                          onClick={() => {
-                            setCreateForm(prefillFromSite(site));
-                            setIsCreateOpen(true);
-                          }}
-                        >
-                          <Plus className="h-4 w-4" />
-                          Create
-                        </button>
-                      ) : (
-                        <span className="text-xs text-gray-500">View only</span>
-                      )
+                      <button
+                        className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800"
+                        onClick={() => {
+                          setCreateForm(prefillFromSite(site));
+                          setIsCreateOpen(true);
+                        }}
+                      >
+                        <Plus className="h-4 w-4" />
+                        Create
+                      </button>
                     )}
                   </td>
                 </tr>
