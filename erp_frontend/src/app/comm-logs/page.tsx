@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { apiFetch } from '@/lib/api-client';
 import Link from 'next/link';
 import { ArrowUpRight, ArrowDownLeft, Download, FileText, MessageSquare, Plus, X } from 'lucide-react';
 import RegisterPage from '@/components/shells/RegisterPage';
@@ -44,9 +45,15 @@ export default function CommLogsPage() {
 
   const loadData = async () => {
     setLoading(true);
-    const res = await fetch('/api/comm-logs').then((r) => r.json()).catch(() => ({ data: [] }));
-    setItems(res.data || []);
-    setLoading(false);
+    setError('');
+    try {
+      const res = await apiFetch('/api/comm-logs');
+      setItems(res.data || []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load data');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { loadData(); }, []);
@@ -120,7 +127,7 @@ export default function CommLogsPage() {
                   <td className="max-w-xs truncate">{item.issue_summary || '-'}</td>
                   <td><span className={statusBadge(item.response_status)}>{item.response_status || 'Pending'}</span></td>
                   <td>{item.linked_project || '-'}</td>
-                  <td>{item.attachment ? <a href={`/api/files/download?url=${encodeURIComponent(item.attachment)}&filename=${encodeURIComponent(item.subject || item.name)}`} className="inline-flex items-center gap-1 text-sm text-blue-700 hover:underline"><Download className="h-3.5 w-3.5" />Download</a> : '-'}</td>
+                  <td>{item.attachment ? <a href={`/api/files?url=${encodeURIComponent(item.attachment)}&download=1`} className="inline-flex items-center gap-1 text-sm text-blue-700 hover:underline"><Download className="h-3.5 w-3.5" />Download</a> : '-'}</td>
                 </tr>
               ))}
             </tbody>

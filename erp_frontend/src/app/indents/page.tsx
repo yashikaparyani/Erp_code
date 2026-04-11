@@ -1,6 +1,7 @@
 'use client';
 
 import { Fragment, useEffect, useState } from 'react';
+import { apiFetch } from '@/lib/api-client';
 import Link from 'next/link';
 import { Plus } from 'lucide-react';
 import RegisterPage from '@/components/shells/RegisterPage';
@@ -51,13 +52,19 @@ export default function IndentsPage() {
 
   const load = async () => {
     setLoading(true);
-    const [l, s] = await Promise.all([
-      fetch('/api/indents').then(r => r.json()).catch(() => ({ data: [] })),
-      fetch('/api/indents/stats').then(r => r.json()).catch(() => ({ data: {} })),
-    ]);
-    setItems(l.data || []);
-    setStats(s.data || {});
-    setLoading(false);
+    setError('');
+    try {
+      const [l, s] = await Promise.all([
+        apiFetch('/api/indents').catch(() => ({ data: [] })),
+        apiFetch('/api/indents/stats').catch(() => ({ data: {} })),
+      ]);
+      setItems(l.data || []);
+      setStats(s.data || {});
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load data');
+    } finally {
+      setLoading(false);
+    }
   };
   useEffect(() => { load(); }, []);
 

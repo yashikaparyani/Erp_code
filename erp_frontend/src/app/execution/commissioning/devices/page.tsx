@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { apiFetch } from '@/lib/api-client';
 import Link from 'next/link';
 import { Activity, Cpu, Network, Plus, Wifi, X } from 'lucide-react';
 
@@ -76,17 +77,23 @@ export default function CommissioningDevicesPage() {
 
   const loadData = async () => {
     setLoading(true);
-    const [devRes, poolRes, allocRes, uptimeRes] = await Promise.all([
-      fetch('/api/execution/commissioning/device-registers').then(r => r.json()).catch(() => ({ data: [] })),
-      fetch('/api/execution/commissioning/ip-pools').then(r => r.json()).catch(() => ({ data: [] })),
-      fetch('/api/execution/commissioning/ip-allocations').then(r => r.json()).catch(() => ({ data: [] })),
-      fetch('/api/execution/commissioning/device-uptime-logs').then(r => r.json()).catch(() => ({ data: [] })),
-    ]);
-    setDevices(devRes.data || []);
-    setPools(poolRes.data || []);
-    setAllocations(allocRes.data || []);
-    setUptimeLogs(uptimeRes.data || []);
-    setLoading(false);
+    setError('');
+    try {
+      const [devRes, poolRes, allocRes, uptimeRes] = await Promise.all([
+        apiFetch('/api/execution/commissioning/device-registers').catch(() => ({ data: [] })),
+        apiFetch('/api/execution/commissioning/ip-pools').catch(() => ({ data: [] })),
+        apiFetch('/api/execution/commissioning/ip-allocations').catch(() => ({ data: [] })),
+        apiFetch('/api/execution/commissioning/device-uptime-logs').catch(() => ({ data: [] })),
+      ]);
+      setDevices(devRes.data || []);
+      setPools(poolRes.data || []);
+      setAllocations(allocRes.data || []);
+      setUptimeLogs(uptimeRes.data || []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load data');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { loadData(); }, []);

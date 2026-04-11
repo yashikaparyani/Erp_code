@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
+import { apiFetch } from '@/lib/api-client';
 import { Plus } from 'lucide-react';
 import RegisterPage from '@/components/shells/RegisterPage';
 import type { StatItem } from '@/components/shells/RegisterPage';
@@ -44,7 +45,7 @@ export default function ChangeRequestsPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/change-requests').then(r => r.json()).catch(() => ({ data: [] }));
+      const res = await apiFetch(`/api/change-requests`);
       setItems(res.data || []);
       setError('');
     } catch (e) {

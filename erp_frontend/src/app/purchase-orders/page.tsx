@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { apiFetch } from '@/lib/api-client';
 import { useRouter } from 'next/navigation';
 import { Plus, Send, Ban, Trash2, CheckSquare, Loader2, ExternalLink } from 'lucide-react';
 import RegisterPage from '@/components/shells/RegisterPage';
@@ -25,11 +26,18 @@ export default function PurchaseOrdersPage() {
 
   const load = async () => {
     setLoading(true);
-    const [l, s] = await Promise.all([
-      fetch('/api/purchase-orders').then(r => r.json()).catch(() => ({ data: [] })),
-      fetch('/api/purchase-orders/stats').then(r => r.json()).catch(() => ({ data: {} })),
-    ]);
-    setItems(l.data || []); setStats(s.data || {}); setLoading(false);
+    setError('');
+    try {
+      const [l, s] = await Promise.all([
+        apiFetch('/api/purchase-orders').catch(() => ({ data: [] })),
+        apiFetch('/api/purchase-orders/stats').catch(() => ({ data: {} })),
+      ]);
+      setItems(l.data || []); setStats(s.data || {}); 
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load data');
+    } finally {
+      setLoading(false);
+    }
   };
   useEffect(() => { load(); }, []);
 

@@ -3,7 +3,7 @@ import { callFrappeMethod, jsonErrorResponse } from '../_lib/frappe';
 
 export const dynamic = 'force-dynamic';
 
-type Entity = 'project' | 'site' | 'item' | 'customer' | 'warehouse' | 'vendor' | 'invoice' | 'commercial_reference' | 'purchase_order' | 'tender' | 'employee' | 'bid' | 'organization';
+type Entity = 'project' | 'site' | 'item' | 'customer' | 'warehouse' | 'vendor' | 'invoice' | 'commercial_reference' | 'purchase_order' | 'tender' | 'employee' | 'bid' | 'organization' | 'ip_pool' | 'device';
 
 const COMMERCIAL_REFERENCE_DOCTYPES = new Set([
   'GE Estimate',
@@ -93,6 +93,36 @@ export async function GET(request: NextRequest) {
           label: r.employee_name || r.name,
           sub: [r.name, r.designation, r.department, r.status].filter(Boolean).join(' · '),
         }));
+        break;
+      }
+
+      case 'ip_pool': {
+        const rows = await callFrappeMethod('get_ip_pools', {}, request);
+        const list = Array.isArray(rows) ? rows : [];
+        data = list
+          .filter((r: any) => !q || `${r.name} ${r.network_name || ''} ${r.linked_project || ''} ${r.linked_site || ''}`.toLowerCase().includes(q.toLowerCase()))
+          .slice(0, 30)
+          .map((r: any) => ({
+            value: r.name,
+            label: r.network_name || r.name,
+            sub: [r.name, r.linked_project, r.linked_site, r.subnet].filter(Boolean).join(' · '),
+          }));
+        break;
+      }
+
+      case 'device': {
+        const project = sp.get('project') || '';
+        const site = sp.get('site') || '';
+        const rows = await callFrappeMethod('get_device_registers', { project, site }, request);
+        const list = Array.isArray(rows) ? rows : [];
+        data = list
+          .filter((r: any) => !q || `${r.name} ${r.device_name || ''} ${r.serial_no || ''} ${r.linked_site || ''}`.toLowerCase().includes(q.toLowerCase()))
+          .slice(0, 30)
+          .map((r: any) => ({
+            value: r.name,
+            label: r.device_name || r.name,
+            sub: [r.name, r.device_type, r.serial_no, r.linked_site].filter(Boolean).join(' · '),
+          }));
         break;
       }
 

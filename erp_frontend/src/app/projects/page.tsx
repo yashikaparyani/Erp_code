@@ -616,7 +616,6 @@ export default function ProjectsDashboardPage() {
 
   const openEditModal = async (projectName: string) => {
     setShowActions(false);
-    setOpenRowActions(null);
     setNotice(null);
     await loadDirectory();
     try {
@@ -646,7 +645,6 @@ export default function ProjectsDashboardPage() {
 
   const openAddSitesModal = (project: ProjectListItem) => {
     setShowActions(false);
-    setOpenRowActions(null);
     setNotice(null);
     setSiteTarget(project);
     resetAddSitesForm();

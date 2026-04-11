@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Edit2, CheckCircle, ChevronsLeft, ChevronsRight, X, Loader2 } from 'lucide-react';
+import { Plus, Edit2, ChevronsLeft, ChevronsRight, X, Loader2 } from 'lucide-react';
 
 interface DesignationData {
   name: string;
@@ -18,6 +18,8 @@ export default function DesignationPage() {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [showModal, setShowModal] = useState(false);
   const [newDesignation, setNewDesignation] = useState('');
+  const [editTarget, setEditTarget] = useState<DesignationData | null>(null);
+  const [editName, setEditName] = useState('');
 
   const fetchData = useCallback(async () => {
     try {
@@ -53,6 +55,22 @@ export default function DesignationPage() {
         }
       } catch (e) { console.error('Failed to create designation:', e); }
     }
+  };
+
+  const handleRename = async () => {
+    if (!editTarget || !editName.trim()) return;
+    try {
+      const res = await fetch('/api/designations', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ docname: editTarget.name, new_name: editName.trim() }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setEditTarget(null);
+        fetchData();
+      }
+    } catch (e) { console.error('Failed to rename designation:', e); }
   };
 
   return (
@@ -94,14 +112,13 @@ export default function DesignationPage() {
                 <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider">Designation Name</th>
                 <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider">Created By</th>
                 <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider">Created Date & Time</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider">Status</th>
                 <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider w-28">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {filteredData.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
                     {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'No data found.'}
                   </td>
                 </tr>
@@ -113,21 +130,12 @@ export default function DesignationPage() {
                     <td className="px-4 py-3 text-sm text-gray-900 text-center">{row.owner}</td>
                     <td className="px-4 py-3 text-sm text-gray-600 text-center">{new Date(row.creation).toLocaleDateString('en-GB').replace(/\//g, '-')}</td>
                     <td className="px-4 py-3 text-center">
-                      <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-600">
-                        Active
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <button className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded">
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button 
-                          className="p-1.5 rounded-full bg-green-100 text-green-600"
-                        >
-                          <CheckCircle className="w-4 h-4" />
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => { setEditTarget(row); setEditName(row.designation_name); }}
+                        className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -194,6 +202,35 @@ export default function DesignationPage() {
             <div className="flex items-center justify-end gap-3 px-4 py-3 border-t border-gray-200">
               <button onClick={() => setShowModal(false)} className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 text-sm font-medium">Cancel</button>
               <button onClick={handleCreate} className="px-4 py-2 bg-[#1e6b87] text-white rounded-lg hover:bg-[#185a73] text-sm font-medium">Create</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setEditTarget(null)} />
+          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-800">Edit Designation</h3>
+              <button onClick={() => setEditTarget(null)} className="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Designation Name</label>
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="Enter new designation name"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="flex items-center justify-end gap-3 px-4 py-3 border-t border-gray-200">
+              <button onClick={() => setEditTarget(null)} className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 text-sm font-medium">Cancel</button>
+              <button onClick={handleRename} className="px-4 py-2 bg-[#1e6b87] text-white rounded-lg hover:bg-[#185a73] text-sm font-medium">Save</button>
             </div>
           </div>
         </div>

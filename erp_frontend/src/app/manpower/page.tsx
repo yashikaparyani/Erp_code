@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { apiFetch } from '@/lib/api-client';
 import { Users, Plus, DollarSign, Clock, X } from 'lucide-react';
 
 interface ManpowerLog {
@@ -34,9 +35,15 @@ export default function ManpowerPage() {
 
   const loadData = async () => {
     setLoading(true);
-    const res = await fetch('/api/manpower').then(r => r.json()).catch(() => ({ data: [] }));
-    setItems(res.data || []);
-    setLoading(false);
+    setError('');
+    try {
+      const res = await apiFetch('/api/manpower');
+      setItems(res.data || []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load data');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { loadData(); }, []);

@@ -19,6 +19,8 @@ export default function DepartmentPage() {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [showModal, setShowModal] = useState(false);
   const [newDepartment, setNewDepartment] = useState('');
+  const [editTarget, setEditTarget] = useState<DepartmentData | null>(null);
+  const [editName, setEditName] = useState('');
 
   const fetchData = useCallback(async () => {
     try {
@@ -66,6 +68,23 @@ export default function DepartmentPage() {
         }
       } catch (e) { console.error('Failed to create department:', e); }
     }
+  };
+
+  const handleRename = async () => {
+    if (!editTarget || !editName.trim()) return;
+    try {
+      const res = await fetch('/api/departments', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: editTarget.name, new_name: editName.trim() }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setEditTarget(null);
+        setEditName('');
+        fetchData();
+      }
+    } catch (e) { console.error('Failed to rename department:', e); }
   };
 
   return (
@@ -136,7 +155,7 @@ export default function DepartmentPage() {
                     </td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-2">
-                        <button className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded">
+                        <button onClick={() => { setEditTarget(row); setEditName(row.department_name); }} className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded">
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button 
@@ -237,6 +256,39 @@ export default function DepartmentPage() {
               </button>
               <button onClick={handleCreate} className="px-4 py-2 bg-[#1e6b87] text-white rounded-lg hover:bg-[#185a73] text-sm font-medium">
                 Create
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setEditTarget(null)} />
+          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-800">Edit Department</h3>
+              <button onClick={() => setEditTarget(null)} className="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Department Name</label>
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="Enter new department name"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="flex items-center justify-end gap-3 px-4 py-3 border-t border-gray-200">
+              <button onClick={() => setEditTarget(null)} className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 text-sm font-medium">
+                Cancel
+              </button>
+              <button onClick={handleRename} className="px-4 py-2 bg-[#1e6b87] text-white rounded-lg hover:bg-[#185a73] text-sm font-medium">
+                Save
               </button>
             </div>
           </div>

@@ -10,6 +10,7 @@ import { AccountabilityTimeline } from '@/components/accountability/Accountabili
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
 import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
 import { getFileProxyUrl } from '@/lib/fileLinks';
+import { apiFetch } from '@/lib/api-client';
 
 type LoiRow = {
   name: string;
@@ -125,25 +126,11 @@ const getDaysLeft = (dateText?: string) => {
 };
 
 async function postJson(url: string, body?: Record<string, unknown>) {
-  const response = await fetch(url, {
+  return apiFetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body || {}),
   });
-  return response.json();
-}
-
-async function callOps<T>(method: string, args?: Record<string, unknown>): Promise<T> {
-  const response = await fetch('/api/ops', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ method, args }),
-  });
-  const json = await response.json().catch(() => ({}));
-  if (!response.ok || json.success === false) {
-    throw new Error(json.message || `Failed to call ${method}`);
-  }
-  return (json.data ?? json) as T;
 }
 
 export default function BidWorkspacePage() {
@@ -560,13 +547,7 @@ export default function BidWorkspacePage() {
             <button
               disabled={busyAction === 'loi-request'}
               onClick={() => void runAction('loi-request', async () => {
-                const response = await fetch(`/api/bids/${bid.name}/loi-request`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({}),
-                });
-                const json = await response.json();
-                if (!json.success) throw new Error(json.message || 'Failed to send LOI request');
+                await postJson(`/api/bids/${bid.name}/loi-request`, {});
               })}
               className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-3 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-60"
             >
@@ -591,13 +572,11 @@ export default function BidWorkspacePage() {
             <button
               disabled={busyAction === 'convert-project'}
               onClick={() => void runAction('convert-project', async () => {
-                const response = await fetch('/api/tender-convert', {
+                await apiFetch('/api/tender-convert', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ tender_name: bid.tender }),
                 });
-                const json = await response.json();
-                if (!json.success) throw new Error(json.message || 'Failed to convert won bid to project');
               })}
               className="inline-flex items-center gap-2 rounded-xl bg-[#0f5164] px-3 py-2 text-sm font-medium text-white hover:bg-[#0a4251] disabled:opacity-60"
             >

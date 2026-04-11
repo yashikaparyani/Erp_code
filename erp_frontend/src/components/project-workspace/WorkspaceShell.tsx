@@ -41,12 +41,12 @@ import { useWorkspacePermissions } from '../../context/WorkspacePermissionContex
 import ReminderDrawer from '../reminders/ReminderDrawer';
 import { projectWorkspaceApi } from '@/lib/typedApi';
 import ActionModal from '../ui/ActionModal';
+import { apiFetch } from '@/lib/api-client';
 
 // ── Shared types & constants ──
 import type {
   ProjectDetail, TabKey, DepartmentConfig,
 } from './workspace-types';
-import { callOps } from './workspace-types';
 import { TabErrorBoundary } from './workspace-helpers';
 
 // Re-export types so existing consumers keep working
@@ -265,7 +265,8 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
     setNotice(null);
     await loadDirectory();
     try {
-      const project = await callOps<any>('get_project', { name: projectId });
+      const result = await apiFetch<{ data?: any }>(`/api/projects/${encodeURIComponent(projectId)}`);
+      const project = result.data || result;
       setEditForm({
         project_name: project.project_name || '',
         customer: project.customer || '',
@@ -293,9 +294,10 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
     setSavingProject(true);
     setNotice(null);
     try {
-      await callOps('update_project', {
-        name: projectId,
-        data: {
+      await apiFetch(`/api/projects/${encodeURIComponent(projectId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           project_name: editForm.project_name.trim(),
           customer: editForm.customer.trim() || undefined,
           expected_start_date: editForm.expected_start_date || undefined,
@@ -310,7 +312,7 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
           percent_complete: editForm.percent_complete ? Number(editForm.percent_complete) : undefined,
           spine_blocked: editForm.spine_blocked ? 1 : 0,
           blocker_summary: editForm.spine_blocked ? editForm.blocker_summary.trim() || undefined : undefined,
-        },
+        }),
       });
       setShowUpdateProject(false);
       setReloadKey((k) => k + 1);
@@ -341,9 +343,10 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
     setAddingSites(true);
     setNotice(null);
     try {
-      await callOps('add_project_sites', {
-        project: projectId,
-        data: { initial_sites: parsed },
+      await apiFetch(`/api/projects/${encodeURIComponent(projectId)}/sites`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ initial_sites: parsed }),
       });
       setShowAddSites(false);
       setSiteRowsText('');
@@ -360,7 +363,9 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
     setDeletingProject(true);
     setNotice(null);
     try {
-      await callOps('delete_project', { name: projectId });
+      await apiFetch(`/api/projects/${encodeURIComponent(projectId)}`, {
+        method: 'DELETE',
+      });
       setShowDeleteProject(false);
       router.push(config.backHref);
     } catch (err) {

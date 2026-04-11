@@ -2,7 +2,6 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { getFileProxyUrl } from '@/lib/fileLinks';
 import { projectWorkspaceApi } from '@/lib/typedApi';
 import {
@@ -12,7 +11,7 @@ import {
 import { WorkspacePermissions } from '../../context/WorkspacePermissionContext';
 import type { ProjectDocument } from './workspace-types';
 import {
-  getDocumentExtension, isPreviewableDocument,
+  getDocumentExtension,
   DOCUMENT_TRACE_STAGES, DOCUMENT_TRACE_STAGE_LABELS,
   PROJECT_TO_DOCUMENT_STAGE, DOSSIER_STAGE_ORDER, DOSSIER_STAGE_LABELS,
 } from './workspace-types';
@@ -71,9 +70,6 @@ function FilesTab({ projectId, currentStage, wp }: { projectId: string; currentS
   const [uploadBusy, setUploadBusy] = useState(false);
   const [uploadForm, setUploadForm] = useState({ document_name: '', category: 'Engineering', linked_site: '', expiry_date: '', remarks: '', linked_stage: '', document_subcategory: '', reference_doctype: '', reference_name: '', is_mandatory: false });
   const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [previewDoc, setPreviewDoc] = useState<ProjectDocument | null>(null);
-
-  // Version drawer state
   const [versionDoc, setVersionDoc] = useState<ProjectDocument | null>(null);
   const [versions, setVersions] = useState<ProjectDocument[]>([]);
   const [versionsLoading, setVersionsLoading] = useState(false);
@@ -664,16 +660,8 @@ function FilesTab({ projectId, currentStage, wp }: { projectId: string; currentS
                       <div className="font-medium text-[var(--text-main)]">{doc.document_name || doc.name}</div>
                       {(doc.file_url || doc.file) && (
                         <div className="flex items-center gap-3">
-                          {isPreviewableDocument(doc.file_url || doc.file) ? (
-                            <button
-                              onClick={() => setPreviewDoc(doc)}
-                              className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
-                            >
-                              <FileText className="h-3 w-3" />Preview
-                            </button>
-                          ) : null}
                           <a href={getFileProxyUrl(doc.file_url || doc.file, true)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline">
-                            <Download className="h-3 w-3" />{isPreviewableDocument(doc.file_url || doc.file) ? 'Open' : 'Download'}
+                            <Download className="h-3 w-3" />Download
                           </a>
                         </div>
                       )}
@@ -776,16 +764,8 @@ function FilesTab({ projectId, currentStage, wp }: { projectId: string; currentS
                         </span>
                         {(v.file_url || v.file) && (
                           <div className="flex items-center gap-3">
-                            {isPreviewableDocument(v.file_url || v.file) ? (
-                              <button
-                                onClick={() => setPreviewDoc(v)}
-                                className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
-                              >
-                                <FileText className="h-3 w-3" />Preview
-                              </button>
-                            ) : null}
                             <a href={getFileProxyUrl(v.file_url || v.file, true)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline">
-                              <Download className="h-3 w-3" />{isPreviewableDocument(v.file_url || v.file) ? 'Open' : 'Download'}
+                              <Download className="h-3 w-3" />Download
                             </a>
                           </div>
                         )}
@@ -799,32 +779,6 @@ function FilesTab({ projectId, currentStage, wp }: { projectId: string; currentS
                     </div>
                   ))}
                 </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-      {previewDoc && (previewDoc.file_url || previewDoc.file) && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={() => setPreviewDoc(null)}>
-          <div className="w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-5 py-4">
-              <div>
-                <h3 className="text-sm font-semibold text-[var(--text-main)]">{previewDoc.document_name || previewDoc.name}</h3>
-                <p className="text-xs text-[var(--text-muted)]">{previewDoc.category || 'Document'}</p>
-              </div>
-              <button onClick={() => setPreviewDoc(null)} className="rounded-lg p-1 hover:bg-[var(--surface-raised)]"><X className="h-4 w-4" /></button>
-            </div>
-            <div className="relative h-[75vh] bg-[var(--surface-raised)]">
-              {getDocumentExtension(previewDoc.file_url || previewDoc.file) === 'pdf' ? (
-                <iframe title={previewDoc.document_name || previewDoc.name} src={getFileProxyUrl(previewDoc.file_url || previewDoc.file)} className="h-full w-full" />
-              ) : (
-                <Image
-                  src={getFileProxyUrl(previewDoc.file_url || previewDoc.file) || ''}
-                  alt={previewDoc.document_name || previewDoc.name}
-                  fill
-                  unoptimized
-                  className="object-contain"
-                />
               )}
             </div>
           </div>

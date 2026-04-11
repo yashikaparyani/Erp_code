@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { apiFetch } from '@/lib/api-client';
 import Link from 'next/link';
 import { GitBranch, Link2, Plus, Shield, ShieldCheck, X } from 'lucide-react';
 
@@ -70,13 +71,19 @@ export default function DependenciesPage() {
 
   const loadData = async () => {
     setLoading(true);
-    const [rulesRes, overridesRes] = await Promise.all([
-      fetch('/api/execution/dependency-rules').then(r => r.json()).catch(() => ({ data: [] })),
-      fetch('/api/execution/dependency-overrides').then(r => r.json()).catch(() => ({ data: [] })),
-    ]);
-    setRules(rulesRes.data || []);
-    setOverrides(overridesRes.data || []);
-    setLoading(false);
+    setError('');
+    try {
+      const [rulesRes, overridesRes] = await Promise.all([
+        apiFetch('/api/execution/dependency-rules').catch(() => ({ data: [] })),
+        apiFetch('/api/execution/dependency-overrides').catch(() => ({ data: [] })),
+      ]);
+      setRules(rulesRes.data || []);
+      setOverrides(overridesRes.data || []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load data');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { loadData(); }, []);

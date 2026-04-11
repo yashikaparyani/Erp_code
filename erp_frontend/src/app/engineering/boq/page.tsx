@@ -1,10 +1,12 @@
 'use client';
 
+import { apiFetch } from '@/lib/api-client';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, Clock3, FileSpreadsheet, IndianRupee, RefreshCw, Plus, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import ActionModal from '@/components/ui/ActionModal';
+import LinkPicker from '@/components/ui/LinkPicker';
 
 type Boq = {
   name: string;
@@ -93,8 +95,8 @@ export default function EngineeringBoqPage() {
 
     try {
       const [boqRes, statsRes] = await Promise.all([
-        fetch('/api/boqs').then((response) => response.json()).catch(() => ({ data: [] })),
-        fetch('/api/boqs/stats').then((response) => response.json()).catch(() => ({ data: {} })),
+        apiFetch('/api/boqs').catch(() => ({ data: [] })),
+        apiFetch('/api/boqs/stats').catch(() => ({ data: {} })),
       ]);
       setBoqs(boqRes.data || []);
       setStats(statsRes.data || {});
@@ -510,8 +512,24 @@ export default function EngineeringBoqPage() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b"><h2 className="text-lg font-semibold">Create BOQ</h2><button className="p-2 rounded-lg hover:bg-gray-100" onClick={() => setShowCreate(false)}><X className="w-5 h-5" /></button></div>
             <div className="p-6 grid grid-cols-1 gap-4">
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Linked Tender *</label><input className="input" value={createForm.linked_tender} onChange={e => setCreateForm(p => ({ ...p, linked_tender: e.target.value }))} placeholder="Tender ID" /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Linked Project</label><input className="input" value={createForm.linked_project} onChange={e => setCreateForm(p => ({ ...p, linked_project: e.target.value }))} placeholder="Project ID" /></div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Linked Tender *</label>
+                <LinkPicker
+                  entity="tender"
+                  value={createForm.linked_tender}
+                  onChange={(value) => setCreateForm((p) => ({ ...p, linked_tender: value }))}
+                  placeholder="Search tender…"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Linked Project</label>
+                <LinkPicker
+                  entity="project"
+                  value={createForm.linked_project}
+                  onChange={(value) => setCreateForm((p) => ({ ...p, linked_project: value }))}
+                  placeholder="Search project…"
+                />
+              </div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Description</label><textarea className="input min-h-20" value={createForm.description} onChange={e => setCreateForm(p => ({ ...p, description: e.target.value }))} placeholder="BOQ description…" /></div>
             </div>
             {error && <p className="px-6 pb-2 text-sm text-red-600">{error}</p>}

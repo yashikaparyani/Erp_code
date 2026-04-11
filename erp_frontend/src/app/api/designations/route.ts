@@ -34,3 +34,22 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json();
+    if (!body.name || !body.new_name) {
+      return NextResponse.json({ success: false, message: 'name and new_name are required' }, { status: 400 });
+    }
+    const result = await callFrappeMethod('rename_designation', {
+      name: body.name,
+      new_name: body.new_name,
+    }, request);
+    return NextResponse.json({ success: true, data: result.data });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, message: error instanceof Error ? error.message : 'Failed to rename designation' },
+      { status: 500 }
+    );
+  }
+}

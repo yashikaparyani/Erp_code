@@ -154,7 +154,7 @@ export default function CommLogDetailPage() {
             {d.attachment && (
               <div className="pt-3 border-t border-gray-100">
                 <p className="text-xs font-medium text-gray-500 mb-2">Attached File</p>
-                <a href={`/api/files/download?url=${encodeURIComponent(d.attachment)}&filename=${encodeURIComponent(d.subject || d.name)}`} className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100">
+                <a href={`/api/files?url=${encodeURIComponent(d.attachment)}&download=1`} className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100">
                   <Download className="h-4 w-4" /> Download attachment
                 </a>
               </div>

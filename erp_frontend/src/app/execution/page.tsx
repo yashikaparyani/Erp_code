@@ -1,5 +1,6 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { apiFetch } from '@/lib/api-client';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
@@ -98,8 +99,8 @@ export default function ExecutionPage() {
     setError('');
     try {
       const [sitesRes, dprsRes, execRes] = await Promise.all([
-        fetch('/api/sites', { signal: controller.signal }).then((r) => r.json()).catch(() => ({ data: [] })),
-        fetch('/api/dprs', { signal: controller.signal }).then((r) => r.json()).catch(() => ({ data: [] })),
+        apiFetch('/api/sites', { signal: controller.signal }).catch(() => ({ data: [] })),
+        apiFetch('/api/dprs', { signal: controller.signal }).catch(() => ({ data: [] })),
         executionApi.getSummary<{ commissioning_summary?: any; sites_summary?: any }>({ signal: controller.signal }).catch(() => null),
       ]);
 

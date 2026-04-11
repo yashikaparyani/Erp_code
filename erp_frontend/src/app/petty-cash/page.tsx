@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
+import { apiFetch } from '@/lib/api-client';
 import Link from 'next/link';
 import { Wallet, Plus, CheckCircle2, Clock, X, Send, IndianRupee, AlertCircle, Banknote } from 'lucide-react';
 
@@ -81,13 +82,19 @@ export default function PettyCashPage() {
 
   const loadData = async () => {
     setLoading(true);
-    const res = await fetch('/api/petty-cash').then(r => r.json()).catch(() => ({ data: [] }));
-    setItems(res.data || []);
-    setLoading(false);
+    setError('');
+    try {
+      const res = await apiFetch('/api/petty-cash');
+      setItems(res.data || []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load data');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const loadFundRequests = useCallback(async () => {
-    const res = await fetch('/api/petty-cash/fund-requests').then(r => r.json()).catch(() => ({ data: [] }));
+    const res = await apiFetch('/api/petty-cash/fund-requests').catch(() => ({ data: [] }));
     setFundRequests(res.data || []);
   }, []);
 
@@ -116,7 +123,7 @@ export default function PettyCashPage() {
       setSites([]);
       return;
     }
-    const res = await fetch(`/api/sites?project=${encodeURIComponent(project)}`).then(r => r.json()).catch(() => ({ data: [] }));
+    const res = await apiFetch(`/api/sites?project=${encodeURIComponent(project)}`).catch(() => ({ data: [] }));
     setSites(res.data || []);
   };
 
