@@ -49,6 +49,7 @@ import {
   Globe,
   Send,
   ShieldAlert,
+  FileSpreadsheet,
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -198,6 +199,7 @@ const navLinks: NavLink[] = [
     icon: ShoppingCart,
     children: [
       { name: 'Vendor Comparisons', href: '/vendor-comparisons', icon: ClipboardList },
+      { name: 'BOQ', href: '/engineering/boq', icon: FileSpreadsheet },
       { name: 'Indents', href: '/indents', icon: FileText },
       { name: 'Purchase Orders', href: '/purchase-orders', icon: ShoppingCart },
     ],

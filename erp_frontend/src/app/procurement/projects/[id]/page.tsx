@@ -11,7 +11,7 @@ const CONFIG: DepartmentConfig = {
   backLabel: 'Back to Procurement Projects',
   kickerLabel: 'Procurement Workspace',
   allowedStages: ['COSTING', 'PROCUREMENT', 'STORES_DISPATCH', 'BILLING_PAYMENT'],
-  tabs: ['overview', 'sites', 'milestones', 'files', 'activity'],
+  tabs: ['overview', 'ops', 'requests', 'sites', 'milestones', 'files', 'activity'],
 };
 
 export default function ProcurementProjectWorkspacePage() {

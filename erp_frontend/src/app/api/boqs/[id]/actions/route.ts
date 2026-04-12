@@ -8,6 +8,7 @@ const ACTION_TO_METHOD: Record<string, string> = {
   approve: 'approve_boq',
   reject: 'reject_boq',
   revise: 'revise_boq',
+  create_cost_sheet: 'create_cost_sheet_from_boq',
 };
 
 export async function POST(

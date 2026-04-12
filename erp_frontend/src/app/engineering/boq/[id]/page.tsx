@@ -18,6 +18,7 @@ import {
   Hash,
   IndianRupee,
   Building2,
+  Calculator,
 } from 'lucide-react';
 import ActionModal from '@/components/ui/ActionModal';
 import { AccountabilityTimeline } from '@/components/accountability/AccountabilityTimeline';
@@ -214,6 +215,11 @@ export default function BoqDetailPage() {
           {(isApproved || isRejected) && canSubmit && (
             <button onClick={() => runAction('revise')} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50 px-3 py-1.5 text-xs font-medium text-purple-700 hover:bg-purple-100 disabled:opacity-50">
               <RotateCcw className="h-3.5 w-3.5" />{actionBusy === 'revise' ? 'Revising...' : 'Create Revision'}
+            </button>
+          )}
+          {isApproved && (
+            <button onClick={() => runAction('create_cost_sheet')} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-3 py-1.5 text-xs font-medium text-teal-700 hover:bg-teal-100 disabled:opacity-50">
+              <Calculator className="h-3.5 w-3.5" />{actionBusy === 'create_cost_sheet' ? 'Creating...' : 'Create Cost Sheet'}
             </button>
           )}
         </div>
