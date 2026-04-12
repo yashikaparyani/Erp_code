@@ -176,6 +176,7 @@ const navLinks: NavLink[] = [
       { name: 'Communication Log', href: '/comm-logs', icon: ClipboardList },
       { name: 'Approval', href: '/project-head/approval', icon: CheckSquare },
       { name: 'Letter of Completion', href: '/project-head/letter-of-completion', icon: ScrollText },
+      { name: 'Letter of Submission', href: '/engineering/letter-of-submission', icon: ScrollText },
     ],
   },
   {
@@ -189,7 +190,6 @@ const navLinks: NavLink[] = [
       { name: 'Drawings', href: '/engineering/drawings', icon: FileText },
       { name: 'Change Requests', href: '/engineering/change-requests', icon: RefreshCcw },
       { name: 'Technical Deviations', href: '/engineering/deviations', icon: AlertTriangle },
-      { name: 'Letter of Submission', href: '/engineering/letter-of-submission', icon: ScrollText },
     ],
   },
   {
