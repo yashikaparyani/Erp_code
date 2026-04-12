@@ -3,17 +3,32 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { projectWorkspaceApi } from '@/lib/typedApi';
+import { apiFetch } from '@/lib/api-client';
 import {
   Loader2, Wrench, ClipboardCheck, FileWarning, ShieldAlert,
   CheckCircle2, AlertCircle, History, Flag, ExternalLink,
+  Pencil, GitPullRequest, AlertOctagon,
 } from 'lucide-react';
 import type { PMCockpitSummary, DepartmentConfig } from './workspace-types';
 import { SectionHeader } from './workspace-helpers';
+
+type DrawingRow = { name: string; drawing_number?: string; drawing_title?: string; status?: string; client_approval_status?: string; linked_site?: string };
+type DeviationRow = { name: string; deviation_title?: string; status?: string; linked_drawing?: string; linked_site?: string };
+type ChangeRequestRow = { name: string; cr_title?: string; status?: string; linked_site?: string };
+
+type EngineeringSnapshot = {
+  drawings: DrawingRow[];
+  deviations: DeviationRow[];
+  changeRequests: ChangeRequestRow[];
+};
 
 function OpsTab({ projectId, config }: { projectId: string; config: DepartmentConfig }) {
   const [data, setData] = useState<PMCockpitSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [engSnap, setEngSnap] = useState<EngineeringSnapshot | null>(null);
+
+  const isEngineeringDept = config.departmentKey === 'engineering';
 
   useEffect(() => {
     let active = true;
@@ -30,6 +45,25 @@ function OpsTab({ projectId, config }: { projectId: string; config: DepartmentCo
     })();
     return () => { active = false; };
   }, [projectId, config.allowedStages]);
+
+  // Engineering-only snapshot: drawings, deviations, change requests
+  useEffect(() => {
+    if (!isEngineeringDept) return;
+    let active = true;
+    const q = `project=${encodeURIComponent(projectId)}`;
+    Promise.all([
+      apiFetch<{ data: DrawingRow[] }>(`/api/engineering/drawings?${q}`).catch(() => ({ data: [] })),
+      apiFetch<{ data: DeviationRow[] }>(`/api/engineering/technical-deviations?${q}`).catch(() => ({ data: [] })),
+      apiFetch<{ data: ChangeRequestRow[] }>(`/api/engineering/change-requests?${q}`).catch(() => ({ data: [] })),
+    ]).then(([d, dev, cr]) => {
+      if (active) setEngSnap({
+        drawings: (d as any).data || [],
+        deviations: (dev as any).data || [],
+        changeRequests: (cr as any).data || [],
+      });
+    });
+    return () => { active = false; };
+  }, [projectId, isEngineeringDept]);
 
   if (loading) return <div className="flex items-center justify-center py-16 text-[var(--text-muted)]"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading operations...</div>;
   if (error) return <p className="py-12 text-center text-sm text-rose-600">{error}</p>;
@@ -441,6 +475,124 @@ function OpsTab({ projectId, config }: { projectId: string; config: DepartmentCo
                   <span className="text-amber-500">Due: {m.planned_date}</span>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Engineering Snapshot — only shown in Engineering department workspace */}
+      {isEngineeringDept && engSnap && (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          {/* Drawings */}
+          <div className="card">
+            <div className="card-header flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Pencil className="h-4 w-4 text-blue-500" />
+                <h4 className="font-semibold text-[var(--text-main)]">Drawings ({engSnap.drawings.length})</h4>
+              </div>
+              <Link href={`/engineering/drawings?project=${encodeURIComponent(projectId)}`} className="inline-flex items-center gap-1 text-xs font-medium text-[var(--accent-strong)] hover:underline">
+                View All <ExternalLink className="h-3 w-3" />
+              </Link>
+            </div>
+            <div className="card-body">
+              {engSnap.drawings.length === 0 ? (
+                <p className="py-4 text-center text-sm text-[var(--text-muted)]">No drawings yet.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {engSnap.drawings.slice(0, 5).map((d) => (
+                    <div key={d.name} className="flex items-center justify-between rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-3 py-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-medium text-[var(--text-main)]">{d.drawing_title || d.drawing_number || d.name}</div>
+                        {d.linked_site && <div className="text-xs text-[var(--text-muted)]">{d.linked_site}</div>}
+                      </div>
+                      <span className={`ml-2 flex-shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                        d.status === 'Approved' ? 'bg-emerald-50 text-emerald-700' :
+                        d.status === 'Submitted' ? 'bg-blue-50 text-blue-700' :
+                        'bg-gray-100 text-gray-600'
+                      }`}>{d.status || 'Draft'}</span>
+                    </div>
+                  ))}
+                  {engSnap.drawings.length > 5 && (
+                    <p className="text-center text-xs text-[var(--text-muted)]">+{engSnap.drawings.length - 5} more</p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Technical Deviations */}
+          <div className="card">
+            <div className="card-header flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertOctagon className="h-4 w-4 text-amber-500" />
+                <h4 className="font-semibold text-[var(--text-main)]">Deviations ({engSnap.deviations.length})</h4>
+              </div>
+              <Link href={`/engineering/deviations?project=${encodeURIComponent(projectId)}`} className="inline-flex items-center gap-1 text-xs font-medium text-[var(--accent-strong)] hover:underline">
+                View All <ExternalLink className="h-3 w-3" />
+              </Link>
+            </div>
+            <div className="card-body">
+              {engSnap.deviations.length === 0 ? (
+                <p className="py-4 text-center text-sm text-[var(--text-muted)]">No deviations raised.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {engSnap.deviations.slice(0, 5).map((d) => (
+                    <div key={d.name} className="flex items-center justify-between rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-3 py-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-medium text-[var(--text-main)]">{d.deviation_title || d.name}</div>
+                        {d.linked_drawing && <div className="text-xs text-[var(--text-muted)]">{d.linked_drawing}</div>}
+                      </div>
+                      <span className={`ml-2 flex-shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                        d.status === 'Approved' ? 'bg-emerald-50 text-emerald-700' :
+                        d.status === 'Closed' ? 'bg-gray-100 text-gray-600' :
+                        d.status === 'Rejected' ? 'bg-rose-50 text-rose-700' :
+                        'bg-amber-50 text-amber-700'
+                      }`}>{d.status || 'Open'}</span>
+                    </div>
+                  ))}
+                  {engSnap.deviations.length > 5 && (
+                    <p className="text-center text-xs text-[var(--text-muted)]">+{engSnap.deviations.length - 5} more</p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Change Requests */}
+          <div className="card">
+            <div className="card-header flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <GitPullRequest className="h-4 w-4 text-violet-500" />
+                <h4 className="font-semibold text-[var(--text-main)]">Change Requests ({engSnap.changeRequests.length})</h4>
+              </div>
+              <Link href={`/engineering/change-requests?project=${encodeURIComponent(projectId)}`} className="inline-flex items-center gap-1 text-xs font-medium text-[var(--accent-strong)] hover:underline">
+                View All <ExternalLink className="h-3 w-3" />
+              </Link>
+            </div>
+            <div className="card-body">
+              {engSnap.changeRequests.length === 0 ? (
+                <p className="py-4 text-center text-sm text-[var(--text-muted)]">No change requests.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {engSnap.changeRequests.slice(0, 5).map((cr) => (
+                    <div key={cr.name} className="flex items-center justify-between rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-3 py-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-medium text-[var(--text-main)]">{cr.cr_title || cr.name}</div>
+                        {cr.linked_site && <div className="text-xs text-[var(--text-muted)]">{cr.linked_site}</div>}
+                      </div>
+                      <span className={`ml-2 flex-shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                        cr.status === 'Approved' ? 'bg-emerald-50 text-emerald-700' :
+                        cr.status === 'Submitted' ? 'bg-blue-50 text-blue-700' :
+                        cr.status === 'Rejected' ? 'bg-rose-50 text-rose-700' :
+                        'bg-gray-100 text-gray-600'
+                      }`}>{cr.status || 'Draft'}</span>
+                    </div>
+                  ))}
+                  {engSnap.changeRequests.length > 5 && (
+                    <p className="text-center text-xs text-[var(--text-muted)]">+{engSnap.changeRequests.length - 5} more</p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

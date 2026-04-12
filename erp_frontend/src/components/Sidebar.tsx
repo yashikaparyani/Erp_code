@@ -183,11 +183,13 @@ const navLinks: NavLink[] = [
     href: '/engineering',
     icon: Settings,
     children: [
-      { name: 'Survey', href: '/survey', icon: MapPin },
+      { name: 'Project Workspace', href: '/engineering/projects', icon: Layers3 },
+      { name: 'Survey', href: '/engineering/survey', icon: MapPin },
       { name: 'BOQ', href: '/engineering/boq', icon: FileText },
       { name: 'Drawings', href: '/engineering/drawings', icon: FileText },
       { name: 'Change Requests', href: '/engineering/change-requests', icon: RefreshCcw },
       { name: 'Technical Deviations', href: '/engineering/deviations', icon: AlertTriangle },
+      { name: 'Letter of Submission', href: '/engineering/letter-of-submission', icon: ScrollText },
     ],
   },
   {
