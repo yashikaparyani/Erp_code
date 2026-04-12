@@ -3,7 +3,7 @@
 import { apiFetch } from '@/lib/api-client';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Clock, FileText, IndianRupee, Plus, RefreshCw, X } from 'lucide-react';
+import { AlertOctagon, CheckCircle2, Clock, FileText, GitPullRequest, IndianRupee, MapPin, Pencil, Plus, RefreshCw, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import ActionModal from '@/components/ui/ActionModal';
 
@@ -227,6 +227,38 @@ export default function EngineeringPage() {
             Refresh
           </button>
         </div>
+      </div>
+
+      {/* Module quick-links */}
+      <div className="grid grid-cols-2 gap-3 mb-6 sm:grid-cols-4">
+        <Link href="/engineering/drawings" className="group flex items-center gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-4 py-3 hover:border-blue-300 hover:bg-blue-50 transition-colors">
+          <Pencil className="h-5 w-5 text-blue-500 flex-shrink-0" />
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-[var(--text-main)]">Drawings</div>
+            <div className="text-[11px] text-[var(--text-muted)]">Submit &amp; approve</div>
+          </div>
+        </Link>
+        <Link href="/engineering/survey" className="group flex items-center gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-4 py-3 hover:border-emerald-300 hover:bg-emerald-50 transition-colors">
+          <MapPin className="h-5 w-5 text-emerald-500 flex-shrink-0" />
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-[var(--text-main)]">Survey</div>
+            <div className="text-[11px] text-[var(--text-muted)]">Site field surveys</div>
+          </div>
+        </Link>
+        <Link href="/engineering/change-requests" className="group flex items-center gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-4 py-3 hover:border-violet-300 hover:bg-violet-50 transition-colors">
+          <GitPullRequest className="h-5 w-5 text-violet-500 flex-shrink-0" />
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-[var(--text-main)]">Change Requests</div>
+            <div className="text-[11px] text-[var(--text-muted)]">Scope &amp; cost changes</div>
+          </div>
+        </Link>
+        <Link href="/engineering/deviations" className="group flex items-center gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-4 py-3 hover:border-amber-300 hover:bg-amber-50 transition-colors">
+          <AlertOctagon className="h-5 w-5 text-amber-500 flex-shrink-0" />
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-[var(--text-main)]">Deviations</div>
+            <div className="text-[11px] text-[var(--text-muted)]">Technical deviations</div>
+          </div>
+        </Link>
       </div>
 
       {showCreateModal ? (

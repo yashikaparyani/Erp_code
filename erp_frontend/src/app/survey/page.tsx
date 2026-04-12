@@ -1,5 +1,3 @@
-'use client';
-
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Eye, MapPin, Plus, Trash2 } from 'lucide-react';
