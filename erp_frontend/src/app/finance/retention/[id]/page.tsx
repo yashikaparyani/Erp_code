@@ -7,7 +7,7 @@ import ActionModal from '@/components/ui/ActionModal';
 import AccountabilityTimeline from '@/components/accountability/AccountabilityTimeline';
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
 import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
-import { callOps, formatCurrency, formatDate, RETENTION_BADGES, statusVariant, useAuth, hasAnyRole } from '@/components/finance/fin-helpers';
+import { callApi, formatCurrency, formatDate, RETENTION_BADGES, statusVariant, useAuth, hasAnyRole } from '@/components/finance/fin-helpers';
 
 type Retention = Record<string, any>;
 
@@ -23,7 +23,7 @@ export default function RetentionDetailPage() {
 
   const load = useCallback(async () => {
     setLoading(true); setError('');
-    try { setData(await callOps<Retention>('get_retention_ledger', { name: id })); }
+    try { setData(await callApi<Retention>(`/api/retention/${encodeURIComponent(id)}`)); }
     catch (e) { setError(e instanceof Error ? e.message : 'Failed'); }
     setLoading(false);
   }, [id]);
@@ -94,7 +94,7 @@ export default function RetentionDetailPage() {
           { name: 'release_amount', label: `Amount to Release (max ${formatCurrency(remaining)})`, type: 'text', required: true },
           { name: 'remarks', label: 'Remarks', type: 'textarea' },
         ]}
-        onConfirm={async (v) => { await callOps('release_retention', { name: id, ...v }); setShowRelease(false); load(); }}
+        onConfirm={async (v) => { await callApi(`/api/retention/${encodeURIComponent(id)}/actions`, { method: 'POST', body: { action: 'release', ...v } }); setShowRelease(false); load(); }}
         onCancel={() => setShowRelease(false)}
       />
 
@@ -104,7 +104,7 @@ export default function RetentionDetailPage() {
         confirmLabel="Update"
         variant="default"
         fields={[{ name: 'remarks', label: 'Update Note', type: 'textarea' }]}
-        onConfirm={async (v) => { await callOps('update_retention_ledger', { name: id, ...v }); setShowUpdate(false); load(); }}
+        onConfirm={async (v) => { await callApi(`/api/retention/${encodeURIComponent(id)}`, { method: 'PATCH', body: v }); setShowUpdate(false); load(); }}
         onCancel={() => setShowUpdate(false)}
       />
 
@@ -114,7 +114,7 @@ export default function RetentionDetailPage() {
         confirmLabel="Delete"
         variant="danger"
         fields={[{ name: 'reason', label: 'Delete Reason', type: 'textarea', required: true }]}
-        onConfirm={async (v) => { await callOps('delete_retention_ledger', { name: id, ...v }); setShowDelete(false); load(); }}
+        onConfirm={async (v) => { await callApi(`/api/retention/${encodeURIComponent(id)}`, { method: 'DELETE' }); setShowDelete(false); load(); }}
         onCancel={() => setShowDelete(false)}
       />
     </DetailPage>

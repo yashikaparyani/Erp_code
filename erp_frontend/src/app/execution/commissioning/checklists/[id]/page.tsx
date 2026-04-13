@@ -21,7 +21,7 @@ interface ChecklistDetail {
   done_items?: number;
   status?: string;
   commissioned_by?: string;
-  items?: { item_name?: string; is_done?: boolean; remarks?: string }[];
+  items?: { item_name?: string; is_completed?: boolean; remarks?: string }[];
   creation?: string;
   modified?: string;
   owner?: string;
@@ -56,7 +56,8 @@ export default function ChecklistDetailPage() {
     const set = new Set(currentUser?.roles || []);
     return roles.some((r) => set.has(r));
   };
-  const canManage = hasRole('Director', 'System Manager', 'Engineering Head', 'Field Technician');
+  const canStart = hasRole('Engineering Head', 'Project Manager', 'Field Technician');
+  const canComplete = hasRole('Engineering Head', 'Project Manager');
 
   const loadData = useCallback(async () => {
     setLoading(true); setError('');
@@ -89,7 +90,7 @@ export default function ChecklistDetailPage() {
   };
 
   if (loading) return <div className="flex items-center justify-center h-64"><Loader2 className="h-6 w-6 animate-spin text-gray-400" /><span className="ml-2 text-gray-500">Loading checklist...</span></div>;
-  if (error && !data) return <div className="flex flex-col items-center justify-center h-64 gap-4"><AlertCircle className="h-10 w-10 text-rose-400" /><p className="text-rose-600">{error}</p><Link href="/execution/commissioning/test-reports" className="text-sm text-blue-600 hover:underline">← Back to Commissioning</Link></div>;
+  if (error && !data) return <div className="flex flex-col items-center justify-center h-64 gap-4"><AlertCircle className="h-10 w-10 text-rose-400" /><p className="text-rose-600">{error}</p><Link href="/execution/commissioning/checklists" className="text-sm text-blue-600 hover:underline">← Back to Checklists</Link></div>;
   if (!data) return null;
 
   const st = (data.status || 'DRAFT').toUpperCase();
@@ -105,7 +106,7 @@ export default function ChecklistDetailPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <Link href="/execution/commissioning/test-reports" className="mb-3 inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-900"><ArrowLeft className="h-3.5 w-3.5" /> Back to Commissioning</Link>
+          <Link href="/execution/commissioning/checklists" className="mb-3 inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-900"><ArrowLeft className="h-3.5 w-3.5" /> Back to Checklists</Link>
           <h1 className="text-2xl font-bold text-gray-900">{data.checklist_name || data.name}</h1>
           <p className="mt-1 text-sm text-gray-500">{data.name}</p>
         </div>
@@ -115,10 +116,10 @@ export default function ChecklistDetailPage() {
       {successMsg && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">{successMsg}</div>}
       {error && <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700">{error} <button onClick={() => setError('')} className="ml-2 font-medium underline">Dismiss</button></div>}
 
-      {!isCompleted && canManage && (
+      {!isCompleted && (
         <div className="flex flex-wrap gap-2">
-          {isNotStarted && <button onClick={() => runAction('start')} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"><Play className="h-3.5 w-3.5" /> Start</button>}
-          {isInProgress && <button onClick={() => runAction('complete')} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"><CheckCircle2 className="h-3.5 w-3.5" /> Complete</button>}
+          {isNotStarted && canStart && <button onClick={() => runAction('start')} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"><Play className="h-3.5 w-3.5" /> Start</button>}
+          {isInProgress && canComplete && <button onClick={() => runAction('complete')} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"><CheckCircle2 className="h-3.5 w-3.5" /> Complete</button>}
         </div>
       )}
 
@@ -167,11 +168,11 @@ export default function ChecklistDetailPage() {
             <div className="card-body divide-y divide-gray-100">
               {items.map((item, idx) => (
                 <div key={idx} className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0">
-                  <div className={`mt-0.5 h-5 w-5 rounded-full flex items-center justify-center ${item.is_done ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-400'}`}>
-                    {item.is_done ? <CheckCircle2 className="h-3.5 w-3.5" /> : <span className="text-xs">{idx + 1}</span>}
+                  <div className={`mt-0.5 h-5 w-5 rounded-full flex items-center justify-center ${item.is_completed ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-400'}`}>
+                    {item.is_completed ? <CheckCircle2 className="h-3.5 w-3.5" /> : <span className="text-xs">{idx + 1}</span>}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-medium ${item.is_done ? 'text-gray-500 line-through' : 'text-gray-900'}`}>{item.item_name || `Item ${idx + 1}`}</p>
+                    <p className={`text-sm font-medium ${item.is_completed ? 'text-gray-500 line-through' : 'text-gray-900'}`}>{item.item_name || `Item ${idx + 1}`}</p>
                     {item.remarks && <p className="text-xs text-gray-500 mt-0.5">{item.remarks}</p>}
                   </div>
                 </div>

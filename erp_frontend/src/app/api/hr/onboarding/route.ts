@@ -9,9 +9,24 @@ export async function GET(request: NextRequest) {
     const status = params.get('status') || undefined;
     const company = params.get('company') || undefined;
     const search = params.get('search') || undefined;
+    const include_stats = params.get('include_stats') === '1';
 
-    const result = await callFrappeMethod('get_onboardings', { status, company, search }, request);
-    return NextResponse.json({ success: true, data: result.data || [] });
+    const promises: Promise<any>[] = [
+      callFrappeMethod('get_onboardings', { status, company, search }, request),
+    ];
+
+    if (include_stats) {
+      promises.push(callFrappeMethod('get_onboarding_stats', undefined, request));
+    }
+
+    const results = await Promise.all(promises);
+
+    const response: Record<string, any> = { success: true, data: results[0].data || [] };
+    if (include_stats && results[1]) {
+      response.stats = results[1].data || {};
+    }
+
+    return NextResponse.json(response);
   } catch (error) {
     return jsonErrorResponse(error, 'Failed to load onboardings');
   }

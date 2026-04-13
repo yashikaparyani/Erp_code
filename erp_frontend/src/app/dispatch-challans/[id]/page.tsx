@@ -12,13 +12,27 @@ import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
 import { formatDate, statusVariant } from '@/components/procurement/proc-helpers';
 import { useAuth } from '@/context/AuthContext';
 
-interface ChallanItem { item_code?: string; item_name?: string; qty?: number; uom?: string; rate?: number; amount?: number; }
+interface ChallanItem {
+  item_code?: string;
+  item_name?: string;
+  description?: string;
+  make?: string;
+  model_no?: string;
+  serial_numbers?: string;
+  remarks?: string;
+  qty?: number;
+  uom?: string;
+  rate?: number;
+  amount?: number;
+}
 interface ChallanDetail {
   name: string; dispatch_date?: string; dispatch_type?: string; status?: string;
   from_warehouse?: string; to_warehouse?: string; target_site_name?: string;
   linked_project?: string; linked_stock_entry?: string; total_items?: number;
   total_qty?: number; approved_by?: string; approved_at?: string;
-  rejection_reason?: string; remarks?: string; items?: ChallanItem[]; creation?: string;
+  challan_reference?: string; issued_to_name?: string; vehicle_number?: string;
+  transporter_name?: string; rejection_reason?: string; remarks?: string;
+  items?: ChallanItem[]; creation?: string;
 }
 
 export default function DispatchChallanDetailPage() {
@@ -87,7 +101,7 @@ export default function DispatchChallanDetailPage() {
       headerActions={actions}
       identityBlock={dc ? (
         <dl className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm sm:grid-cols-3">
-          {[['Date', formatDate(dc.dispatch_date)], ['Type', dc.dispatch_type], ['From', dc.from_warehouse], ['To', dc.to_warehouse || dc.target_site_name], ['Project', dc.linked_project], ['Items', dc.total_items], ['Qty', dc.total_qty], ['Approved By', dc.approved_by ? `${dc.approved_by}${dc.approved_at ? ` on ${formatDate(dc.approved_at)}` : ''}` : undefined], ['Stock Entry', dc.linked_stock_entry], ['Created', formatDate(dc.creation)]].map(([l, v]) => (
+          {[['Date', formatDate(dc.dispatch_date)], ['Reference', dc.challan_reference], ['Type', dc.dispatch_type], ['From', dc.from_warehouse], ['To', dc.to_warehouse || dc.target_site_name], ['Issued To', dc.issued_to_name], ['Vehicle', dc.vehicle_number], ['Transporter', dc.transporter_name], ['Project', dc.linked_project], ['Items', dc.total_items], ['Qty', dc.total_qty], ['Approved By', dc.approved_by ? `${dc.approved_by}${dc.approved_at ? ` on ${formatDate(dc.approved_at)}` : ''}` : undefined], ['Stock Entry', dc.linked_stock_entry], ['Created', formatDate(dc.creation)]].map(([l, v]) => (
             <div key={String(l)}><dt className="text-gray-500">{String(l)}</dt><dd className="font-medium text-gray-900">{String(v || '-')}</dd></div>
           ))}
         </dl>
@@ -108,10 +122,27 @@ export default function DispatchChallanDetailPage() {
       <div className="shell-panel overflow-hidden">
         <div className="px-5 py-3 border-b border-gray-100"><h3 className="font-semibold text-gray-900">Line Items</h3></div>
         <table className="data-table text-sm">
-          <thead><tr><th>#</th><th>Item Code</th><th>Item Name</th><th className="text-right">Qty</th><th>UOM</th><th className="text-right">Rate</th><th className="text-right">Amount</th></tr></thead>
+          <thead><tr><th>#</th><th>Item Code</th><th>Description</th><th>Make / Model</th><th>Serials</th><th className="text-right">Qty</th><th>UOM</th><th>Remarks</th><th className="text-right">Rate</th><th className="text-right">Amount</th></tr></thead>
           <tbody>
-            {(dc?.items || []).length === 0 ? <tr><td colSpan={7} className="text-center py-8 text-gray-400">No items</td></tr> : (dc?.items || []).map((i, idx) => (
-              <tr key={idx}><td className="text-gray-500 text-xs">{idx + 1}</td><td className="font-medium">{i.item_code || '-'}</td><td className="text-gray-600">{i.item_name || '-'}</td><td className="text-right">{i.qty ?? '-'}</td><td className="text-gray-500">{i.uom || '-'}</td><td className="text-right">{i.rate != null ? `₹${i.rate.toLocaleString('en-IN')}` : '-'}</td><td className="text-right font-medium">{i.amount != null ? `₹${i.amount.toLocaleString('en-IN')}` : '-'}</td></tr>
+            {(dc?.items || []).length === 0 ? <tr><td colSpan={10} className="text-center py-8 text-gray-400">No items</td></tr> : (dc?.items || []).map((i, idx) => (
+              <tr key={idx}>
+                <td className="text-gray-500 text-xs">{idx + 1}</td>
+                <td className="font-medium">{i.item_code || '-'}</td>
+                <td>
+                  <div className="text-gray-900">{i.item_name || i.description || '-'}</div>
+                  {i.description && i.description !== i.item_name ? <div className="text-xs text-gray-500">{i.description}</div> : null}
+                </td>
+                <td>
+                  <div className="text-gray-700">{i.make || '-'}</div>
+                  <div className="text-xs text-gray-500">{i.model_no || '-'}</div>
+                </td>
+                <td className="text-xs text-gray-600">{i.serial_numbers || '-'}</td>
+                <td className="text-right">{i.qty ?? '-'}</td>
+                <td className="text-gray-500">{i.uom || '-'}</td>
+                <td className="text-xs text-gray-600">{i.remarks || '-'}</td>
+                <td className="text-right">{i.rate != null ? `₹${i.rate.toLocaleString('en-IN')}` : '-'}</td>
+                <td className="text-right font-medium">{i.amount != null ? `₹${i.amount.toLocaleString('en-IN')}` : '-'}</td>
+              </tr>
             ))}
           </tbody>
         </table>

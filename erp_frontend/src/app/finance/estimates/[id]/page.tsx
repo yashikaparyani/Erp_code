@@ -8,7 +8,7 @@ import AccountabilityTimeline from '@/components/accountability/AccountabilityTi
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
 import TraceabilityPanel from '@/components/ui/TraceabilityPanel';
 import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
-import { callOps, formatCurrency, formatDate, ESTIMATE_BADGES, statusVariant, useAuth, hasAnyRole } from '@/components/finance/fin-helpers';
+import { callApi, formatCurrency, formatDate, ESTIMATE_BADGES, statusVariant, useAuth, hasAnyRole } from '@/components/finance/fin-helpers';
 
 type Estimate = Record<string, any>;
 
@@ -22,7 +22,7 @@ export default function EstimateDetailPage() {
 
   const load = useCallback(async () => {
     setLoading(true); setError('');
-    try { setData(await callOps<Estimate>('get_estimate', { name: id })); }
+    try { setData(await callApi<Estimate>(`/api/estimates/${encodeURIComponent(id)}`)); }
     catch (e) { setError(e instanceof Error ? e.message : 'Failed'); }
     setLoading(false);
   }, [id]);
@@ -111,9 +111,10 @@ export default function EstimateDetailPage() {
             Update: 'update_estimate',
             Delete: 'delete_estimate',
           };
-          const method = methodMap[action || ''];
-          if (!method) return;
-          await callOps(method, { name: id, ...v });
+          const actionKey = Object.entries(methodMap).find(([k]) => k === action)?.[0];
+          if (!actionKey) return;
+          const actionSlug: Record<string, string> = { Send: 'send', Approve: 'approve', Reject: 'reject', Convert: 'convert', Update: 'update', Delete: 'delete' };
+          await callApi(`/api/estimates/${encodeURIComponent(id)}/actions`, { method: 'POST', body: { action: actionSlug[actionKey], ...v } });
           setAction(null);
           load();
         }}

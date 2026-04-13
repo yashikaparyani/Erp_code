@@ -60,7 +60,7 @@ export default function TestReportDetailPage() {
     const set = new Set(currentUser?.roles || []);
     return roles.some((r) => set.has(r));
   };
-  const canManage = hasRole('Director', 'System Manager', 'Engineering Head', 'Engineer');
+  const canApproveReject = hasRole('Engineering Head', 'Project Manager', 'Project Head');
 
   const loadData = useCallback(async () => {
     setLoading(true); setError('');
@@ -114,11 +114,10 @@ export default function TestReportDetailPage() {
       {successMsg && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">{successMsg}</div>}
       {error && <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700">{error} <button onClick={() => setError('')} className="ml-2 font-medium underline">Dismiss</button></div>}
 
-      {canManage && (isPending || isRejected) && (
+      {canApproveReject && isPending && (
         <div className="flex flex-wrap gap-2">
           {isPending && <button onClick={() => runAction('approve')} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"><CheckCircle2 className="h-3.5 w-3.5" /> Approve</button>}
           {isPending && <button onClick={() => setRejectModal(true)} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-700 disabled:opacity-50"><XCircle className="h-3.5 w-3.5" /> Reject</button>}
-          {isRejected && <button onClick={() => runAction('resubmit')} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"><FileText className="h-3.5 w-3.5" /> Resubmit</button>}
         </div>
       )}
 

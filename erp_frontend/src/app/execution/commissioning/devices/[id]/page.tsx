@@ -67,7 +67,9 @@ export default function DeviceRegisterDetailPage() {
     const set = new Set(currentUser?.roles || []);
     return roles.some((r) => set.has(r));
   };
-  const canManage = hasRole('Director', 'System Manager', 'Engineering Head', 'Engineer');
+  const canCommission = hasRole('Engineering Head', 'Project Manager');
+  const canMarkFaulty = hasRole('Engineering Head', 'Project Manager', 'Field Technician');
+  const canDecommission = hasRole('Engineering Head', 'Project Manager');
 
   const loadData = useCallback(async () => {
     setLoading(true); setError('');
@@ -106,7 +108,7 @@ export default function DeviceRegisterDetailPage() {
   const st = (data.status || '').toUpperCase();
   const isFaulty = st === 'FAULTY';
   const isDecommissioned = st === 'DECOMMISSIONED';
-  const canCommission = !isFaulty && !isDecommissioned && st !== 'COMMISSIONED' && st !== 'ACTIVE';
+  const canShowCommission = !isFaulty && !isDecommissioned && st !== 'COMMISSIONED' && st !== 'ACTIVE';
 
   return (
     <div className="space-y-6">
@@ -122,11 +124,11 @@ export default function DeviceRegisterDetailPage() {
       {successMsg && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">{successMsg}</div>}
       {error && <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700">{error} <button onClick={() => setError('')} className="ml-2 font-medium underline">Dismiss</button></div>}
 
-      {!isDecommissioned && canManage && (
+      {!isDecommissioned && (
         <div className="flex flex-wrap gap-2">
-          {canCommission && <button onClick={() => runAction('commission')} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"><CheckCircle2 className="h-3.5 w-3.5" /> Commission</button>}
-          {!isFaulty && <button onClick={() => setFaultyModal(true)} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-700 disabled:opacity-50"><AlertTriangle className="h-3.5 w-3.5" /> Mark Faulty</button>}
-          <button onClick={() => setDecommissionModal(true)} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg bg-gray-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700 disabled:opacity-50"><XCircle className="h-3.5 w-3.5" /> Decommission</button>
+          {canCommission && canShowCommission && <button onClick={() => runAction('commission')} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"><CheckCircle2 className="h-3.5 w-3.5" /> Commission</button>}
+          {canMarkFaulty && !isFaulty && <button onClick={() => setFaultyModal(true)} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-700 disabled:opacity-50"><AlertTriangle className="h-3.5 w-3.5" /> Mark Faulty</button>}
+          {canDecommission && <button onClick={() => setDecommissionModal(true)} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg bg-gray-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700 disabled:opacity-50"><XCircle className="h-3.5 w-3.5" /> Decommission</button>}
         </div>
       )}
 

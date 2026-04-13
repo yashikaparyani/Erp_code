@@ -57,7 +57,8 @@ export default function ClientSignoffDetailPage() {
     const set = new Set(currentUser?.roles || []);
     return roles.some((r) => set.has(r));
   };
-  const canManage = hasRole('Director', 'System Manager', 'Engineering Head', 'Project Manager');
+  const canSign = hasRole('Engineering Head', 'Project Manager', 'Project Head');
+  const canApprove = hasRole('Engineering Head', 'Project Head');
 
   const loadData = useCallback(async () => {
     setLoading(true); setError('');
@@ -90,7 +91,7 @@ export default function ClientSignoffDetailPage() {
   };
 
   if (loading) return <div className="flex items-center justify-center h-64"><Loader2 className="h-6 w-6 animate-spin text-gray-400" /><span className="ml-2 text-gray-500">Loading signoff...</span></div>;
-  if (error && !data) return <div className="flex flex-col items-center justify-center h-64 gap-4"><AlertCircle className="h-10 w-10 text-rose-400" /><p className="text-rose-600">{error}</p><Link href="/execution/commissioning/test-reports" className="text-sm text-blue-600 hover:underline">← Back to Commissioning</Link></div>;
+  if (error && !data) return <div className="flex flex-col items-center justify-center h-64 gap-4"><AlertCircle className="h-10 w-10 text-rose-400" /><p className="text-rose-600">{error}</p><Link href="/execution/commissioning/client-signoffs" className="text-sm text-blue-600 hover:underline">← Back to Client Signoffs</Link></div>;
   if (!data) return null;
 
   const st = (data.status || 'PENDING').toUpperCase();
@@ -100,7 +101,7 @@ export default function ClientSignoffDetailPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <Link href="/execution/commissioning/test-reports" className="mb-3 inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-900"><ArrowLeft className="h-3.5 w-3.5" /> Back to Commissioning</Link>
+          <Link href="/execution/commissioning/client-signoffs" className="mb-3 inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-900"><ArrowLeft className="h-3.5 w-3.5" /> Back to Client Signoffs</Link>
           <h1 className="text-2xl font-bold text-gray-900">Client Signoff — {data.name}</h1>
           <p className="mt-1 text-sm text-gray-500">{data.signoff_type || 'Signoff'}</p>
         </div>
@@ -110,10 +111,10 @@ export default function ClientSignoffDetailPage() {
       {successMsg && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">{successMsg}</div>}
       {error && <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700">{error} <button onClick={() => setError('')} className="ml-2 font-medium underline">Dismiss</button></div>}
 
-      {isPending && canManage && (
+      {(isPending || st === 'SIGNED') && (
         <div className="flex flex-wrap gap-2">
-          <button onClick={() => setSignModal(true)} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"><Pen className="h-3.5 w-3.5" /> Record Client Sign</button>
-          <button onClick={() => runAction('approve')} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"><CheckCircle2 className="h-3.5 w-3.5" /> Approve</button>
+          {isPending && canSign && <button onClick={() => setSignModal(true)} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"><Pen className="h-3.5 w-3.5" /> Record Client Sign</button>}
+          {st === 'SIGNED' && canApprove && <button onClick={() => runAction('approve')} disabled={!!actionBusy} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"><CheckCircle2 className="h-3.5 w-3.5" /> Approve</button>}
         </div>
       )}
 

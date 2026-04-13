@@ -20,12 +20,9 @@ export default function WhoIsInPage() {
   const load = useCallback(async () => {
     setLoading(true); setError('');
     try {
-      const res = await fetch('/api/ops', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ method: 'get_who_is_in' }),
-      });
+      const res = await fetch('/api/hr/who-is-in');
       const payload = await res.json();
+      if (!res.ok || !payload.success) throw new Error(payload.message || 'Failed to load');
       setItems(Array.isArray(payload.data) ? payload.data : []);
     } catch (e) { setError(e instanceof Error ? e.message : 'Failed to load'); }
     finally { setLoading(false); }

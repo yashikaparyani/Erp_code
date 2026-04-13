@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Download } from 'lucide-react';
 import RegisterPage from '@/components/shells/RegisterPage';
-import { callOps, formatCurrency } from '@/components/finance/fin-helpers';
+import { formatCurrency } from '@/components/finance/fin-helpers';
 
 type Row = {
   customer?: string;
@@ -21,7 +21,12 @@ export default function ReceivableAgingPage() {
 
   const load = useCallback(async () => {
     setLoading(true); setError('');
-    try { setRows(await callOps<Row[]>('get_receivable_aging')); }
+    try {
+      const res = await fetch('/api/finance/receivable-aging');
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok || !payload.success) throw new Error(payload.message || 'Failed');
+      setRows(payload.data || []);
+    }
     catch (e) { setError(e instanceof Error ? e.message : 'Failed'); }
     setLoading(false);
   }, []);

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Search } from 'lucide-react';
 import RegisterPage from '@/components/shells/RegisterPage';
-import { callOps } from '@/components/finance/fin-helpers';
+import { formatCurrency } from '@/components/finance/fin-helpers';
 import LinkPicker from '@/components/ui/LinkPicker';
 
 type Entry = { date?: string; type?: string; reference?: string; debit?: number; credit?: number; balance?: number };
@@ -18,7 +18,12 @@ export default function CustomerStatementPage() {
   const run = async () => {
     if (!customer.trim()) return;
     setLoading(true); setError('');
-    try { setData(await callOps<Statement>('get_customer_statement', { customer: customer.trim() })); }
+    try {
+      const res = await fetch(`/api/finance/customer-statement?customer=${encodeURIComponent(customer.trim())}`);
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok || !payload.success) throw new Error(payload.message || 'Failed');
+      setData(payload.data);
+    }
     catch (e) { setError(e instanceof Error ? e.message : 'Failed'); setData(null); }
     setLoading(false);
   };

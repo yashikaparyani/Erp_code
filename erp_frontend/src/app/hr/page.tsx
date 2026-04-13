@@ -187,13 +187,13 @@ export default function HRPage() {
   const [busy, setBusy] = useState(false);
 
   const [showAttModal, setShowAttModal] = useState(false);
-  const [attForm, setAttForm] = useState({ employee: '', attendance_date: '', attendance_status: 'Present', linked_site: '' });
+  const [attForm, setAttForm] = useState({ employee: '', attendance_date: '', attendance_status: 'Present', linked_project: '', linked_site: '' });
 
   const [showTravelModal, setShowTravelModal] = useState(false);
-  const [travelForm, setTravelForm] = useState({ employee: '', travel_date: '', from_location: '', to_location: '', expense_amount: '' });
+  const [travelForm, setTravelForm] = useState({ employee: '', travel_date: '', from_location: '', to_location: '', expense_amount: '', linked_project: '', linked_site: '' });
 
   const [showOtModal, setShowOtModal] = useState(false);
-  const [otForm, setOtForm] = useState({ employee: '', overtime_date: '', overtime_hours: '' });
+  const [otForm, setOtForm] = useState({ employee: '', overtime_date: '', overtime_hours: '', linked_project: '', linked_site: '' });
   const requestIdRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -239,13 +239,13 @@ export default function HRPage() {
     };
   }, [loadData]);
 
-  async function handleCreate(method: string, args: Record<string, unknown>, close: () => void) {
+  async function handleCreateDedicated(url: string, body: Record<string, unknown>, close: () => void) {
     setBusy(true);
     try {
-      const res = await fetch('/api/ops', {
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ method, args }),
+        body: JSON.stringify(body),
       });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok || !payload.success) throw new Error(payload.message || 'Create failed');
@@ -259,23 +259,23 @@ export default function HRPage() {
   }
 
   function handleCreateAttendance() {
-    handleCreate('create_attendance_log', attForm, () => {
+    handleCreateDedicated('/api/hr/attendance/logs', attForm, () => {
       setShowAttModal(false);
-      setAttForm({ employee: '', attendance_date: '', attendance_status: 'Present', linked_site: '' });
+      setAttForm({ employee: '', attendance_date: '', attendance_status: 'Present', linked_project: '', linked_site: '' });
     });
   }
 
   function handleCreateTravel() {
-    handleCreate('create_travel_log', { ...travelForm, expense_amount: Number(travelForm.expense_amount) || 0 }, () => {
+    handleCreateDedicated('/api/travel-logs', { ...travelForm, expense_amount: Number(travelForm.expense_amount) || 0 }, () => {
       setShowTravelModal(false);
-      setTravelForm({ employee: '', travel_date: '', from_location: '', to_location: '', expense_amount: '' });
+      setTravelForm({ employee: '', travel_date: '', from_location: '', to_location: '', expense_amount: '', linked_project: '', linked_site: '' });
     });
   }
 
   function handleCreateOvertime() {
-    handleCreate('create_overtime_entry', { ...otForm, overtime_hours: Number(otForm.overtime_hours) || 0 }, () => {
+    handleCreateDedicated('/api/overtime', { ...otForm, overtime_hours: Number(otForm.overtime_hours) || 0 }, () => {
       setShowOtModal(false);
-      setOtForm({ employee: '', overtime_date: '', overtime_hours: '' });
+      setOtForm({ employee: '', overtime_date: '', overtime_hours: '', linked_project: '', linked_site: '' });
     });
   }
 
@@ -615,8 +615,10 @@ export default function HRPage() {
                 <select className="input w-full" value={attForm.attendance_status} onChange={e => setAttForm({ ...attForm, attendance_status: e.target.value })}>
                   <option value="Present">Present</option><option value="Absent">Absent</option><option value="Half Day">Half Day</option><option value="On Leave">On Leave</option>
                 </select></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Linked Project</label>
+                <LinkPicker entity="project" value={attForm.linked_project} onChange={value => setAttForm({ ...attForm, linked_project: value, linked_site: '' })} placeholder="Search project…" /></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Linked Site</label>
-                <input className="input w-full" value={attForm.linked_site} onChange={e => setAttForm({ ...attForm, linked_site: e.target.value })} /></div>
+                <LinkPicker entity="site" value={attForm.linked_site} onChange={value => setAttForm({ ...attForm, linked_site: value })} placeholder="Search site…" filters={attForm.linked_project ? { project: attForm.linked_project } : undefined} /></div>
             </div>
             <div className="flex justify-end gap-2 px-5 py-4 border-t">
               <button className="btn-secondary" onClick={() => setShowAttModal(false)}>Cancel</button>
@@ -645,6 +647,10 @@ export default function HRPage() {
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">To</label>
                   <input className="input w-full" value={travelForm.to_location} onChange={e => setTravelForm({ ...travelForm, to_location: e.target.value })} /></div>
               </div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Linked Project</label>
+                <LinkPicker entity="project" value={travelForm.linked_project} onChange={value => setTravelForm({ ...travelForm, linked_project: value, linked_site: '' })} placeholder="Search project…" /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Linked Site</label>
+                <LinkPicker entity="site" value={travelForm.linked_site} onChange={value => setTravelForm({ ...travelForm, linked_site: value })} placeholder="Search site…" filters={travelForm.linked_project ? { project: travelForm.linked_project } : undefined} /></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Expense Amount</label>
                 <input type="number" className="input w-full" value={travelForm.expense_amount} onChange={e => setTravelForm({ ...travelForm, expense_amount: e.target.value })} /></div>
             </div>
@@ -671,6 +677,10 @@ export default function HRPage() {
                 <input type="date" className="input w-full" value={otForm.overtime_date} onChange={e => setOtForm({ ...otForm, overtime_date: e.target.value })} /></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Hours *</label>
                 <input type="number" step="0.5" className="input w-full" value={otForm.overtime_hours} onChange={e => setOtForm({ ...otForm, overtime_hours: e.target.value })} /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Linked Project</label>
+                <LinkPicker entity="project" value={otForm.linked_project} onChange={value => setOtForm({ ...otForm, linked_project: value, linked_site: '' })} placeholder="Search project…" /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Linked Site</label>
+                <LinkPicker entity="site" value={otForm.linked_site} onChange={value => setOtForm({ ...otForm, linked_site: value })} placeholder="Search site…" filters={otForm.linked_project ? { project: otForm.linked_project } : undefined} /></div>
             </div>
             <div className="flex justify-end gap-2 px-5 py-4 border-t">
               <button className="btn-secondary" onClick={() => setShowOtModal(false)}>Cancel</button>

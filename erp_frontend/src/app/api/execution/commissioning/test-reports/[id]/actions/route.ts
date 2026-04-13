@@ -4,7 +4,6 @@ import { callFrappeMethod } from '@/app/api/_lib/frappe';
 const ALLOWED_ACTIONS: Record<string, string> = {
   approve: 'approve_test_report',
   reject: 'reject_test_report',
-  resubmit: 'resubmit_test_report',
 };
 
 export const dynamic = 'force-dynamic';

@@ -80,7 +80,7 @@ export default function ProjectManagerInventoryPage() {
   // Schema-driven labels from backend workbook reference (IN sheet)
   const [inHeaders, setInHeaders] = useState<string[]>([]);
   useEffect(() => {
-    fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method: 'get_inventory_reference_schema' }) })
+    fetch('/api/inventory/schema')
       .then(r => r.json())
       .then(p => { if (p.data?.in_sheet?.headers) setInHeaders(p.data.in_sheet.headers); })
       .catch(() => {});

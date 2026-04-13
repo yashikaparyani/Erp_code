@@ -20,8 +20,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     const args: Record<string, unknown> = { name: decodeURIComponent(id) };
-    if (typeof body.remarks === 'string') {
-      args.remarks = body.remarks;
+    for (const key of ['remarks', 'collected_amount', 'escalate_to']) {
+      if (body[key] !== undefined) args[key] = body[key];
     }
 
     const result = await callFrappeMethod(method, args, request);

@@ -101,7 +101,7 @@ export default function FinanceCostingPage() {
             if (!boq) return;
             setBusyName('_from_boq'); setError('');
             try {
-              await callApi('/api/ops', { method: 'POST', body: { method: 'create_cost_sheet_from_boq', args: { boq_name: boq } } });
+              await callApi('/api/cost-sheets/from-boq', { method: 'POST', body: { boq_name: boq } });
               await load();
             } catch (e) { setError(e instanceof Error ? e.message : 'Failed'); }
             setBusyName(null);

@@ -9,12 +9,24 @@ import ActionModal from '@/components/ui/ActionModal';
 import { formatDate, statusVariant } from '@/components/procurement/proc-helpers';
 import { useAuth } from '@/context/AuthContext';
 
-interface ChallanItem { item_link?: string; item_code?: string; item_name?: string; description?: string; qty?: number; uom?: string; remarks?: string; }
+interface ChallanItem {
+  item_link?: string;
+  item_code?: string;
+  item_name?: string;
+  description?: string;
+  make?: string;
+  model_no?: string;
+  serial_numbers?: string;
+  qty?: number;
+  uom?: string;
+  remarks?: string;
+}
 interface ChallanDetail {
   name: string; dispatch_date?: string; dispatch_type?: string; status?: string;
   from_warehouse?: string; to_warehouse?: string; target_site_name?: string;
   linked_project?: string; total_items?: number; total_qty?: number;
-  approved_by?: string; approved_at?: string; rejection_reason?: string;
+  challan_reference?: string; issued_to_name?: string; vehicle_number?: string;
+  transporter_name?: string; approved_by?: string; approved_at?: string; rejection_reason?: string;
   remarks?: string; creation?: string; items?: ChallanItem[];
 }
 
@@ -81,7 +93,7 @@ export default function InventoryChallanDetailPage() {
       headerActions={actions}
       identityBlock={dc ? (
         <dl className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm sm:grid-cols-3">
-          {[['Date', formatDate(dc.dispatch_date)], ['Type', dc.dispatch_type], ['From', dc.from_warehouse], ['To', dc.to_warehouse || dc.target_site_name], ['Project', dc.linked_project], ['Items', dc.total_items], ['Qty', dc.total_qty], ['Approved By', dc.approved_by], ['Created', formatDate(dc.creation)]].map(([l, v]) => (
+          {[['Date', formatDate(dc.dispatch_date)], ['Reference', dc.challan_reference], ['Type', dc.dispatch_type], ['From', dc.from_warehouse], ['To', dc.to_warehouse || dc.target_site_name], ['Issued To', dc.issued_to_name], ['Vehicle', dc.vehicle_number], ['Transporter', dc.transporter_name], ['Project', dc.linked_project], ['Items', dc.total_items], ['Qty', dc.total_qty], ['Approved By', dc.approved_by], ['Created', formatDate(dc.creation)]].map(([l, v]) => (
             <div key={String(l)}><dt className="text-gray-500">{String(l)}</dt><dd className="font-medium text-gray-900">{String(v || '-')}</dd></div>
           ))}
         </dl>
@@ -94,10 +106,19 @@ export default function InventoryChallanDetailPage() {
       <div className="shell-panel overflow-hidden">
         <div className="px-5 py-3 border-b border-gray-100"><h3 className="font-semibold text-gray-900">Line Items</h3></div>
         <table className="data-table text-sm">
-          <thead><tr><th>#</th><th>Item</th><th>Description</th><th className="text-right">Qty</th><th>UOM</th><th>Remarks</th></tr></thead>
+          <thead><tr><th>#</th><th>Item</th><th>Description</th><th>Make / Model</th><th>Serials</th><th className="text-right">Qty</th><th>UOM</th><th>Remarks</th></tr></thead>
           <tbody>
-            {items.length === 0 ? <tr><td colSpan={6} className="text-center py-8 text-gray-400">No items</td></tr> : items.map((i, idx) => (
-              <tr key={idx}><td className="text-gray-500 text-xs">{idx + 1}</td><td><div className="font-medium">{i.item_link || i.item_code || '-'}</div><div className="text-xs text-gray-500">{i.item_name || '-'}</div></td><td className="text-gray-600">{i.description || '-'}</td><td className="text-right">{i.qty ?? '-'}</td><td className="text-gray-500">{i.uom || '-'}</td><td className="text-gray-500">{i.remarks || '-'}</td></tr>
+            {items.length === 0 ? <tr><td colSpan={8} className="text-center py-8 text-gray-400">No items</td></tr> : items.map((i, idx) => (
+              <tr key={idx}>
+                <td className="text-gray-500 text-xs">{idx + 1}</td>
+                <td><div className="font-medium">{i.item_link || i.item_code || '-'}</div><div className="text-xs text-gray-500">{i.item_name || '-'}</div></td>
+                <td className="text-gray-600">{i.description || '-'}</td>
+                <td><div className="text-gray-700">{i.make || '-'}</div><div className="text-xs text-gray-500">{i.model_no || '-'}</div></td>
+                <td className="text-xs text-gray-600">{i.serial_numbers || '-'}</td>
+                <td className="text-right">{i.qty ?? '-'}</td>
+                <td className="text-gray-500">{i.uom || '-'}</td>
+                <td className="text-gray-500">{i.remarks || '-'}</td>
+              </tr>
             ))}
           </tbody>
         </table>

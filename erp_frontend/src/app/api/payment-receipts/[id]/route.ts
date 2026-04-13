@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { callFrappeMethod } from '../../_lib/frappe';
+import { callFrappeMethod, jsonErrorResponse } from '../../_lib/frappe';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,5 +17,32 @@ export async function GET(
       { success: false, message: error instanceof Error ? error.message : 'Failed to fetch payment receipt' },
       { status: 500 },
     );
+  }
+}
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await params;
+    const body = await request.json();
+    const result = await callFrappeMethod('update_payment_receipt', { name: decodeURIComponent(id), data: JSON.stringify(body) }, request);
+    return NextResponse.json({ success: true, data: result.data || result });
+  } catch (error) {
+    return jsonErrorResponse(error, 'Failed to update payment receipt');
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await params;
+    const result = await callFrappeMethod('delete_payment_receipt', { name: decodeURIComponent(id) }, request);
+    return NextResponse.json({ success: true, data: result.data || result });
+  } catch (error) {
+    return jsonErrorResponse(error, 'Failed to delete payment receipt');
   }
 }

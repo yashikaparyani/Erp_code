@@ -18,6 +18,8 @@ export async function POST(
       approve: { method: 'approve_estimate', message: 'Estimate approved' },
       reject: { method: 'reject_estimate', message: 'Estimate rejected' },
       convert: { method: 'convert_estimate_to_proforma', message: 'Converted to proforma' },
+      update: { method: 'update_estimate', message: 'Estimate updated' },
+      delete: { method: 'delete_estimate', message: 'Estimate deleted' },
     };
 
     const entry = actionMap[action];
@@ -27,6 +29,7 @@ export async function POST(
 
     const args: Record<string, any> = { name };
     if (action === 'reject' && body?.reason) args.reason = String(body.reason);
+    if (action === 'update' && body?.data) args.data = typeof body.data === 'string' ? body.data : JSON.stringify(body.data);
 
     const result = await callFrappeMethod(entry.method, args, request);
     return NextResponse.json({ success: true, data: result.data, message: entry.message });

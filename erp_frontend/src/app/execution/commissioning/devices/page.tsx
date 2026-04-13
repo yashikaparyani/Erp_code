@@ -3,6 +3,9 @@ import { useEffect, useState } from 'react';
 import { apiFetch } from '@/lib/api-client';
 import Link from 'next/link';
 import { Activity, Cpu, Network, Plus, Wifi, X } from 'lucide-react';
+import ActionModal from '@/components/ui/ActionModal';
+import LinkPicker from '@/components/ui/LinkPicker';
+import { useAuth } from '@/context/AuthContext';
 
 interface DeviceRegister {
   name: string;
@@ -64,6 +67,7 @@ const IP_STATUS: Record<string, string> = { Active: 'badge-success', Released: '
 type TabKey = 'devices' | 'pools' | 'allocations' | 'uptime';
 
 export default function CommissioningDevicesPage() {
+  const { currentUser } = useAuth();
   const [devices, setDevices] = useState<DeviceRegister[]>([]);
   const [pools, setPools] = useState<IPPool[]>([]);
   const [allocations, setAllocations] = useState<IPAllocation[]>([]);
@@ -74,6 +78,17 @@ export default function CommissioningDevicesPage() {
   const [deviceForm, setDeviceForm] = useState<DeviceFormData>(initialDeviceForm);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [faultyTarget, setFaultyTarget] = useState<DeviceRegister | null>(null);
+  const [decommissionTarget, setDecommissionTarget] = useState<DeviceRegister | null>(null);
+
+  const hasRole = (...roles: string[]) => {
+    const set = new Set(currentUser?.roles || []);
+    return roles.some((r) => set.has(r));
+  };
+  const canCreateDevice = hasRole('Engineering Head', 'Project Manager');
+  const canCommissionDevice = hasRole('Engineering Head', 'Project Manager');
+  const canMarkFaulty = hasRole('Engineering Head', 'Project Manager', 'Field Technician');
+  const canDecommissionDevice = hasRole('Engineering Head', 'Project Manager');
 
   const loadData = async () => {
     setLoading(true);
@@ -144,7 +159,7 @@ export default function CommissioningDevicesPage() {
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Devices & IP Management</h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-1">Device register, IP pool allocation, and uptime monitoring for commissioning.</p>
         </div>
-        <button className="btn btn-primary w-full sm:w-auto" onClick={() => setShowDeviceModal(true)}><Plus className="w-4 h-4" /> Add Device</button>
+        {canCreateDevice && <button className="btn btn-primary w-full sm:w-auto" onClick={() => setShowDeviceModal(true)}><Plus className="w-4 h-4" /> Add Device</button>}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
@@ -182,9 +197,9 @@ export default function CommissioningDevicesPage() {
                     <td><span className={`badge ${DEVICE_STATUS[d.status || ''] || 'badge-gray'}`}>{d.status || '-'}</span></td>
                     <td>
                       <div className="flex gap-1 flex-wrap">
-                        {(d.status === 'Deployed' || d.status === 'Active') && <button className="btn btn-xs btn-success" onClick={() => handleDeviceAction('commission', d.name)}>Commission</button>}
-                        {d.status !== 'Decommissioned' && d.status !== 'Faulty' && <button className="btn btn-xs btn-warning" onClick={() => handleDeviceAction('mark_faulty', d.name)}>Faulty</button>}
-                        {d.status !== 'Decommissioned' && <button className="btn btn-xs btn-error" onClick={() => handleDeviceAction('decommission', d.name)}>Decommission</button>}
+                        {canCommissionDevice && (d.status === 'Deployed' || d.status === 'Active') && <button className="btn btn-xs btn-success" onClick={() => handleDeviceAction('commission', d.name)}>Commission</button>}
+                        {canMarkFaulty && d.status !== 'Decommissioned' && d.status !== 'Faulty' && <button className="btn btn-xs btn-warning" onClick={() => setFaultyTarget(d)}>Faulty</button>}
+                        {canDecommissionDevice && d.status !== 'Decommissioned' && <button className="btn btn-xs btn-error" onClick={() => setDecommissionTarget(d)}>Decommission</button>}
                       </div>
                     </td>
                   </tr>
@@ -281,8 +296,8 @@ export default function CommissioningDevicesPage() {
               <button className="p-2 rounded-lg hover:bg-gray-100" onClick={() => setShowDeviceModal(false)}><X className="w-5 h-5" /></button>
             </div>
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Field label="Project"><input className="input" value={deviceForm.linked_project} onChange={e => setDeviceForm({ ...deviceForm, linked_project: e.target.value })} /></Field>
-              <Field label="Site"><input className="input" value={deviceForm.linked_site} onChange={e => setDeviceForm({ ...deviceForm, linked_site: e.target.value })} /></Field>
+              <Field label="Project"><LinkPicker entity="project" value={deviceForm.linked_project} onChange={(value) => setDeviceForm({ ...deviceForm, linked_project: value, linked_site: '' })} placeholder="Search project…" /></Field>
+              <Field label="Site"><LinkPicker entity="site" value={deviceForm.linked_site} onChange={(value) => setDeviceForm({ ...deviceForm, linked_site: value })} placeholder="Search site…" filters={deviceForm.linked_project ? { project: deviceForm.linked_project } : undefined} /></Field>
               <Field label="Device Name"><input className="input" value={deviceForm.device_name} onChange={e => setDeviceForm({ ...deviceForm, device_name: e.target.value })} /></Field>
               <Field label="Device Type">
                 <select className="input" value={deviceForm.device_type} onChange={e => setDeviceForm({ ...deviceForm, device_type: e.target.value })}>
@@ -305,6 +320,38 @@ export default function CommissioningDevicesPage() {
           </div>
         </div>
       )}
+
+      <ActionModal
+        open={!!faultyTarget}
+        title="Mark Device Faulty"
+        description={`Record fault remarks for ${faultyTarget?.device_name || faultyTarget?.name || 'this device'}.`}
+        variant="danger"
+        confirmLabel="Mark Faulty"
+        busy={false}
+        fields={[{ name: 'remarks', label: 'Remarks', type: 'textarea', required: true, placeholder: 'Describe the fault...' }]}
+        onConfirm={async (values) => {
+          if (!faultyTarget?.name) return;
+          await handleDeviceAction('mark_faulty', faultyTarget.name, { remarks: values.remarks || '' });
+          setFaultyTarget(null);
+        }}
+        onCancel={() => setFaultyTarget(null)}
+      />
+
+      <ActionModal
+        open={!!decommissionTarget}
+        title="Decommission Device"
+        description={`Record decommission remarks for ${decommissionTarget?.device_name || decommissionTarget?.name || 'this device'}.`}
+        variant="danger"
+        confirmLabel="Decommission"
+        busy={false}
+        fields={[{ name: 'remarks', label: 'Remarks', type: 'textarea', required: true, placeholder: 'Reason for decommissioning...' }]}
+        onConfirm={async (values) => {
+          if (!decommissionTarget?.name) return;
+          await handleDeviceAction('decommission', decommissionTarget.name, { remarks: values.remarks || '' });
+          setDecommissionTarget(null);
+        }}
+        onCancel={() => setDecommissionTarget(null)}
+      />
     </div>
   );
 }

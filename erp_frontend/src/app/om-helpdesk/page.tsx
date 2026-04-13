@@ -69,10 +69,10 @@ export default function OMHelpdeskPage() {
     { label: 'Critical', value: critical, variant: 'error' },
   ];
 
-  const ticketAction = async (name: string, method: string) => {
+  const ticketAction = async (name: string, action: string) => {
     setBusyId(name);
     try {
-      await callApi('/api/ops', { method: 'POST', body: { method, args: { name } } });
+      await callApi(`/api/tickets/${encodeURIComponent(name)}/actions`, { method: 'POST', body: { action } });
       await load();
     } catch { /* ignore */ }
     setBusyId(null);
@@ -136,10 +136,10 @@ export default function OMHelpdeskPage() {
                         <div className="flex flex-wrap gap-1">
                           {!t.is_rma && st !== 'CLOSED' && <button onClick={() => convertToRMA(t)} disabled={busyId === t.name} className="px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 rounded hover:bg-blue-100 disabled:opacity-50">RMA</button>}
                           {st === 'NEW' && <button onClick={() => setAssignTarget(t.name)} className="px-2 py-1 text-xs font-medium text-purple-700 bg-purple-50 rounded hover:bg-purple-100">Assign</button>}
-                          {(st === 'NEW' || st === 'ASSIGNED') && <button onClick={() => ticketAction(t.name, 'start_ticket')} disabled={busyId === t.name} className="px-2 py-1 text-xs font-medium text-green-700 bg-green-50 rounded hover:bg-green-100 disabled:opacity-50">Start</button>}
-                          {st === 'IN_PROGRESS' && <button onClick={() => ticketAction(t.name, 'resolve_ticket')} disabled={busyId === t.name} className="px-2 py-1 text-xs font-medium text-green-700 bg-green-50 rounded hover:bg-green-100 disabled:opacity-50">Resolve</button>}
-                          {st === 'ON_HOLD' && <button onClick={() => ticketAction(t.name, 'resume_ticket')} disabled={busyId === t.name} className="px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 rounded hover:bg-blue-100 disabled:opacity-50">Resume</button>}
-                          {st === 'RESOLVED' && <button onClick={() => ticketAction(t.name, 'close_ticket')} disabled={busyId === t.name} className="px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50">Close</button>}
+                          {(st === 'NEW' || st === 'ASSIGNED') && <button onClick={() => ticketAction(t.name, 'start')} disabled={busyId === t.name} className="px-2 py-1 text-xs font-medium text-green-700 bg-green-50 rounded hover:bg-green-100 disabled:opacity-50">Start</button>}
+                          {st === 'IN_PROGRESS' && <button onClick={() => ticketAction(t.name, 'resolve')} disabled={busyId === t.name} className="px-2 py-1 text-xs font-medium text-green-700 bg-green-50 rounded hover:bg-green-100 disabled:opacity-50">Resolve</button>}
+                          {st === 'ON_HOLD' && <button onClick={() => ticketAction(t.name, 'resume')} disabled={busyId === t.name} className="px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 rounded hover:bg-blue-100 disabled:opacity-50">Resume</button>}
+                          {st === 'RESOLVED' && <button onClick={() => ticketAction(t.name, 'close')} disabled={busyId === t.name} className="px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50">Close</button>}
                           {st !== 'CLOSED' && <button onClick={() => setCommentTarget(t.name)} className="px-2 py-1 text-xs font-medium text-gray-700 bg-gray-50 rounded hover:bg-gray-100">Comment</button>}
                         </div>
                       </td>
@@ -194,7 +194,7 @@ export default function OMHelpdeskPage() {
         confirmLabel="Assign"
         fields={[{ name: 'assigned_to', label: 'Assign To', type: 'text', required: true, placeholder: 'user@technosys.local' }]}
         onConfirm={async (values) => {
-          await callApi('/api/ops', { method: 'POST', body: { method: 'assign_ticket', args: { name: assignTarget, assigned_to: values.assigned_to || '' } } });
+          await callApi(`/api/tickets/${encodeURIComponent(assignTarget!)}/actions`, { method: 'POST', body: { action: 'assign', assigned_to: values.assigned_to || '' } });
           setAssignTarget(null);
           load();
         }}
@@ -206,9 +206,9 @@ export default function OMHelpdeskPage() {
         title="Add Comment"
         description={`Add a comment to ticket ${commentTarget}.`}
         confirmLabel="Post Comment"
-        fields={[{ name: 'comment', label: 'Comment', type: 'textarea', required: true, placeholder: 'Enter comment...' }]}
+        fields={[{ name: 'notes', label: 'Comment', type: 'textarea', required: true, placeholder: 'Enter comment...' }]}
         onConfirm={async (values) => {
-          await callApi('/api/ops', { method: 'POST', body: { method: 'add_ticket_comment', args: { name: commentTarget, comment: values.comment || '' } } });
+          await callApi(`/api/tickets/${encodeURIComponent(commentTarget!)}/actions`, { method: 'POST', body: { action: 'comment', notes: values.notes || '' } });
           setCommentTarget(null);
         }}
         onCancel={() => setCommentTarget(null)}

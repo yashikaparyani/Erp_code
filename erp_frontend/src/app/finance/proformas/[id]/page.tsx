@@ -8,7 +8,7 @@ import AccountabilityTimeline from '@/components/accountability/AccountabilityTi
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
 import TraceabilityPanel from '@/components/ui/TraceabilityPanel';
 import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
-import { callOps, formatCurrency, formatDate, PROFORMA_BADGES, statusVariant, useAuth, hasAnyRole } from '@/components/finance/fin-helpers';
+import { callApi, formatCurrency, formatDate, PROFORMA_BADGES, statusVariant, useAuth, hasAnyRole } from '@/components/finance/fin-helpers';
 
 type Proforma = Record<string, any>;
 
@@ -22,7 +22,7 @@ export default function ProformaDetailPage() {
 
   const load = useCallback(async () => {
     setLoading(true); setError('');
-    try { setData(await callOps<Proforma>('get_proforma_invoice', { name: id })); }
+    try { setData(await callApi<Proforma>(`/api/proformas/${encodeURIComponent(id)}`)); }
     catch (e) { setError(e instanceof Error ? e.message : 'Failed'); }
     setLoading(false);
   }, [id]);
@@ -120,9 +120,10 @@ export default function ProformaDetailPage() {
             Update: 'update_proforma_invoice',
             Delete: 'delete_proforma_invoice',
           };
-          const method = methodMap[action || ''];
-          if (!method) return;
-          await callOps(method, { name: id, ...v });
+          const actionSlug: Record<string, string> = { Send: 'send', Approve: 'approve', Cancel: 'cancel', Convert: 'convert', Update: 'update', Delete: 'delete' };
+          const slug = actionSlug[action || ''];
+          if (!slug) return;
+          await callApi(`/api/proformas/${encodeURIComponent(id)}/actions`, { method: 'POST', body: { action: slug, ...v } });
           setAction(null);
           load();
         }}

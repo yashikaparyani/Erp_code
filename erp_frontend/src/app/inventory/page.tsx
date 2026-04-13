@@ -7,6 +7,7 @@ import { Filter, X, Eye, Plus, Trash2 } from 'lucide-react';
 import RegisterPage from '@/components/shells/RegisterPage';
 import FormModal from '@/components/shells/FormModal';
 import LinkPicker from '@/components/ui/LinkPicker';
+import ActionModal from '@/components/ui/ActionModal';
 import { badge, DC_BADGES } from '@/components/procurement/proc-helpers';
 import { useAuth } from '@/context/AuthContext';
 
@@ -27,6 +28,7 @@ export default function InventoryPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [actionBusy, setActionBusy] = useState<string | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<DC | null>(null);
 
   // Challan create form state
   const emptyItem = (): DCItem => ({ item_link: '', description: '', qty: 1, make: '', model_no: '', serial_numbers: '', uom: 'Nos', remarks: '' });
@@ -49,7 +51,7 @@ export default function InventoryPage() {
   // Schema-driven labels from backend workbook reference
   const [outHeaders, setOutHeaders] = useState<string[]>([]);
   useEffect(() => {
-    fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ method: 'get_inventory_reference_schema' }) })
+    fetch('/api/inventory/schema')
       .then(r => r.json())
       .then(p => { if (p.data?.out_sheet?.headers) setOutHeaders(p.data.out_sheet.headers); })
       .catch(() => {});
@@ -101,10 +103,14 @@ export default function InventoryPage() {
   const addItem = () => setDcItems(prev => [...prev, emptyItem()]);
   const removeItem = (idx: number) => setDcItems(prev => prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev);
 
-  const runAction = async (name: string, action: string) => {
+  const runAction = async (name: string, action: string, extra?: Record<string, string>) => {
     setActionBusy(name); setError('');
     try {
-      const res = await fetch(`/api/dispatch-challans/${encodeURIComponent(name)}/actions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }) });
+      const res = await fetch(`/api/dispatch-challans/${encodeURIComponent(name)}/actions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, ...(extra || {}) }),
+      });
       const p = await res.json(); if (!res.ok || !p.success) throw new Error(p.message || 'Failed');
       load();
     } catch (e) { setError(e instanceof Error ? e.message : 'Failed'); }
@@ -161,7 +167,7 @@ export default function InventoryPage() {
                   <div className="flex flex-wrap gap-2 items-center">
                     <Link href={`/dispatch-challans/${encodeURIComponent(c.name)}`} className="text-blue-600 hover:underline text-sm flex items-center gap-1"><Eye className="w-3.5 h-3.5" />View</Link>
                     {c.status === 'DRAFT' && canSubmit && <button disabled={actionBusy === c.name} onClick={() => runAction(c.name, 'submit')} className="text-indigo-600 text-sm font-medium">Submit</button>}
-                    {c.status === 'PENDING_APPROVAL' && canApprove && (<><button disabled={actionBusy === c.name} onClick={() => runAction(c.name, 'approve')} className="text-green-600 text-sm font-medium">Approve</button><button disabled={actionBusy === c.name} onClick={() => runAction(c.name, 'reject')} className="text-red-600 text-sm font-medium">Reject</button></>)}
+                    {c.status === 'PENDING_APPROVAL' && canApprove && (<><button disabled={actionBusy === c.name} onClick={() => runAction(c.name, 'approve')} className="text-green-600 text-sm font-medium">Approve</button><button disabled={actionBusy === c.name} onClick={() => setRejectTarget(c)} className="text-red-600 text-sm font-medium">Reject</button></>)}
                     {c.status === 'APPROVED' && canSubmit && <button disabled={actionBusy === c.name} onClick={() => runAction(c.name, 'dispatch')} className="text-orange-600 text-sm font-medium">Dispatch</button>}
                   </div>
                 </td>
@@ -307,6 +313,21 @@ export default function InventoryPage() {
           </div>
         </div>
       </FormModal>
+      <ActionModal
+        open={!!rejectTarget}
+        title="Reject Dispatch Challan"
+        description={`Give a reason for rejecting ${rejectTarget?.name || 'this challan'}. Backend requires remarks for this action.`}
+        variant="danger"
+        confirmLabel="Reject"
+        busy={!!rejectTarget && actionBusy === rejectTarget.name}
+        fields={[{ name: 'reason', label: 'Reason', type: 'textarea', required: true }]}
+        onConfirm={async (values) => {
+          if (!rejectTarget?.name) return;
+          await runAction(rejectTarget.name, 'reject', { reason: values.reason || '' });
+          setRejectTarget(null);
+        }}
+        onCancel={() => setRejectTarget(null)}
+      />
     </RegisterPage>
   );
 }

@@ -450,24 +450,18 @@ export default function HrOnboardingPage() {
       if (statusFilter) params.set('status', statusFilter);
       if (search) params.set('search', search);
 
-      const [listRes, statsRes] = await Promise.all([
-        fetch(`/api/hr/onboarding?${params.toString()}`),
-        fetch('/api/ops', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ method: 'get_onboarding_stats' }),
-        }),
+      const [listRes] = await Promise.all([
+        fetch(`/api/hr/onboarding?${params.toString()}&include_stats=1`),
       ]);
 
       const listJson = await listRes.json();
-      const statsJson = await statsRes.json();
 
       if (!listRes.ok || listJson.success === false) {
         throw new Error(listJson.message || 'Failed to load onboarding queue');
       }
 
       setItems(listJson.data || []);
-      setStats(statsJson.data || EMPTY_STATS);
+      setStats(listJson.stats || EMPTY_STATS);
 
       if (mode === 'create') {
         return;

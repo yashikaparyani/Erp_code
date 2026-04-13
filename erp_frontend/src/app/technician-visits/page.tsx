@@ -17,8 +17,28 @@ interface TechnicianVisit {
 }
 
 function statusBadge(s?: string) {
-  const m: Record<string, string> = { Scheduled: 'badge-blue', 'In Progress': 'badge-yellow', Completed: 'badge-green', Cancelled: 'badge-red' };
-  return m[s || ''] || 'badge-gray';
+  const m: Record<string, string> = {
+    PLANNED: 'badge-blue',
+    IN_PROGRESS: 'badge-yellow',
+    COMPLETED: 'badge-green',
+    CANCELLED: 'badge-red',
+  };
+  return m[(s || '').toUpperCase()] || 'badge-gray';
+}
+
+function statusLabel(s?: string) {
+  const raw = (s || '').toUpperCase();
+  const labels: Record<string, string> = {
+    PLANNED: 'Planned',
+    IN_PROGRESS: 'In Progress',
+    COMPLETED: 'Completed',
+    CANCELLED: 'Cancelled',
+  };
+  return labels[raw] || s || '-';
+}
+
+function statusValue(s?: string) {
+  return (s || '').toUpperCase();
 }
 
 export default function TechnicianVisitsPage() {
@@ -101,8 +121,8 @@ export default function TechnicianVisitsPage() {
 
   if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full" /></div>;
 
-  const completed = items.filter(i => i.visit_status === 'Completed').length;
-  const scheduled = items.filter(i => i.visit_status === 'Scheduled').length;
+  const completed = items.filter(i => statusValue(i.visit_status) === 'COMPLETED').length;
+  const planned = items.filter(i => statusValue(i.visit_status) === 'PLANNED').length;
 
   return (
     <div>
@@ -113,7 +133,7 @@ export default function TechnicianVisitsPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
         <div className="stat-card"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg flex items-center justify-center bg-blue-100 text-blue-600"><Wrench className="w-5 h-5" /></div><div><div className="stat-value">{items.length}</div><div className="stat-label">Total Visits</div></div></div></div>
-        <div className="stat-card"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg flex items-center justify-center bg-indigo-100 text-indigo-600"><Clock className="w-5 h-5" /></div><div><div className="stat-value">{scheduled}</div><div className="stat-label">Scheduled</div></div></div></div>
+        <div className="stat-card"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg flex items-center justify-center bg-indigo-100 text-indigo-600"><Clock className="w-5 h-5" /></div><div><div className="stat-value">{planned}</div><div className="stat-label">Planned</div></div></div></div>
         <div className="stat-card"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg flex items-center justify-center bg-green-100 text-green-600"><CheckCircle2 className="w-5 h-5" /></div><div><div className="stat-value">{completed}</div><div className="stat-label">Completed</div></div></div></div>
       </div>
 
@@ -133,7 +153,7 @@ export default function TechnicianVisitsPage() {
                   <td><div className="text-sm text-gray-700">{item.customer_location || '-'}</div></td>
                   <td><div className="text-sm text-gray-700">{item.check_in_time || '-'}</div></td>
                   <td><div className="text-sm text-gray-700">{item.check_out_time || '-'}</div></td>
-                  <td><span className={`badge ${statusBadge(item.visit_status)}`}>{item.visit_status || '-'}</span></td>
+                  <td><span className={`badge ${statusBadge(item.visit_status)}`}>{statusLabel(item.visit_status)}</span></td>
                   <td>
                     <div className="flex items-center gap-2">
                       <button className="text-blue-600 hover:text-blue-800" onClick={() => openEdit(item)} aria-label={`Edit ${item.name}`}>

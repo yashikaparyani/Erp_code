@@ -7,7 +7,7 @@ import ActionModal from '@/components/ui/ActionModal';
 import AccountabilityTimeline from '@/components/accountability/AccountabilityTimeline';
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
 import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
-import { callOps, formatCurrency, formatDate, FOLLOW_UP_BADGES, statusVariant, useAuth, hasAnyRole } from '@/components/finance/fin-helpers';
+import { callApi, formatCurrency, formatDate, FOLLOW_UP_BADGES, statusVariant, useAuth, hasAnyRole } from '@/components/finance/fin-helpers';
 
 type FollowUp = Record<string, any>;
 
@@ -22,8 +22,8 @@ export default function FollowUpDetailPage() {
   const load = useCallback(async () => {
     setLoading(true); setError('');
     try {
-      const rows = await callOps<FollowUp[]>('get_payment_follow_ups', { name: id });
-      setData(Array.isArray(rows) ? (rows[0] || null) : null);
+      const res = await callApi<{ success: boolean; data: FollowUp }>(`/api/finance/follow-ups/${id}`);
+      setData(res?.data || null);
     }
     catch (e) { setError(e instanceof Error ? e.message : 'Failed'); }
     setLoading(false);
@@ -91,15 +91,15 @@ export default function FollowUpDetailPage() {
           ...(action === 'Escalate' ? [{ name: 'escalate_to', label: 'Escalate To', type: 'text' as const }] : []),
         ]}
         onConfirm={async (v) => {
-          const methodMap: Record<string, string> = {
-            Update: 'update_payment_follow_up',
-            Close: 'close_payment_follow_up',
-            Escalate: 'escalate_payment_follow_up',
-            Delete: 'delete_payment_follow_up',
-          };
-          const method = methodMap[action || ''];
-          if (!method) return;
-          await callOps(method, { name: id, ...v });
+          if (action === 'Update') {
+            await callApi(`/api/finance/follow-ups/${id}`, { method: 'PATCH', body: v });
+          } else if (action === 'Delete') {
+            await callApi(`/api/finance/follow-ups/${id}`, { method: 'DELETE' });
+          } else {
+            const slug = action?.toLowerCase();
+            if (!slug) return;
+            await callApi(`/api/finance/follow-ups/${id}/actions`, { method: 'POST', body: { action: slug, ...v } });
+          }
           setAction(null);
           load();
         }}

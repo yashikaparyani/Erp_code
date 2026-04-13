@@ -18,6 +18,8 @@ export async function POST(
       approve: { method: 'approve_proforma_invoice', message: 'Proforma approved' },
       cancel: { method: 'cancel_proforma_invoice', message: 'Proforma cancelled' },
       convert: { method: 'convert_proforma_to_invoice', message: 'Converted to invoice' },
+      update: { method: 'update_proforma_invoice', message: 'Proforma updated' },
+      delete: { method: 'delete_proforma_invoice', message: 'Proforma deleted' },
     };
 
     const entry = actionMap[action];
@@ -27,6 +29,7 @@ export async function POST(
 
     const args: Record<string, any> = { name };
     if (action === 'cancel' && body?.reason) args.reason = String(body.reason);
+    if (action === 'update' && body?.data) args.data = typeof body.data === 'string' ? body.data : JSON.stringify(body.data);
 
     const result = await callFrappeMethod(entry.method, args, request);
     return NextResponse.json({ success: true, data: result.data, message: entry.message });

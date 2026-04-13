@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { apiFetch } from '@/lib/api-client';
 import { 
   CheckCircle, 
   ClipboardCheck, 
@@ -57,24 +58,13 @@ interface ExecutionSummary {
   action_items: { type: string; priority: string; title: string; detail: string; ref_doctype?: string; ref_name?: string }[];
 }
 
-async function callOps<T>(method: string, args: Record<string, unknown> = {}): Promise<T> {
-  const res = await fetch('/api/ops', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ method, args }),
-  });
-  const payload = await res.json();
-  if (!res.ok || !payload.success) throw new Error(payload.message || 'API error');
-  return payload.data as T;
-}
-
 export default function CommissioningDashboardPage() {
   const [data, setData] = useState<ExecutionSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    callOps<ExecutionSummary>('get_execution_summary', {})
-      .then(setData)
+    apiFetch<{ data: ExecutionSummary }>('/api/execution/summary')
+      .then((result) => setData(result.data))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);

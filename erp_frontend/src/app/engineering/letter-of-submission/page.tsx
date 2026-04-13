@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ExternalLink } from 'lucide-react';
 import RegisterPage from '@/components/shells/RegisterPage';
@@ -44,7 +44,7 @@ export default function DepartmentLoiPage() {
   const [submitTarget, setSubmitTarget] = useState<LoiRow | null>(null);
   const [busy, setBusy] = useState('');
 
-  const fetchRows = async () => {
+  const fetchRows = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
@@ -58,9 +58,9 @@ export default function DepartmentLoiPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter]);
 
-  useEffect(() => { void fetchRows(); }, [statusFilter]);
+  useEffect(() => { void fetchRows(); }, [fetchRows]);
 
   const submitLoi = async (values: Record<string, string>) => {
     if (!submitTarget) return;

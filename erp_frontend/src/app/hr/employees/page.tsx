@@ -76,21 +76,15 @@ export default function EmployeeDirectoryPage() {
       if (deptFilter) params.set('department', deptFilter);
       if (search) params.set('search', search);
 
-      const [empRes, statsRes] = await Promise.all([
-        fetch(`/api/hr/employees?${params}`),
-        fetch('/api/ops', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ method: 'get_employee_stats' }),
-        }),
+      const [empRes] = await Promise.all([
+        fetch(`/api/hr/employees?${params}&include_stats=1`),
       ]);
 
       const empData = await empRes.json();
-      const statsData = await statsRes.json();
 
       if (!empRes.ok || empData.success === false) throw new Error(empData.message || 'Failed to load employees');
       setEmployees(empData.data || []);
-      setStats(statsData.data || null);
+      setStats(empData.stats || null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
