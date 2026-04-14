@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { callFrappeMethod } from '../../_lib/frappe';
+import { callFrappeMethod, uploadFrappeFile } from '../../_lib/frappe';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,6 +23,29 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const contentType = request.headers.get('content-type') || '';
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await request.formData();
+      const file = formData.get('drawing_file');
+      const payloadRaw = formData.get('data');
+      const values = payloadRaw ? JSON.parse(String(payloadRaw)) : {};
+
+      if (file instanceof File && file.size > 0) {
+        const uploadBody = new FormData();
+        uploadBody.append('file', file);
+        uploadBody.append('is_private', '1');
+        const uploadResult = await uploadFrappeFile(uploadBody, request);
+        const fileUrl = uploadResult?.message?.file_url;
+        if (!fileUrl) {
+          return NextResponse.json({ success: false, message: 'File upload succeeded but file URL was not returned' }, { status: 500 });
+        }
+        values.file_url = fileUrl;
+      }
+
+      const result = await callFrappeMethod('create_drawing', { data: JSON.stringify(values) }, request);
+      return NextResponse.json({ success: true, data: result.data, message: result.message || 'Drawing created' });
+    }
+
     const body = await request.json();
     const { action, name, ...rest } = body;
 

@@ -305,7 +305,7 @@ const navLinks: NavLink[] = [
       { name: 'Designation', href: '/settings/designation', icon: Briefcase },
       { name: 'Roles', href: '/settings/roles', icon: Shield },
       { name: 'Permissions', href: '/settings/permissions', icon: Lock },
-      { name: 'Stage Visibility', href: '/settings/stage-visibility', icon: Eye },
+      { name: 'Stage Visibility Preview', href: '/settings/stage-visibility', icon: Eye },
       { name: 'User Management', href: '/settings/user-management', icon: Users2 },
       { name: 'Audit Log', href: '/settings/audit-log', icon: ScrollText },
       { name: 'Checklist', href: '/settings/checklist', icon: CheckSquare },

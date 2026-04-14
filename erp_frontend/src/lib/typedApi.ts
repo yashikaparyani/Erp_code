@@ -93,6 +93,83 @@ export const commercialApi = {
     }),
 };
 
+/* ── Document Management ────────────────────────────────── */
+
+export const dmsApi = {
+  getDocuments: <T = unknown>(params?: {
+    folder?: string;
+    project?: string;
+    site?: string;
+    category?: string;
+    latest_only?: string | number;
+    source?: string;
+    stage?: string;
+    reference_doctype?: string;
+    subcategory?: string;
+  }) => typedFetch<T>(`/api/documents${qs(params || {})}`),
+
+  getFolders: <T = unknown>(params?: { project?: string; department?: string; source?: string }) =>
+    typedFetch<T>(`/api/documents/folders${qs(params || {})}`),
+
+  createFolder: <T = unknown>(data: Record<string, unknown>) =>
+    typedFetch<T>('/api/documents/folders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }),
+
+  updateFolder: <T = unknown>(name: string, data: Record<string, unknown>) =>
+    typedFetch<T>('/api/documents/folders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, ...data }),
+    }),
+
+  deleteFolder: <T = unknown>(name: string) =>
+    typedFetch<T>(`/api/documents/folders${qs({ name })}`, {
+      method: 'DELETE',
+    }),
+
+  getDocument: <T = unknown>(name: string) =>
+    typedFetch<T>(`/api/documents/${encodeURIComponent(name)}`),
+
+  updateStatus: <T = unknown>(name: string, status: string, reason?: string) =>
+    typedFetch<T>(`/api/documents/${encodeURIComponent(name)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'status', status, reason }),
+    }),
+
+  deleteDocument: <T = unknown>(name: string) =>
+    typedFetch<T>(`/api/documents/${encodeURIComponent(name)}`, {
+      method: 'DELETE',
+    }),
+
+  getVersions: <T = unknown>(name: string) =>
+    typedFetch<T>(`/api/documents/versions${qs({ name })}`),
+
+  getRequirements: <T = unknown>(params?: { project?: string; stage?: string; target_stage?: string }) =>
+    typedFetch<T>(`/api/documents/requirements${qs(params || {})}`),
+
+  getExpiring: <T = unknown>(project?: string, days?: number) =>
+    typedFetch<T>(`/api/documents/expiring${qs({ project, days })}`),
+
+  getProjectDossier: <T = unknown>(project: string) =>
+    typedFetch<T>(`/api/documents/dossier${qs({ project })}`),
+
+  getSiteDossier: <T = unknown>(site: string) =>
+    typedFetch<T>(`/api/documents/dossier${qs({ site })}`),
+
+  getRecordDocuments: <T = unknown>(reference_doctype: string, reference_name: string) =>
+    typedFetch<T>(`/api/documents/records${qs({ reference_doctype, reference_name })}`),
+
+  getCompleteness: <T = unknown>(params: { project: string; stage: string; site?: string }) =>
+    typedFetch<T>(`/api/documents/completeness${qs(params)}`),
+
+  getProgressionGate: <T = unknown>(params: { project: string; target_stage: string; site?: string }) =>
+    typedFetch<T>(`/api/documents/progression-gate${qs(params)}`),
+};
+
 /* ── Closeout ─────────────────────────────────────────────── */
 
 export const closeoutApi = {

@@ -12,6 +12,8 @@ import {
   Shield,
   XCircle,
 } from 'lucide-react';
+import { dmsApi } from '@/lib/typedApi';
+import { getFileProxyUrl } from '@/lib/fileLinks';
 
 type DossierDocument = {
   name: string;
@@ -167,7 +169,7 @@ function StageSection({
                     <StatusBadge status={doc.status} />
                     <span className="text-[10px] text-slate-400">v{doc.version || 1}</span>
                     {doc.file && (
-                      <a href={doc.file} target="_blank" rel="noreferrer" className="text-blue-500 hover:text-blue-700">
+                      <a href={getFileProxyUrl(doc.file)} target="_blank" rel="noreferrer" className="text-blue-500 hover:text-blue-700">
                         <FileText className="h-3.5 w-3.5" />
                       </a>
                     )}
@@ -209,20 +211,11 @@ export default function ProjectDossierPage() {
   useEffect(() => {
     if (!projectId) return;
     setLoading(true);
-    fetch(`/api/ops`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ method: 'get_project_dossier', args: { project: projectId } }),
-    })
-      .then((r) => r.json())
-      .then((res) => {
-        if (res.success && res.data) {
-          setDossier(res.data);
-        } else {
-          setError(res.message || 'Failed to load dossier');
-        }
+    dmsApi.getProjectDossier<DossierData>(projectId)
+      .then((data) => {
+        setDossier(data);
       })
-      .catch(() => setError('Failed to load dossier'))
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load dossier'))
       .finally(() => setLoading(false));
   }, [projectId]);
 
@@ -231,19 +224,9 @@ export default function ProjectDossierPage() {
     if (!dossier) return;
     const stages = STAGE_ORDER.filter((s) => s !== 'Unclassified');
     stages.forEach((stage) => {
-      fetch(`/api/ops`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          method: 'check_stage_document_completeness',
-          args: { project: projectId, stage },
-        }),
-      })
-        .then((r) => r.json())
-        .then((res) => {
-          if (res.success && res.data) {
-            setCompletenessMap((prev) => ({ ...prev, [stage]: res.data }));
-          }
+      dmsApi.getCompleteness<CompletenessResult>({ project: projectId, stage })
+        .then((data) => {
+          setCompletenessMap((prev) => ({ ...prev, [stage]: data }));
         })
         .catch(() => {});
     });

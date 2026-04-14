@@ -47,7 +47,7 @@ export type WorkspaceAction<T extends Record<string, any>> = {
 type WorkspaceStatsCard = {
   label: string;
   path: string;
-  hint: string;
+  hint?: string;
   icon: any;
   tone: Tone;
 };
@@ -182,6 +182,7 @@ export default function OpsWorkspace<T extends Record<string, any>>({
 
   const renderedStats = useMemo(() => statsCards.map((card) => ({
     ...card,
+    hint: card.hint || '',
     value: getByPath(stats, card.path) ?? 0,
   })), [stats, statsCards]);
 

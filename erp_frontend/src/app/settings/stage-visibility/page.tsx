@@ -132,20 +132,21 @@ export default function StageVisibilityPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
       <div className="mb-6">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Stage Visibility</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Stage Visibility Preview</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Derived from the live role-pack matrix instead of a static frontend note
+          Live RBAC-derived preview of lifecycle visibility, not a direct policy editor
         </p>
       </div>
 
       <div className="mb-6 flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
         <Info className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600" />
         <div className="text-sm text-blue-800">
-          <p className="font-medium">Pack-driven stage visibility</p>
+          <p className="font-medium">RBAC-derived visibility preview</p>
           <p className="mt-1 text-blue-700">
             This screen is now derived from the current role-to-pack mappings. Stage access shown here is a live projection of
             pack ownership plus mode. DMS, Approval, and Settings packs are intentionally excluded because they do not define
-            lifecycle-stage visibility by themselves.
+            lifecycle-stage visibility by themselves. The backend does not currently expose a separate stage-policy editor API,
+            so this page should be read as an inspection view, not the authoritative source of policy configuration.
           </p>
         </div>
       </div>

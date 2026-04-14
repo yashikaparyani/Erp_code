@@ -2,18 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Eye, Plus, X, Banknote, CreditCard, RefreshCcw, BookOpen, Clock, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { ArrowRight, Banknote, BookOpen, Clock, CreditCard, Download, Eye, Plus, RefreshCcw, ShieldCheck, AlertTriangle, X } from 'lucide-react';
 import RegisterPage from '@/components/shells/RegisterPage';
 import FormModal from '@/components/shells/FormModal';
 import ActionModal from '@/components/ui/ActionModal';
-import OpsWorkspace from '@/components/ops/OpsWorkspace';
 import LinkPicker from '@/components/ui/LinkPicker';
 import {
   callApi, callOps, formatCurrency, formatDate, badge,
   INVOICE_BADGES, statusVariant, hasAnyRole,
 } from '@/components/finance/fin-helpers';
 import { useAuth } from '@/context/AuthContext';
-import { Download } from 'lucide-react';
 
 type BillingTab = 'invoices' | 'receipts' | 'follow-ups' | 'statement' | 'aging' | 'retention' | 'penalties';
 
@@ -31,6 +29,41 @@ const INIT = {
   invoice_type: 'MILESTONE', description: '', qty: 1, rate: 0,
   milestone_complete: true, audit_note: '',
 };
+
+function ClusterLaunchCard({
+  title,
+  description,
+  href,
+  bullets,
+}: {
+  title: string;
+  description: string;
+  href: string;
+  bullets: string[];
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="space-y-3">
+        <div>
+          <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
+          <p className="mt-1 text-sm text-slate-600">{description}</p>
+        </div>
+        <ul className="space-y-2 text-sm text-slate-600">
+          {bullets.map((bullet) => (
+            <li key={bullet} className="flex items-start gap-2">
+              <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[var(--brand-orange)]" />
+              <span>{bullet}</span>
+            </li>
+          ))}
+        </ul>
+        <Link href={href} className="inline-flex items-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--accent-strong)]">
+          Open Workspace
+          <ArrowRight className="h-4 w-4" />
+        </Link>
+      </div>
+    </div>
+  );
+}
 
 export default function BillingClusterPage() {
   const { currentUser } = useAuth();
@@ -272,88 +305,54 @@ export default function BillingClusterPage() {
         </div>
       )}
 
-      {/* Receipts Tab */}
       {activeTab === 'receipts' && (
-        <OpsWorkspace
-          title=""
-          subtitle=""
-          listMethod="get_payment_receipts"
-          statsMethod="get_payment_receipt_stats"
-          createMethod="create_payment_receipt"
-          createLabel="Create Payment Receipt"
-          createFields={[
-            {
-              name: 'receipt_type',
-              label: 'Receipt Type',
-              type: 'select',
-              defaultValue: 'AGAINST_INVOICE',
-              options: [
-                { label: 'Against Invoice', value: 'AGAINST_INVOICE' },
-                { label: 'Advance', value: 'ADVANCE' },
-                { label: 'Adjustment', value: 'ADJUSTMENT' },
-              ],
-            },
-            { name: 'customer', label: 'Customer', type: 'link', linkEntity: 'customer', placeholder: 'Search customers…' },
-            { name: 'received_date', label: 'Receipt Date', type: 'date' },
-            { name: 'amount_received', label: 'Amount Received', type: 'number', defaultValue: 0 },
-            { name: 'payment_mode', label: 'Payment Mode', type: 'select', defaultValue: 'BANK_TRANSFER', options: [
-              { label: 'Bank Transfer', value: 'BANK_TRANSFER' },
-              { label: 'Cheque', value: 'CHEQUE' },
-              { label: 'Cash', value: 'CASH' },
-            ]},
-          ]}
-          actions={[
-            { label: 'Delete', tone: 'danger', buildRequest: (row) => ({ method: 'delete_payment_receipt', args: { name: row.name } }), confirmMessage: 'Delete this receipt?' },
-          ]}
-          statsCards={[
-            { label: 'Receipts', path: 'total_receipts', icon: CreditCard, tone: 'blue' },
-            { label: 'Received', path: 'total_received', icon: CreditCard, tone: 'green' },
-          ]}
-          columns={[
-            { key: 'name', label: 'Receipt', render: (row) => row.name },
-            { key: 'customer', label: 'Customer', render: (row) => row.customer || '-' },
-            { key: 'receipt_type', label: 'Type', render: (row) => row.receipt_type || '-' },
-            { key: 'received_date', label: 'Date', render: (row) => row.received_date || '-' },
-            { key: 'amount_received', label: 'Amount', render: (row) => row.amount_received || '-' },
-          ]}
-          emptyMessage="No payment receipts"
-        />
+        <div className="grid gap-6 lg:grid-cols-2">
+          <ClusterLaunchCard
+            title="Payment Receipts Workspace"
+            description="Use the standalone receipts register for create, update, and delete flows."
+            href="/finance/payment-receipts"
+            bullets={[
+              'Receipt type, customer, and payment mode are already managed there.',
+              'The dedicated page is the canonical route for receipt CRUD.',
+              'This cluster avoids duplicating receipt logic through generic ops.',
+            ]}
+          />
+          <ClusterLaunchCard
+            title="Cluster Role"
+            description="Billing Cluster now acts as a finance hub while operational work happens in the stronger standalone receipts page."
+            href="/finance/payment-receipts"
+            bullets={[
+              'One source of truth for payment receipt behavior.',
+              'Less UI drift between cluster and finance registers.',
+              'Cleaner maintenance as receipt rules evolve.',
+            ]}
+          />
+        </div>
       )}
 
-      {/* Follow Ups Tab */}
       {activeTab === 'follow-ups' && (
-        <OpsWorkspace
-          title=""
-          subtitle=""
-          listMethod="get_payment_follow_ups"
-          statsMethod="get_payment_follow_up_stats"
-          createMethod="create_payment_follow_up"
-          createLabel="Add Follow Up"
-          createFields={[
-            { name: 'customer', label: 'Customer', type: 'link', linkEntity: 'customer' },
-            { name: 'follow_up_date', label: 'Follow Up Date', type: 'date' },
-            { name: 'follow_up_mode', label: 'Mode', type: 'select', options: [
-              { label: 'Call', value: 'CALL' },
-              { label: 'Email', value: 'EMAIL' },
-              { label: 'WhatsApp', value: 'WHATSAPP' },
-            ]},
-            { name: 'promised_payment_date', label: 'Promised Date', type: 'date' },
-            { name: 'promised_payment_amount', label: 'Promised Amount', type: 'number', defaultValue: 0 },
-            { name: 'summary', label: 'Summary', type: 'textarea' },
-          ]}
-          actions={[
-            { label: 'Close', tone: 'success', buildRequest: (row) => ({ method: 'close_payment_follow_up', args: { name: row.name } }) },
-            { label: 'Delete', tone: 'danger', buildRequest: (row) => ({ method: 'delete_payment_follow_up', args: { name: row.name } }), confirmMessage: 'Delete?' },
-          ]}
-          statsCards={[]}
-          columns={[
-            { key: 'name', label: 'Follow Up', render: (row) => row.name },
-            { key: 'customer', label: 'Customer', render: (row) => row.customer || '-' },
-            { key: 'follow_up_date', label: 'Date', render: (row) => row.follow_up_date || '-' },
-            { key: 'promised_payment_date', label: 'Promised', render: (row) => row.promised_payment_date || '-' },
-          ]}
-          emptyMessage="No follow-ups"
-        />
+        <div className="grid gap-6 lg:grid-cols-2">
+          <ClusterLaunchCard
+            title="Payment Follow-Up Workspace"
+            description="Open the dedicated follow-up register for create, close, and delete actions."
+            href="/finance/follow-ups"
+            bullets={[
+              'The standalone follow-up page already uses dedicated finance routes.',
+              'Customer and promised-payment fields are stronger there.',
+              'This keeps follow-up workflow out of the old embedded ops surface.',
+            ]}
+          />
+          <ClusterLaunchCard
+            title="Why This Tab Launches Out"
+            description="The dedicated follow-up page is now the operational workspace, while Billing Cluster stays focused on navigation and visibility."
+            href="/finance/follow-ups"
+            bullets={[
+              'No duplicate follow-up form to maintain.',
+              'No split behavior between cluster and finance register.',
+              'Simpler operator path into the real payment-chasing workflow.',
+            ]}
+          />
+        </div>
       )}
 
       {/* Statement Tab */}
@@ -444,71 +443,54 @@ export default function BillingClusterPage() {
         </div>
       )}
 
-      {/* Retention Tab */}
       {activeTab === 'retention' && (
-        <OpsWorkspace
-          title=""
-          subtitle=""
-          listMethod="get_retention_ledgers"
-          statsMethod="get_retention_stats"
-          createMethod="create_retention_ledger"
-          createLabel="Create Retention"
-          createFields={[
-            { name: 'customer', label: 'Customer', type: 'link', linkEntity: 'customer' },
-            { name: 'retention_percent', label: 'Retention %', type: 'number', defaultValue: 0 },
-            { name: 'retention_amount', label: 'Amount', type: 'number', defaultValue: 0 },
-            { name: 'release_due_date', label: 'Release Due', type: 'date' },
-          ]}
-          actions={[
-            { label: 'Release', tone: 'success', buildRequest: (row) => ({ method: 'release_retention', args: { name: row.name } }) },
-            { label: 'Delete', tone: 'danger', buildRequest: (row) => ({ method: 'delete_retention_ledger', args: { name: row.name } }), confirmMessage: 'Delete?' },
-          ]}
-          statsCards={[
-            { label: 'Entries', path: 'total', icon: ShieldCheck, tone: 'blue' },
-            { label: 'Pending', path: 'pending', icon: ShieldCheck, tone: 'amber' },
-          ]}
-          columns={[
-            { key: 'name', label: 'Entry', render: (row) => row.name },
-            { key: 'customer', label: 'Customer', render: (row) => row.customer || '-' },
-            { key: 'retention_amount', label: 'Amount', render: (row) => row.retention_amount || '-' },
-            { key: 'status', label: 'Status', render: (row) => row.status || '-' },
-          ]}
-          emptyMessage="No retention entries"
-        />
+        <div className="grid gap-6 lg:grid-cols-2">
+          <ClusterLaunchCard
+            title="Retention Workspace"
+            description="Use the standalone retention ledger for create, update, release, and delete flows."
+            href="/finance/retention"
+            bullets={[
+              'Release actions and detail views already live there.',
+              'Retention routing is stronger on the dedicated page.',
+              'This avoids maintaining a second retention register in the cluster.',
+            ]}
+          />
+          <ClusterLaunchCard
+            title="Recommended Finance Flow"
+            description="Keep Billing Cluster for navigation, and move into the dedicated retention page for operational changes."
+            href="/finance/retention"
+            bullets={[
+              'One source of truth for release logic.',
+              'Fewer duplicated retention forms.',
+              'Cleaner handoff between finance visibility and finance action pages.',
+            ]}
+          />
+        </div>
       )}
 
-      {/* Penalties Tab */}
       {activeTab === 'penalties' && (
-        <OpsWorkspace
-          title=""
-          subtitle=""
-          listMethod="get_penalty_deductions"
-          statsMethod="get_penalty_stats"
-          createMethod="create_penalty_deduction"
-          createLabel="Create Penalty"
-          createFields={[
-            { name: 'project', label: 'Project', placeholder: 'Project code' },
-            { name: 'source', label: 'Source', placeholder: 'LD / SLA / Client' },
-            { name: 'penalty_amount', label: 'Amount', type: 'number', defaultValue: 0 },
-            { name: 'remarks', label: 'Remarks', type: 'textarea' },
-          ]}
-          actions={[
-            { label: 'Approve', tone: 'success', buildRequest: (row) => ({ method: 'approve_penalty_deduction', args: { name: row.name } }) },
-            { label: 'Apply', tone: 'warning', buildRequest: (row) => ({ method: 'apply_penalty_deduction', args: { name: row.name } }) },
-            { label: 'Delete', tone: 'danger', buildRequest: (row) => ({ method: 'delete_penalty_deduction', args: { name: row.name } }), confirmMessage: 'Delete?' },
-          ]}
-          statsCards={[
-            { label: 'Total', path: 'total', icon: AlertTriangle, tone: 'red' },
-            { label: 'Pending', path: 'pending', icon: AlertTriangle, tone: 'amber' },
-          ]}
-          columns={[
-            { key: 'name', label: 'Penalty', render: (row) => row.name },
-            { key: 'project', label: 'Project', render: (row) => row.project || '-' },
-            { key: 'penalty_amount', label: 'Amount', render: (row) => row.penalty_amount || '-' },
-            { key: 'status', label: 'Status', render: (row) => row.status || '-' },
-          ]}
-          emptyMessage="No penalties"
-        />
+        <div className="grid gap-6 lg:grid-cols-2">
+          <ClusterLaunchCard
+            title="Penalty Workspace"
+            description="Use the dedicated penalties page for create, approve, apply, and delete flows."
+            href="/finance/penalties"
+            bullets={[
+              'Penalty actions are already implemented on the standalone page.',
+              'That page now uses dedicated penalty routes instead of embedded ops.',
+              'Billing Cluster no longer needs its own penalty register.',
+            ]}
+          />
+          <ClusterLaunchCard
+            title="Why It Launches Out"
+            description="Penalties are now handled in one canonical workspace so approval and application logic do not drift."
+            href="/finance/penalties"
+            bullets={[
+              'Single finance path for penalty lifecycle.',
+              'No duplicate generic ops forms inside the cluster.',
+              'Cleaner ownership between hub page and register page.',
+            ]}
+          />
+        </div>
       )}
 
       {/* Create modal */}

@@ -9,20 +9,56 @@ interface Party {
   party_name: string;
   party_type: string;
   gstin: string;
+  pan?: string;
   phone: string;
   email: string;
   city: string;
+  state?: string;
   active: number;
 }
 
 interface Organization {
   name: string;
   organization_name?: string;
+  gstin?: string;
+  pan?: string;
+  phone?: string;
+  email?: string;
+  city?: string;
+  state?: string;
   active?: number;
 }
 
 type TabType = 'clients' | 'vendors' | 'organizations';
 type EditableRecord = Party | Organization;
+type EditState =
+  | {
+      kind: 'party';
+      item: Party;
+      party_name: string;
+      gstin: string;
+      pan: string;
+      phone: string;
+      email: string;
+      city: string;
+      state: string;
+      active: boolean;
+    }
+  | {
+      kind: 'organization';
+      item: Organization;
+      organization_name: string;
+      gstin: string;
+      pan: string;
+      phone: string;
+      email: string;
+      city: string;
+      state: string;
+      active: boolean;
+    };
+type DeleteState =
+  | { kind: 'party'; item: Party }
+  | { kind: 'organization'; item: Organization };
 
 export default function MasterDataPage() {
   const [activeTab, setActiveTab] = useState<TabType>('clients');
@@ -34,8 +70,8 @@ export default function MasterDataPage() {
   const [pageError, setPageError] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [editState, setEditState] = useState<{ item: Party; name: string } | null>(null);
-  const [deleteState, setDeleteState] = useState<Party | null>(null);
+  const [editState, setEditState] = useState<EditState | null>(null);
+  const [deleteState, setDeleteState] = useState<DeleteState | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     gstin: '',
@@ -105,6 +141,12 @@ export default function MasterDataPage() {
       const payload = activeTab === 'organizations'
         ? {
             organization_name: formData.name,
+            gstin: formData.gstin,
+            pan: formData.pan,
+            phone: formData.phone,
+            email: formData.email,
+            city: formData.city,
+            state: formData.state,
             active: 1,
           }
         : {
@@ -174,23 +216,76 @@ export default function MasterDataPage() {
   ];
 
   const openEdit = (item: EditableRecord) => {
-    if (activeTab === 'organizations') return;
+    if (activeTab === 'organizations') {
+      const organization = item as Organization;
+      setEditState({
+        kind: 'organization',
+        item: organization,
+        organization_name: organization.organization_name || organization.name,
+        gstin: organization.gstin || '',
+        pan: organization.pan || '',
+        phone: organization.phone || '',
+        email: organization.email || '',
+        city: organization.city || '',
+        state: organization.state || '',
+        active: Boolean(organization.active),
+      });
+      return;
+    }
+
     const party = item as Party;
-    setEditState({ item: party, name: party.party_name || party.name });
+    setEditState({
+      kind: 'party',
+      item: party,
+      party_name: party.party_name || party.name,
+      gstin: party.gstin || '',
+      pan: party.pan || '',
+      phone: party.phone || '',
+      email: party.email || '',
+      city: party.city || '',
+      state: party.state || '',
+      active: Boolean(party.active),
+    });
   };
 
   const handleEdit = async () => {
-    if (!editState?.name.trim()) {
+    if (!editState) return;
+    const editedName = editState.kind === 'organization' ? editState.organization_name : editState.party_name;
+    if (!editedName.trim()) {
       setPageError('Updated name is required.');
       return;
     }
     setIsSubmitting(true);
     setPageError('');
     try {
-      const response = await fetch('/api/parties', {
-        method: 'PATCH',
+      const response = await fetch(editState.kind === 'organization' ? '/api/organizations' : '/api/parties', {
+        method: editState.kind === 'organization' ? 'PUT' : 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: editState.item.name, party_name: editState.name.trim() }),
+        body: JSON.stringify(
+          editState.kind === 'organization'
+            ? {
+                name: editState.item.name,
+                organization_name: editState.organization_name.trim(),
+                gstin: editState.gstin.trim(),
+                pan: editState.pan.trim(),
+                phone: editState.phone.trim(),
+                email: editState.email.trim(),
+                city: editState.city.trim(),
+                state: editState.state.trim(),
+                active: editState.active ? 1 : 0,
+              }
+            : {
+                name: editState.item.name,
+                party_name: editState.party_name.trim(),
+                gstin: editState.gstin.trim(),
+                pan: editState.pan.trim(),
+                phone: editState.phone.trim(),
+                email: editState.email.trim(),
+                city: editState.city.trim(),
+                state: editState.state.trim(),
+                active: editState.active ? 1 : 0,
+              },
+        ),
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok || !result.success) {
@@ -210,7 +305,8 @@ export default function MasterDataPage() {
     setIsSubmitting(true);
     setPageError('');
     try {
-      const response = await fetch(`/api/parties?name=${encodeURIComponent(deleteState.name)}`, { method: 'DELETE' });
+      const endpoint = deleteState.kind === 'organization' ? '/api/organizations' : '/api/parties';
+      const response = await fetch(`${endpoint}?name=${encodeURIComponent(deleteState.item.name)}`, { method: 'DELETE' });
       const result = await response.json().catch(() => ({}));
       if (!response.ok || !result.success) {
         throw new Error(result.message || 'Failed to delete');
@@ -228,8 +324,8 @@ export default function MasterDataPage() {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Master Data</h1>
-          <p className="text-xs sm:text-sm text-gray-500 mt-1">Manage clients, vendors and other master data</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Party & Organization Masters</h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">Manage client, vendor, and organization records that back tendering and related lookups.</p>
         </div>
         <div className="flex items-center gap-3">
           <button onClick={() => void fetchAllData()} disabled={isLoading} className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
@@ -321,27 +417,26 @@ export default function MasterDataPage() {
                           {isOrganization ? 'ORGANIZATION' : (item as Party).party_type}
                         </span>
                       </td>
-                      <td className="text-gray-600">{(item as Party).gstin || item.name || '-'}</td>
-                      <td className="text-gray-600">{(item as Party).city || '-'}</td>
-                      <td className="text-gray-600">{isOrganization ? (item.active ? 'Active' : 'Inactive') : ((item as Party).phone || '-')}</td>
+                      <td className="text-gray-600">{(item as Party).gstin || (item as Organization).gstin || item.name || '-'}</td>
+                      <td className="text-gray-600">{(item as Party).city || (item as Organization).city || '-'}</td>
+                      <td className="text-gray-600">{isOrganization ? ((item as Organization).phone || '-') : ((item as Party).phone || '-')}</td>
                       <td>
                         <span className={`px-2 py-1 text-xs rounded-full ${item.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
                           {item.active ? 'Active' : 'Inactive'}
                         </span>
                       </td>
                       <td>
-                        {isOrganization ? (
-                          <span className="text-xs font-medium text-gray-400">Managed via backend sync</span>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <button className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" onClick={() => openEdit(item)}>
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" onClick={() => setDeleteState(item as Party)}>
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        )}
+                        <div className="flex items-center gap-2">
+                          <button className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" onClick={() => openEdit(item)}>
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                            onClick={() => setDeleteState(isOrganization ? { kind: 'organization', item: item as Organization } : { kind: 'party', item: item as Party })}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -374,61 +469,59 @@ export default function MasterDataPage() {
             <input type="text" value={formData.name} onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))} placeholder="Enter name" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
 
-          {activeTab !== 'organizations' ? (
-            <>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">GSTIN</label>
-                  <input type="text" value={formData.gstin} onChange={(e) => setFormData((prev) => ({ ...prev, gstin: e.target.value }))} placeholder="23AAAAA0000A1Z5" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">PAN</label>
-                  <input type="text" value={formData.pan} onChange={(e) => setFormData((prev) => ({ ...prev, pan: e.target.value }))} placeholder="AAAAA0000A" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
+          <>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">GSTIN</label>
+                <input type="text" value={formData.gstin} onChange={(e) => setFormData((prev) => ({ ...prev, gstin: e.target.value }))} placeholder="23AAAAA0000A1Z5" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                  <input type="text" value={formData.phone} onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))} placeholder="9876543210" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                  <input type="email" value={formData.email} onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))} placeholder="info@company.com" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">PAN</label>
+                <input type="text" value={formData.pan} onChange={(e) => setFormData((prev) => ({ ...prev, pan: e.target.value }))} placeholder="AAAAA0000A" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
+            </div>
 
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                <input type="text" value={formData.phone} onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))} placeholder="9876543210" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input type="email" value={formData.email} onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))} placeholder="info@company.com" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+            </div>
+
+            {activeTab !== 'organizations' ? (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
                 <textarea value={formData.address} onChange={(e) => setFormData((prev) => ({ ...prev, address: e.target.value }))} placeholder="Street address" rows={2} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
+            ) : null}
 
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
-                  <input type="text" value={formData.city} onChange={(e) => setFormData((prev) => ({ ...prev, city: e.target.value }))} placeholder="Indore" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
-                  <input type="text" value={formData.state} onChange={(e) => setFormData((prev) => ({ ...prev, state: e.target.value }))} placeholder="Madhya Pradesh" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                <input type="text" value={formData.city} onChange={(e) => setFormData((prev) => ({ ...prev, city: e.target.value }))} placeholder="Indore" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+                <input type="text" value={formData.state} onChange={(e) => setFormData((prev) => ({ ...prev, state: e.target.value }))} placeholder="Madhya Pradesh" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              {activeTab !== 'organizations' ? (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Pincode</label>
                   <input type="text" value={formData.pincode} onChange={(e) => setFormData((prev) => ({ ...prev, pincode: e.target.value }))} placeholder="452001" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
-              </div>
-            </>
-          ) : (
-            <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-3 text-sm text-orange-700">
-              Organization records can be created here. Edit and delete stay hidden until backend support is available.
+              ) : null}
             </div>
-          )}
+          </>
         </div>
       </ModalFrame>
 
       <ModalFrame
         open={Boolean(editState)}
-        title="Update Party"
+        title={editState?.kind === 'organization' ? 'Update Organization' : 'Update Party'}
         onClose={() => setEditState(null)}
         widthClassName="max-w-lg"
         footer={
@@ -440,19 +533,82 @@ export default function MasterDataPage() {
           </>
         }
       >
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Party Name</label>
-          <input
-            className="input"
-            value={editState?.name || ''}
-            onChange={(e) => setEditState((prev) => (prev ? { ...prev, name: e.target.value } : prev))}
-          />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">{editState?.kind === 'organization' ? 'Organization Name' : 'Party Name'}</label>
+            <input
+              className="input"
+              value={editState ? (editState.kind === 'organization' ? editState.organization_name : editState.party_name) : ''}
+              onChange={(e) => setEditState((prev) => {
+                if (!prev) return prev;
+                return prev.kind === 'organization'
+                  ? { ...prev, organization_name: e.target.value }
+                  : { ...prev, party_name: e.target.value };
+              })}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">GSTIN</label>
+            <input
+              className="input"
+              value={editState?.gstin || ''}
+              onChange={(e) => setEditState((prev) => (prev ? { ...prev, gstin: e.target.value } : prev))}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">PAN</label>
+            <input
+              className="input"
+              value={editState?.pan || ''}
+              onChange={(e) => setEditState((prev) => (prev ? { ...prev, pan: e.target.value } : prev))}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+            <input
+              className="input"
+              value={editState?.phone || ''}
+              onChange={(e) => setEditState((prev) => (prev ? { ...prev, phone: e.target.value } : prev))}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <input
+              className="input"
+              value={editState?.email || ''}
+              onChange={(e) => setEditState((prev) => (prev ? { ...prev, email: e.target.value } : prev))}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+            <input
+              className="input"
+              value={editState?.city || ''}
+              onChange={(e) => setEditState((prev) => (prev ? { ...prev, city: e.target.value } : prev))}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+            <input
+              className="input"
+              value={editState?.state || ''}
+              onChange={(e) => setEditState((prev) => (prev ? { ...prev, state: e.target.value } : prev))}
+            />
+          </div>
+          <label className="sm:col-span-2 flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={Boolean(editState?.active)}
+              onChange={(e) => setEditState((prev) => (prev ? { ...prev, active: e.target.checked } : prev))}
+            />
+            Active
+          </label>
         </div>
       </ModalFrame>
 
       <ModalFrame
         open={Boolean(deleteState)}
-        title="Delete Party"
+        title={deleteState?.kind === 'organization' ? 'Delete Organization' : 'Delete Party'}
         onClose={() => setDeleteState(null)}
         widthClassName="max-w-lg"
         footer={
@@ -465,7 +621,11 @@ export default function MasterDataPage() {
         }
       >
         <p className="text-sm text-gray-600">
-          Delete <span className="font-semibold text-gray-900">{deleteState?.party_name || deleteState?.name}</span> from master data?
+          Delete <span className="font-semibold text-gray-900">
+            {deleteState?.kind === 'organization'
+              ? (deleteState.item.organization_name || deleteState.item.name)
+              : (deleteState?.item.party_name || deleteState?.item.name)}
+          </span> from master data?
         </p>
       </ModalFrame>
     </div>

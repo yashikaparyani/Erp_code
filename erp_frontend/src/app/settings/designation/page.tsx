@@ -33,11 +33,23 @@ export default function DesignationPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const totalPages = Math.ceil(data.length / itemsPerPage) || 1;
-
   const filteredData = data.filter(item =>
     item.designation_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / itemsPerPage));
+  const paginatedData = filteredData.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage,
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, itemsPerPage]);
+
+  useEffect(() => {
+    setCurrentPage((prev) => Math.min(prev, totalPages));
+  }, [totalPages]);
 
   const handleCreate = async () => {
     if (newDesignation.trim()) {
@@ -63,7 +75,7 @@ export default function DesignationPage() {
       const res = await fetch('/api/designations', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ docname: editTarget.name, new_name: editName.trim() }),
+        body: JSON.stringify({ name: editTarget.name, new_name: editName.trim() }),
       });
       const json = await res.json();
       if (json.success) {
@@ -116,16 +128,16 @@ export default function DesignationPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {filteredData.length === 0 ? (
+              {paginatedData.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
                     {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'No data found.'}
                   </td>
                 </tr>
               ) : (
-                filteredData.map((row, index) => (
+                paginatedData.map((row, index) => (
                   <tr key={row.name} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-900 text-center">{index + 1}</td>
+                    <td className="px-4 py-3 text-sm text-gray-900 text-center">{(currentPage - 1) * itemsPerPage + index + 1}</td>
                     <td className="px-4 py-3 text-sm text-blue-600 text-center font-medium">{row.designation_name}</td>
                     <td className="px-4 py-3 text-sm text-gray-900 text-center">{row.owner}</td>
                     <td className="px-4 py-3 text-sm text-gray-600 text-center">{new Date(row.creation).toLocaleDateString('en-GB').replace(/\//g, '-')}</td>

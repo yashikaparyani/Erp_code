@@ -14,6 +14,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { getFileProxyUrl } from '@/lib/fileLinks';
+import { dmsApi } from '@/lib/typedApi';
 
 /* ─── Types ────────────────────────────────────────────── */
 
@@ -132,18 +133,11 @@ export default function RecordDocumentsPanel({
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/ops', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          method: 'get_record_documents',
-          reference_doctype: normalizedReferenceDoctype,
-          reference_name: normalizedReferenceName,
-        }),
-      });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.message || 'Failed to load documents');
-      setDocs(data.data || []);
+      const data = await dmsApi.getRecordDocuments<RecordDocument[]>(
+        normalizedReferenceDoctype,
+        normalizedReferenceName,
+      );
+      setDocs(data || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load documents');
     } finally {

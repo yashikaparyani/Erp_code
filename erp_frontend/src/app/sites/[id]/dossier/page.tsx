@@ -12,6 +12,8 @@ import {
   MapPin,
   XCircle,
 } from 'lucide-react';
+import { dmsApi } from '@/lib/typedApi';
+import { getFileProxyUrl } from '@/lib/fileLinks';
 
 type DossierDocument = {
   name: string;
@@ -171,7 +173,7 @@ function StageSection({
                     <StatusBadge status={doc.status} />
                     <span className="text-[10px] text-slate-400">v{doc.version || 1}</span>
                     {doc.file && (
-                      <a href={doc.file} target="_blank" rel="noreferrer" className="text-blue-500 hover:text-blue-700">
+                      <a href={getFileProxyUrl(doc.file)} target="_blank" rel="noreferrer" className="text-blue-500 hover:text-blue-700">
                         <FileText className="h-3.5 w-3.5" />
                       </a>
                     )}
@@ -212,21 +214,11 @@ export default function SiteDossierPage() {
   useEffect(() => {
     if (!siteId) return;
     setLoading(true);
-    fetch(`/api/ops`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ method: 'get_site_dossier', args: { site: siteId } }),
-    })
-      .then((r) => r.json())
-      .then((res) => {
-        const dossierData = res?.data?.data ?? res?.data;
-        if (res.success && dossierData) {
-          setDossier(dossierData);
-        } else {
-          setError(res.message || 'Failed to load site dossier');
-        }
+    dmsApi.getSiteDossier<SiteDossierData>(siteId)
+      .then((data) => {
+        setDossier(data);
       })
-      .catch(() => setError('Failed to load site dossier'))
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load site dossier'))
       .finally(() => setLoading(false));
   }, [siteId]);
 
@@ -234,20 +226,9 @@ export default function SiteDossierPage() {
     if (!dossier) return;
     const stages = STAGE_ORDER.filter((s) => s !== 'Unclassified');
     stages.forEach((stage) => {
-      fetch(`/api/ops`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          method: 'check_stage_document_completeness',
-          args: { project: dossier.project || '', stage, site: siteId },
-        }),
-      })
-        .then((r) => r.json())
-        .then((res) => {
-          const completenessData = res?.data?.data ?? res?.data;
-          if (res.success && completenessData) {
-            setCompletenessMap((prev) => ({ ...prev, [stage]: completenessData }));
-          }
+      dmsApi.getCompleteness<CompletenessResult>({ project: dossier.project || '', stage, site: siteId })
+        .then((data) => {
+          setCompletenessMap((prev) => ({ ...prev, [stage]: data }));
         })
         .catch(() => {});
     });

@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Shield, ChevronDown, ChevronRight, Search, Loader2, Info,
-  Check, X, AlertTriangle, Eye, Edit3, CheckSquare,
+  Check, X, AlertTriangle, Eye, Edit3, CheckSquare, Plus,
 } from 'lucide-react';
 
 interface PackMapping {
@@ -203,6 +203,9 @@ export default function RolesPage() {
   const [editingRole, setEditingRole] = useState<RoleEntry | null>(null);
   const [editPacks, setEditPacks] = useState<Record<string, { enabled: boolean; scope: string; mode: string; isSystem: boolean }>>({});
   const [saving, setSaving] = useState(false);
+  const [showCreateRole, setShowCreateRole] = useState(false);
+  const [newRoleName, setNewRoleName] = useState('');
+  const [creatingRole, setCreatingRole] = useState(false);
 
   const fetchMatrix = useCallback(async () => {
     try {
@@ -272,6 +275,30 @@ export default function RolesPage() {
       }
     } catch (e) { console.error('Failed to save role packs:', e); }
     finally { setSaving(false); }
+  };
+
+  const handleCreateRole = async () => {
+    if (!newRoleName.trim()) return;
+    setCreatingRole(true);
+    setError('');
+    try {
+      const res = await fetch('/api/roles-list', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role_name: newRoleName.trim() }),
+      });
+      const json = await res.json();
+      if (!json.success) {
+        throw new Error(json.message || 'Failed to create role');
+      }
+      setShowCreateRole(false);
+      setNewRoleName('');
+      await fetchMatrix();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to create role');
+    } finally {
+      setCreatingRole(false);
+    }
   };
 
   const filteredRoles = (matrix?.roles || []).filter(r => {
@@ -348,6 +375,10 @@ export default function RolesPage() {
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-2">
+          <button onClick={() => setShowCreateRole(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-[#1e6b87] text-white hover:bg-[#185a73] transition-colors">
+            <Plus className="w-3.5 h-3.5" />
+            New Role
+          </button>
           <button onClick={expandAll} className="px-3 py-1.5 text-xs font-medium border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors">
             Expand All
           </button>
@@ -494,6 +525,41 @@ export default function RolesPage() {
                   {saving ? 'Saving...' : 'Save'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCreateRole && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowCreateRole(false)} />
+          <div className="relative w-full max-w-md rounded-lg bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+              <h3 className="text-lg font-semibold text-gray-800">Create Role</h3>
+              <button onClick={() => setShowCreateRole(false)} className="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4">
+              <label className="mb-2 block text-sm font-medium text-gray-700">Role Name</label>
+              <input
+                type="text"
+                value={newRoleName}
+                onChange={(e) => setNewRoleName(e.target.value)}
+                placeholder="e.g. Commercial Executive"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="mt-2 text-xs text-gray-500">
+                This creates the backend role first. Pack composition can be assigned immediately after creation.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-3 border-t border-gray-200 px-4 py-3">
+              <button onClick={() => setShowCreateRole(false)} className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 text-sm font-medium">
+                Cancel
+              </button>
+              <button onClick={handleCreateRole} disabled={creatingRole || !newRoleName.trim()} className="px-4 py-2 bg-[#1e6b87] text-white rounded-lg hover:bg-[#185a73] text-sm font-medium disabled:opacity-50">
+                {creatingRole ? 'Creating...' : 'Create Role'}
+              </button>
             </div>
           </div>
         </div>

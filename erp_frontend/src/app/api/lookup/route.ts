@@ -3,7 +3,7 @@ import { callFrappeMethod, jsonErrorResponse } from '../_lib/frappe';
 
 export const dynamic = 'force-dynamic';
 
-type Entity = 'project' | 'site' | 'item' | 'customer' | 'warehouse' | 'vendor' | 'invoice' | 'commercial_reference' | 'purchase_order' | 'tender' | 'employee' | 'bid' | 'organization' | 'ip_pool' | 'device';
+type Entity = 'project' | 'site' | 'item' | 'customer' | 'warehouse' | 'vendor' | 'invoice' | 'estimate' | 'commercial_reference' | 'purchase_order' | 'tender' | 'employee' | 'bid' | 'organization' | 'ip_pool' | 'device' | 'ticket' | 'sla_profile';
 
 const COMMERCIAL_REFERENCE_DOCTYPES = new Set([
   'GE Estimate',
@@ -168,6 +168,19 @@ export async function GET(request: NextRequest) {
         break;
       }
 
+      case 'estimate': {
+        const rows = await callFrappeMethod('frappe.client.get_list', {
+          doctype: 'GE Estimate',
+          fields: ['name', 'customer', 'net_amount', 'status'],
+          filters: q ? [['name', 'like', `%${q}%`]] : [],
+          limit_page_length: 30,
+          order_by: 'creation desc',
+        }, request);
+        const list = Array.isArray(rows) ? rows : [];
+        data = list.map((r: any) => ({ value: r.name, label: r.name, sub: `${r.customer || ''}${r.net_amount ? ` · ₹${r.net_amount}` : ''}${r.status ? ` · ${r.status}` : ''}` }));
+        break;
+      }
+
       case 'purchase_order': {
         const rows = await callFrappeMethod('frappe.client.get_list', {
           doctype: 'Purchase Order',
@@ -191,6 +204,29 @@ export async function GET(request: NextRequest) {
         }, request);
         const list = Array.isArray(rows) ? rows : [];
         data = list.map((r: any) => ({ value: r.name, label: r.tender_title || r.name, sub: `${r.name}${r.status ? ` · ${r.status}` : ''}` }));
+        break;
+      }
+
+      case 'ticket': {
+        const rows = await callFrappeMethod('frappe.client.get_list', {
+          doctype: 'GE Ticket',
+          fields: ['name', 'title', 'status', 'priority'],
+          filters: q ? [['name', 'like', `%${q}%`]] : [],
+          limit_page_length: 30,
+          order_by: 'creation desc',
+        }, request);
+        const list = Array.isArray(rows) ? rows : [];
+        data = list.map((r: any) => ({ value: r.name, label: r.title || r.name, sub: [r.name, r.status, r.priority].filter(Boolean).join(' · ') }));
+        break;
+      }
+
+      case 'sla_profile': {
+        const rows = await callFrappeMethod('get_sla_profiles', {}, request);
+        const list = Array.isArray(rows) ? rows : Array.isArray(rows?.data) ? rows.data : [];
+        data = list
+          .filter((r: any) => !q || `${r.name} ${r.profile_name || ''} ${r.linked_project || ''}`.toLowerCase().includes(q.toLowerCase()))
+          .slice(0, 30)
+          .map((r: any) => ({ value: r.name, label: r.profile_name || r.name, sub: [r.name, r.linked_project].filter(Boolean).join(' · ') }));
         break;
       }
 

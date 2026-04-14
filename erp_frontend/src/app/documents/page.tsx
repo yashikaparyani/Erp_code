@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { getFileProxyUrl } from '@/lib/fileLinks';
+import { dmsApi } from '@/lib/typedApi';
 import {
   AlertCircle,
   ChevronDown,
@@ -245,6 +246,8 @@ export default function DocumentsPage() {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [actionBusyName, setActionBusyName] = useState('');
   const [previewDoc, setPreviewDoc] = useState<DocumentRecord | null>(null);
   const [versionDoc, setVersionDoc] = useState<DocumentRecord | null>(null);
   const [versions, setVersions] = useState<DocumentRecord[]>([]);
@@ -254,11 +257,7 @@ export default function DocumentsPage() {
     if (!newFolderName.trim()) return;
     setBusy(true);
     try {
-      await fetch('/api/ops', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ method: 'create_document_folder', args: { folder_name: newFolderName.trim() } }),
-      });
+      await dmsApi.createFolder({ folder_name: newFolderName.trim() });
       setNewFolderName('');
       setShowFolderModal(false);
       await foldersState.refresh();
@@ -344,14 +343,51 @@ export default function DocumentsPage() {
     setVersionDoc(doc);
     setVersionsLoading(true);
     try {
-      const res = await fetch(`/api/documents/versions?name=${encodeURIComponent(doc.name)}`, { cache: 'no-store' });
-      const payload = await res.json();
-      setVersions(payload.data || []);
+      const data = await dmsApi.getVersions<DocumentRecord[]>(doc.name);
+      setVersions(data || []);
     } catch (versionError) {
       console.error('Failed to load document versions:', versionError);
       setVersions([]);
     } finally {
       setVersionsLoading(false);
+    }
+  };
+
+  const handleStatusChange = async (doc: DocumentRecord, nextStatus: string) => {
+    if (!nextStatus || nextStatus === (doc.status || '')) return;
+    const reason = nextStatus === 'Rejected'
+      ? window.prompt(`Why is ${doc.document_name || doc.name} being rejected?`, doc.remarks || '')
+      : '';
+    if (nextStatus === 'Rejected' && !reason?.trim()) return;
+
+    setActionBusyName(doc.name);
+    setActionError('');
+    try {
+      await dmsApi.updateStatus(doc.name, nextStatus, reason || '');
+      await docsState.refresh();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to update document status');
+    } finally {
+      setActionBusyName('');
+    }
+  };
+
+  const handleDeleteDocument = async (doc: DocumentRecord) => {
+    if (!window.confirm(`Delete ${doc.document_name || doc.name}?`)) return;
+
+    setActionBusyName(doc.name);
+    setActionError('');
+    try {
+      await dmsApi.deleteDocument(doc.name);
+      await docsState.refresh();
+      if (versionDoc?.name === doc.name) {
+        setVersionDoc(null);
+        setVersions([]);
+      }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to delete document');
+    } finally {
+      setActionBusyName('');
     }
   };
 
@@ -385,6 +421,7 @@ export default function DocumentsPage() {
 
   return (
     <div>
+      {actionError ? <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">{actionError}</div> : null}
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Document Management</h1>
@@ -691,6 +728,21 @@ export default function DocumentsPage() {
                         </td>
                         <td className="px-4 py-3 align-top text-xs text-gray-600">
                           <div><StatusBadge status={doc.status} /></div>
+                          <div className="mt-2">
+                            <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-gray-400">Update Status</label>
+                            <select
+                              value={doc.status || 'Submitted'}
+                              onChange={(e) => void handleStatusChange(doc, e.target.value)}
+                              disabled={actionBusyName === doc.name}
+                              className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1 text-[11px] text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1e6b87] disabled:opacity-60"
+                            >
+                              <option value="Submitted">Submitted</option>
+                              <option value="In Review">In Review</option>
+                              <option value="Approved">Approved</option>
+                              <option value="Rejected">Rejected</option>
+                              <option value="Closed">Closed</option>
+                            </select>
+                          </div>
                           {doc.assigned_to ? <div className="mt-1">Assigned: {doc.assigned_to}</div> : null}
                           {doc.accepted_by ? <div className="mt-1">Accepted: {doc.accepted_by}</div> : null}
                           {doc.due_date ? <div className="mt-1">Due: {new Date(doc.due_date).toLocaleDateString('en-IN')}</div> : null}
@@ -720,13 +772,20 @@ export default function DocumentsPage() {
                               </button>
                             ) : null}
                             {fileUrl ? (
-                              <a href={fileUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800">
+                              <a href={getFileProxyUrl(fileUrl, !isPreviewable(fileUrl))} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800">
                                 <Download className="h-4 w-4" />
                                 {isPreviewable(fileUrl) ? 'Open' : 'Download'}
                               </a>
                             ) : (
                               <span className="text-xs text-gray-400">No file</span>
                             )}
+                            <button
+                              onClick={() => void handleDeleteDocument(doc)}
+                              disabled={actionBusyName === doc.name}
+                              className="inline-flex items-center gap-1 text-sm font-medium text-rose-600 hover:text-rose-800 disabled:opacity-60"
+                            >
+                              {actionBusyName === doc.name ? 'Working…' : 'Delete'}
+                            </button>
                           </div>
                         </td>
                       </tr>

@@ -19,3 +19,40 @@ export async function GET(
     );
   }
 }
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await params;
+    const body = await request.json();
+    const result = await callFrappeMethod(
+      'update_penalty_deduction',
+      { name: decodeURIComponent(id), data: JSON.stringify(body) },
+      request,
+    );
+    return NextResponse.json({ success: true, data: result.data || result, message: result.message || 'Penalty updated' });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, message: error instanceof Error ? error.message : 'Failed to update penalty' },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await params;
+    const result = await callFrappeMethod('delete_penalty_deduction', { name: decodeURIComponent(id) }, request);
+    return NextResponse.json({ success: true, data: result.data || result, message: result.message || 'Penalty deleted' });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, message: error instanceof Error ? error.message : 'Failed to delete penalty' },
+      { status: 500 },
+    );
+  }
+}

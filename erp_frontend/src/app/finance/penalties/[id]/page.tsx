@@ -8,7 +8,7 @@ import AccountabilityTimeline from '@/components/accountability/AccountabilityTi
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
 import TraceabilityPanel from '@/components/ui/TraceabilityPanel';
 import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
-import { callOps, formatCurrency, formatDate, PENALTY_BADGES, statusVariant, useAuth, hasAnyRole } from '@/components/finance/fin-helpers';
+import { callApi, formatCurrency, formatDate, statusVariant, useAuth, hasAnyRole } from '@/components/finance/fin-helpers';
 
 type Penalty = Record<string, any>;
 
@@ -22,7 +22,7 @@ export default function PenaltyDetailPage() {
 
   const load = useCallback(async () => {
     setLoading(true); setError('');
-    try { setData(await callOps<Penalty>('get_penalty_deduction', { name: id })); }
+    try { setData(await callApi<Penalty>(`/api/penalties/${encodeURIComponent(id)}`)); }
     catch (e) { setError(e instanceof Error ? e.message : 'Failed'); }
     setLoading(false);
   }, [id]);
@@ -88,19 +88,22 @@ export default function PenaltyDetailPage() {
         confirmLabel={action || ''} variant={action === 'Reverse' || action === 'Delete' ? 'danger' : 'default'}
         fields={[
           { name: 'remarks', label: 'Remarks', type: 'textarea', required: action === 'Reverse' || action === 'Delete' },
-          ...(action === 'Apply' ? [{ name: 'invoice', label: 'Invoice to Apply', type: 'text' as const, required: true }] : []),
+          ...(action === 'Apply' ? [{ name: 'invoice_name', label: 'Invoice to Apply', type: 'text' as const, required: true }] : []),
         ]}
         onConfirm={async (v) => {
-          const methodMap: Record<string, string> = {
-            Approve: 'approve_penalty_deduction',
-            Apply: 'apply_penalty_deduction',
-            Reverse: 'reverse_penalty_deduction',
-            Update: 'update_penalty_deduction',
-            Delete: 'delete_penalty_deduction',
-          };
-          const method = methodMap[action || ''];
-          if (!method) return;
-          await callOps(method, { name: id, ...v });
+          if (action === 'Approve') {
+            await callApi(`/api/penalties/${encodeURIComponent(id)}/actions`, { method: 'POST', body: { action: 'approve' } });
+          } else if (action === 'Apply') {
+            await callApi(`/api/penalties/${encodeURIComponent(id)}/actions`, { method: 'POST', body: { action: 'apply', invoice_name: v.invoice_name } });
+          } else if (action === 'Reverse') {
+            await callApi(`/api/penalties/${encodeURIComponent(id)}/actions`, { method: 'POST', body: { action: 'reverse', reason: v.remarks || v.reason } });
+          } else if (action === 'Update') {
+            await callApi(`/api/penalties/${encodeURIComponent(id)}`, { method: 'PATCH', body: { remarks: v.remarks || '' } });
+          } else if (action === 'Delete') {
+            await callApi(`/api/penalties/${encodeURIComponent(id)}`, { method: 'DELETE' });
+          } else {
+            return;
+          }
           setAction(null);
           load();
         }}

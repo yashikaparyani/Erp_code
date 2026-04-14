@@ -545,6 +545,54 @@ export async function fetchFrappeResource(
   return response;
 }
 
+export async function callFrappeResourceJson<T = any>(
+  resourcePathOrUrl: string,
+  options: {
+    method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+    body?: unknown;
+  } = {},
+  request?: NextRequest,
+): Promise<T> {
+  const method = options.method || 'GET';
+  const usingUserSession = request != null && hasFrappeSessionCookie(request);
+
+  const execute = async (retryAfterRefresh = false) => {
+    if (retryAfterRefresh && !usingUserSession) {
+      cachedSession = null;
+    }
+
+    const authHeaders = usingUserSession
+      ? await getAuthHeaders(request, method !== 'GET')
+      : await getAuthHeaders(undefined, method !== 'GET');
+
+    const response = await fetch(normalizeFrappeResourceUrl(resourcePathOrUrl), {
+      method,
+      headers: {
+        Accept: 'application/json',
+        ...(options.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+        ...authHeaders,
+      },
+      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+      cache: 'no-store',
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    return { response, payload };
+  };
+
+  let { response, payload } = await execute();
+
+  if (!response.ok && !usingUserSession && (response.status === 401 || response.status === 403)) {
+    ({ response, payload } = await execute(true));
+  }
+
+  if (!response.ok) {
+    throw new Error(extractServerMessage(payload));
+  }
+
+  return (payload?.data ?? payload) as T;
+}
+
 export async function uploadFrappeFile(
   formData: FormData,
   request?: NextRequest,
