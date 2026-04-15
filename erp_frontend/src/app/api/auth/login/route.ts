@@ -1,10 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { FRAPPE_URL, applyFrappeCookies, applySessionContextCookies, clearCachedServiceSession, loginToFrappe } from '../../_lib/frappe';
+import { rateLimit } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
+// 5 login attempts per IP per 60-second window
+const LOGIN_LIMIT = 5;
+const LOGIN_WINDOW_MS = 60_000;
+
 export async function POST(request: NextRequest) {
   try {
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+      || request.headers.get('x-real-ip')
+      || 'unknown';
+    const rl = rateLimit(`login:${ip}`, LOGIN_LIMIT, LOGIN_WINDOW_MS);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { success: false, message: 'Too many login attempts. Please try again later.' },
+        {
+          status: 429,
+          headers: { 'Retry-After': String(Math.ceil(rl.retryAfterMs / 1000)) },
+        },
+      );
+    }
+
     const body = await request.json();
     const username = String(body?.username || '').trim();
     const password = String(body?.password || '');

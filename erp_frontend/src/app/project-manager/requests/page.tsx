@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import RegisterPage from '@/components/shells/RegisterPage';
 import { usePmContext, siteLabel } from '@/components/pm/pm-helpers';
+import { sanitizeRichText } from '@/lib/sanitizeRichText';
 import { useRole } from '@/context/RoleContext';
 
 /* ── Types & Constants ────────────────────────────────────────────────── */
@@ -357,8 +358,8 @@ function DetailDrawer({ req, onClose, onAction, actionLoading }: {
               <p className="mt-1 text-lg font-bold text-gray-900">₹{Number(req.amount_requested).toLocaleString('en-IN')}</p>
             </div>
           )}
-          {req.description && <div><h5 className="text-xs font-semibold text-gray-600 mb-1">Description</h5><div className="prose prose-sm max-w-none text-gray-700" dangerouslySetInnerHTML={{ __html: req.description }} /></div>}
-          {req.justification && <div><h5 className="text-xs font-semibold text-gray-600 mb-1">Justification</h5><div className="prose prose-sm max-w-none text-gray-700" dangerouslySetInnerHTML={{ __html: req.justification }} /></div>}
+          {req.description && <div><h5 className="text-xs font-semibold text-gray-600 mb-1">Description</h5><div className="prose prose-sm max-w-none text-gray-700" dangerouslySetInnerHTML={{ __html: sanitizeRichText(req.description) }} /></div>}
+          {req.justification && <div><h5 className="text-xs font-semibold text-gray-600 mb-1">Justification</h5><div className="prose prose-sm max-w-none text-gray-700" dangerouslySetInnerHTML={{ __html: sanitizeRichText(req.justification) }} /></div>}
           {req.reviewer_remarks && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
               <h5 className="text-xs font-semibold text-amber-700 mb-1">Reviewer Remarks</h5>

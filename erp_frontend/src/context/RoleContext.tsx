@@ -393,10 +393,10 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     }
 
     // ── Backend RBAC truth (Phase 5) ──
-    // When the permission context is loaded, delegate 100 % to it.
-    // PermissionContext.canAccessRoute is fail-closed — returns false
-    // while loading, so we never accidentally grant access.
-    if (isPermissionLoaded && permissions) {
+    // Once the permission context has loaded, delegate 100 % to it.
+    // PermissionContext.canAccessRoute is fail-closed and returns false
+    // when permissions are absent or the user is not allowed.
+    if (isPermissionLoaded) {
       return canAccessRoute(path);
     }
 
