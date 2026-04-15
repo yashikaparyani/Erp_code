@@ -7,7 +7,7 @@ import {
   RefreshCcw, Send, X, XCircle,
 } from 'lucide-react';
 import RegisterPage from '@/components/shells/RegisterPage';
-import { usePmContext, callOps, siteLabel } from '@/components/pm/pm-helpers';
+import { usePmContext, siteLabel } from '@/components/pm/pm-helpers';
 import { useRole } from '@/context/RoleContext';
 
 /* ── Types & Constants ────────────────────────────────────────────────── */
@@ -96,8 +96,11 @@ export default function ProjectManagerRequestsPage() {
     setLoading(true);
     setError('');
     try {
-      const data = await callOps<PMRequest[]>('get_pm_requests', { project: selectedProject });
-      setRequests(Array.isArray(data) ? data : []);
+      const res = await fetch(`/api/pm-requests?project=${encodeURIComponent(selectedProject)}`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || 'Failed to load requests');
+      const items = Array.isArray(json) ? json : (json.data ?? []);
+      setRequests(Array.isArray(items) ? items : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load requests');
     } finally {
@@ -143,7 +146,13 @@ export default function ProjectManagerRequestsPage() {
         if (!isNaN(amt) && amt > 0) payload.amount_requested = amt;
       }
       if (andSubmit) payload.status = 'Pending';
-      await callOps('create_pm_request', { data: JSON.stringify(payload) });
+      const res = await fetch('/api/pm-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || 'Failed to create request');
       setShowCreate(false);
       setForm(EMPTY_FORM);
       await load();
@@ -156,10 +165,24 @@ export default function ProjectManagerRequestsPage() {
 
   /* ── Actions ────────────────────────────────────────────────────────── */
 
+  const PM_ACTION_SLUG: Record<string, string> = {
+    submit_pm_request: 'submit',
+    approve_pm_request: 'approve',
+    reject_pm_request: 'reject',
+    withdraw_pm_request: 'withdraw',
+  };
+
   const doAction = async (action: string, name: string, remarks?: string) => {
     setActionLoading(name);
     try {
-      await callOps(action, { name, ...(remarks ? { remarks } : {}) });
+      const slug = PM_ACTION_SLUG[action] || action;
+      const res = await fetch(`/api/pm-requests/${encodeURIComponent(name)}/actions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: slug, ...(remarks ? { remarks } : {}) }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || 'Action failed');
       setDetail(null);
       await load();
     } catch (err) {

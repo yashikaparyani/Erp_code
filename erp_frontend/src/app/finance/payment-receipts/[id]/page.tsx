@@ -8,7 +8,7 @@ import AccountabilityTimeline from '@/components/accountability/AccountabilityTi
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
 import TraceabilityPanel from '@/components/ui/TraceabilityPanel';
 import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
-import { callOps, formatCurrency, formatDate, RECEIPT_BADGES, statusVariant } from '@/components/finance/fin-helpers';
+import { formatCurrency, formatDate, RECEIPT_BADGES, statusVariant } from '@/components/finance/fin-helpers';
 
 type Receipt = Record<string, any>;
 
@@ -21,7 +21,12 @@ export default function PaymentReceiptDetailPage() {
 
   const load = useCallback(async () => {
     setLoading(true); setError('');
-    try { setData(await callOps<Receipt>('get_payment_receipt', { name: id })); }
+    try {
+      const res = await fetch(`/api/payment-receipts/${encodeURIComponent(id)}`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || 'Failed');
+      setData(json.data ?? json);
+    }
     catch (e) { setError(e instanceof Error ? e.message : 'Failed'); }
     setLoading(false);
   }, [id]);
@@ -93,9 +98,9 @@ export default function PaymentReceiptDetailPage() {
         ]}
         onConfirm={async (v) => {
           if (action === 'delete') {
-            await callOps('delete_payment_receipt', { name: id, ...v });
+            await fetch(`/api/payment-receipts/${encodeURIComponent(id)}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(v) });
           } else {
-            await callOps('update_payment_receipt', { name: id, ...v });
+            await fetch(`/api/payment-receipts/${encodeURIComponent(id)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(v) });
           }
           setAction(null);
           load();

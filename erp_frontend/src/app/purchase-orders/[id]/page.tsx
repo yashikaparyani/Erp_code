@@ -9,7 +9,7 @@ import ActionModal from '@/components/ui/ActionModal';
 import { AccountabilityTimeline } from '@/components/accountability/AccountabilityTimeline';
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
 import TraceabilityPanel from '@/components/ui/TraceabilityPanel';
-import { callOps, formatCurrency, formatDate, statusVariant } from '@/components/procurement/proc-helpers';
+import { formatCurrency, formatDate, statusVariant } from '@/components/procurement/proc-helpers';
 
 /* ── types ──────────────────────────────────────────── */
 
@@ -111,8 +111,8 @@ export default function PurchaseOrderDetailPage() {
     (async () => {
       try {
         const [vcGroups, grns] = await Promise.all([
-          Promise.all(mrs.map(async mr => { try { return await callOps<VCSummary[]>('get_vendor_comparisons', { material_request: mr }); } catch { return []; } })),
-          callOps<GrnSummary[]>('get_grns', { purchase_order: po.name, limit_page_length: 20 }),
+          Promise.all(mrs.map(async mr => { try { const r = await fetch(`/api/vendor-comparisons?material_request=${encodeURIComponent(mr)}`); const j = await r.json(); return Array.isArray(j.data) ? j.data : []; } catch { return []; } })),
+          fetch(`/api/grns?purchase_order=${encodeURIComponent(po.name)}&limit_page_length=20`).then(r => r.json()).then(j => j.data || []),
         ]);
         const all = vcGroups.flat().filter((v, i, a) => a.findIndex(x => x.name === v.name) === i);
         setUpstreamVC(all.find(v => v.recommended_supplier === po.supplier) || all[0] || null);
@@ -136,7 +136,7 @@ export default function PurchaseOrderDetailPage() {
       )}
       {isSubmitted && (
         <>
-          <button onClick={async () => { setBusy('ph'); try { await callOps('submit_po_to_ph', { name: poName }); flash('Sent to PH'); await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Failed'); } finally { setBusy(''); } }} disabled={!!busy} className="btn btn-primary !text-xs"><Upload className="h-3.5 w-3.5" />{busy === 'ph' ? 'Sending…' : 'Submit to PH'}</button>
+          <button onClick={async () => { setBusy('ph'); try { const res = await fetch('/api/purchase-orders/submit-to-ph', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: poName }) }); const j = await res.json(); if (!j.success) throw new Error(j.message); flash('Sent to PH'); await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Failed'); } finally { setBusy(''); } }} disabled={!!busy} className="btn btn-primary !text-xs"><Upload className="h-3.5 w-3.5" />{busy === 'ph' ? 'Sending…' : 'Submit to PH'}</button>
           <button onClick={() => handleAction('cancel')} disabled={!!busy} className="btn btn-secondary !text-xs text-rose-700"><Ban className="h-3.5 w-3.5" />Cancel</button>
         </>
       )}

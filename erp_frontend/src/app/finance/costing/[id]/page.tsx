@@ -8,7 +8,7 @@ import AccountabilityTimeline from '@/components/accountability/AccountabilityTi
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
 import TraceabilityPanel from '@/components/ui/TraceabilityPanel';
 import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
-import { callOps, formatCurrency, formatDate, COST_SHEET_BADGES, statusVariant, useAuth, hasAnyRole } from '@/components/finance/fin-helpers';
+import { formatCurrency, formatDate, COST_SHEET_BADGES, statusVariant, useAuth, hasAnyRole } from '@/components/finance/fin-helpers';
 
 type Sheet = Record<string, any>;
 
@@ -22,7 +22,12 @@ export default function CostingDetailPage() {
 
   const load = useCallback(async () => {
     setLoading(true); setError('');
-    try { setData(await callOps<Sheet>('get_cost_sheet', { name: id })); }
+    try {
+      const res = await fetch(`/api/cost-sheets/${encodeURIComponent(id)}`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || 'Failed');
+      setData(json.data ?? json);
+    }
     catch (e) { setError(e instanceof Error ? e.message : 'Failed'); }
     setLoading(false);
   }, [id]);
@@ -42,9 +47,9 @@ export default function CostingDetailPage() {
       status={d.status} statusVariant={statusVariant(d.status)}
       headerActions={
         <div className="flex gap-2">
-          {canApprove && d.status === 'Pending' && <button className="btn btn-primary" onClick={async () => { await callOps('action_cost_sheet', { name: id, action: 'approve' }); load(); }}>Approve</button>}
+          {canApprove && d.status === 'Pending' && <button className="btn btn-primary" onClick={async () => { await fetch(`/api/cost-sheets/${encodeURIComponent(id)}/actions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'approve' }) }); load(); }}>Approve</button>}
           {canApprove && d.status === 'Pending' && <button className="btn btn-secondary text-red-600" onClick={() => setShowReject(true)}>Reject</button>}
-          {canEdit && d.status === 'Draft' && <button className="btn btn-primary" onClick={async () => { await callOps('action_cost_sheet', { name: id, action: 'submit' }); load(); }}>Submit</button>}
+          {canEdit && d.status === 'Draft' && <button className="btn btn-primary" onClick={async () => { await fetch(`/api/cost-sheets/${encodeURIComponent(id)}/actions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'submit' }) }); load(); }}>Submit</button>}
         </div>
       }
       identityBlock={
@@ -94,7 +99,7 @@ export default function CostingDetailPage() {
         open={showReject} title="Reject Cost Sheet"
         confirmLabel="Reject" variant="danger"
         fields={[{ name: 'reason', label: 'Reason', type: 'textarea', required: true }]}
-        onConfirm={async (v) => { await callOps('action_cost_sheet', { name: id, action: 'reject', ...v }); setShowReject(false); load(); }}
+        onConfirm={async (v) => { await fetch(`/api/cost-sheets/${encodeURIComponent(id)}/actions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reject', ...v }) }); setShowReject(false); load(); }}
         onCancel={() => setShowReject(false)}
       />
     </DetailPage>

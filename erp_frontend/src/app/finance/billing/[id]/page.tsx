@@ -8,7 +8,7 @@ import AccountabilityTimeline from '@/components/accountability/AccountabilityTi
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
 import TraceabilityPanel from '@/components/ui/TraceabilityPanel';
 import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
-import { callOps, formatCurrency, formatDate, INVOICE_BADGES, statusVariant, useAuth, hasAnyRole } from '@/components/finance/fin-helpers';
+import { formatCurrency, formatDate, INVOICE_BADGES, statusVariant, useAuth, hasAnyRole } from '@/components/finance/fin-helpers';
 
 type Invoice = Record<string, any>;
 
@@ -22,7 +22,12 @@ export default function BillingDetailPage() {
 
   const load = useCallback(async () => {
     setLoading(true); setError('');
-    try { setData(await callOps<Invoice>('get_sales_invoice', { name: id })); }
+    try {
+      const res = await fetch(`/api/invoices/${encodeURIComponent(id)}`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || 'Failed');
+      setData(json.data ?? json);
+    }
     catch (e) { setError(e instanceof Error ? e.message : 'Failed'); }
     setLoading(false);
   }, [id]);
@@ -42,10 +47,10 @@ export default function BillingDetailPage() {
       status={d.status} statusVariant={statusVariant(d.status)}
       headerActions={
         <div className="flex gap-2">
-          {canSubmit && d.status === 'Draft' && <button className="btn btn-primary" onClick={async () => { await callOps('action_sales_invoice', { name: id, action: 'submit' }); load(); }}>Submit</button>}
-          {canApprove && d.status === 'Pending' && <button className="btn btn-primary" onClick={async () => { await callOps('action_sales_invoice', { name: id, action: 'approve' }); load(); }}>Approve</button>}
+          {canSubmit && d.status === 'Draft' && <button className="btn btn-primary" onClick={async () => { await fetch(`/api/invoices/${encodeURIComponent(id)}/actions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'submit' }) }); load(); }}>Submit</button>}
+          {canApprove && d.status === 'Pending' && <button className="btn btn-primary" onClick={async () => { await fetch(`/api/invoices/${encodeURIComponent(id)}/actions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'approve' }) }); load(); }}>Approve</button>}
           {canApprove && d.status === 'Pending' && <button className="btn btn-secondary text-red-600" onClick={() => setShowReject(true)}>Reject</button>}
-          {canApprove && d.status === 'Approved' && <button className="btn btn-primary" onClick={async () => { await callOps('action_sales_invoice', { name: id, action: 'mark_paid' }); load(); }}>Mark Paid</button>}
+          {canApprove && d.status === 'Approved' && <button className="btn btn-primary" onClick={async () => { await fetch(`/api/invoices/${encodeURIComponent(id)}/actions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'mark_paid' }) }); load(); }}>Mark Paid</button>}
         </div>
       }
       identityBlock={
@@ -101,7 +106,7 @@ export default function BillingDetailPage() {
         open={showReject} title="Reject Invoice"
         confirmLabel="Reject" variant="danger"
         fields={[{ name: 'reason', label: 'Reason', type: 'textarea', required: true }]}
-        onConfirm={async (v) => { await callOps('action_sales_invoice', { name: id, action: 'reject', ...v }); setShowReject(false); load(); }}
+        onConfirm={async (v) => { await fetch(`/api/invoices/${encodeURIComponent(id)}/actions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reject', ...v }) }); setShowReject(false); load(); }}
         onCancel={() => setShowReject(false)}
       />
     </DetailPage>

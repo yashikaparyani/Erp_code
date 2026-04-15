@@ -10,7 +10,7 @@ import { AccountabilityTimeline } from '@/components/accountability/Accountabili
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
 import TraceabilityPanel from '@/components/ui/TraceabilityPanel';
 import { useRole } from '@/context/RoleContext';
-import { callOps, formatCurrency, formatDate, statusVariant } from '@/components/procurement/proc-helpers';
+import { formatCurrency, formatDate, statusVariant } from '@/components/procurement/proc-helpers';
 import { indentApi } from '@/lib/typedApi';
 
 /* ── types ──────────────────────────────────────────── */
@@ -64,14 +64,15 @@ export default function IndentDetailPage() {
     (async () => {
       try {
         const rows = await Promise.all((data.items || []).filter(i => i.item_code).map(async i => {
-          try { const r = await callOps<StockCtx[]>('get_stock_position', { item_code: i.item_code!, warehouse: i.warehouse || data.set_warehouse || '', limit_page_length: 20 }); return { k: i.item_code!, r: Array.isArray(r) ? r[0] : undefined }; }
+          try { const sp = new URLSearchParams({ item_code: i.item_code!, warehouse: i.warehouse || data.set_warehouse || '', limit_page_length: '20' }); const res = await fetch(`/api/stock-position?${sp}`); const j = await res.json(); const r = Array.isArray(j.data) ? j.data[0] : undefined; return { k: i.item_code!, r }; }
           catch { return { k: i.item_code!, r: undefined }; }
         }));
         const ctx: Record<string, StockCtx> = {};
         rows.forEach(({ k, r }) => { if (r) ctx[k] = r; });
         setStockCtx(ctx);
-        const vc = await callOps<VCSummary[]>('get_vendor_comparisons', { material_request: data.name });
-        setComparisons(Array.isArray(vc) ? vc : []);
+        const vcRes = await fetch(`/api/vendor-comparisons?material_request=${encodeURIComponent(data.name)}`);
+        const vcJson = await vcRes.json();
+        setComparisons(Array.isArray(vcJson.data) ? vcJson.data : []);
       } catch { setStockCtx({}); setComparisons([]); }
     })();
   }, [data]);
