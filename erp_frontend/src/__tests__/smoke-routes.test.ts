@@ -1,8 +1,11 @@
 /**
- * Smoke Tests: Route-Role Access Matrix
+ * Smoke Tests: Route-Role Access Matrix (Fallback Map)
  *
- * Validates that every role has access to its critical pages,
- * and no role is accidentally locked out of universal pages.
+ * Validates the static roleAccess map used as a LOADING FALLBACK
+ * before backend RBAC permissions arrive.  At runtime, the authoritative
+ * source is PermissionContext → backend capability engine (fail-closed).
+ * These tests ensure the fallback never accidentally grants more access
+ * than intended during the initial load window.
  *
  * Run: npx vitest run src/__tests__/smoke-routes.test.ts
  */

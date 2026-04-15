@@ -53,7 +53,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useRole, type Role, PROJECT_SIDE_ROLES, roleAccess } from '../context/RoleContext';
+import { useRole, type Role } from '../context/RoleContext';
 
 interface SubMenuItem {
   name: string;
@@ -71,11 +71,8 @@ interface NavLink {
 
 const SIDEBAR_EXPANDED_STORAGE_KEY = 'erp.sidebar.expanded.v1';
 const SIDEBAR_SCROLL_STORAGE_KEY = 'erp.sidebar.scroll.v1';
-const ADMIN_ONLY_SETTINGS_PATHS = ['/settings/operations', '/settings/anda-import'] as const;
-const FINANCE_APPROVAL_PATHS = ['/finance/costing-queue'] as const;
 
 const matchesPath = (pathname: string, href: string) => pathname === href || pathname.startsWith(href + '/');
-const matchesRestrictedPrefix = (href: string, prefix: string) => href === prefix || href.startsWith(prefix + '/');
 
 const isItemActive = (pathname: string, item: SubMenuItem) => {
   if (matchesPath(pathname, item.href)) {
@@ -85,30 +82,16 @@ const isItemActive = (pathname: string, item: SubMenuItem) => {
   return item.children?.some((child) => isItemActive(pathname, child)) ?? false;
 };
 
-const isRoleAllowedForItem = (item: Pick<SubMenuItem, 'href'>, role: Role, roleNames: string[] = []) => {
-  const roleSet = new Set(roleNames);
-
-  if (item.href === '/pre-sales/approvals') {
-    return role === 'Director';
-  }
-
-  if (ADMIN_ONLY_SETTINGS_PATHS.some((prefix) => matchesRestrictedPrefix(item.href, prefix))) {
-    return role === 'Director' || roleSet.has('System Manager');
-  }
-
-  if (FINANCE_APPROVAL_PATHS.some((prefix) => matchesRestrictedPrefix(item.href, prefix))) {
-    return role === 'Director' || role === 'Accounts' || roleSet.has('System Manager');
-  }
-
-  const allowedPaths = roleAccess[role] ?? [];
-  return allowedPaths.some((allowedPath) => item.href === allowedPath || item.href.startsWith(allowedPath + '/'));
-};
-
-const filterAccessibleItems = (items: SubMenuItem[], hasAccess: (path: string) => boolean, role: Role, roleNames: string[] = []): SubMenuItem[] => {
+/**
+ * Sidebar filtering now delegates entirely to RoleContext.hasAccess(),
+ * which in turn delegates to PermissionContext (backend RBAC, fail-closed)
+ * once permissions are loaded, falling back to roleAccess map during load.
+ */
+const filterAccessibleItems = (items: SubMenuItem[], hasAccess: (path: string) => boolean): SubMenuItem[] => {
   return items.reduce<SubMenuItem[]>((visibleItems, item) => {
-    const visibleChildren = item.children ? filterAccessibleItems(item.children, hasAccess, role, roleNames) : undefined;
+    const visibleChildren = item.children ? filterAccessibleItems(item.children, hasAccess) : undefined;
 
-    if (isRoleAllowedForItem(item, role, roleNames) && (hasAccess(item.href) || (visibleChildren?.length ?? 0) > 0)) {
+    if (hasAccess(item.href) || (visibleChildren?.length ?? 0) > 0) {
       visibleItems.push({
         ...item,
         children: visibleChildren,
@@ -119,11 +102,11 @@ const filterAccessibleItems = (items: SubMenuItem[], hasAccess: (path: string) =
   }, []);
 };
 
-const filterAccessibleNavLinks = (links: NavLink[], hasAccess: (path: string) => boolean, role: Role, roleNames: string[] = []): NavLink[] => {
+const filterAccessibleNavLinks = (links: NavLink[], hasAccess: (path: string) => boolean): NavLink[] => {
   return links.reduce<NavLink[]>((visibleLinks, link) => {
-    const visibleChildren = link.children ? filterAccessibleItems(link.children, hasAccess, role, roleNames) : undefined;
+    const visibleChildren = link.children ? filterAccessibleItems(link.children, hasAccess) : undefined;
 
-    if (isRoleAllowedForItem(link, role, roleNames) && (hasAccess(link.href) || (visibleChildren?.length ?? 0) > 0)) {
+    if (hasAccess(link.href) || (visibleChildren?.length ?? 0) > 0) {
       visibleLinks.push({
         ...link,
         children: visibleChildren,
@@ -134,22 +117,9 @@ const filterAccessibleNavLinks = (links: NavLink[], hasAccess: (path: string) =>
   }, []);
 };
 
-const shouldShowNavLinkForRole = (link: NavLink, role: Role, isPermissionLoaded: boolean) => {
-  const allowedPaths = roleAccess[role] ?? [];
-  const roleAllowsLink = allowedPaths.some((allowedPath) => link.href === allowedPath || link.href.startsWith(allowedPath + '/'));
-
-  if (!roleAllowsLink) return false;
-
-  if (isPermissionLoaded) return true;
-
-  if (link.name === 'Projects') {
-    return PROJECT_SIDE_ROLES.includes(role);
-  }
-
-  if (link.name === 'Project Head') {
-    return role === 'Project Head' || role === 'Director';
-  }
-
+const shouldShowNavLinkForRole = (_link: NavLink, _role: Role, _isPermissionLoaded: boolean) => {
+  // Filtering is now handled entirely by hasAccess → PermissionContext.
+  // This function is kept for interface compatibility during migration.
   return true;
 };
 
@@ -351,7 +321,7 @@ function SubMenu({
   if (!currentRole) {
     return null;
   }
-  const accessibleItems = filterAccessibleItems(items, hasAccess, currentRole, roleNames);
+  const accessibleItems = filterAccessibleItems(items, hasAccess);
   const menuClasses = getSubMenuClasses(level);
 
   return (
@@ -423,8 +393,6 @@ export default function Sidebar() {
     ? filterAccessibleNavLinks(
       sourceLinks.filter((link) => shouldShowNavLinkForRole(link, currentRole, isPermissionLoaded)),
       hasAccess,
-      currentRole,
-      currentUser.roles || [],
     )
     : [];
 

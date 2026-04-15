@@ -159,7 +159,7 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
   const router = useRouter();
   const searchParams = useSearchParams();
   const { currentUser } = useAuth();
-  const { permissions, isLoaded: isPermissionLoaded } = usePermissions();
+  const { permissions, isLoaded: isPermissionLoaded, hasCapability, hasCapabilityWithMode } = usePermissions();
   const { wp, isLoaded: isWpLoaded, loadForProject } = useWorkspacePermissions();
 
   // Load workspace permissions for this project
@@ -284,20 +284,12 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
     blocker_summary: '',
   });
 
-  const roleSet = new Set(currentUser?.roles || []);
   const canManageProject =
-    currentUser?.role === 'Director'
-    || roleSet.has('Director')
-    || roleSet.has('Presales Tendering Head')
-    || roleSet.has('Project Head')
-    || roleSet.has('System Manager')
-    || roleSet.has('Project Manager');
+    permissions?.is_superuser
+    || hasCapability('project.member.manage');
   const canDeleteProject =
-    currentUser?.role === 'Director'
-    || roleSet.has('Director')
-    || roleSet.has('Presales Tendering Head')
-    || roleSet.has('Project Head')
-    || roleSet.has('System Manager');
+    permissions?.is_superuser
+    || hasCapabilityWithMode('project.member.manage', 'approve');
 
   const projectHeadOptions = directory.filter((u) => (u.roles || []).includes('Project Head'));
   const projectManagerOptions = directory.filter((u) => (u.roles || []).includes('Project Manager'));

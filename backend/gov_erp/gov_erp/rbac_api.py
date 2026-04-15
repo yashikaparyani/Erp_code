@@ -814,7 +814,9 @@ def get_frontend_permissions():
         "gated_route_prefixes": sorted(_get_all_gated_prefixes()),
         "visible_tabs": engine.get_visible_tabs(),
         "capabilities": capabilities,
-        "can_access_settings": engine.has_capability("settings.department.manage"),
+        "can_access_settings": any(
+            cap_key.startswith("settings.") for cap_key in caps
+        ) or engine.is_director or engine.is_system_manager,
         "user_context": {
             "department": engine.department,
             "assigned_projects": sorted(engine.assigned_projects),

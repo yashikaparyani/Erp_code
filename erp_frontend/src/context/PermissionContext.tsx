@@ -109,10 +109,16 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
 
   const canAccessRoute = useCallback(
     (path: string): boolean => {
-      if (!permissions) return true; // not loaded yet → allow (fallback will gate)
+      // Fail-closed: if permissions haven't loaded yet, deny access.
+      // The UI should show a loading state; never grant access by default.
+      if (!permissions) return false;
 
       // Superusers can access everything
       if (permissions.is_superuser) return true;
+
+      // Public routes are always accessible
+      const PUBLIC_ROUTES = ['/login', '/profile', '/notifications'];
+      if (PUBLIC_ROUTES.some((r) => path === r || path.startsWith(r + '/'))) return true;
 
       // Check if this path is governed by any module-gated prefix
       const isGated = permissions.gated_route_prefixes.some(

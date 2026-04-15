@@ -54,9 +54,9 @@ export const SETTINGS_ROLES: Role[] = [
   'Department Head',
 ];
 
-// Role-based access configuration for sidebar navigation
-// NOTE: /projects is NOT listed here for department roles — it is gated
-// separately via PROJECT_SIDE_ROLES in shouldShowNavLinkForRole.
+// Role-based access configuration for sidebar navigation (LOADING FALLBACK).
+// At runtime, PermissionContext (backend RBAC, fail-closed) is the authority.
+// This map is consulted only during the brief window before backend permissions load.
 export const roleAccess: Record<Role, string[]> = {
   'Director': [
     '/',
@@ -391,65 +391,21 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     if (!currentUser || !currentRole) {
       return false;
     }
-    const isSystemManager = new Set(currentUser.roles || []).has('System Manager');
-
-    if (path.startsWith('/sites/') && path.endsWith('/dossier')) {
-      const allowedPaths = roleAccess[currentRole] ?? [];
-      return allowedPaths.includes('/documents') || currentRole === 'Project Manager' || PROJECT_SIDE_ROLES.includes(currentRole);
-    }
-
-    if (path === '/settings/operations' || path.startsWith('/settings/operations/')) {
-      return currentRole === 'Director' || isSystemManager;
-    }
-
-    if (path === '/settings/anda-import' || path.startsWith('/settings/anda-import/')) {
-      return currentRole === 'Director' || isSystemManager;
-    }
-
-    if (path === '/finance/costing-queue' || path.startsWith('/finance/costing-queue/')) {
-      return currentRole === 'Director' || currentRole === 'Accounts' || isSystemManager;
-    }
-
-    if (path === '/letter-of-submission' || path.startsWith('/letter-of-submission/')) {
-      return [
-        'Director',
-        'Department Head',
-        'Project Head',
-        'Project Manager',
-        'HR Manager',
-        'Engineering Head',
-        'Engineer',
-        'Procurement Manager',
-        'Purchase',
-        'Store Manager',
-        'Stores Logistics Head',
-        'Accounts',
-        'RMA Manager',
-        'OM Operator',
-      ].includes(currentRole);
-    }
 
     // ── Backend RBAC truth (Phase 5) ──
-    // When the permission context is loaded and has valid data, delegate to it.
+    // When the permission context is loaded, delegate 100 % to it.
+    // PermissionContext.canAccessRoute is fail-closed — returns false
+    // while loading, so we never accidentally grant access.
     if (isPermissionLoaded && permissions) {
       return canAccessRoute(path);
     }
 
     // ── Fallback: hardcoded role-based map ──
-    // Used when backend permissions haven't loaded yet or failed to load.
-
-    // ERP-level settings: restricted to SETTINGS_ROLES
-    if (path === '/settings' || path.startsWith('/settings/')) {
-      return SETTINGS_ROLES.includes(currentRole);
-    }
-
-    // Pre-sales settings: restricted to SETTINGS_ROLES (prevent Presales Exec access)
-    if (path.startsWith('/pre-sales/settings')) {
-      return SETTINGS_ROLES.includes(currentRole);
-    }
+    // Used ONLY during the brief window before backend permissions load.
+    const isSystemManager = new Set(currentUser.roles || []).has('System Manager');
+    if (isSystemManager) return true;
 
     const allowedPaths = roleAccess[currentRole] ?? [];
-
     return allowedPaths.some(allowedPath => {
       return path === allowedPath || path.startsWith(allowedPath + '/');
     });

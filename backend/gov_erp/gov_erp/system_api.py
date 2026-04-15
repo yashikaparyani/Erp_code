@@ -143,7 +143,7 @@ def generate_system_reminders():
 			if not existing:
 				ph_users = frappe.get_all(
 					"Has Role",
-					filters={"role": "GE Project Head", "parenttype": "User"},
+					filters={"role": "Project Head", "parenttype": "User"},
 					pluck="parent",
 				)
 				owner = ph_users[0] if ph_users else frappe.session.user
