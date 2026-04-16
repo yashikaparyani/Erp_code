@@ -111,7 +111,6 @@ def get_permission_packs(pack_key=None, include_items=True):
             "ui_color", "ui_icon",
         ],
         order_by="sort_order asc",
-        ignore_permissions=True,
     )
 
     if include_items:
@@ -124,7 +123,6 @@ def get_permission_packs(pack_key=None, include_items=True):
                     "required_for_pack", "display_order", "notes",
                 ],
                 order_by="display_order asc",
-                ignore_permissions=True,
             )
             # Enrich each item with the capability label and metadata
             for item in pack["items"]:
@@ -167,7 +165,6 @@ def get_role_pack_matrix():
         filters={"is_active": 1},
         fields=["name", "pack_key", "pack_label", "ui_color", "ui_icon", "sort_order"],
         order_by="sort_order asc",
-        ignore_permissions=True,
     )
 
     # All enabled mappings
@@ -178,7 +175,6 @@ def get_role_pack_matrix():
             "name", "role", "permission_pack", "scope", "mode",
             "is_system_default",
         ],
-        ignore_permissions=True,
     )
 
     # Group by role
@@ -248,7 +244,6 @@ def get_user_effective_permissions(user=None):
             "is_enabled": 1,
         },
         fields=["role", "permission_pack", "scope", "mode"],
-        ignore_permissions=True,
     )
 
     pack_breakdown = {}
@@ -294,7 +289,6 @@ def get_user_effective_permissions(user=None):
             "grant_or_revoke", "valid_from", "valid_to",
             "granted_by", "remarks",
         ],
-        ignore_permissions=True,
     )
     active_overrides = []
     for ovr in overrides:
@@ -428,7 +422,6 @@ def assign_role_packs(role, packs):
         "GE Role Pack Mapping",
         filters={"role": role},
         fields=["name", "permission_pack", "is_system_default"],
-        ignore_permissions=True,
     )
     removed_packs = []
     for ex in existing:
@@ -437,7 +430,7 @@ def assign_role_packs(role, packs):
                 removed_packs.append(ex.permission_pack)
                 frappe.delete_doc(
                     "GE Role Pack Mapping", ex.name,
-                    ignore_permissions=True, force=True,
+                    force=True,
                 )
 
     # Create or update mappings
@@ -470,7 +463,7 @@ def assign_role_packs(role, packs):
                 "mode": mode or "read",
                 "is_enabled": 1,
                 "is_system_default": 0,
-            }).insert(ignore_permissions=True)
+            }).insert()
 
     frappe.db.commit()
 
@@ -532,7 +525,7 @@ def assign_user_override(user, pack_key, grant_or_revoke,
         if valid_to is not None:
             doc.valid_to = valid_to
         doc.granted_by = frappe.session.user
-        doc.save(ignore_permissions=True)
+        doc.save()
         override_name = doc.name
     else:
         doc = frappe.get_doc({
@@ -547,7 +540,7 @@ def assign_user_override(user, pack_key, grant_or_revoke,
             "valid_to": valid_to,
             "granted_by": frappe.session.user,
         })
-        doc.insert(ignore_permissions=True)
+        doc.insert()
         override_name = doc.name
 
     frappe.db.commit()
@@ -631,7 +624,7 @@ def update_user_context(user, department=None, designation=None,
             doc.region = region
         if is_active is not None:
             doc.is_active = cint(is_active)
-        doc.save(ignore_permissions=True)
+        doc.save()
     else:
         frappe.get_doc({
             "doctype": "GE User Context",
@@ -644,7 +637,7 @@ def update_user_context(user, department=None, designation=None,
             "assigned_sites": assigned_sites or "",
             "region": region or "",
             "is_active": cint(is_active) if is_active is not None else 1,
-        }).insert(ignore_permissions=True)
+        }).insert()
 
     frappe.db.commit()
 
@@ -697,7 +690,6 @@ def get_all_capabilities(module_key=None):
             "is_sensitive",
         ],
         order_by="module_key asc, capability_key asc",
-        ignore_permissions=True,
     )
 
 
@@ -735,7 +727,6 @@ def get_rbac_users(department=None, role=None, is_active=1):
             "region", "is_active",
         ],
         order_by="user asc",
-        ignore_permissions=True,
     )
 
     # Enrich with user full_name
@@ -768,7 +759,7 @@ def remove_user_override(override_name):
 
     frappe.delete_doc(
         "GE User Pack Override", override_name,
-        ignore_permissions=True, force=True,
+        force=True,
     )
     frappe.db.commit()
 
@@ -927,7 +918,6 @@ def get_rbac_audit_log(
         order_by="creation desc",
         limit_page_length=cint(limit_page_length),
         limit_start=cint(limit_start),
-        ignore_permissions=True,
     )
 
     total = frappe.db.count("GE RBAC Audit Log", filters=filters)

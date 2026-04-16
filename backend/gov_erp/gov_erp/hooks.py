@@ -124,14 +124,33 @@ after_migrate = ["gov_erp.install.after_migrate"]
 # Permissions
 # -----------
 # Permissions evaluated in scripted ways
+# ─────────────────────────────────────
+# Single merge point: Frappe's native DocPerm table is bypassed for
+# doctypes that our RBAC PermissionEngine + API-layer guards already
+# handle.  See gov_erp/permissions.py for the hook logic.
 
-# permission_query_conditions = {
-# 	"Event": "frappe.desk.doctype.event.event.get_permission_query_conditions",
-# }
-#
-# has_permission = {
-# 	"Event": "frappe.desk.doctype.event.event.has_permission",
-# }
+_CORE_PERM = "gov_erp.permissions.has_core_doctype_permission"
+_GE_PERM   = "gov_erp.permissions.has_ge_doctype_permission"
+
+has_permission = {
+	# Core Frappe doctypes accessed by admin_api.py / permission_engine.py
+	"Role":        _CORE_PERM,
+	"Department":  _CORE_PERM,
+	"Designation": _CORE_PERM,
+	"User":        _CORE_PERM,
+	"Company":     _CORE_PERM,
+	"Has Role":    _CORE_PERM,
+	"Employee":    _CORE_PERM,
+	"Project":     _CORE_PERM,
+	# GE custom doctypes accessed by rbac_api.py / permission_engine.py
+	"GE Permission Pack":       _GE_PERM,
+	"GE Permission Pack Item":  _GE_PERM,
+	"GE Role Pack Mapping":     _GE_PERM,
+	"GE User Context":          _GE_PERM,
+	"GE Permission Capability": _GE_PERM,
+	"GE User Pack Override":    _GE_PERM,
+	"GE RBAC Audit Log":        _GE_PERM,
+}
 
 # DocType Class
 # ---------------

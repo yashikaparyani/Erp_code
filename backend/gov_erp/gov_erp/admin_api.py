@@ -1,15 +1,8 @@
 """Auto-extracted domain module. All public functions are re-exported by api.py."""
 from gov_erp.api_utils import *  # noqa: F401,F403 — shared utilities
 
-# ── Helper ──────────────────────────────────────────────────────────────
-# All endpoints in this module are already guarded by _require_roles().
-# We pass ignore_permissions=True to every ORM call so that Frappe's
-# native doctype-level permission table (which only includes System Manager
-# for most core doctypes) does not block authorised users like Director.
-_IP = {"ignore_permissions": True}
-
 def _get_default_company_name():
-	companies = frappe.get_all("Company", fields=["name"], order_by="creation asc", limit_page_length=1, **_IP)
+	companies = frappe.get_all("Company", fields=["name"], order_by="creation asc", limit_page_length=1)
 	return companies[0].name if companies else None
 
 
@@ -30,7 +23,6 @@ def get_departments():
 		"Department",
 		fields=["name", "department_name", "company", "disabled", "creation", "owner"],
 		order_by="department_name asc",
-		**_IP,
 	)
 	return {"success": True, "data": data}
 
@@ -60,7 +52,7 @@ def create_department(data):
 			"is_group": values.get("is_group", 0),
 		}
 	)
-	doc.insert(**_IP)
+	doc.insert()
 	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": "Department created"}
 
@@ -74,7 +66,7 @@ def rename_department(name, new_name):
 		frappe.throw("New department name is required")
 	doc = frappe.get_doc("Department", name)
 	doc.department_name = new_name
-	doc.save(**_IP)
+	doc.save()
 	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": "Department renamed"}
 
@@ -85,7 +77,7 @@ def toggle_department(name):
 	_require_roles(ROLE_PRESALES_HEAD, ROLE_HR_MANAGER, ROLE_DEPARTMENT_HEAD, ROLE_DIRECTOR)
 	doc = frappe.get_doc("Department", name)
 	doc.disabled = 0 if cint(doc.disabled) else 1
-	doc.save(**_IP)
+	doc.save()
 	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": "Department updated"}
 
@@ -98,7 +90,6 @@ def get_designations():
 		"Designation",
 		fields=["name", "designation_name", "description", "creation", "owner"],
 		order_by="designation_name asc",
-		**_IP,
 	)
 	return {"success": True, "data": data}
 
@@ -122,7 +113,7 @@ def create_designation(data):
 			"description": values.get("description"),
 		}
 	)
-	doc.insert(**_IP)
+	doc.insert()
 	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": "Designation created"}
 
@@ -136,7 +127,7 @@ def rename_designation(name, new_name):
 		frappe.throw("New designation name is required")
 	doc = frappe.get_doc("Designation", name)
 	doc.designation_name = new_name
-	doc.save(**_IP)
+	doc.save()
 	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": "Designation renamed"}
 
@@ -149,7 +140,6 @@ def get_roles():
 		"Role",
 		fields=["name", "role_name", "disabled", "is_custom", "creation", "owner"],
 		order_by="role_name asc",
-		**_IP,
 	)
 	return {"success": True, "data": data}
 
@@ -167,7 +157,7 @@ def create_role(data):
 		frappe.throw("Role already exists")
 
 	doc = frappe.get_doc({"doctype": "Role", "role_name": role_name})
-	doc.insert(**_IP)
+	doc.insert()
 	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": "Role created"}
 
@@ -178,7 +168,7 @@ def toggle_role(name):
 	_require_roles(ROLE_DIRECTOR)
 	doc = frappe.get_doc("Role", name)
 	doc.disabled = 0 if cint(doc.disabled) else 1
-	doc.save(**_IP)
+	doc.save()
 	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": "Role updated"}
 
@@ -192,7 +182,6 @@ def get_users():
 		filters={"name": ["not in", ["Administrator", "Guest"]], "user_type": "System User"},
 		fields=["name", "full_name", "username", "email", "enabled", "phone", "mobile_no", "creation"],
 		order_by="creation desc",
-		**_IP,
 	)
 	user_names = [user.name for user in users]
 
@@ -201,7 +190,6 @@ def get_users():
 		filters={"parent": ["in", user_names]},
 		fields=["parent", "role"],
 		order_by="modified desc",
-		**_IP,
 	) if user_names else []
 	roles_by_user = {}
 	for row in role_rows:
@@ -211,7 +199,6 @@ def get_users():
 		"Employee",
 		filters={"user_id": ["in", user_names]},
 		fields=["user_id", "department", "designation"],
-		**_IP,
 	) if user_names and frappe.db.exists("DocType", "Employee") else []
 	employee_by_user = {row.user_id: row for row in employee_rows}
 
@@ -270,7 +257,7 @@ def create_user(data):
 		}
 	)
 	doc.new_password = password
-	doc.insert(**_IP)
+	doc.insert()
 	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": "User created"}
 

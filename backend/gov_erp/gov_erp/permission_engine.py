@@ -228,7 +228,6 @@ class PermissionEngine:
                 filters={"project_manager_user": self.user},
                 fields=["name"],
                 limit_page_length=0,
-                ignore_permissions=True,
             )
             if row.name
         }
@@ -278,7 +277,6 @@ class PermissionEngine:
                 "is_enabled": 1,
             },
             fields=["permission_pack", "scope", "mode"],
-            ignore_permissions=True,
         )
 
         for mapping in role_mappings:
@@ -286,7 +284,6 @@ class PermissionEngine:
                 "GE Permission Pack Item",
                 filters={"parent": mapping.permission_pack},
                 fields=["capability", "default_scope", "default_mode"],
-                ignore_permissions=True,
             )
             for item in pack_items:
                 cap_key = item.capability
@@ -308,7 +305,6 @@ class PermissionEngine:
             filters={"user": self.user},
             fields=["permission_pack", "scope", "mode", "grant_or_revoke",
                      "valid_from", "valid_to"],
-            ignore_permissions=True,
         )
         for ovr in overrides:
             # Check validity
@@ -321,7 +317,6 @@ class PermissionEngine:
                 "GE Permission Pack Item",
                 filters={"parent": ovr.permission_pack},
                 fields=["capability", "default_scope", "default_mode"],
-                ignore_permissions=True,
             )
 
             if ovr.grant_or_revoke == "Grant":
@@ -348,7 +343,6 @@ class PermissionEngine:
             "GE Permission Capability",
             filters={"is_active": 1},
             pluck="capability_key",
-            ignore_permissions=True,
         )
         return {cap: {"scope": "all", "mode": "override"} for cap in all_caps}
 
