@@ -465,6 +465,10 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
   const ps = detail?.project_summary;
   const visibleTabs = useMemo(() => {
     const configured = config.tabs;
+
+    // Superusers (Director / System Manager) see every configured tab without restriction.
+    if (isPermissionLoaded && permissions?.is_superuser) return configured;
+
     const tabSource = isWpLoaded && wp?.visible_tabs?.length
       ? wp.visible_tabs
       : (isPermissionLoaded && permissions?.visible_tabs?.length
@@ -479,7 +483,7 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
 
     const intersected = configured.filter((tab) => backendVisible.has(tab));
     return intersected.length ? intersected : configured;
-  }, [config.tabs, isPermissionLoaded, permissions?.visible_tabs, isWpLoaded, wp?.visible_tabs]);
+  }, [config.tabs, isPermissionLoaded, permissions?.is_superuser, permissions?.visible_tabs, isWpLoaded, wp?.visible_tabs]);
 
   useEffect(() => {
     if (!visibleTabs.includes(activeTab)) {
