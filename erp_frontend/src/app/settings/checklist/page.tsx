@@ -1,10 +1,18 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Edit2, Plus, Search, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Edit2, Plus, Search, Trash2, X, GripVertical } from 'lucide-react';
 import RegisterPage from '@/components/shells/RegisterPage';
 import FormModal from '@/components/shells/FormModal';
 import ActionModal from '@/components/ui/ActionModal';
+
+type ChecklistItem = {
+  /** Populated when loaded from backend */
+  name?: string;
+  item_name: string;
+  description?: string;
+  is_mandatory: boolean;
+};
 
 type ChecklistRow = {
   name: string;
@@ -15,6 +23,7 @@ type ChecklistRow = {
   owner?: string;
   creation?: string;
   modified?: string;
+  items?: ChecklistItem[];
 };
 
 type ModalMode = 'create' | 'edit' | null;
@@ -29,6 +38,14 @@ export default function CheckListPage() {
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ChecklistRow | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
+
+  // ── form state ─────────────────────────────────────────────────────
+  const [formName, setFormName] = useState('');
+  const [formType, setFormType] = useState('Compliance');
+  const [formStatus, setFormStatus] = useState('Active');
+  const [formDesc, setFormDesc] = useState('');
+  const [formItems, setFormItems] = useState<ChecklistItem[]>([]);
+  const formNameRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -68,26 +85,77 @@ export default function CheckListPage() {
     { label: 'Filtered', value: filteredRows.length, variant: query ? 'warning' as const : undefined },
   ]), [filteredRows.length, query, rows]);
 
+  // ── open modal ─────────────────────────────────────────────────────
+
   const openCreate = () => {
     setEditing(null);
+    setFormName('');
+    setFormType('Compliance');
+    setFormStatus('Active');
+    setFormDesc('');
+    setFormItems([]);
     setModalMode('create');
+    setTimeout(() => formNameRef.current?.focus(), 50);
   };
 
-  const openEdit = (row: ChecklistRow) => {
+  const openEdit = async (row: ChecklistRow) => {
     setEditing(row);
+    setFormName(row.checklist_name || '');
+    setFormType(row.checklist_type || 'Compliance');
+    setFormStatus(row.status || 'Active');
+    setFormDesc(row.description || '');
+    setFormItems([]);
     setModalMode('edit');
+    // Fetch full record with items
+    try {
+      const res = await fetch(`/api/tender-checklists/${encodeURIComponent(row.name)}`);
+      const payload = await res.json().catch(() => ({}));
+      if (res.ok && payload.success !== false && payload.data?.items) {
+        setFormItems(
+          (payload.data.items as ChecklistItem[]).map((it) => ({
+            name: it.name,
+            item_name: it.item_name,
+            description: it.description || '',
+            is_mandatory: !!it.is_mandatory,
+          })),
+        );
+      }
+    } catch {
+      // non-fatal — items just stay empty
+    }
+    setTimeout(() => formNameRef.current?.focus(), 50);
   };
 
-  const saveChecklist = async (values: Record<string, string>) => {
+  // ── item helpers ───────────────────────────────────────────────────
+
+  const addItem = () =>
+    setFormItems((prev) => [...prev, { item_name: '', description: '', is_mandatory: false }]);
+
+  const removeItem = (idx: number) =>
+    setFormItems((prev) => prev.filter((_, i) => i !== idx));
+
+  const updateItem = (idx: number, patch: Partial<ChecklistItem>) =>
+    setFormItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
+
+  // ── save ───────────────────────────────────────────────────────────
+
+  const saveChecklist = async () => {
+    if (!formName.trim()) return;
     setSaving(true);
     setError('');
     try {
       const payload = {
-        checklist_name: (values.checklist_name || '').trim(),
-        checklist_type: values.checklist_type || 'Compliance',
-        description: (values.description || '').trim(),
-        status: values.status || 'Active',
-        items: editing?.name ? undefined : [],
+        checklist_name: formName.trim(),
+        checklist_type: formType,
+        description: formDesc.trim(),
+        status: formStatus,
+        items: formItems
+          .filter((it) => it.item_name.trim())
+          .map((it) => ({
+            item_name: it.item_name.trim(),
+            description: (it.description || '').trim(),
+            is_mandatory: it.is_mandatory ? 1 : 0,
+          })),
       };
       const response = await fetch(
         editing?.name ? `/api/tender-checklists/${encodeURIComponent(editing.name)}` : '/api/tender-checklists',
@@ -106,7 +174,6 @@ export default function CheckListPage() {
       await load();
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Failed to save checklist');
-      throw saveError;
     } finally {
       setSaving(false);
     }
@@ -131,6 +198,11 @@ export default function CheckListPage() {
     } finally {
       setDeleteBusy(false);
     }
+  };
+
+  const closeModal = () => {
+    setModalMode(null);
+    setEditing(null);
   };
 
   return (
@@ -180,7 +252,7 @@ export default function CheckListPage() {
                   </div>
                   <div className="flex items-center gap-1">
                     <button
-                      onClick={() => openEdit(row)}
+                      onClick={() => void openEdit(row)}
                       className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-blue-700"
                       title="Edit checklist"
                     >
@@ -224,45 +296,159 @@ export default function CheckListPage() {
         </div>
       </RegisterPage>
 
+      {/* ── Create / Edit Modal ─────────────────────────────────────────── */}
       <FormModal
         open={modalMode !== null}
         title={modalMode === 'edit' ? 'Edit Checklist Template' : 'Create Checklist Template'}
-        description="Keep checklist metadata structured and professional so the settings module feels like the rest of the product."
+        description="Define the checklist metadata and add the items that must be ticked off."
         size="lg"
         busy={saving}
         confirmLabel={modalMode === 'edit' ? 'Save Changes' : 'Create Template'}
-        fields={[
-          { name: 'checklist_name', label: 'Checklist Name', type: 'text', required: true, defaultValue: editing?.checklist_name || '' },
-          {
-            name: 'checklist_type',
-            label: 'Checklist Type',
-            type: 'select',
-            defaultValue: editing?.checklist_type || 'Compliance',
-            options: [
-              { value: 'Compliance', label: 'Compliance' },
-              { value: 'Technical', label: 'Technical' },
-              { value: 'Commercial', label: 'Commercial' },
-              { value: 'Documentation', label: 'Documentation' },
-            ],
-          },
-          {
-            name: 'status',
-            label: 'Status',
-            type: 'select',
-            defaultValue: editing?.status || 'Active',
-            options: [
-              { value: 'Active', label: 'Active' },
-              { value: 'Inactive', label: 'Inactive' },
-            ],
-          },
-          { name: 'description', label: 'Description', type: 'textarea', defaultValue: editing?.description || '', placeholder: 'Describe when this checklist should be used and what it governs.' },
-        ]}
-        onConfirm={saveChecklist}
-        onCancel={() => {
-          setModalMode(null);
-          setEditing(null);
-        }}
-      />
+        onConfirm={() => void saveChecklist()}
+        onCancel={closeModal}
+      >
+        <div className="space-y-5">
+          {/* ── Metadata ──────────────────────────────────────────────── */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            {/* Checklist Name */}
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium text-[var(--text-main)] mb-1">
+                Checklist Name <span className="text-rose-500">*</span>
+              </label>
+              <input
+                ref={formNameRef}
+                type="text"
+                className="input w-full"
+                value={formName}
+                onChange={(e) => setFormName(e.target.value)}
+                placeholder="e.g. CPWD Compliance Checklist"
+                required
+              />
+            </div>
+
+            {/* Type */}
+            <div>
+              <label className="block text-sm font-medium text-[var(--text-main)] mb-1">Checklist Type</label>
+              <select
+                className="input w-full"
+                value={formType}
+                onChange={(e) => setFormType(e.target.value)}
+              >
+                <option value="Compliance">Compliance</option>
+                <option value="Technical">Technical</option>
+                <option value="Commercial">Commercial</option>
+                <option value="Documentation">Documentation</option>
+              </select>
+            </div>
+
+            {/* Status */}
+            <div>
+              <label className="block text-sm font-medium text-[var(--text-main)] mb-1">Status</label>
+              <select
+                className="input w-full"
+                value={formStatus}
+                onChange={(e) => setFormStatus(e.target.value)}
+              >
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+            </div>
+
+            {/* Description */}
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium text-[var(--text-main)] mb-1">Description</label>
+              <textarea
+                className="input w-full resize-none"
+                rows={2}
+                value={formDesc}
+                onChange={(e) => setFormDesc(e.target.value)}
+                placeholder="Describe when this checklist should be used and what it governs."
+              />
+            </div>
+          </div>
+
+          {/* ── Checklist Items ────────────────────────────────────────── */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-semibold text-[var(--text-main)]">
+                Checklist Items
+                {formItems.length > 0 && (
+                  <span className="ml-2 text-xs font-normal text-[var(--text-muted)]">
+                    {formItems.length} item{formItems.length !== 1 ? 's' : ''}
+                  </span>
+                )}
+              </span>
+              <button
+                type="button"
+                onClick={addItem}
+                className="flex items-center gap-1 text-xs font-medium text-[var(--accent)] hover:underline"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add Item
+              </button>
+            </div>
+
+            {formItems.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-slate-200 py-6 text-center text-sm text-[var(--text-muted)]">
+                No items yet — click <strong>Add Item</strong> to define what needs to be checked.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {formItems.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="group flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50/60 p-3"
+                  >
+                    {/* drag handle (visual only) */}
+                    <GripVertical className="mt-2.5 h-4 w-4 shrink-0 text-slate-300" />
+
+                    <div className="flex-1 space-y-2">
+                      {/* Item name */}
+                      <input
+                        type="text"
+                        className="input w-full text-sm"
+                        value={item.item_name}
+                        onChange={(e) => updateItem(idx, { item_name: e.target.value })}
+                        placeholder="Item name (required)"
+                      />
+                      {/* Description */}
+                      <input
+                        type="text"
+                        className="input w-full text-sm"
+                        value={item.description ?? ''}
+                        onChange={(e) => updateItem(idx, { description: e.target.value })}
+                        placeholder="Short description (optional)"
+                      />
+                      {/* Mandatory toggle */}
+                      <label className="flex cursor-pointer items-center gap-2 text-xs text-[var(--text-muted)]">
+                        <input
+                          type="checkbox"
+                          className="h-3.5 w-3.5 rounded accent-[var(--accent)]"
+                          checked={item.is_mandatory}
+                          onChange={(e) => updateItem(idx, { is_mandatory: e.target.checked })}
+                        />
+                        <span className={item.is_mandatory ? 'font-semibold text-[var(--accent)]' : ''}>
+                          Mandatory item
+                        </span>
+                      </label>
+                    </div>
+
+                    {/* remove */}
+                    <button
+                      type="button"
+                      onClick={() => removeItem(idx)}
+                      className="mt-0.5 shrink-0 rounded p-1 text-slate-400 opacity-0 transition hover:bg-rose-50 hover:text-rose-600 group-hover:opacity-100"
+                      title="Remove item"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </FormModal>
 
       <ActionModal
         open={!!deleteTarget}
