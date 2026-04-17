@@ -129,11 +129,12 @@ after_migrate = ["gov_erp.install.after_migrate"]
 # doctypes that our RBAC PermissionEngine + API-layer guards already
 # handle.  See gov_erp/permissions.py for the hook logic.
 
-_CORE_PERM = "gov_erp.permissions.has_core_doctype_permission"
-_GE_PERM   = "gov_erp.permissions.has_ge_doctype_permission"
+_CORE_PERM    = "gov_erp.permissions.has_core_doctype_permission"
+_GE_PERM      = "gov_erp.permissions.has_ge_doctype_permission"
+_GE_MOD_PERM  = "gov_erp.permissions.has_ge_module_permission"
 
 has_permission = {
-	# Core Frappe doctypes accessed by admin_api.py / permission_engine.py
+	# ── Core Frappe doctypes (admin roles only) ─────────────────────────
 	"Role":        _CORE_PERM,
 	"Department":  _CORE_PERM,
 	"Designation": _CORE_PERM,
@@ -142,7 +143,8 @@ has_permission = {
 	"Has Role":    _CORE_PERM,
 	"Employee":    _CORE_PERM,
 	"Project":     _CORE_PERM,
-	# GE custom doctypes accessed by rbac_api.py / permission_engine.py
+
+	# ── RBAC infrastructure (blanket allow — bootstrap, no recursion) ──
 	"GE Permission Pack":       _GE_PERM,
 	"GE Permission Pack Item":  _GE_PERM,
 	"GE Role Pack Mapping":     _GE_PERM,
@@ -150,6 +152,133 @@ has_permission = {
 	"GE Permission Capability": _GE_PERM,
 	"GE User Pack Override":    _GE_PERM,
 	"GE RBAC Audit Log":        _GE_PERM,
+
+	# ── Cross-cutting (blanket allow — any authenticated user) ─────────
+	"GE Alert":                 _GE_PERM,
+	"GE User Reminder":         _GE_PERM,
+	"GE Import Log":            _GE_PERM,
+
+	# ── Project Command (module-gated) ─────────────────────────────────
+	"GE Site":                         _GE_MOD_PERM,
+	"GE Milestone":                    _GE_MOD_PERM,
+	"GE Project Closeout":             _GE_MOD_PERM,
+	"GE Project Favorite":             _GE_MOD_PERM,
+	"GE Project Note":                 _GE_MOD_PERM,
+	"GE Project Task":                 _GE_MOD_PERM,
+	"GE Project Team Member":          _GE_MOD_PERM,
+	"GE Project Communication Log":    _GE_MOD_PERM,
+	"GE Project Asset":                _GE_MOD_PERM,
+	"GE Project Staffing Requirement": _GE_MOD_PERM,
+	"GE Project Staffing Assignment":  _GE_MOD_PERM,
+
+	# ── Presales (module-gated) ────────────────────────────────────────
+	"GE Tender":                 _GE_MOD_PERM,
+	"GE Bid":                    _GE_MOD_PERM,
+	"GE Tender Approval":        _GE_MOD_PERM,
+	"GE Tender Checklist":       _GE_MOD_PERM,
+	"GE Tender Checklist Item":  _GE_MOD_PERM,
+	"GE Tender Clarification":   _GE_MOD_PERM,
+	"GE Tender Compliance Item": _GE_MOD_PERM,
+	"GE Tender Organization":    _GE_MOD_PERM,
+	"GE Tender Reminder":        _GE_MOD_PERM,
+	"GE Tender Result":          _GE_MOD_PERM,
+	"GE Tender Result Bidder":   _GE_MOD_PERM,
+	"GE LOI Tracker":            _GE_MOD_PERM,
+	"GE Party":                  _GE_MOD_PERM,
+	"GE Organization":           _GE_MOD_PERM,
+	"GE Competitor":             _GE_MOD_PERM,
+	"GE Presales Color Config":  _GE_MOD_PERM,
+	"GE Commercial Document":    _GE_MOD_PERM,
+	"GE PDC Instrument":         _GE_MOD_PERM,
+
+	# ── Engineering (module-gated) ─────────────────────────────────────
+	"GE Survey":                 _GE_MOD_PERM,
+	"GE Survey Attachment":      _GE_MOD_PERM,
+	"GE Drawing":                _GE_MOD_PERM,
+	"GE Technical Deviation":    _GE_MOD_PERM,
+	"GE Change Request":         _GE_MOD_PERM,
+
+	# ── Procurement (module-gated) ─────────────────────────────────────
+	"GE BOQ":                    _GE_MOD_PERM,
+	"GE BOQ Item":               _GE_MOD_PERM,
+	"GE Cost Sheet":             _GE_MOD_PERM,
+	"GE Cost Sheet Item":        _GE_MOD_PERM,
+	"GE Vendor Comparison":      _GE_MOD_PERM,
+	"GE Vendor Comparison Quote": _GE_MOD_PERM,
+	"GE Costing Queue":          _GE_MOD_PERM,
+
+	# ── Inventory / Stores (module-gated) ──────────────────────────────
+	"GE Dispatch Challan":       _GE_MOD_PERM,
+	"GE Dispatch Challan Item":  _GE_MOD_PERM,
+	"GE Project Inventory":      _GE_MOD_PERM,
+	"GE PO Extension":           _GE_MOD_PERM,
+	"GE PO Payment Term":        _GE_MOD_PERM,
+
+	# ── Execution / I&C (module-gated) ─────────────────────────────────
+	"GE Dependency Rule":              _GE_MOD_PERM,
+	"GE Dependency Override":          _GE_MOD_PERM,
+	"GE DPR":                          _GE_MOD_PERM,
+	"GE DPR Item":                     _GE_MOD_PERM,
+	"GE DPR Photo":                    _GE_MOD_PERM,
+	"GE Document Folder":              _GE_MOD_PERM,
+	"GE Project Document":             _GE_MOD_PERM,
+	"GE Document Requirement":         _GE_MOD_PERM,
+	"GE Test Report":                  _GE_MOD_PERM,
+	"GE Test Result Item":             _GE_MOD_PERM,
+	"GE Commissioning Checklist":      _GE_MOD_PERM,
+	"GE Commissioning Checklist Item": _GE_MOD_PERM,
+	"GE Client Signoff":               _GE_MOD_PERM,
+	"GE Project Issue":                _GE_MOD_PERM,
+	"GE PM Request":                   _GE_MOD_PERM,
+	"GE Manpower Log":                 _GE_MOD_PERM,
+	"GE IP Allocation":                _GE_MOD_PERM,
+	"GE IP Pool":                      _GE_MOD_PERM,
+
+	# ── Finance (module-gated) ─────────────────────────────────────────
+	"GE Invoice":                _GE_MOD_PERM,
+	"GE Invoice Line":           _GE_MOD_PERM,
+	"GE Estimate":               _GE_MOD_PERM,
+	"GE Proforma Invoice":       _GE_MOD_PERM,
+	"GE Payment Follow Up":      _GE_MOD_PERM,
+	"GE Payment Receipt":        _GE_MOD_PERM,
+	"GE Retention Ledger":       _GE_MOD_PERM,
+	"GE Petty Cash":             _GE_MOD_PERM,
+	"GE Budget Allocation":      _GE_MOD_PERM,
+	"GE Penalty Deduction":      _GE_MOD_PERM,
+	"GE EMD PBG Instrument":     _GE_MOD_PERM,
+
+	# ── HR / Manpower (module-gated) ───────────────────────────────────
+	"GE Employee Onboarding":         _GE_MOD_PERM,
+	"GE Leave Application":           _GE_MOD_PERM,
+	"GE Leave Allocation":            _GE_MOD_PERM,
+	"GE Leave Type":                  _GE_MOD_PERM,
+	"GE Attendance Log":              _GE_MOD_PERM,
+	"GE Attendance Regularization":   _GE_MOD_PERM,
+	"GE Travel Log":                  _GE_MOD_PERM,
+	"GE Overtime Entry":              _GE_MOD_PERM,
+	"GE Statutory Ledger":            _GE_MOD_PERM,
+	"GE Technician Visit Log":        _GE_MOD_PERM,
+	"GE Employee Certification":      _GE_MOD_PERM,
+	"GE Employee Document":           _GE_MOD_PERM,
+	"GE Material Consumption Report": _GE_MOD_PERM,
+
+	# ── O&M / RMA (module-gated) ──────────────────────────────────────
+	"GE Ticket":                 _GE_MOD_PERM,
+	"GE Ticket Action":          _GE_MOD_PERM,
+	"GE RMA Tracker":            _GE_MOD_PERM,
+	"GE SLA Profile":            _GE_MOD_PERM,
+	"GE SLA Timer":              _GE_MOD_PERM,
+	"GE SLA Penalty Rule":       _GE_MOD_PERM,
+	"GE SLA Penalty Record":     _GE_MOD_PERM,
+	"GE Device Register":        _GE_MOD_PERM,
+	"GE Device Uptime Log":      _GE_MOD_PERM,
+
+	# ── Approval (module-gated) ────────────────────────────────────────
+	"GE PH Approval Item":       _GE_MOD_PERM,
+
+	# ── Reports / Accountability (module-gated) ────────────────────────
+	"GE Accountability Event":   _GE_MOD_PERM,
+	"GE Accountability Record":  _GE_MOD_PERM,
 }
 
 # DocType Class
