@@ -1341,7 +1341,7 @@ def delete_project_task(name):
 @frappe.whitelist()
 def reorder_project_tasks(task_orders):
 	"""Bulk-update sort_order for drag-drop reorder."""
-	_require_spine_read_access()
+	_require_spine_write_access()
 	if isinstance(task_orders, str):
 		task_orders = frappe.parse_json(task_orders)
 	for item in task_orders:
@@ -1353,7 +1353,7 @@ def reorder_project_tasks(task_orders):
 @frappe.whitelist()
 def update_task_status(name, status):
 	"""Quick status update for kanban drag-drop."""
-	_require_spine_read_access()
+	_require_spine_write_access()
 	if status not in ("To Do", "In Progress", "Review", "Done"):
 		frappe.throw("Invalid status")
 	frappe.db.set_value("GE Project Task", name, "status", status)
@@ -1389,7 +1389,7 @@ def get_task_summary(project=None):
 @frappe.whitelist()
 def clone_project(source_project, new_project_name, copy_tasks=1, copy_milestones=1, copy_notes=1):
 	"""Clone a project: optionally copy tasks, milestones, notes."""
-	_require_spine_read_access()
+	_require_spine_write_access()
 	if not source_project or not new_project_name:
 		frappe.throw("source_project and new_project_name are required")
 

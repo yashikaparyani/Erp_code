@@ -1463,7 +1463,7 @@ def submit_loc_by_project_head(name, submission_date=None, remarks=None):
 @frappe.whitelist()
 def mark_tender_closure(tender_name, closure_date=None, remarks=None):
     """Formally close a tender. Presales Head or Director only. O&M letter must be recorded first."""
-    _ps_read_access()
+    _ps_write_access()
     user_roles = set(frappe.get_roles(frappe.session.user))
     if not user_roles.intersection({ROLE_PRESALES_HEAD, ROLE_DIRECTOR, ROLE_SYSTEM_MANAGER}):
         frappe.throw("Only Presales Head or Director can formally close tenders", frappe.PermissionError)

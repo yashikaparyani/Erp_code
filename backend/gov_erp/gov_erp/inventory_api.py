@@ -1147,7 +1147,7 @@ def save_po_payment_terms(data):
 @frappe.whitelist()
 def approve_po_payment_terms(purchase_order=None):
 	"""Mark payment terms as approved by accounts department."""
-	_require_procurement_write_access()
+	_require_procurement_approval_access()
 	purchase_order = _require_param(purchase_order, "purchase_order")
 
 	if not frappe.db.exists("GE PO Extension", purchase_order):
@@ -1163,7 +1163,7 @@ def approve_po_payment_terms(purchase_order=None):
 @frappe.whitelist()
 def reject_po_payment_terms(purchase_order=None, reason=None):
 	"""Reject payment terms by accounts department."""
-	_require_procurement_write_access()
+	_require_procurement_approval_access()
 	purchase_order = _require_param(purchase_order, "purchase_order")
 
 	if not frappe.db.exists("GE PO Extension", purchase_order):
