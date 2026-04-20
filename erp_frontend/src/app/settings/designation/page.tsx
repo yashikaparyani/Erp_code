@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Edit2, ChevronsLeft, ChevronsRight, X, Loader2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, ChevronsLeft, ChevronsRight, X, Loader2 } from 'lucide-react';
 
 interface DesignationData {
   name: string;
@@ -20,6 +20,9 @@ export default function DesignationPage() {
   const [newDesignation, setNewDesignation] = useState('');
   const [editTarget, setEditTarget] = useState<DesignationData | null>(null);
   const [editName, setEditName] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<DesignationData | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const fetchData = useCallback(async () => {
     try {
@@ -67,6 +70,24 @@ export default function DesignationPage() {
         }
       } catch (e) { console.error('Failed to create designation:', e); }
     }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      const res = await fetch(`/api/designations?name=${encodeURIComponent(deleteTarget.name)}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (json.success) {
+        setDeleteTarget(null);
+        fetchData();
+      } else {
+        setDeleteError(json.message || 'Failed to delete designation');
+      }
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : 'Failed to delete designation');
+    } finally { setDeleting(false); }
   };
 
   const handleRename = async () => {
@@ -148,6 +169,12 @@ export default function DesignationPage() {
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
+                      <button
+                        onClick={() => { setDeleteTarget(row); setDeleteError(''); }}
+                        className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -214,6 +241,31 @@ export default function DesignationPage() {
             <div className="flex items-center justify-end gap-3 px-4 py-3 border-t border-gray-200">
               <button onClick={() => setShowModal(false)} className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 text-sm font-medium">Cancel</button>
               <button onClick={handleCreate} className="px-4 py-2 bg-[#1e6b87] text-white rounded-lg hover:bg-[#185a73] text-sm font-medium">Create</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirm Modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setDeleteTarget(null)} />
+          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-sm">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+              <h3 className="text-base font-semibold text-gray-800">Delete Designation</h3>
+              <button onClick={() => setDeleteTarget(null)} className="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4">
+              <p className="text-sm text-gray-600">Are you sure you want to delete <strong>{deleteTarget.designation_name}</strong>? This cannot be undone.</p>
+              {deleteError && <p className="mt-2 text-sm text-red-600">{deleteError}</p>}
+            </div>
+            <div className="flex items-center justify-end gap-3 px-4 py-3 border-t border-gray-200">
+              <button onClick={() => setDeleteTarget(null)} className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 text-sm font-medium">Cancel</button>
+              <button onClick={handleDelete} disabled={deleting} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium disabled:opacity-50">
+                {deleting ? 'Deleting...' : 'Delete'}
+              </button>
             </div>
           </div>
         </div>

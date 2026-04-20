@@ -1211,7 +1211,7 @@ def submit_po_to_ph(name, remarks=None):
 	_require_procurement_write_access()
 	_require_project_head_workflow()
 	name = _require_param(name, "name")
-	po = frappe.get_doc("Purchase Order", name)
+	po = frappe.get_doc("Purchase Order", name, ignore_permissions=True)
 	if po.docstatus != 1:
 		frappe.throw("Only submitted Purchase Orders can be sent to Project Head")
 
@@ -2513,7 +2513,7 @@ def seed_bookkeeping_demo():
 	_require_billing_write_access()
 	customer_name = "DEMO CUSTOMER - COMMERCIAL"
 	project_name = None
-	projects = frappe.get_all("Project", fields=["name"], limit=1)
+	projects = frappe.get_all("Project", fields=["name"], limit=1, ignore_permissions=True)
 	if projects:
 		project_name = projects[0].name
 

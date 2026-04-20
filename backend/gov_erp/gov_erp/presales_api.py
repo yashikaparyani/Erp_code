@@ -136,6 +136,7 @@ def _get_users_for_role(role_name):
             "parenttype": "User",
         },
         pluck="parent",
+        ignore_permissions=True,
     ) or []
     if not users:
         return []
@@ -146,6 +147,7 @@ def _get_users_for_role(role_name):
             "enabled": 1,
         },
         pluck="name",
+        ignore_permissions=True,
     ) or []
     return [user for user in enabled_users if user != "Administrator"]
 
@@ -154,7 +156,7 @@ def _resolve_department_link(department_key, fallback_label):
     """Resolve a Department docname for the supplied logical department."""
     department_key = cstr(department_key or "").strip().lower()
     fallback_label = cstr(fallback_label or "").strip()
-    departments = frappe.get_all("Department", fields=["name", "department_name"]) or []
+    departments = frappe.get_all("Department", fields=["name", "department_name"], ignore_permissions=True) or []
 
     preferred_names = {
         "engineering": ["engineering"],

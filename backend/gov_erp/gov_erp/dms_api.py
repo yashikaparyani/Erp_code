@@ -33,13 +33,7 @@ def _file_url_exists_on_disk(file_url):
 @frappe.whitelist()
 def get_documents(folder=None):
 	"""Return uploaded files for the document briefcase UI."""
-	_require_roles(
-		ROLE_PRESALES_HEAD,
-		ROLE_PRESALES_EXECUTIVE,
-		ROLE_HR_MANAGER,
-		ROLE_DEPARTMENT_HEAD,
-		ROLE_DIRECTOR,
-	)
+	_require_document_read_access()
 	filters = {"is_folder": 0}
 	if folder:
 		filters["folder"] = folder
@@ -60,6 +54,7 @@ def get_documents(folder=None):
 			"owner",
 		],
 		order_by="modified desc",
+		ignore_permissions=True,
 	)
 	for row in data:
 		row["uploaded_by"] = row.owner
@@ -228,18 +223,13 @@ def get_document_folders(project=None, department=None, source=None):
 			data.append(row)
 		return {"success": True, "data": data}
 
-	_require_roles(
-		ROLE_PRESALES_HEAD,
-		ROLE_PRESALES_EXECUTIVE,
-		ROLE_HR_MANAGER,
-		ROLE_DEPARTMENT_HEAD,
-		ROLE_DIRECTOR,
-	)
+	_require_document_read_access()
 	folders = frappe.get_all(
 		"File",
 		filters={"is_folder": 1},
 		fields=["name", "file_name", "folder", "creation", "owner"],
 		order_by="file_name asc, creation asc",
+		ignore_permissions=True,
 	)
 	count_rows = frappe.db.sql(
 		"""
@@ -327,6 +317,7 @@ def upload_project_document(data):
 				fields=["file_url"],
 				order_by="modified desc",
 				limit_page_length=12,
+				ignore_permissions=True,
 			)
 			for row in nearby:
 				candidate_url = (row.get("file_url") or "").strip()
@@ -456,13 +447,13 @@ def update_document_status(data):
 @frappe.whitelist()
 def delete_uploaded_project_file(file_url=None):
 	"""Delete a recent orphan upload by file_url when downstream record creation fails."""
-	_require_document_write_access()
+	_require_document_delete_access()
 	file_url = _require_param(file_url, "file_url")
 	file_name = frappe.db.get_value("File", {"file_url": file_url}, "name")
 	if not file_name:
 		return {"success": True, "message": "No uploaded file record found for cleanup"}
 
-	file_doc = frappe.get_doc("File", file_name)
+	file_doc = frappe.get_doc("File", file_name, ignore_permissions=True)
 	user_roles = set(frappe.get_roles(frappe.session.user))
 	is_admin = "System Manager" in user_roles or "Director" in user_roles
 	if not is_admin and cstr(file_doc.owner or "") != cstr(frappe.session.user):

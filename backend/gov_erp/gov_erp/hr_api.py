@@ -320,9 +320,7 @@ def map_onboarding_to_employee(name):
 
 	employee = frappe.get_doc(emp_data)
 	try:
-		employee.insert()
-
-		# Sync education rows
+		employee.insert(ignore_permissions=True)
 		for edu_row in doc.education:
 			employee.append("education", {
 				"school_univ": edu_row.school_univ,
@@ -342,7 +340,7 @@ def map_onboarding_to_employee(name):
 			})
 
 		if doc.education or doc.experience:
-			employee.save()
+			employee.save(ignore_permissions=True)
 
 		# Link back only after employee sync completes
 		doc.employee_reference = employee.name
@@ -829,6 +827,7 @@ def get_holiday_lists(company=None):
 		filters=filters,
 		fields=["name", "holiday_list_name", "from_date", "to_date", "weekly_off", "color", "modified"],
 		order_by="from_date desc, modified desc",
+		ignore_permissions=True,
 	)
 	return {"success": True, "data": data}
 
@@ -840,7 +839,7 @@ def get_holiday_list(name=None):
 	if not frappe.db.exists("DocType", "Holiday List"):
 		return {"success": True, "data": {"name": name, "holidays": []}}
 	name = _require_param(name, "name")
-	doc = frappe.get_doc("Holiday List", name)
+	doc = frappe.get_doc("Holiday List", name, ignore_permissions=True)
 	return {"success": True, "data": doc.as_dict()}
 
 
@@ -873,8 +872,8 @@ def get_leave_calendar(from_date=None, to_date=None, employee=None):
 
 	holiday_events = []
 	if frappe.db.exists("DocType", "Holiday List"):
-		for holiday_list in frappe.get_all("Holiday List", fields=["name", "holiday_list_name"]):
-			doc = frappe.get_doc("Holiday List", holiday_list.name)
+		for holiday_list in frappe.get_all("Holiday List", fields=["name", "holiday_list_name"], ignore_permissions=True):
+			doc = frappe.get_doc("Holiday List", holiday_list.name, ignore_permissions=True)
 			for holiday in doc.holidays:
 				if cycle_start <= getdate(holiday.holiday_date) <= cycle_end:
 					holiday_events.append({
@@ -910,6 +909,7 @@ def get_who_is_in(attendance_date=None, department=None):
 		filters=emp_filters,
 		fields=["name", "employee_name", "designation", "department", "branch"],
 		order_by="employee_name asc",
+		ignore_permissions=True,
 	)
 	attendance_rows = {
 		row.employee: row
@@ -2083,6 +2083,7 @@ def get_employees(status=None, department=None, designation=None, branch=None, s
 		or_filters=or_filters,
 		fields=_EMPLOYEE_LIST_FIELDS,
 		order_by="employee_name asc",
+		ignore_permissions=True,
 		limit_page_length=0,
 	)
 	return {"success": True, "data": data}
@@ -2093,7 +2094,7 @@ def get_employee(name=None):
 	"""Return a single employee with profile details, education, and experience."""
 	_require_employee_read_access()
 	name = _require_param(name, "name")
-	emp = frappe.get_doc("Employee", name)
+	emp = frappe.get_doc("Employee", name, ignore_permissions=True)
 	result = {f: emp.get(f) for f in _EMPLOYEE_DETAIL_FIELDS if emp.get(f) is not None}
 	result["name"] = emp.name
 
@@ -2127,7 +2128,7 @@ def get_employee(name=None):
 def get_employee_stats():
 	"""Return employee directory summary counts."""
 	_require_employee_read_access()
-	rows = frappe.get_all("Employee", fields=["status", "department", "gender"])
+	rows = frappe.get_all("Employee", fields=["status", "department", "gender"], ignore_permissions=True)
 	departments = set()
 	active = inactive = male = female = 0
 	for r in rows:
@@ -2178,12 +2179,12 @@ def update_employee(name, data):
 		"bio",
 	}
 
-	doc = frappe.get_doc("Employee", name)
+	doc = frappe.get_doc("Employee", name, ignore_permissions=True)
 	for key, val in values.items():
 		if key in WRITABLE_FIELDS:
 			doc.set(key, val)
 
-	doc.save()
+	doc.save(ignore_permissions=True)
 	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": "Employee updated"}
 
@@ -2193,7 +2194,7 @@ def get_employee_family(name=None):
 	"""Return family/dependent info stored as Employee custom fields or child table."""
 	_require_employee_read_access()
 	name = _require_param(name, "name")
-	emp = frappe.get_doc("Employee", name)
+	emp = frappe.get_doc("Employee", name, ignore_permissions=True)
 	return {
 		"success": True,
 		"data": {
@@ -2214,7 +2215,7 @@ def get_employee_education(name=None):
 	"""Return education rows for an employee."""
 	_require_employee_read_access()
 	name = _require_param(name, "name")
-	emp = frappe.get_doc("Employee", name)
+	emp = frappe.get_doc("Employee", name, ignore_permissions=True)
 	rows = [
 		{
 			"school_univ": row.school_univ,
@@ -2233,7 +2234,7 @@ def get_employee_experience(name=None):
 	"""Return work experience rows for an employee."""
 	_require_employee_read_access()
 	name = _require_param(name, "name")
-	emp = frappe.get_doc("Employee", name)
+	emp = frappe.get_doc("Employee", name, ignore_permissions=True)
 	rows = [
 		{
 			"company_name": row.company_name,
@@ -2244,5 +2245,3 @@ def get_employee_experience(name=None):
 		for row in (emp.external_work_history or [])
 	]
 	return {"success": True, "data": rows}
-
-

@@ -75,6 +75,26 @@ interface UserContextPayload {
   exists: boolean;
 }
 
+interface RoleOption {
+  name: string;
+  role_name?: string;
+}
+
+interface CreateUserForm {
+  email: string;
+  first_name: string;
+  username: string;
+  password: string;
+  contact_no: string;
+  department: string;
+  designation: string;
+  primary_role: string;
+  secondary_roles: string;
+  assigned_projects: string;
+  assigned_sites: string;
+  region: string;
+}
+
 /* ── Constants ─────────────────────────────────────────────── */
 
 const SCOPE_LABELS: Record<string, string> = {
@@ -489,12 +509,29 @@ function UserDetailPanel({ user, onClose }: { user: string; onClose: () => void 
 
 export default function UserManagementPage() {
   const [users, setUsers] = useState<UserContextRow[]>([]);
+  const [availableRoles, setAvailableRoles] = useState<RoleOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [filterDept, setFilterDept] = useState('');
   const [filterRole, setFilterRole] = useState('');
+  const [showCreateUser, setShowCreateUser] = useState(false);
+  const [creatingUser, setCreatingUser] = useState(false);
+  const [createUserForm, setCreateUserForm] = useState<CreateUserForm>({
+    email: '',
+    first_name: '',
+    username: '',
+    password: '',
+    contact_no: '',
+    department: '',
+    designation: '',
+    primary_role: '',
+    secondary_roles: '',
+    assigned_projects: '',
+    assigned_sites: '',
+    region: '',
+  });
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -508,7 +545,7 @@ export default function UserManagementPage() {
       if (json.success) {
         setUsers(json.data || []);
       } else {
-        setError(json.message || 'Failed to load users');
+        setError((json.message || 'Failed to load users').replace(/<[^>]*>/g, '').trim());
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load users');
@@ -518,6 +555,23 @@ export default function UserManagementPage() {
   }, [filterDept, filterRole]);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
+
+  useEffect(() => {
+    let active = true;
+    async function fetchRoles() {
+      try {
+        const res = await fetch('/api/roles-list');
+        const json = await res.json();
+        if (active && json.success) {
+          setAvailableRoles(json.data || []);
+        }
+      } catch {
+        // Keep the page usable even if the role catalog is temporarily unavailable.
+      }
+    }
+    fetchRoles();
+    return () => { active = false; };
+  }, []);
 
   const departments = Array.from(new Set(users.map(u => u.department).filter(Boolean))).sort();
   const roles = Array.from(new Set(users.map(u => u.primary_role).filter(Boolean))).sort();
@@ -532,6 +586,49 @@ export default function UserManagementPage() {
       (u.primary_role || '').toLowerCase().includes(q)
     );
   });
+
+  const handleCreateUser = useCallback(async () => {
+    if (!createUserForm.email.trim() || !createUserForm.first_name.trim() || !createUserForm.password) {
+      setError('Email, first name, and password are required');
+      return;
+    }
+    try {
+      setCreatingUser(true);
+      setError('');
+      const res = await fetch('/api/rbac/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(createUserForm),
+      });
+      const json = await res.json();
+      if (!json.success) {
+        throw new Error(json.message || 'Failed to create user');
+      }
+      const createdUser = createUserForm.email.trim().toLowerCase();
+      setShowCreateUser(false);
+      setCreateUserForm({
+        email: '',
+        first_name: '',
+        username: '',
+        password: '',
+        contact_no: '',
+        department: '',
+        designation: '',
+        primary_role: '',
+        secondary_roles: '',
+        assigned_projects: '',
+        assigned_sites: '',
+        region: '',
+      });
+      await fetchUsers();
+      setSelectedUser(createdUser);
+    } catch (e) {
+      const raw = e instanceof Error ? e.message : 'Failed to create user';
+      setError(raw.replace(/<[^>]*>/g, '').trim());
+    } finally {
+      setCreatingUser(false);
+    }
+  }, [createUserForm, fetchUsers]);
 
   return (
     <div className="p-4 md:p-6 bg-gray-50 min-h-screen">
@@ -556,6 +653,165 @@ export default function UserManagementPage() {
           </p>
         </div>
       </div>
+
+      <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 flex items-start justify-between gap-3">
+        <div className="text-sm text-emerald-900">
+          <p className="font-medium">Create live system users from here</p>
+          <p className="mt-1 text-emerald-800">
+            This now creates the backend <strong>User</strong> first, then seeds the initial RBAC context so the account is usable immediately.
+          </p>
+        </div>
+        <button
+          onClick={() => setShowCreateUser(true)}
+          className="inline-flex items-center gap-2 rounded-lg bg-[#1e6b87] px-3 py-2 text-sm font-medium text-white hover:bg-[#185a72]"
+        >
+          <Plus className="w-4 h-4" />
+          New User
+        </button>
+      </div>
+
+      {showCreateUser && (
+        <div className="mb-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-gray-800">Create User</h2>
+              <p className="text-sm text-gray-500">Create the backend account and optionally seed department, role, and assignment context.</p>
+            </div>
+            <button
+              onClick={() => setShowCreateUser(false)}
+              className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <label className="text-xs text-gray-600">
+              Email *
+              <input
+                type="email"
+                value={createUserForm.email}
+                onChange={(e) => setCreateUserForm({ ...createUserForm, email: e.target.value })}
+                className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-800"
+              />
+            </label>
+            <label className="text-xs text-gray-600">
+              First Name *
+              <input
+                value={createUserForm.first_name}
+                onChange={(e) => setCreateUserForm({ ...createUserForm, first_name: e.target.value })}
+                className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-800"
+              />
+            </label>
+            <label className="text-xs text-gray-600">
+              Username
+              <input
+                value={createUserForm.username}
+                onChange={(e) => setCreateUserForm({ ...createUserForm, username: e.target.value })}
+                className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-800"
+              />
+            </label>
+            <label className="text-xs text-gray-600">
+              Temporary Password *
+              <input
+                type="password"
+                value={createUserForm.password}
+                onChange={(e) => setCreateUserForm({ ...createUserForm, password: e.target.value })}
+                className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-800"
+              />
+            </label>
+            <label className="text-xs text-gray-600">
+              Contact Number
+              <input
+                value={createUserForm.contact_no}
+                onChange={(e) => setCreateUserForm({ ...createUserForm, contact_no: e.target.value })}
+                className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-800"
+              />
+            </label>
+            <label className="text-xs text-gray-600">
+              Department
+              <input
+                value={createUserForm.department}
+                onChange={(e) => setCreateUserForm({ ...createUserForm, department: e.target.value })}
+                className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-800"
+              />
+            </label>
+            <label className="text-xs text-gray-600">
+              Designation
+              <input
+                value={createUserForm.designation}
+                onChange={(e) => setCreateUserForm({ ...createUserForm, designation: e.target.value })}
+                className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-800"
+              />
+            </label>
+            <label className="text-xs text-gray-600">
+              Primary Role
+              <select
+                value={createUserForm.primary_role}
+                onChange={(e) => setCreateUserForm({ ...createUserForm, primary_role: e.target.value })}
+                className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-800"
+              >
+                <option value="">None</option>
+                {availableRoles.map((role) => {
+                  const roleLabel = role.role_name || role.name;
+                  return <option key={role.name} value={roleLabel}>{roleLabel}</option>;
+                })}
+              </select>
+            </label>
+            <label className="text-xs text-gray-600">
+              Secondary Roles
+              <input
+                value={createUserForm.secondary_roles}
+                onChange={(e) => setCreateUserForm({ ...createUserForm, secondary_roles: e.target.value })}
+                placeholder="Comma separated"
+                className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-800"
+              />
+            </label>
+            <label className="text-xs text-gray-600">
+              Assigned Projects
+              <input
+                value={createUserForm.assigned_projects}
+                onChange={(e) => setCreateUserForm({ ...createUserForm, assigned_projects: e.target.value })}
+                placeholder="Comma separated project names"
+                className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-800"
+              />
+            </label>
+            <label className="text-xs text-gray-600">
+              Assigned Sites
+              <input
+                value={createUserForm.assigned_sites}
+                onChange={(e) => setCreateUserForm({ ...createUserForm, assigned_sites: e.target.value })}
+                placeholder="Comma separated site names"
+                className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-800"
+              />
+            </label>
+            <label className="text-xs text-gray-600">
+              Region
+              <input
+                value={createUserForm.region}
+                onChange={(e) => setCreateUserForm({ ...createUserForm, region: e.target.value })}
+                className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-800"
+              />
+            </label>
+          </div>
+
+          <div className="mt-4 flex items-center justify-end gap-2">
+            <button
+              onClick={() => setShowCreateUser(false)}
+              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleCreateUser}
+              disabled={creatingUser}
+              className="rounded-lg bg-[#1e6b87] px-4 py-2 text-sm font-medium text-white hover:bg-[#185a72] disabled:opacity-60"
+            >
+              {creatingUser ? 'Creating...' : 'Create User'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">

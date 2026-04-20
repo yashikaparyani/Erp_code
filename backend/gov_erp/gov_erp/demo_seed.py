@@ -158,7 +158,7 @@ def _ensure_doc(doctype, filters, values=None):
 def _ensure_file(file_name, content):
     existing = frappe.db.exists("File", {"file_name": file_name})
     if existing:
-        return frappe.get_doc("File", existing).file_url
+        return frappe.get_doc("File", existing, ignore_permissions=True).file_url
 
     file_doc = save_file(file_name, content.encode("utf-8"), None, None, is_private=False)
     return file_doc.file_url
@@ -171,12 +171,12 @@ def _first_or_none(doctype, filters=None, fields=None, order_by="creation asc"):
 
 def _get_project():
     if frappe.db.exists("Project", PRIMARY_PROJECT):
-        return frappe.get_doc("Project", PRIMARY_PROJECT)
+        return frappe.get_doc("Project", PRIMARY_PROJECT, ignore_permissions=True)
 
     row = _first_or_none("Project")
     if not row:
         frappe.throw("No Project found. Expected at least one project to seed demo operations.")
-    return frappe.get_doc("Project", row.name)
+    return frappe.get_doc("Project", row.name, ignore_permissions=True)
 
 
 def _get_tender(project_name):
@@ -222,7 +222,7 @@ def _pick_warehouse(prefix, company=None):
 
 
 def _pick_supplier(index=0):
-    suppliers = frappe.get_all("Supplier", fields=["name"], order_by="creation asc", limit=10)
+    suppliers = frappe.get_all("Supplier", fields=["name"], order_by="creation asc", limit=10, ignore_permissions=True)
     if not suppliers:
         frappe.throw("No Supplier found. Expected existing suppliers for procurement demo data.")
     return suppliers[min(index, len(suppliers) - 1)].name

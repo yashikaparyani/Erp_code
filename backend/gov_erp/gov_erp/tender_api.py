@@ -472,7 +472,7 @@ def convert_tender_to_project(tender_name):
 	if doc.linked_project:
 		return {"success": False, "message": f"Tender already linked to project {doc.linked_project}"}
 	doc._convert_to_project()
-	project_doc = frappe.get_doc("Project", doc.linked_project)
+	project_doc = frappe.get_doc("Project", doc.linked_project, ignore_permissions=True)
 	if not getattr(project_doc, "linked_tender", None):
 		project_doc.linked_tender = doc.name
 	_sync_project_workflow_fields(project_doc, reset_submission=True)
@@ -483,7 +483,7 @@ def convert_tender_to_project(tender_name):
 		remarks=f"Converted from tender {doc.name}",
 		metadata={"tender": doc.name},
 	)
-	project_doc.save()
+	project_doc.save(ignore_permissions=True)
 	frappe.db.set_value("GE Tender", doc.name, "status", "CONVERTED_TO_PROJECT", update_modified=False)
 	doc.status = "CONVERTED_TO_PROJECT"
 	latest_cost_sheet = frappe.get_all(

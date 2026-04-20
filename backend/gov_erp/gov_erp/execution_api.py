@@ -110,7 +110,7 @@ def _coerce_site_import_value(fieldtype, value):
 
 
 def _read_site_upload_rows(file_url):
-	file_doc = frappe.get_doc("File", {"file_url": file_url})
+	file_doc = frappe.get_doc("File", {"file_url": file_url}, ignore_permissions=True)
 	file_name = cstr(file_doc.file_name or file_doc.file_url or "").lower()
 	if file_name.endswith(".xlsx"):
 		return read_xlsx_file_from_attached_file(file_url=file_url)

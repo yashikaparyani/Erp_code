@@ -23,6 +23,7 @@ from frappe.utils import cint, getdate, today
 
 from gov_erp.permission_engine import PermissionEngine
 from gov_erp import rbac_audit
+from gov_erp.role_utils import BUSINESS_ROLES
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -74,6 +75,45 @@ def _validate_link_targets(doctype, values, label):
     missing = [value for value in values if not frappe.db.exists(doctype, value)]
     if missing:
         frappe.throw(f"Invalid {label}: {', '.join(missing)}")
+
+
+def _parse_role_values(raw_value):
+    return _parse_csv_list(raw_value)
+
+
+def _validate_role_targets(values, label):
+    missing = [value for value in values if not frappe.db.exists("Role", value)]
+    if missing:
+        frappe.throw(f"Invalid {label}: {', '.join(missing)}")
+
+
+def _sync_user_managed_roles(user, desired_roles, current_context_roles=None):
+    desired_unique = []
+    seen = set()
+    for role in desired_roles or []:
+        if role and role not in seen:
+            desired_unique.append(role)
+            seen.add(role)
+
+    managed_pool = set(BUSINESS_ROLES)
+    managed_pool.update(current_context_roles or [])
+    managed_pool.update(desired_unique)
+
+    user_doc = frappe.get_doc("User", user, ignore_permissions=True)
+    existing_roles = [row.role for row in user_doc.roles]
+
+    user_doc.roles = [
+        row for row in user_doc.roles
+        if row.role not in managed_pool
+    ]
+
+    kept_roles = {row.role for row in user_doc.roles}
+    for role in desired_unique:
+        if role not in kept_roles:
+            user_doc.append("roles", {"role": role})
+
+    user_doc.save(ignore_permissions=True)
+    return desired_unique
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -584,8 +624,6 @@ def update_user_context(user, department=None, designation=None,
 
     if not user or not frappe.db.exists("User", user):
         frappe.throw(f"User '{user}' does not exist")
-    if primary_role is not None and primary_role and not frappe.db.exists("Role", primary_role):
-        frappe.throw(f"Role '{primary_role}' does not exist")
 
     project_values = _parse_csv_list(assigned_projects) if assigned_projects is not None else None
     site_values = _parse_csv_list(assigned_sites) if assigned_sites is not None else None
@@ -597,11 +635,30 @@ def update_user_context(user, department=None, designation=None,
         assigned_sites = ", ".join(site_values)
 
     existing = frappe.db.exists("GE User Context", user)
+    current_doc = frappe.get_doc("GE User Context", existing) if existing else None
+
+    current_primary_role = current_doc.primary_role if current_doc else ""
+    current_secondary_roles = _parse_role_values(current_doc.secondary_roles) if current_doc else []
+
+    effective_primary_role = primary_role if primary_role is not None else current_primary_role
+    effective_secondary_roles = (
+        _parse_role_values(secondary_roles) if secondary_roles is not None else current_secondary_roles
+    )
+
+    effective_roles = [role for role in [effective_primary_role, *effective_secondary_roles] if role]
+    _validate_role_targets(effective_roles, "roles")
+    effective_secondary_roles = [role for role in effective_secondary_roles if role != effective_primary_role]
+    desired_managed_roles = [role for role in [effective_primary_role, *effective_secondary_roles] if role]
+
+    if primary_role is not None:
+        primary_role = effective_primary_role
+    if secondary_roles is not None:
+        secondary_roles = ", ".join(effective_secondary_roles)
 
     # Capture old context for audit
     old_ctx = None
     if existing:
-        doc = frappe.get_doc("GE User Context", existing)
+        doc = current_doc
         old_ctx = {
             "department": doc.department, "designation": doc.designation,
             "primary_role": doc.primary_role, "secondary_roles": doc.secondary_roles,
@@ -638,6 +695,13 @@ def update_user_context(user, department=None, designation=None,
             "region": region or "",
             "is_active": cint(is_active) if is_active is not None else 1,
         }).insert()
+
+    if existing or primary_role is not None or secondary_roles is not None:
+        _sync_user_managed_roles(
+            user,
+            desired_managed_roles,
+            current_context_roles=[role for role in [current_primary_role, *current_secondary_roles] if role],
+        )
 
     frappe.db.commit()
 

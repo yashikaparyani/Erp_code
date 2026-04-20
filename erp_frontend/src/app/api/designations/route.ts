@@ -53,3 +53,20 @@ export async function PUT(request: NextRequest) {
     );
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const name = searchParams.get('name');
+    if (!name) {
+      return NextResponse.json({ success: false, message: 'name is required' }, { status: 400 });
+    }
+    await callFrappeMethod('delete_designation', { name }, request);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, message: error instanceof Error ? error.message : 'Failed to delete designation' },
+      { status: 500 }
+    );
+  }
+}

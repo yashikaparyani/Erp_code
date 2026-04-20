@@ -76,7 +76,7 @@ CLIENT_DESIGNATIONS = [
 
 
 def _get_default_company():
-    companies = frappe.get_all("Company", fields=["name"], order_by="creation asc", limit_page_length=1)
+    companies = frappe.get_all("Company", fields=["name"], order_by="creation asc", limit_page_length=1, ignore_permissions=True)
     return companies[0].name if companies else None
 
 

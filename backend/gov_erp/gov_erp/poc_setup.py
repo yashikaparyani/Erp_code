@@ -4,6 +4,27 @@ import frappe
 from frappe.installer import update_site_config
 from frappe.utils.password import update_password
 
+# Designations that map directly to POC roles / are used by POC users
+POC_DESIGNATIONS = {
+	"Director",
+	"Department Head",
+	"Project Head",
+	"HR Manager",
+	"Presales Tendering Head",
+	"Presales Executive",
+	"Engineering Head",
+	"Engineer",
+	"Procurement Manager",
+	"Purchase",
+	"Store Manager",
+	"Stores Logistics Head",
+	"Project Manager",
+	"Accounts",
+	"Field Technician",
+	"OM Operator",
+	"RMA Manager",
+}
+
 
 POC_PASSWORD_ENV_KEY = "GOV_ERP_POC_PASSWORD"
 POC_PASSWORD_CONFIG_KEY = "gov_erp_poc_password"
@@ -59,7 +80,7 @@ def create_poc_users(password=None):
 
 	for email, first_name, last_name, role in POC_USERS:
 		if frappe.db.exists("User", email):
-			user = frappe.get_doc("User", email)
+			user = frappe.get_doc("User", email, ignore_permissions=True)
 			updated.append(email)
 		else:
 			user = frappe.get_doc(
@@ -142,7 +163,7 @@ def strip_non_poc_roles():
 		if not frappe.db.exists("User", email):
 			continue
 
-		user = frappe.get_doc("User", email)
+		user = frappe.get_doc("User", email, ignore_permissions=True)
 		if _remove_role_if_present(user, ROLE_TO_STRIP):
 			user.save(ignore_permissions=True)
 			updated.append(email)
@@ -153,3 +174,61 @@ def strip_non_poc_roles():
 		"removed_role": ROLE_TO_STRIP,
 		"count": len(updated),
 	}
+
+
+def purge_non_poc_data():
+	"""Delete non-POC users and all Project + GE Site records from the site."""
+	KEEP_USERS = {email for email, *_ in POC_USERS} | {"Administrator", "Guest"}
+
+	# --- delete non-POC system users ---
+	all_users = frappe.get_all(
+		"User",
+		filters={"user_type": "System User"},
+		fields=["name"],
+		ignore_permissions=True,
+	)
+	deleted_users = []
+	for u in all_users:
+		if u.name not in KEEP_USERS:
+			frappe.delete_doc("User", u.name, ignore_permissions=True, force=True)
+			deleted_users.append(u.name)
+
+	# --- delete all GE Site records ---
+	sites = frappe.get_all("GE Site", fields=["name"], ignore_permissions=True)
+	deleted_sites = []
+	for s in sites:
+		frappe.delete_doc("GE Site", s.name, ignore_permissions=True, force=True)
+		deleted_sites.append(s.name)
+
+	# --- delete all ERPNext Project records ---
+	projects = frappe.get_all("Project", fields=["name"], ignore_permissions=True)
+	deleted_projects = []
+	for p in projects:
+		frappe.delete_doc("Project", p.name, ignore_permissions=True, force=True)
+		deleted_projects.append(p.name)
+
+	frappe.db.commit()
+	return {
+		"deleted_users": deleted_users,
+		"deleted_sites": deleted_sites,
+		"deleted_projects": deleted_projects,
+	}
+
+
+def purge_non_poc_designations():
+	"""Delete all Designation records that are not in the POC set."""
+	all_designations = frappe.get_all(
+		"Designation",
+		fields=["name", "designation_name"],
+		ignore_permissions=True,
+	)
+	deleted = []
+	skipped = []
+	for d in all_designations:
+		if d.designation_name in POC_DESIGNATIONS:
+			skipped.append(d.designation_name)
+		else:
+			frappe.delete_doc("Designation", d.name, ignore_permissions=True, force=True)
+			deleted.append(d.designation_name)
+	frappe.db.commit()
+	return {"deleted": deleted, "kept": skipped}

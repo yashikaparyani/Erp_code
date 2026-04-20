@@ -589,7 +589,7 @@ def get_project(name=None):
         """Return a single editable project record."""
         _require_project_workspace_access()
         name = _require_param(name, "name")
-        doc = frappe.get_doc("Project", name)
+        doc = frappe.get_doc("Project", name, ignore_permissions=True)
         return {"success": True, "data": _serialize_project_record(doc)}
 
 
@@ -603,7 +603,7 @@ def create_project(data):
         doc = frappe.get_doc({"doctype": "Project", **values})
         _sync_project_workflow_fields(doc, reset_submission=True)
         _append_project_workflow_event(doc, "PROJECT_CREATED", doc.current_project_stage, remarks="Project created from workspace")
-        doc.insert()
+        doc.insert(ignore_permissions=True)
         _create_initial_sites_for_project(doc, initial_sites)
         doc.reload()
         frappe.db.commit()
@@ -615,7 +615,7 @@ def add_project_sites(project, data=None):
         """Append new GE Site rows to an existing project from the project workspace."""
         _require_project_workspace_write_access()
         project = _require_param(project, "project")
-        project_doc = frappe.get_doc("Project", project)
+        project_doc = frappe.get_doc("Project", project, ignore_permissions=True)
         payload = _parse_payload(data)
         initial_sites = _normalize_initial_sites(payload)
         if not initial_sites:
@@ -631,7 +631,7 @@ def update_project(name, data):
         """Update a Project record."""
         _require_project_workspace_write_access()
         name = _require_param(name, "name")
-        doc = frappe.get_doc("Project", name)
+        doc = frappe.get_doc("Project", name, ignore_permissions=True)
         previous_stage = getattr(doc, "current_project_stage", None)
         values = _normalize_project_payload(_parse_payload(data), existing_doc=doc)
         doc.update(values)
@@ -646,7 +646,7 @@ def update_project(name, data):
                 )
         else:
                 _sync_project_workflow_fields(doc)
-        doc.save()
+        doc.save(ignore_permissions=True)
         frappe.db.commit()
         return {"success": True, "data": _serialize_project_record(doc), "message": "Project updated"}
 
@@ -660,7 +660,7 @@ def delete_project(name):
         if dependencies:
                 summary = ", ".join(f"{row['doctype']} ({row['count']})" for row in dependencies[:5])
                 frappe.throw(f"Cannot delete project while linked records still exist: {summary}")
-        frappe.delete_doc("Project", name)
+        frappe.delete_doc("Project", name, ignore_permissions=True)
         frappe.db.commit()
         return {"success": True, "message": "Project deleted"}
 
@@ -722,7 +722,7 @@ def get_project_spine_summary(project=None):
         # Layer 1 – Project summary
         if project:
                 project = _require_param(project, "project")
-                proj = frappe.get_doc("Project", project)
+                proj = frappe.get_doc("Project", project, ignore_permissions=True)
                 project_summary = {
                         "name": proj.name,
                         "project_name": proj.project_name,
@@ -788,7 +788,7 @@ def get_project_spine_detail(project=None, department=None):
         """
         _require_spine_read_access()
         project = _require_param(project, "project")
-        proj = frappe.get_doc("Project", project)
+        proj = frappe.get_doc("Project", project, ignore_permissions=True)
         rollup = _get_project_site_rollup(project)
         team_members = frappe.get_all(
                 "GE Project Team Member",
@@ -848,7 +848,7 @@ def get_project_workflow_state(project=None):
         """Return the current workflow state, readiness, and history for a project."""
         _require_project_workspace_access()
         project = _require_param(project, "project")
-        doc = frappe.get_doc("Project", project)
+        doc = frappe.get_doc("Project", project, ignore_permissions=True)
         _sync_project_workflow_fields(doc)
         return {"success": True, "data": _serialize_workflow_state(doc)}
 
@@ -858,7 +858,7 @@ def submit_project_stage_for_approval(project=None, remarks=None):
         """Submit the current project stage for approval once readiness checks pass."""
         _require_project_workspace_write_access()
         project = _require_param(project, "project")
-        doc = frappe.get_doc("Project", project)
+        doc = frappe.get_doc("Project", project, ignore_permissions=True)
         _sync_project_workflow_fields(doc)
         workflow_state = _serialize_workflow_state(doc)
 
@@ -869,7 +869,7 @@ def submit_project_stage_for_approval(project=None, remarks=None):
         doc.stage_submitted_by = frappe.session.user
         doc.stage_submitted_at = frappe.utils.now()
         _append_project_workflow_event(doc, "STAGE_SUBMITTED", doc.current_project_stage, remarks=remarks)
-        doc.save()
+        doc.save(ignore_permissions=True)
         frappe.db.commit()
 
         # ── Accountability ledger ─────────────────────────────────────────────
@@ -898,7 +898,7 @@ def approve_project_stage(project=None, remarks=None):
         """Approve the current stage and advance the project to the next stage."""
         _require_project_workspace_access()
         project = _require_param(project, "project")
-        doc = frappe.get_doc("Project", project)
+        doc = frappe.get_doc("Project", project, ignore_permissions=True)
         _sync_project_workflow_fields(doc)
         workflow_state = _serialize_workflow_state(doc)
 
@@ -920,7 +920,7 @@ def approve_project_stage(project=None, remarks=None):
                         doc.current_stage_status = "COMPLETED"
                         doc.status = "Completed"
 
-        doc.save()
+        doc.save(ignore_permissions=True)
         frappe.db.commit()
 
         # ── Accountability ledger ─────────────────────────────────────────────
@@ -954,7 +954,7 @@ def reject_project_stage(project=None, remarks=None):
         project = _require_param(project, "project")
         if not (remarks or "").strip():
                 frappe.throw("A rejection reason is required. Please provide remarks.")
-        doc = frappe.get_doc("Project", project)
+        doc = frappe.get_doc("Project", project, ignore_permissions=True)
         _sync_project_workflow_fields(doc)
         workflow_state = _serialize_workflow_state(doc)
 
@@ -964,7 +964,7 @@ def reject_project_stage(project=None, remarks=None):
         current_stage = doc.current_project_stage
         doc.current_stage_status = "REJECTED"
         _append_project_workflow_event(doc, "STAGE_REJECTED", current_stage, remarks=remarks)
-        doc.save()
+        doc.save(ignore_permissions=True)
         frappe.db.commit()
 
         # ── Accountability ledger ─────────────────────────────────────────────
@@ -993,7 +993,7 @@ def restart_project_stage(project=None, remarks=None):
         """Move a rejected project stage back into active working state."""
         _require_project_workspace_write_access()
         project = _require_param(project, "project")
-        doc = frappe.get_doc("Project", project)
+        doc = frappe.get_doc("Project", project, ignore_permissions=True)
         _sync_project_workflow_fields(doc)
         workflow_state = _serialize_workflow_state(doc)
 
@@ -1004,7 +1004,7 @@ def restart_project_stage(project=None, remarks=None):
         doc.stage_submitted_by = None
         doc.stage_submitted_at = None
         _append_project_workflow_event(doc, "STAGE_RESTARTED", doc.current_project_stage, remarks=remarks)
-        doc.save()
+        doc.save(ignore_permissions=True)
         frappe.db.commit()
 
         # ── Accountability ledger ─────────────────────────────────────────────
@@ -1040,7 +1040,7 @@ def override_project_stage(project=None, new_stage=None, remarks=None):
         if not (remarks or "").strip():
                 frappe.throw("A reason is required for stage override. Please provide remarks.")
 
-        doc = frappe.get_doc("Project", project)
+        doc = frappe.get_doc("Project", project, ignore_permissions=True)
         previous_stage = doc.current_project_stage or WORKFLOW_STAGE_KEYS[0]
         doc.current_project_stage = new_stage
         _sync_project_workflow_fields(doc, reset_submission=True)
@@ -1055,7 +1055,7 @@ def override_project_stage(project=None, new_stage=None, remarks=None):
         if new_stage == "CLOSED":
                 doc.current_stage_status = "COMPLETED"
                 doc.status = "Completed"
-        doc.save()
+        doc.save(ignore_permissions=True)
         frappe.db.commit()
 
         # ── Accountability ledger ─────────────────────────────────────────────
@@ -1571,7 +1571,7 @@ def get_project_activity(project=None, limit=50):
 
         # 4. Workflow history from project doc
         try:
-                proj_doc = frappe.get_doc("Project", project)
+                proj_doc = frappe.get_doc("Project", project, ignore_permissions=True)
                 wf_history = _json.loads(proj_doc.get("workflow_history") or "[]") if hasattr(proj_doc, "workflow_history") else []
                 for entry in (wf_history or []):
                         activities.append({
@@ -1811,7 +1811,7 @@ def refresh_project_spine(project=None):
         project = _require_param(project, "project")
         _refresh_project_spine(project)
         frappe.db.commit()
-        proj = frappe.get_doc("Project", project)
+        proj = frappe.get_doc("Project", project, ignore_permissions=True)
         return {
                 "success": True,
                 "data": {
@@ -1866,7 +1866,7 @@ def get_project_closeout_eligibility(project=None):
         """Return which closeout types can be issued now, which are done, and which are blocked."""
         _require_project_workspace_access()
         project = _require_param(project, "project")
-        doc = frappe.get_doc("Project", project)
+        doc = frappe.get_doc("Project", project, ignore_permissions=True)
         tender_name = getattr(doc, "linked_tender", None)
         contract_scope = _get_tender_contract_scope(tender_name)
         if not contract_scope:
@@ -1914,7 +1914,7 @@ def issue_closeout_certificate(project=None, closeout_type=None, certificate_dat
         _require_roles(ROLE_PROJECT_HEAD, ROLE_DIRECTOR)
         project = _require_param(project, "project")
         closeout_type = _require_param(closeout_type, "closeout_type")
-        doc = frappe.get_doc("Project", project)
+        doc = frappe.get_doc("Project", project, ignore_permissions=True)
         tender_name = getattr(doc, "linked_tender", None)
         contract_scope = _get_tender_contract_scope(tender_name)
         if not contract_scope:

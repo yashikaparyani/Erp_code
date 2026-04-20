@@ -278,7 +278,7 @@ class GEDispatchChallan(Document):
 		if not self.linked_purchase_order:
 			return
 
-		po = frappe.get_doc("Purchase Order", self.linked_purchase_order)
+		po = frappe.get_doc("Purchase Order", self.linked_purchase_order, ignore_permissions=True)
 		po_items = {}
 		for item in po.items:
 			po_items[item.item_code] = po_items.get(item.item_code, 0) + (item.qty or 0)

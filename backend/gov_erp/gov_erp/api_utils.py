@@ -92,6 +92,7 @@ __all__ = [
     "_require_dependency_override_approval_access",
     "_require_device_uptime_read_access",
     "_require_device_uptime_write_access",
+    "_require_document_delete_access",
     "_require_document_read_access",
     "_require_document_write_access",
     "_require_execution_read_access",
@@ -881,6 +882,10 @@ def _require_milestone_write_access():
 
 def _require_document_read_access():
 	_require_capability("dms.file.view")
+
+
+def _require_document_delete_access(project=None, site=None):
+	_require_capability("dms.file.delete", project=project, site=site, required_mode="action")
 
 
 def _require_document_write_access(project=None, site=None):

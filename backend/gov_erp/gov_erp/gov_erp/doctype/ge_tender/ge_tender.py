@@ -73,7 +73,7 @@ class GETender(Document):
 				),
 			}
 		)
-		project.insert()
+		project.insert(ignore_permissions=True)
 
 		# Link the project back to the tender (bypass on_update to avoid recursion)
 		frappe.db.set_value("GE Tender", self.name, "linked_project", project.name, update_modified=False)

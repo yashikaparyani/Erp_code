@@ -326,6 +326,7 @@ def get_store_stock_snapshot(warehouse=None, item_code=None, limit_page_length=5
 		fields=["warehouse", "item_code", "actual_qty", "reserved_qty", "ordered_qty", "projected_qty"],
 		order_by="modified desc",
 		page_length=int(limit_page_length),
+		ignore_permissions=True,
 	)
 	return {"success": True, "data": data}
 
@@ -362,6 +363,7 @@ def get_indents(project=None, status=None, limit_page_length=50, limit_start=0):
 		order_by="transaction_date desc, creation desc",
 		start=int(limit_start),
 		page_length=int(limit_page_length),
+		ignore_permissions=True,
 	)
 	total = frappe.db.count("Material Request", filters=filters)
 	data = _attach_indent_project_summary(data)
@@ -374,7 +376,7 @@ def get_indent(name=None):
 	"""Return one indent backed by Material Request."""
 	_require_procurement_read_access()
 	name = _require_param(name, "name")
-	doc = frappe.get_doc("Material Request", name)
+	doc = frappe.get_doc("Material Request", name, ignore_permissions=True)
 	return {"success": True, "data": doc.as_dict()}
 
 
@@ -510,7 +512,7 @@ def get_indent_stats(project=None):
 			}
 		filters["name"] = ["in", indent_names]
 
-	rows = frappe.get_all("Material Request", filters=filters, fields=["status", "docstatus"])
+	rows = frappe.get_all("Material Request", filters=filters, fields=["status", "docstatus"], ignore_permissions=True)
 	return {
 		"success": True,
 		"data": {
@@ -543,7 +545,7 @@ def _get_indent_project(doc):
 def submit_indent(name):
 	"""Submit a draft indent (Material Request) for PH review."""
 	_require_procurement_write_access()
-	doc = frappe.get_doc("Material Request", name)
+	doc = frappe.get_doc("Material Request", name, ignore_permissions=True)
 	if doc.docstatus != 0:
 		frappe.throw("Only draft indents can be submitted.")
 	doc.submit()
@@ -593,7 +595,7 @@ def submit_indent(name):
 def acknowledge_indent(name):
 	"""PH acknowledges receipt of a submitted indent."""
 	_require_procurement_approval_access()
-	doc = frappe.get_doc("Material Request", name)
+	doc = frappe.get_doc("Material Request", name, ignore_permissions=True)
 	if doc.docstatus != 1:
 		frappe.throw("Only submitted indents can be acknowledged.")
 	project = _get_indent_project(doc)
@@ -637,7 +639,7 @@ def acknowledge_indent(name):
 def accept_indent(name):
 	"""PH accepts the indent and passes it to the procurement team."""
 	_require_procurement_approval_access()
-	doc = frappe.get_doc("Material Request", name)
+	doc = frappe.get_doc("Material Request", name, ignore_permissions=True)
 	if doc.docstatus != 1:
 		frappe.throw("Only submitted indents can be accepted.")
 	project = _get_indent_project(doc)
@@ -686,11 +688,11 @@ def reject_indent(name, reason=None):
 	_require_procurement_approval_access()
 	if not (reason or "").strip():
 		frappe.throw("A rejection reason is required. Please provide remarks.")
-	doc = frappe.get_doc("Material Request", name)
+	doc = frappe.get_doc("Material Request", name, ignore_permissions=True)
 	if doc.docstatus != 1:
 		frappe.throw("Only submitted indents can be rejected.")
 	doc.status = "Stopped"
-	doc.save()
+	doc.save(ignore_permissions=True)
 	frappe.db.commit()
 	project = _get_indent_project(doc)
 	requester_user = _get_indent_requester_user(doc)
@@ -742,7 +744,7 @@ def return_indent(name, reason=None):
 	_require_procurement_approval_access()
 	if not (reason or "").strip():
 		frappe.throw("A return reason is required. Please provide remarks.")
-	doc = frappe.get_doc("Material Request", name)
+	doc = frappe.get_doc("Material Request", name, ignore_permissions=True)
 	if doc.docstatus != 1:
 		frappe.throw("Only submitted indents can be returned for revision.")
 	doc.cancel()
@@ -797,7 +799,7 @@ def escalate_indent(name, escalate_to_user=None, reason=None):
 	_require_roles(ROLE_PROJECT_HEAD, ROLE_DIRECTOR)
 	if not (reason or "").strip():
 		frappe.throw("An escalation reason is required. Please provide remarks.")
-	doc = frappe.get_doc("Material Request", name)
+	doc = frappe.get_doc("Material Request", name, ignore_permissions=True)
 	project = _get_indent_project(doc)
 
 	# ── Accountability ledger ─────────────────────────────────────────────
@@ -869,6 +871,7 @@ def get_purchase_orders(project=None, status=None, supplier=None, limit_page_len
 		order_by="transaction_date desc, creation desc",
 		start=int(limit_start),
 		page_length=int(limit_page_length),
+		ignore_permissions=True,
 	)
 	total = frappe.db.count("Purchase Order", filters=filters)
 	if data and _project_head_workflow_ready():
@@ -883,7 +886,7 @@ def get_purchase_order(name=None):
 	"""Return one ERPNext purchase order."""
 	_require_procurement_read_access()
 	name = _require_param(name, "name")
-	doc = frappe.get_doc("Purchase Order", name)
+	doc = frappe.get_doc("Purchase Order", name, ignore_permissions=True)
 	return {"success": True, "data": doc.as_dict()}
 
 
@@ -894,7 +897,7 @@ def get_po_stats(project=None):
 	filters = {}
 	if project:
 		filters["project"] = project
-	rows = frappe.get_all("Purchase Order", filters=filters, fields=["status", "docstatus", "grand_total"])
+	rows = frappe.get_all("Purchase Order", filters=filters, fields=["status", "docstatus", "grand_total"], ignore_permissions=True)
 	return {
 		"success": True,
 		"data": {
@@ -950,7 +953,7 @@ def create_purchase_order(data):
 			or frappe.utils.add_days(frappe.utils.nowdate(), 14),
 		"items": po_items,
 	})
-	po.insert()
+	po.insert(ignore_permissions=True)
 
 	# Create GE PO Extension with payment terms if provided
 	payment_terms = values.get("payment_terms") or []
@@ -972,7 +975,7 @@ def update_purchase_order(data):
 	values = _parse_payload(data)
 	name = _require_param(values.get("name"), "name")
 
-	po = frappe.get_doc("Purchase Order", name)
+	po = frappe.get_doc("Purchase Order", name, ignore_permissions=True)
 	if po.docstatus != 0:
 		frappe.throw("Only draft Purchase Orders can be edited")
 
@@ -1002,7 +1005,7 @@ def update_purchase_order(data):
 				"warehouse": item.get("warehouse") or default_warehouse,
 			})
 
-	po.save()
+	po.save(ignore_permissions=True)
 
 	# Update payment terms if provided
 	if "payment_terms" in values:
@@ -1017,7 +1020,7 @@ def delete_purchase_order(name=None):
 	"""Delete a draft Purchase Order."""
 	_require_procurement_write_access()
 	name = _require_param(name, "name")
-	po = frappe.get_doc("Purchase Order", name)
+	po = frappe.get_doc("Purchase Order", name, ignore_permissions=True)
 	if po.docstatus != 0:
 		frappe.throw("Only draft Purchase Orders can be deleted")
 
@@ -1025,7 +1028,7 @@ def delete_purchase_order(name=None):
 	if frappe.db.exists("GE PO Extension", name):
 		frappe.delete_doc("GE PO Extension", name)
 
-	frappe.delete_doc("Purchase Order", name)
+	frappe.delete_doc("Purchase Order", name, ignore_permissions=True)
 	frappe.db.commit()
 	return {"success": True, "message": f"Purchase Order {name} deleted"}
 
@@ -1035,7 +1038,7 @@ def submit_purchase_order(name=None):
 	"""Submit a draft Purchase Order."""
 	_require_procurement_write_access()
 	name = _require_param(name, "name")
-	po = frappe.get_doc("Purchase Order", name)
+	po = frappe.get_doc("Purchase Order", name, ignore_permissions=True)
 	if po.docstatus != 0:
 		frappe.throw("Purchase Order is not in draft state")
 	po.submit()
@@ -1048,7 +1051,7 @@ def cancel_purchase_order(name=None):
 	"""Cancel a submitted Purchase Order."""
 	_require_procurement_write_access()
 	name = _require_param(name, "name")
-	po = frappe.get_doc("Purchase Order", name)
+	po = frappe.get_doc("Purchase Order", name, ignore_permissions=True)
 	if po.docstatus != 1:
 		frappe.throw("Only submitted Purchase Orders can be cancelled")
 	po.cancel()
@@ -1218,6 +1221,7 @@ def get_grns(project=None, status=None, supplier=None, purchase_order=None, limi
 		order_by="posting_date desc, creation desc",
 		start=int(limit_start),
 		page_length=int(limit_page_length),
+		ignore_permissions=True,
 	)
 	total = frappe.db.count("Purchase Receipt", filters=filters)
 	return {"success": True, "data": data, "total": total}
@@ -1228,7 +1232,7 @@ def get_grn(name=None):
 	"""Return one ERPNext purchase receipt."""
 	_require_store_read_access()
 	name = _require_param(name, "name")
-	doc = frappe.get_doc("Purchase Receipt", name)
+	doc = frappe.get_doc("Purchase Receipt", name, ignore_permissions=True)
 	return {"success": True, "data": doc.as_dict()}
 
 
@@ -1238,7 +1242,7 @@ def create_grn(data):
 	_require_store_write_access()
 	values = _parse_payload(data)
 	if values.get("purchase_order") and not values.get("items"):
-		po = frappe.get_doc("Purchase Order", values["purchase_order"])
+		po = frappe.get_doc("Purchase Order", values["purchase_order"], ignore_permissions=True)
 		company = values.get("company") or po.company or _get_default_company()
 		default_warehouse = values.get("set_warehouse") or po.set_warehouse or _get_default_warehouse(company)
 		items = []
@@ -1289,7 +1293,7 @@ def create_grn(data):
 		values["set_warehouse"] = default_warehouse
 
 	doc = frappe.get_doc({"doctype": "Purchase Receipt", **values})
-	doc.insert()
+	doc.insert(ignore_permissions=True)
 	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": "GRN created"}
 
@@ -1301,7 +1305,7 @@ def get_grn_stats(project=None):
 	filters = {}
 	if project:
 		filters["project"] = project
-	rows = frappe.get_all("Purchase Receipt", filters=filters, fields=["status", "docstatus", "grand_total"])
+	rows = frappe.get_all("Purchase Receipt", filters=filters, fields=["status", "docstatus", "grand_total"], ignore_permissions=True)
 	return {
 		"success": True,
 		"data": {
@@ -1332,6 +1336,7 @@ def get_stock_position(warehouse=None, item_code=None, limit_page_length=50):
 		fields=["warehouse", "item_code", "actual_qty", "reserved_qty", "ordered_qty", "projected_qty", "valuation_rate"],
 		order_by="modified desc",
 		page_length=int(limit_page_length),
+		ignore_permissions=True,
 	)
 	item_codes = sorted({row.item_code for row in rows if row.item_code})
 	item_meta = {}
@@ -1343,6 +1348,7 @@ def get_stock_position(warehouse=None, item_code=None, limit_page_length=50):
 				filters={"name": ["in", item_codes]},
 				fields=["name", "item_name", "stock_uom"],
 				page_length=len(item_codes),
+				ignore_permissions=True,
 			)
 		}
 
@@ -1379,6 +1385,7 @@ def get_stock_aging(warehouse=None, item_code=None, limit_page_length=50):
 		fields=["warehouse", "item_code", "actual_qty"],
 		order_by="modified desc",
 		page_length=int(limit_page_length),
+		ignore_permissions=True,
 	)
 	buckets = {
 		"age_0_30": 0,
@@ -1395,6 +1402,7 @@ def get_stock_aging(warehouse=None, item_code=None, limit_page_length=50):
 			fields=["posting_date", "posting_time"],
 			order_by="posting_date desc, posting_time desc, creation desc",
 			page_length=1,
+			ignore_permissions=True,
 		)
 		receipt_date = entry[0].posting_date if entry else None
 		age_days = frappe.utils.date_diff(frappe.utils.nowdate(), receipt_date) if receipt_date else None

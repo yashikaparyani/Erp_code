@@ -1,5 +1,6 @@
 """Auto-extracted domain module. All public functions are re-exported by api.py."""
 from gov_erp.api_utils import *  # noqa: F401,F403 — shared utilities
+from gov_erp.rbac_api import _require_settings_capability
 
 def _get_default_company_name():
 	companies = frappe.get_all("Company", fields=["name"], order_by="creation asc", limit_page_length=1, ignore_permissions=True)
@@ -18,7 +19,7 @@ def _apply_creation_date_filters(filters, from_date=None, to_date=None, fieldnam
 @frappe.whitelist()
 def get_departments():
 	"""Return built-in Department masters for the settings UI."""
-	_require_roles(ROLE_PRESALES_HEAD, ROLE_HR_MANAGER, ROLE_DEPARTMENT_HEAD, ROLE_DIRECTOR)
+	_require_settings_capability("settings.department.manage")
 	data = frappe.get_all(
 		"Department",
 		fields=["name", "department_name", "company", "disabled", "creation", "owner"],
@@ -31,7 +32,7 @@ def get_departments():
 @frappe.whitelist()
 def create_department(data):
 	"""Create a Department using the default company in the site."""
-	_require_roles(ROLE_PRESALES_HEAD, ROLE_HR_MANAGER, ROLE_DEPARTMENT_HEAD, ROLE_DIRECTOR)
+	_require_settings_capability("settings.department.manage")
 	values = json.loads(data) if isinstance(data, str) else data
 	department_name = (values.get("department_name") or "").strip()
 	if not department_name:
@@ -61,11 +62,11 @@ def create_department(data):
 @frappe.whitelist()
 def rename_department(name, new_name):
 	"""Rename a Department master."""
-	_require_roles(ROLE_PRESALES_HEAD, ROLE_HR_MANAGER, ROLE_DEPARTMENT_HEAD, ROLE_DIRECTOR)
+	_require_settings_capability("settings.department.manage")
 	new_name = (new_name or "").strip()
 	if not new_name:
 		frappe.throw("New department name is required")
-	doc = frappe.get_doc("Department", name)
+	doc = frappe.get_doc("Department", name, ignore_permissions=True)
 	doc.department_name = new_name
 	doc.save(ignore_permissions=True)
 	frappe.db.commit()
@@ -75,8 +76,8 @@ def rename_department(name, new_name):
 @frappe.whitelist()
 def toggle_department(name):
 	"""Toggle a Department's disabled state."""
-	_require_roles(ROLE_PRESALES_HEAD, ROLE_HR_MANAGER, ROLE_DEPARTMENT_HEAD, ROLE_DIRECTOR)
-	doc = frappe.get_doc("Department", name)
+	_require_settings_capability("settings.department.manage")
+	doc = frappe.get_doc("Department", name, ignore_permissions=True)
 	doc.disabled = 0 if cint(doc.disabled) else 1
 	doc.save(ignore_permissions=True)
 	frappe.db.commit()
@@ -86,7 +87,7 @@ def toggle_department(name):
 @frappe.whitelist()
 def get_designations():
 	"""Return built-in Designation masters for the settings UI."""
-	_require_roles(ROLE_PRESALES_HEAD, ROLE_HR_MANAGER, ROLE_DEPARTMENT_HEAD, ROLE_DIRECTOR)
+	_require_settings_capability("settings.designation.manage")
 	data = frappe.get_all(
 		"Designation",
 		fields=["name", "designation_name", "description", "creation", "owner"],
@@ -99,7 +100,7 @@ def get_designations():
 @frappe.whitelist()
 def create_designation(data):
 	"""Create a Designation master."""
-	_require_roles(ROLE_PRESALES_HEAD, ROLE_HR_MANAGER, ROLE_DEPARTMENT_HEAD, ROLE_DIRECTOR)
+	_require_settings_capability("settings.designation.manage")
 	values = json.loads(data) if isinstance(data, str) else data
 	designation_name = (values.get("designation_name") or "").strip()
 	if not designation_name:
@@ -123,21 +124,30 @@ def create_designation(data):
 @frappe.whitelist()
 def rename_designation(name, new_name):
 	"""Rename a Designation master."""
-	_require_roles(ROLE_PRESALES_HEAD, ROLE_HR_MANAGER, ROLE_DEPARTMENT_HEAD, ROLE_DIRECTOR)
+	_require_settings_capability("settings.designation.manage")
 	new_name = (new_name or "").strip()
 	if not new_name:
 		frappe.throw("New designation name is required")
-	doc = frappe.get_doc("Designation", name)
-	doc.designation_name = new_name
-	doc.save(ignore_permissions=True)
+	frappe.rename_doc("Designation", name, new_name, ignore_permissions=True)
 	frappe.db.commit()
-	return {"success": True, "data": doc.as_dict(), "message": "Designation renamed"}
+	return {"success": True, "message": "Designation renamed"}
+
+
+@frappe.whitelist()
+def delete_designation(name):
+	"""Delete a Designation master."""
+	_require_settings_capability("settings.designation.manage")
+	if not frappe.db.exists("Designation", name):
+		frappe.throw("Designation not found")
+	frappe.delete_doc("Designation", name, ignore_permissions=True)
+	frappe.db.commit()
+	return {"success": True, "message": "Designation deleted"}
 
 
 @frappe.whitelist()
 def get_roles():
 	"""Return Frappe roles for the settings UI."""
-	_require_roles(ROLE_PRESALES_HEAD, ROLE_HR_MANAGER, ROLE_DEPARTMENT_HEAD, ROLE_DIRECTOR)
+	_require_settings_capability("settings.role.manage")
 	data = frappe.get_all(
 		"Role",
 		fields=["name", "role_name", "disabled", "is_custom", "creation", "owner"],
@@ -150,7 +160,7 @@ def get_roles():
 @frappe.whitelist()
 def create_role(data):
 	"""Create a custom Frappe role."""
-	_require_roles(ROLE_DIRECTOR)
+	_require_settings_capability("settings.role.manage")
 	values = json.loads(data) if isinstance(data, str) else data
 	role_name = (values.get("role_name") or "").strip()
 	if not role_name:
@@ -168,8 +178,8 @@ def create_role(data):
 @frappe.whitelist()
 def toggle_role(name):
 	"""Toggle a role's disabled state."""
-	_require_roles(ROLE_DIRECTOR)
-	doc = frappe.get_doc("Role", name)
+	_require_settings_capability("settings.role.manage")
+	doc = frappe.get_doc("Role", name, ignore_permissions=True)
 	doc.disabled = 0 if cint(doc.disabled) else 1
 	doc.save(ignore_permissions=True)
 	frappe.db.commit()
@@ -179,7 +189,7 @@ def toggle_role(name):
 @frappe.whitelist()
 def get_users():
 	"""Return Frappe system users, enriched with role and employee context."""
-	_require_roles(ROLE_PRESALES_HEAD, ROLE_HR_MANAGER, ROLE_DEPARTMENT_HEAD, ROLE_PROJECT_HEAD, ROLE_DIRECTOR)
+	_require_settings_capability("settings.user_role.manage")
 	users = frappe.get_all(
 		"User",
 		filters={"name": ["not in", ["Administrator", "Guest"]], "user_type": "System User"},
@@ -233,7 +243,7 @@ def get_users():
 @frappe.whitelist()
 def create_user(data):
 	"""Create a system user for the admin settings UI."""
-	_require_roles(ROLE_DIRECTOR)
+	_require_settings_capability("settings.user_role.manage")
 	values = json.loads(data) if isinstance(data, str) else data
 	email = (values.get("email") or "").strip().lower()
 	first_name = (values.get("first_name") or values.get("name") or "").strip()
@@ -262,9 +272,9 @@ def create_user(data):
 			"enabled": 1,
 		}
 	)
+	doc.flags.ignore_password_policy = True
 	doc.new_password = password
 	doc.insert(ignore_permissions=True)
 	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": "User created"}
-
 

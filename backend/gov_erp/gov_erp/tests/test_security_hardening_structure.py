@@ -2,7 +2,7 @@
  - Workflow-protected fields are stripped from generic create AND update endpoints.
  - Non-draft records are blocked from deletion.
  - Project/site scope is threaded into execution, document, and procurement write guards.
- - Admin API role-creation and user-creation restricted to Director only.
+ - Admin API native-doctype settings endpoints are guarded by settings capabilities.
  - Vendor comparison CRUD is workflow-hardened.
 """
 
@@ -144,32 +144,30 @@ def test_test_report_update_strips_workflow_fields():
     assert '_strip_workflow_fields("GE Test Report"' in body
 
 
-# ── 5. Admin API: role & user creation restricted to Director ───────────
+# ── 5. Admin API: native-doctype settings endpoints use settings capabilities ─
 
 def test_create_role_restricted_to_director():
     src = _read(APP_ROOT / "admin_api.py")
     idx = src.index("def create_role(")
     body = src[idx:idx + 300]
-    assert "ROLE_DIRECTOR" in body
-    assert "ROLE_HR_MANAGER" not in body, "HR Manager should not be able to create roles"
-    assert "ROLE_DEPARTMENT_HEAD" not in body, "Department Head should not be able to create roles"
+    assert '_require_settings_capability("settings.role.manage")' in body
+    assert "_require_roles(" not in body
 
 
 def test_create_user_restricted_to_director():
     src = _read(APP_ROOT / "admin_api.py")
     idx = src.index("def create_user(")
     body = src[idx:idx + 300]
-    assert "ROLE_DIRECTOR" in body
-    assert "ROLE_PRESALES_HEAD" not in body, "Presales Head should not be able to create users"
-    assert "ROLE_HR_MANAGER" not in body, "HR Manager should not be able to create users"
+    assert '_require_settings_capability("settings.user_role.manage")' in body
+    assert "_require_roles(" not in body
 
 
 def test_toggle_role_restricted_to_director():
     src = _read(APP_ROOT / "admin_api.py")
     idx = src.index("def toggle_role(")
     body = src[idx:idx + 300]
-    assert "ROLE_DIRECTOR" in body
-    assert "ROLE_HR_MANAGER" not in body
+    assert '_require_settings_capability("settings.role.manage")' in body
+    assert "_require_roles(" not in body
 
 
 # ── 6. Protected fields are correct per doctype ─────────────────────────
