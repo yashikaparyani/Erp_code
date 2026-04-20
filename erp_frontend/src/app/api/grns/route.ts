@@ -7,12 +7,12 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const result = await callFrappeMethod(
-      'get_grns',
+      'get_material_receipts',
       {
         project: searchParams.get('project') || '',
         status: searchParams.get('status') || '',
-        supplier: searchParams.get('supplier') || '',
-        purchase_order: searchParams.get('purchase_order') || '',
+        warehouse: searchParams.get('warehouse') || '',
+        receipt_type: searchParams.get('receipt_type') || '',
         limit_page_length: searchParams.get('limit_page_length') || '50',
         limit_start: searchParams.get('limit_start') || '0',
       },
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
-    const result = await callFrappeMethod('create_grn', { data: JSON.stringify(data) }, request);
+    const result = await callFrappeMethod('create_material_receipt', { data: JSON.stringify(data) }, request);
     return NextResponse.json({ success: true, data: result.data, message: result.message || 'GRN created' });
   } catch (error) {
     return NextResponse.json(

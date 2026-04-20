@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const result = await callFrappeMethod(
-      'get_grn_stats',
+      'get_material_receipt_stats',
       {
         project: searchParams.get('project') || '',
       },
