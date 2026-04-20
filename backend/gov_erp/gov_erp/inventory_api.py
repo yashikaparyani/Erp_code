@@ -271,7 +271,10 @@ def reject_dispatch_challan(name, reason=None):
 
 @frappe.whitelist()
 def mark_dispatch_challan_dispatched(name):
-	"""Mark an approved dispatch challan as dispatched after stock validation."""
+	"""Mark an approved dispatch challan as dispatched after stock validation.
+
+	Posts OUT entries to the GE Inventory Ledger for every item line.
+	"""
 	_require_store_write_access()
 	doc = frappe.get_doc("GE Dispatch Challan", name)
 	if doc.status != "APPROVED":
@@ -281,8 +284,12 @@ def mark_dispatch_challan_dispatched(name):
 		}
 	doc.status = "DISPATCHED"
 	doc.save()
+
+	# ── Post OUT entries to inventory ledger ──────────────────────────
+	_post_dispatch_challan_ledger_entries(doc)
+
 	frappe.db.commit()
-	return {"success": True, "data": doc.as_dict(), "message": "Dispatch challan marked as dispatched"}
+	return {"success": True, "data": doc.as_dict(), "message": "Dispatch challan dispatched — stock updated"}
 
 
 @frappe.whitelist()
@@ -1440,3 +1447,737 @@ def _get_reference_status_for_rule(rule):
 		getattr(doc, "workflow_state", None),
 		getattr(doc, "docstatus", None),
 	)
+
+
+# ╔═══════════════════════════════════════════════════════════════╗
+#   GE Inventory Ledger — dynamic IN/OUT stock tracking
+# ╚═══════════════════════════════════════════════════════════════╝
+
+def _post_ledger_entry(
+	item_code, qty, direction, voucher_type, voucher_no,
+	item_description=None, make=None, model_no=None, hsn_code=None,
+	serial_numbers=None, uom=None, rate=None, warehouse=None,
+	project=None, party_name=None, posting_date=None, remarks=None,
+):
+	"""Insert a single GE Inventory Ledger row and compute running balance."""
+	posting_date = posting_date or frappe.utils.today()
+	qty = abs(float(qty or 0))
+	qty_in = qty if direction == "IN" else 0
+	qty_out = qty if direction == "OUT" else 0
+
+	# Running balance for this item (across all warehouses)
+	prev_balance = frappe.db.sql(
+		"""SELECT COALESCE(SUM(qty_in - qty_out), 0) AS bal
+		   FROM `tabGE Inventory Ledger`
+		   WHERE item_code = %s""",
+		(item_code,),
+	)
+	prev_bal = float(prev_balance[0][0]) if prev_balance else 0
+	new_balance = prev_bal + qty_in - qty_out
+
+	doc = frappe.get_doc({
+		"doctype": "GE Inventory Ledger",
+		"posting_date": posting_date,
+		"direction": direction,
+		"item_code": item_code,
+		"item_description": item_description or "",
+		"make": make or "",
+		"model_no": model_no or "",
+		"hsn_code": hsn_code or "",
+		"serial_numbers": serial_numbers or "",
+		"qty_in": qty_in,
+		"qty_out": qty_out,
+		"uom": uom or "Nos",
+		"rate": rate or 0,
+		"balance_qty": new_balance,
+		"voucher_type": voucher_type,
+		"voucher_no": voucher_no,
+		"warehouse": warehouse,
+		"project": project,
+		"party_name": party_name or "",
+		"remarks": remarks or "",
+	})
+	doc.insert(ignore_permissions=True)
+	return doc
+
+
+def _post_dispatch_challan_ledger_entries(challan_doc):
+	"""Create OUT ledger entries for every item in a dispatched challan."""
+	for item in challan_doc.items or []:
+		_post_ledger_entry(
+			item_code=getattr(item, "item_link", None),
+			item_description=item.description,
+			make=getattr(item, "make", None),
+			model_no=getattr(item, "model_no", None),
+			serial_numbers=getattr(item, "serial_numbers", None),
+			qty=item.qty,
+			uom=getattr(item, "uom", None),
+			direction="OUT",
+			voucher_type="GE Dispatch Challan",
+			voucher_no=challan_doc.name,
+			warehouse=challan_doc.from_warehouse,
+			project=challan_doc.linked_project,
+			party_name=challan_doc.target_site_name or challan_doc.issued_to_name or "",
+			posting_date=challan_doc.dispatch_date,
+		)
+
+
+# ╔═══════════════════════════════════════════════════════════════╗
+#   GE Material Receipt — CRUD APIs (replaces raw Purchase Receipt usage)
+# ╚═══════════════════════════════════════════════════════════════╝
+
+_RECEIPT_ITEM_ALIAS_MAP = {
+	"item_link": "item_link",
+	"item_code": "item_link",
+	"item": "description",
+	"description": "description",
+	"item_of_description": "description",
+	"hsn_code": "hsn_code",
+	"hsn": "hsn_code",
+	"make": "make",
+	"model_no": "model_no",
+	"model_no_": "model_no",
+	"serial_no": "serial_numbers",
+	"serial_numbers": "serial_numbers",
+	"serial_no_": "serial_numbers",
+	"qty": "qty",
+	"quantity": "qty",
+	"uom": "uom",
+	"purchase_cost": "purchase_cost",
+	"purchase_cost_": "purchase_cost",
+	"rate": "purchase_cost",
+	"vendor_invoice_no": "vendor_invoice_no",
+	"invoice_no": "vendor_invoice_no",
+	"invoice_no_": "vendor_invoice_no",
+	"linked_purchase_order": "linked_purchase_order",
+	"purchase_order": "linked_purchase_order",
+	"remark": "remark",
+	"remarks": "remark",
+}
+
+
+def _normalize_receipt_item_payload(values):
+	row = _normalize_aliased_payload(values, _RECEIPT_ITEM_ALIAS_MAP)
+	if not cstr(row.get("description") or "").strip() and cstr(row.get("item_link") or "").strip():
+		row["description"] = row["item_link"]
+	return row
+
+
+@frappe.whitelist()
+def get_material_receipts(
+	status=None, warehouse=None, project=None, receipt_type=None,
+	limit_page_length=50, limit_start=0,
+):
+	"""List GE Material Receipts for stores inward dashboard."""
+	_require_store_read_access()
+	filters = {}
+	if status:
+		filters["status"] = status
+	if warehouse:
+		filters["warehouse"] = warehouse
+	if project:
+		filters["linked_project"] = project
+	if receipt_type:
+		filters["receipt_type"] = receipt_type
+
+	data = frappe.get_all(
+		"GE Material Receipt",
+		filters=filters,
+		fields=[
+			"name", "receipt_date", "receipt_type", "status",
+			"received_from", "linked_project", "warehouse",
+			"total_items", "total_qty", "total_value",
+			"vendor_invoice_reference", "creation", "modified",
+		],
+		order_by="receipt_date desc, creation desc",
+		start=int(limit_start),
+		page_length=int(limit_page_length),
+		ignore_permissions=True,
+	)
+	total = frappe.db.count("GE Material Receipt", filters=filters)
+	return {"success": True, "data": data, "total": total}
+
+
+@frappe.whitelist()
+def get_material_receipt(name=None):
+	"""Return one GE Material Receipt with items."""
+	_require_store_read_access()
+	name = _require_param(name, "name")
+	doc = frappe.get_doc("GE Material Receipt", name, ignore_permissions=True)
+	return {"success": True, "data": doc.as_dict()}
+
+
+@frappe.whitelist()
+def create_material_receipt(data):
+	"""Create a new GE Material Receipt (inward GRN)."""
+	_require_store_write_access()
+	values = _parse_payload(data)
+	items = []
+	for raw_item in values.pop("items", []):
+		items.append(_normalize_receipt_item_payload(raw_item))
+	values["items"] = items
+
+	doc = frappe.get_doc({"doctype": "GE Material Receipt", **values})
+	doc.insert(ignore_permissions=True)
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Material receipt created"}
+
+
+@frappe.whitelist()
+def update_material_receipt(name=None, data=None):
+	"""Update a DRAFT GE Material Receipt."""
+	_require_store_write_access()
+	name = _require_param(name, "name")
+	values = _parse_payload(data)
+	doc = frappe.get_doc("GE Material Receipt", name, ignore_permissions=True)
+	if doc.status != "DRAFT":
+		frappe.throw("Only DRAFT receipts can be edited")
+
+	items = values.pop("items", None)
+	for key, val in values.items():
+		if hasattr(doc, key) and key not in ("name", "doctype", "status"):
+			setattr(doc, key, val)
+	if items is not None:
+		doc.items = []
+		for raw_item in items:
+			doc.append("items", _normalize_receipt_item_payload(raw_item))
+
+	doc.save(ignore_permissions=True)
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Material receipt updated"}
+
+
+@frappe.whitelist()
+def delete_material_receipt(name=None):
+	"""Delete a DRAFT GE Material Receipt."""
+	_require_store_write_access()
+	name = _require_param(name, "name")
+	doc = frappe.get_doc("GE Material Receipt", name, ignore_permissions=True)
+	if doc.status not in ("DRAFT", "REJECTED"):
+		frappe.throw("Only DRAFT or REJECTED receipts can be deleted")
+	doc.delete(ignore_permissions=True)
+	frappe.db.commit()
+	return {"success": True, "message": "Material receipt deleted"}
+
+
+@frappe.whitelist()
+def submit_material_receipt(name=None):
+	"""Submit a DRAFT material receipt for approval."""
+	_require_store_write_access()
+	name = _require_param(name, "name")
+	doc = frappe.get_doc("GE Material Receipt", name, ignore_permissions=True)
+	if doc.status != "DRAFT":
+		frappe.throw("Only DRAFT receipts can be submitted")
+	doc.status = "SUBMITTED"
+	doc.save(ignore_permissions=True)
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Material receipt submitted for approval"}
+
+
+@frappe.whitelist()
+def approve_material_receipt(name=None):
+	"""Approve a submitted material receipt — posts IN entries to inventory ledger."""
+	_require_store_approval_access()
+	name = _require_param(name, "name")
+	doc = frappe.get_doc("GE Material Receipt", name, ignore_permissions=True)
+	if doc.status != "SUBMITTED":
+		frappe.throw("Only SUBMITTED receipts can be approved")
+	doc.status = "APPROVED"
+	doc.approved_by = frappe.session.user
+	doc.approved_at = frappe.utils.now_datetime()
+	doc.save(ignore_permissions=True)
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Material receipt approved — stock updated"}
+
+
+@frappe.whitelist()
+def reject_material_receipt(name=None, reason=None):
+	"""Reject a submitted material receipt."""
+	_require_store_approval_access()
+	name = _require_param(name, "name")
+	doc = frappe.get_doc("GE Material Receipt", name, ignore_permissions=True)
+	if doc.status != "SUBMITTED":
+		frappe.throw("Only SUBMITTED receipts can be rejected")
+	doc.status = "REJECTED"
+	if reason:
+		doc.remarks = (doc.remarks or "") + f"\n[REJECTED] {cstr(reason).strip()}"
+	doc.save(ignore_permissions=True)
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Material receipt rejected"}
+
+
+@frappe.whitelist()
+def get_material_receipt_stats(project=None):
+	"""Aggregate material receipt stats for stores dashboard."""
+	_require_store_read_access()
+	filters = {}
+	if project:
+		filters["linked_project"] = project
+	rows = frappe.get_all(
+		"GE Material Receipt",
+		filters=filters,
+		fields=["status", "total_qty", "total_value"],
+		ignore_permissions=True,
+	)
+	return {
+		"success": True,
+		"data": {
+			"total": len(rows),
+			"draft": sum(1 for r in rows if r.status == "DRAFT"),
+			"submitted": sum(1 for r in rows if r.status == "SUBMITTED"),
+			"approved": sum(1 for r in rows if r.status == "APPROVED"),
+			"rejected": sum(1 for r in rows if r.status == "REJECTED"),
+			"total_qty": sum(r.total_qty or 0 for r in rows),
+			"total_value": sum(r.total_value or 0 for r in rows),
+		},
+	}
+
+
+# ╔═══════════════════════════════════════════════════════════════╗
+#   Dynamic Stock Balance — computed from GE Inventory Ledger
+# ╚═══════════════════════════════════════════════════════════════╝
+
+@frappe.whitelist()
+def get_dynamic_stock_balance(item_code=None, warehouse=None, project=None, limit_page_length=100):
+	"""Return current stock balance per item, computed from the GE Inventory Ledger.
+
+	Each row: item_code, description, make, model, total_in, total_out, balance, uom.
+	"""
+	_require_store_read_access()
+
+	conds = ["1=1"]
+	params = []
+	if item_code:
+		conds.append("item_code = %s")
+		params.append(item_code)
+	if warehouse:
+		conds.append("warehouse = %s")
+		params.append(warehouse)
+	if project:
+		conds.append("project = %s")
+		params.append(project)
+
+	sql = f"""
+		SELECT
+			item_code,
+			MAX(item_description) AS item_description,
+			MAX(make)             AS make,
+			MAX(model_no)         AS model_no,
+			MAX(hsn_code)         AS hsn_code,
+			MAX(uom)              AS uom,
+			SUM(qty_in)           AS total_in,
+			SUM(qty_out)          AS total_out,
+			SUM(qty_in) - SUM(qty_out) AS balance,
+			MAX(rate)             AS last_rate,
+			(SUM(qty_in) - SUM(qty_out)) * MAX(rate) AS stock_value
+		FROM `tabGE Inventory Ledger`
+		WHERE {" AND ".join(conds)}
+		GROUP BY item_code
+		ORDER BY item_code
+		LIMIT %s
+	"""
+	params.append(int(limit_page_length))
+	data = frappe.db.sql(sql, params, as_dict=True)
+
+	totals = {
+		"total_in": sum(r.total_in or 0 for r in data),
+		"total_out": sum(r.total_out or 0 for r in data),
+		"balance": sum(r.balance or 0 for r in data),
+		"stock_value": sum(r.stock_value or 0 for r in data),
+		"item_count": len(data),
+	}
+
+	return {"success": True, "data": data, "totals": totals}
+
+
+@frappe.whitelist()
+def get_item_ledger(item_code=None, warehouse=None, limit_page_length=50, limit_start=0):
+	"""Return the chronological ledger for a single item — every IN/OUT movement."""
+	_require_store_read_access()
+	item_code = _require_param(item_code, "item_code")
+	filters = {"item_code": item_code}
+	if warehouse:
+		filters["warehouse"] = warehouse
+	data = frappe.get_all(
+		"GE Inventory Ledger",
+		filters=filters,
+		fields=[
+			"name", "posting_date", "direction", "item_code", "item_description",
+			"make", "model_no", "serial_numbers", "qty_in", "qty_out",
+			"balance_qty", "uom", "rate", "voucher_type", "voucher_no",
+			"warehouse", "project", "party_name", "remarks",
+		],
+		order_by="posting_date desc, creation desc",
+		start=int(limit_start),
+		page_length=int(limit_page_length),
+		ignore_permissions=True,
+	)
+	total = frappe.db.count("GE Inventory Ledger", filters=filters)
+	return {"success": True, "data": data, "total": total}
+
+
+# ╔═══════════════════════════════════════════════════════════════╗
+#   GE Inventory Ledger — dynamic IN/OUT stock tracking
+# ╚═══════════════════════════════════════════════════════════════╝
+
+def _post_ledger_entry(
+	item_code, qty, direction, voucher_type, voucher_no,
+	item_description=None, make=None, model_no=None, hsn_code=None,
+	serial_numbers=None, uom=None, rate=None, warehouse=None,
+	project=None, party_name=None, posting_date=None, remarks=None,
+):
+	"""Insert a single GE Inventory Ledger row and compute running balance."""
+	posting_date = posting_date or frappe.utils.today()
+	qty = abs(float(qty or 0))
+	qty_in = qty if direction == "IN" else 0
+	qty_out = qty if direction == "OUT" else 0
+
+	# Running balance for this item (across all warehouses)
+	prev_balance = frappe.db.sql(
+		"""SELECT COALESCE(SUM(qty_in - qty_out), 0) AS bal
+		   FROM `tabGE Inventory Ledger`
+		   WHERE item_code = %s""",
+		(item_code,),
+	)
+	prev_bal = float(prev_balance[0][0]) if prev_balance else 0
+	new_balance = prev_bal + qty_in - qty_out
+
+	doc = frappe.get_doc({
+		"doctype": "GE Inventory Ledger",
+		"posting_date": posting_date,
+		"direction": direction,
+		"item_code": item_code,
+		"item_description": item_description or "",
+		"make": make or "",
+		"model_no": model_no or "",
+		"hsn_code": hsn_code or "",
+		"serial_numbers": serial_numbers or "",
+		"qty_in": qty_in,
+		"qty_out": qty_out,
+		"uom": uom or "Nos",
+		"rate": rate or 0,
+		"balance_qty": new_balance,
+		"voucher_type": voucher_type,
+		"voucher_no": voucher_no,
+		"warehouse": warehouse,
+		"project": project,
+		"party_name": party_name or "",
+		"remarks": remarks or "",
+	})
+	doc.insert(ignore_permissions=True)
+	return doc
+
+
+def _post_dispatch_challan_ledger_entries(challan_doc):
+	"""Create OUT ledger entries for every item in a dispatched challan."""
+	for item in challan_doc.items or []:
+		_post_ledger_entry(
+			item_code=getattr(item, "item_link", None),
+			item_description=item.description,
+			make=getattr(item, "make", None),
+			model_no=getattr(item, "model_no", None),
+			serial_numbers=getattr(item, "serial_numbers", None),
+			qty=item.qty,
+			uom=getattr(item, "uom", None),
+			direction="OUT",
+			voucher_type="GE Dispatch Challan",
+			voucher_no=challan_doc.name,
+			warehouse=challan_doc.from_warehouse,
+			project=challan_doc.linked_project,
+			party_name=challan_doc.target_site_name or challan_doc.issued_to_name or "",
+			posting_date=challan_doc.dispatch_date,
+		)
+
+
+# ╔═══════════════════════════════════════════════════════════════╗
+#   GE Material Receipt — CRUD APIs (replaces raw Purchase Receipt usage)
+# ╚═══════════════════════════════════════════════════════════════╝
+
+_RECEIPT_ITEM_ALIAS_MAP = {
+	"item_link": "item_link",
+	"item_code": "item_link",
+	"item": "description",
+	"description": "description",
+	"item_of_description": "description",
+	"hsn_code": "hsn_code",
+	"hsn": "hsn_code",
+	"make": "make",
+	"model_no": "model_no",
+	"model_no_": "model_no",
+	"serial_no": "serial_numbers",
+	"serial_numbers": "serial_numbers",
+	"serial_no_": "serial_numbers",
+	"qty": "qty",
+	"quantity": "qty",
+	"uom": "uom",
+	"purchase_cost": "purchase_cost",
+	"purchase_cost_": "purchase_cost",
+	"rate": "purchase_cost",
+	"vendor_invoice_no": "vendor_invoice_no",
+	"invoice_no": "vendor_invoice_no",
+	"invoice_no_": "vendor_invoice_no",
+	"linked_purchase_order": "linked_purchase_order",
+	"purchase_order": "linked_purchase_order",
+	"remark": "remark",
+	"remarks": "remark",
+}
+
+
+def _normalize_receipt_item_payload(values):
+	row = _normalize_aliased_payload(values, _RECEIPT_ITEM_ALIAS_MAP)
+	if not cstr(row.get("description") or "").strip() and cstr(row.get("item_link") or "").strip():
+		row["description"] = row["item_link"]
+	return row
+
+
+@frappe.whitelist()
+def get_material_receipts(
+	status=None, warehouse=None, project=None, receipt_type=None,
+	limit_page_length=50, limit_start=0,
+):
+	"""List GE Material Receipts for stores inward dashboard."""
+	_require_store_read_access()
+	filters = {}
+	if status:
+		filters["status"] = status
+	if warehouse:
+		filters["warehouse"] = warehouse
+	if project:
+		filters["linked_project"] = project
+	if receipt_type:
+		filters["receipt_type"] = receipt_type
+
+	data = frappe.get_all(
+		"GE Material Receipt",
+		filters=filters,
+		fields=[
+			"name", "receipt_date", "receipt_type", "status",
+			"received_from", "linked_project", "warehouse",
+			"total_items", "total_qty", "total_value",
+			"vendor_invoice_reference", "creation", "modified",
+		],
+		order_by="receipt_date desc, creation desc",
+		start=int(limit_start),
+		page_length=int(limit_page_length),
+		ignore_permissions=True,
+	)
+	total = frappe.db.count("GE Material Receipt", filters=filters)
+	return {"success": True, "data": data, "total": total}
+
+
+@frappe.whitelist()
+def get_material_receipt(name=None):
+	"""Return one GE Material Receipt with items."""
+	_require_store_read_access()
+	name = _require_param(name, "name")
+	doc = frappe.get_doc("GE Material Receipt", name, ignore_permissions=True)
+	return {"success": True, "data": doc.as_dict()}
+
+
+@frappe.whitelist()
+def create_material_receipt(data):
+	"""Create a new GE Material Receipt (inward GRN)."""
+	_require_store_write_access()
+	values = _parse_payload(data)
+	items = []
+	for raw_item in values.pop("items", []):
+		items.append(_normalize_receipt_item_payload(raw_item))
+	values["items"] = items
+
+	doc = frappe.get_doc({"doctype": "GE Material Receipt", **values})
+	doc.insert(ignore_permissions=True)
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Material receipt created"}
+
+
+@frappe.whitelist()
+def update_material_receipt(name=None, data=None):
+	"""Update a DRAFT GE Material Receipt."""
+	_require_store_write_access()
+	name = _require_param(name, "name")
+	values = _parse_payload(data)
+	doc = frappe.get_doc("GE Material Receipt", name, ignore_permissions=True)
+	if doc.status != "DRAFT":
+		frappe.throw("Only DRAFT receipts can be edited")
+
+	items = values.pop("items", None)
+	for key, val in values.items():
+		if hasattr(doc, key) and key not in ("name", "doctype", "status"):
+			setattr(doc, key, val)
+	if items is not None:
+		doc.items = []
+		for raw_item in items:
+			doc.append("items", _normalize_receipt_item_payload(raw_item))
+
+	doc.save(ignore_permissions=True)
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Material receipt updated"}
+
+
+@frappe.whitelist()
+def delete_material_receipt(name=None):
+	"""Delete a DRAFT GE Material Receipt."""
+	_require_store_write_access()
+	name = _require_param(name, "name")
+	doc = frappe.get_doc("GE Material Receipt", name, ignore_permissions=True)
+	if doc.status not in ("DRAFT", "REJECTED"):
+		frappe.throw("Only DRAFT or REJECTED receipts can be deleted")
+	doc.delete(ignore_permissions=True)
+	frappe.db.commit()
+	return {"success": True, "message": "Material receipt deleted"}
+
+
+@frappe.whitelist()
+def submit_material_receipt(name=None):
+	"""Submit a DRAFT material receipt for approval."""
+	_require_store_write_access()
+	name = _require_param(name, "name")
+	doc = frappe.get_doc("GE Material Receipt", name, ignore_permissions=True)
+	if doc.status != "DRAFT":
+		frappe.throw("Only DRAFT receipts can be submitted")
+	doc.status = "SUBMITTED"
+	doc.save(ignore_permissions=True)
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Material receipt submitted for approval"}
+
+
+@frappe.whitelist()
+def approve_material_receipt(name=None):
+	"""Approve a submitted material receipt — posts IN entries to inventory ledger."""
+	_require_store_approval_access()
+	name = _require_param(name, "name")
+	doc = frappe.get_doc("GE Material Receipt", name, ignore_permissions=True)
+	if doc.status != "SUBMITTED":
+		frappe.throw("Only SUBMITTED receipts can be approved")
+	doc.status = "APPROVED"
+	doc.approved_by = frappe.session.user
+	doc.approved_at = frappe.utils.now_datetime()
+	doc.save(ignore_permissions=True)
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Material receipt approved — stock updated"}
+
+
+@frappe.whitelist()
+def reject_material_receipt(name=None, reason=None):
+	"""Reject a submitted material receipt."""
+	_require_store_approval_access()
+	name = _require_param(name, "name")
+	doc = frappe.get_doc("GE Material Receipt", name, ignore_permissions=True)
+	if doc.status != "SUBMITTED":
+		frappe.throw("Only SUBMITTED receipts can be rejected")
+	doc.status = "REJECTED"
+	if reason:
+		doc.remarks = (doc.remarks or "") + f"\n[REJECTED] {cstr(reason).strip()}"
+	doc.save(ignore_permissions=True)
+	frappe.db.commit()
+	return {"success": True, "data": doc.as_dict(), "message": "Material receipt rejected"}
+
+
+@frappe.whitelist()
+def get_material_receipt_stats(project=None):
+	"""Aggregate material receipt stats for stores dashboard."""
+	_require_store_read_access()
+	filters = {}
+	if project:
+		filters["linked_project"] = project
+	rows = frappe.get_all(
+		"GE Material Receipt",
+		filters=filters,
+		fields=["status", "total_qty", "total_value"],
+		ignore_permissions=True,
+	)
+	return {
+		"success": True,
+		"data": {
+			"total": len(rows),
+			"draft": sum(1 for r in rows if r.status == "DRAFT"),
+			"submitted": sum(1 for r in rows if r.status == "SUBMITTED"),
+			"approved": sum(1 for r in rows if r.status == "APPROVED"),
+			"rejected": sum(1 for r in rows if r.status == "REJECTED"),
+			"total_qty": sum(r.total_qty or 0 for r in rows),
+			"total_value": sum(r.total_value or 0 for r in rows),
+		},
+	}
+
+
+# ╔═══════════════════════════════════════════════════════════════╗
+#   Dynamic Stock Balance — computed from GE Inventory Ledger
+# ╚═══════════════════════════════════════════════════════════════╝
+
+@frappe.whitelist()
+def get_dynamic_stock_balance(item_code=None, warehouse=None, project=None, limit_page_length=100):
+	"""Return current stock balance per item, computed from the GE Inventory Ledger.
+
+	Each row: item_code, description, make, model, total_in, total_out, balance, uom.
+	"""
+	_require_store_read_access()
+
+	conds = ["1=1"]
+	params = []
+	if item_code:
+		conds.append("item_code = %s")
+		params.append(item_code)
+	if warehouse:
+		conds.append("warehouse = %s")
+		params.append(warehouse)
+	if project:
+		conds.append("project = %s")
+		params.append(project)
+
+	sql = f"""
+		SELECT
+			item_code,
+			MAX(item_description) AS item_description,
+			MAX(make)             AS make,
+			MAX(model_no)         AS model_no,
+			MAX(hsn_code)         AS hsn_code,
+			MAX(uom)              AS uom,
+			SUM(qty_in)           AS total_in,
+			SUM(qty_out)          AS total_out,
+			SUM(qty_in) - SUM(qty_out) AS balance,
+			MAX(rate)             AS last_rate,
+			(SUM(qty_in) - SUM(qty_out)) * MAX(rate) AS stock_value
+		FROM `tabGE Inventory Ledger`
+		WHERE {" AND ".join(conds)}
+		GROUP BY item_code
+		ORDER BY item_code
+		LIMIT %s
+	"""
+	params.append(int(limit_page_length))
+	data = frappe.db.sql(sql, params, as_dict=True)
+
+	totals = {
+		"total_in": sum(r.total_in or 0 for r in data),
+		"total_out": sum(r.total_out or 0 for r in data),
+		"balance": sum(r.balance or 0 for r in data),
+		"stock_value": sum(r.stock_value or 0 for r in data),
+		"item_count": len(data),
+	}
+
+	return {"success": True, "data": data, "totals": totals}
+
+
+@frappe.whitelist()
+def get_item_ledger(item_code=None, warehouse=None, limit_page_length=50, limit_start=0):
+	"""Return the chronological ledger for a single item — every IN/OUT movement."""
+	_require_store_read_access()
+	item_code = _require_param(item_code, "item_code")
+	filters = {"item_code": item_code}
+	if warehouse:
+		filters["warehouse"] = warehouse
+	data = frappe.get_all(
+		"GE Inventory Ledger",
+		filters=filters,
+		fields=[
+			"name", "posting_date", "direction", "item_code", "item_description",
+			"make", "model_no", "serial_numbers", "qty_in", "qty_out",
+			"balance_qty", "uom", "rate", "voucher_type", "voucher_no",
+			"warehouse", "project", "party_name", "remarks",
+		],
+		order_by="posting_date desc, creation desc",
+		start=int(limit_start),
+		page_length=int(limit_page_length),
+		ignore_permissions=True,
+	)
+	total = frappe.db.count("GE Inventory Ledger", filters=filters)
+	return {"success": True, "data": data, "total": total}

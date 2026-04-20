@@ -1,0 +1,88 @@
+{
+	"name": "GE Material Receipt Item",
+	"module": "Gov ERP",
+	"doctype": "DocType",
+	"istable": 1,
+	"editable_grid": 1,
+	"engine": "InnoDB",
+	"fields": [
+		{
+			"fieldname": "item_link",
+			"fieldtype": "Link",
+			"label": "Item Code",
+			"options": "Item",
+			"reqd": 1,
+			"in_list_view": 1
+		},
+		{
+			"fieldname": "description",
+			"fieldtype": "Small Text",
+			"label": "Description",
+			"reqd": 1,
+			"in_list_view": 1
+		},
+		{
+			"fieldname": "hsn_code",
+			"fieldtype": "Data",
+			"label": "HSN Code"
+		},
+		{
+			"fieldname": "make",
+			"fieldtype": "Data",
+			"label": "Make"
+		},
+		{
+			"fieldname": "model_no",
+			"fieldtype": "Data",
+			"label": "Model No."
+		},
+		{
+			"fieldname": "serial_numbers",
+			"fieldtype": "Small Text",
+			"label": "Serial No."
+		},
+		{
+			"fieldname": "column_break_qty",
+			"fieldtype": "Column Break"
+		},
+		{
+			"fieldname": "qty",
+			"fieldtype": "Float",
+			"label": "Quantity",
+			"reqd": 1,
+			"default": "1",
+			"in_list_view": 1
+		},
+		{
+			"fieldname": "uom",
+			"fieldtype": "Data",
+			"label": "UOM",
+			"default": "Nos",
+			"in_list_view": 1
+		},
+		{
+			"fieldname": "purchase_cost",
+			"fieldtype": "Currency",
+			"label": "Purchase Cost",
+			"in_list_view": 1
+		},
+		{
+			"fieldname": "vendor_invoice_no",
+			"fieldtype": "Data",
+			"label": "Vendor Invoice No."
+		},
+		{
+			"fieldname": "linked_purchase_order",
+			"fieldtype": "Data",
+			"label": "Purchase Order Ref"
+		},
+		{
+			"fieldname": "remark",
+			"fieldtype": "Data",
+			"label": "Remark"
+		}
+	],
+	"permissions": [],
+	"sort_field": "modified",
+	"sort_order": "DESC"
+}

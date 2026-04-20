@@ -1,0 +1,169 @@
+{
+	"name": "GE Material Receipt",
+	"module": "Gov ERP",
+	"doctype": "DocType",
+	"autoname": "naming_series:",
+	"engine": "InnoDB",
+	"fields": [
+		{
+			"fieldname": "naming_series",
+			"fieldtype": "Select",
+			"label": "Series",
+			"options": "GRN-.#####",
+			"hidden": 1
+		},
+		{
+			"fieldname": "receipt_date",
+			"fieldtype": "Date",
+			"label": "Received Date",
+			"reqd": 1,
+			"default": "Today"
+		},
+		{
+			"fieldname": "receipt_type",
+			"fieldtype": "Select",
+			"label": "Receipt Type",
+			"options": "VENDOR\nPROJECT_RETURN\nWARRANTY_REPLACEMENT\nREPAIR_RETURN\nINTERNAL_TRANSFER\nOTHER",
+			"reqd": 1,
+			"default": "VENDOR"
+		},
+		{
+			"fieldname": "status",
+			"fieldtype": "Select",
+			"label": "Status",
+			"options": "DRAFT\nSUBMITTED\nAPPROVED\nREJECTED\nCANCELLED",
+			"default": "DRAFT",
+			"reqd": 1
+		},
+		{
+			"fieldname": "column_break_header",
+			"fieldtype": "Column Break"
+		},
+		{
+			"fieldname": "received_from",
+			"fieldtype": "Data",
+			"label": "Received From (Vendor / Project)",
+			"reqd": 1
+		},
+		{
+			"fieldname": "supplier_link",
+			"fieldtype": "Link",
+			"label": "Supplier",
+			"options": "Supplier"
+		},
+		{
+			"fieldname": "linked_project",
+			"fieldtype": "Link",
+			"label": "Linked Project",
+			"options": "Project"
+		},
+		{
+			"fieldname": "linked_purchase_order",
+			"fieldtype": "Link",
+			"label": "Linked Purchase Order",
+			"options": "Purchase Order"
+		},
+		{
+			"fieldname": "section_break_warehouse",
+			"fieldtype": "Section Break",
+			"label": "Warehouse"
+		},
+		{
+			"fieldname": "warehouse",
+			"fieldtype": "Link",
+			"label": "Target Warehouse",
+			"options": "Warehouse"
+		},
+		{
+			"fieldname": "column_break_wh",
+			"fieldtype": "Column Break"
+		},
+		{
+			"fieldname": "received_by_user",
+			"fieldtype": "Link",
+			"label": "Received By",
+			"options": "User"
+		},
+		{
+			"fieldname": "approved_by",
+			"fieldtype": "Link",
+			"label": "Approved By",
+			"options": "User",
+			"read_only": 1
+		},
+		{
+			"fieldname": "approved_at",
+			"fieldtype": "Datetime",
+			"label": "Approved At",
+			"read_only": 1
+		},
+		{
+			"fieldname": "section_break_totals",
+			"fieldtype": "Section Break",
+			"label": "Totals"
+		},
+		{
+			"fieldname": "total_items",
+			"fieldtype": "Int",
+			"label": "Total Items",
+			"read_only": 1
+		},
+		{
+			"fieldname": "total_qty",
+			"fieldtype": "Float",
+			"label": "Total Quantity",
+			"read_only": 1
+		},
+		{
+			"fieldname": "total_value",
+			"fieldtype": "Currency",
+			"label": "Total Value",
+			"read_only": 1
+		},
+		{
+			"fieldname": "section_break_items",
+			"fieldtype": "Section Break",
+			"label": "Items"
+		},
+		{
+			"fieldname": "items",
+			"fieldtype": "Table",
+			"label": "Items",
+			"options": "GE Material Receipt Item",
+			"reqd": 1
+		},
+		{
+			"fieldname": "section_break_attachments",
+			"fieldtype": "Section Break",
+			"label": "Attachments & Notes"
+		},
+		{
+			"fieldname": "vendor_invoice_reference",
+			"fieldtype": "Data",
+			"label": "Vendor Invoice Reference"
+		},
+		{
+			"fieldname": "receipt_attachment",
+			"fieldtype": "Attach",
+			"label": "Attachment"
+		},
+		{
+			"fieldname": "remarks",
+			"fieldtype": "Text Editor",
+			"label": "Remarks"
+		}
+	],
+	"permissions": [
+		{
+			"role": "System Manager",
+			"read": 1,
+			"write": 1,
+			"create": 1,
+			"delete": 1
+		}
+	],
+	"sort_field": "modified",
+	"sort_order": "DESC",
+	"title_field": "received_from",
+	"search_fields": "receipt_date,received_from,linked_project,status"
+}
