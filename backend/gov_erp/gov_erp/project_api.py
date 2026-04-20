@@ -668,7 +668,7 @@ def delete_project(name):
 @frappe.whitelist()
 def get_project_spine_list(department=None):
         """List projects with optional department-aware filtering."""
-        _require_project_workspace_access()
+        _require_spine_read_access()
         projects = frappe.get_all(
                 "Project",
                 fields=[
@@ -846,7 +846,7 @@ def get_project_spine_detail(project=None, department=None):
 @frappe.whitelist()
 def get_project_workflow_state(project=None):
         """Return the current workflow state, readiness, and history for a project."""
-        _require_project_workspace_access()
+        _require_spine_read_access()
         project = _require_param(project, "project")
         doc = frappe.get_doc("Project", project, ignore_permissions=True)
         _sync_project_workflow_fields(doc)
@@ -896,7 +896,7 @@ def submit_project_stage_for_approval(project=None, remarks=None):
 @frappe.whitelist()
 def approve_project_stage(project=None, remarks=None):
         """Approve the current stage and advance the project to the next stage."""
-        _require_project_workspace_access()
+        _require_project_workspace_write_access()
         project = _require_param(project, "project")
         doc = frappe.get_doc("Project", project, ignore_permissions=True)
         _sync_project_workflow_fields(doc)
@@ -950,7 +950,7 @@ def approve_project_stage(project=None, remarks=None):
 @frappe.whitelist()
 def reject_project_stage(project=None, remarks=None):
         """Reject the current project stage and return it to the owning department."""
-        _require_project_workspace_access()
+        _require_project_workspace_write_access()
         project = _require_param(project, "project")
         if not (remarks or "").strip():
                 frappe.throw("A rejection reason is required. Please provide remarks.")
@@ -1031,7 +1031,7 @@ def restart_project_stage(project=None, remarks=None):
 @frappe.whitelist()
 def override_project_stage(project=None, new_stage=None, remarks=None):
         """Manual workflow override for users with stage-override capability."""
-        _require_project_workspace_access()
+        _require_project_workspace_write_access()
         project = _require_param(project, "project")
         new_stage = _require_param(new_stage, "new_stage")
         _require_capability("project.stage.override", project=project, required_mode="override")
@@ -1843,7 +1843,7 @@ def _get_closeout_sequence(contract_scope):
 @frappe.whitelist()
 def get_project_closeout_items(project=None):
         """List all closeout certificates for a project."""
-        _require_project_workspace_access()
+        _require_spine_read_access()
         project = _require_param(project, "project")
         rows = frappe.get_all(
                 "GE Project Closeout",
@@ -1864,7 +1864,7 @@ def get_project_closeout_items(project=None):
 @frappe.whitelist()
 def get_project_closeout_eligibility(project=None):
         """Return which closeout types can be issued now, which are done, and which are blocked."""
-        _require_project_workspace_access()
+        _require_spine_read_access()
         project = _require_param(project, "project")
         doc = frappe.get_doc("Project", project, ignore_permissions=True)
         tender_name = getattr(doc, "linked_tender", None)
