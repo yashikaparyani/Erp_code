@@ -46,6 +46,14 @@ def _require_project_workspace_write_access():
         )
 
 
+def _require_project_approver_access():
+        """Only Project Head and Director can approve/reject a stage submission."""
+        _require_roles(
+                ROLE_DIRECTOR,
+                ROLE_PROJECT_HEAD,
+        )
+
+
 def _require_project_workspace_delete_access():
         _require_roles(
                 ROLE_DIRECTOR,
@@ -896,7 +904,7 @@ def submit_project_stage_for_approval(project=None, remarks=None):
 @frappe.whitelist()
 def approve_project_stage(project=None, remarks=None):
         """Approve the current stage and advance the project to the next stage."""
-        _require_project_workspace_write_access()
+        _require_project_approver_access()
         project = _require_param(project, "project")
         doc = frappe.get_doc("Project", project, ignore_permissions=True)
         _sync_project_workflow_fields(doc)
@@ -950,7 +958,7 @@ def approve_project_stage(project=None, remarks=None):
 @frappe.whitelist()
 def reject_project_stage(project=None, remarks=None):
         """Reject the current project stage and return it to the owning department."""
-        _require_project_workspace_write_access()
+        _require_project_approver_access()
         project = _require_param(project, "project")
         if not (remarks or "").strip():
                 frappe.throw("A rejection reason is required. Please provide remarks.")
