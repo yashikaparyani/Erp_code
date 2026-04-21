@@ -8,9 +8,9 @@ type StoresDashboardData = {
 		total: number;
 		draft: number;
 		submitted: number;
-		completed: number;
-		return_count: number;
-		cancelled: number;
+		approved: number;
+		rejected: number;
+		total_qty: number;
 		total_value: number;
 	};
 	stock_position: {
@@ -38,7 +38,7 @@ type StoresDashboardData = {
 };
 
 const initialData: StoresDashboardData = {
-	grns: { total: 0, draft: 0, submitted: 0, completed: 0, return_count: 0, cancelled: 0, total_value: 0 },
+	grns: { total: 0, draft: 0, submitted: 0, approved: 0, rejected: 0, total_qty: 0, total_value: 0 },
 	stock_position: { item_count: 0, total_qty: 0, total_value: 0, negative_stock_count: 0 },
 	stock_aging: { age_0_30: 0, age_31_60: 0, age_61_90: 0, age_90_plus: 0, unknown: 0 },
 	dispatch: { total: 0, draft: 0, pending_approval: 0, approved: 0, dispatched: 0, cancelled: 0, total_qty: 0 },
@@ -57,7 +57,7 @@ export default function StoresDashboard() {
 			onRetry={() => void refresh()}
 		>
 			<div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
-				<StatCard title="GRN Queue" value={data.grns.total} hint={`${data.grns.completed} completed receipts`} icon={Package} tone="blue" />
+				<StatCard title="GRN Queue" value={data.grns.total} hint={`${data.grns.approved} approved receipts`} icon={Package} tone="blue" />
 				<StatCard title="Stock Items" value={data.stock_position.item_count} hint={`${formatNumber(data.stock_position.total_qty)} total quantity`} icon={Boxes} tone="green" />
 				<StatCard title="Stock Value" value={formatCurrency(data.stock_position.total_value)} hint="Computed from live Bin valuation" icon={Warehouse} tone="teal" />
 				<StatCard title="Aging 90+" value={data.stock_aging.age_90_plus || 0} hint={`${data.stock_aging.unknown || 0} items with unknown aging`} icon={TriangleAlert} tone="red" />
@@ -70,10 +70,10 @@ export default function StoresDashboard() {
 					<MetricList
 						items={[
 							{ label: 'Draft', value: data.grns.draft, tone: 'warning' },
-							{ label: 'Submitted', value: data.grns.submitted, tone: 'info' },
-							{ label: 'Completed', value: data.grns.completed, tone: 'positive' },
-							{ label: 'Returns', value: data.grns.return_count, tone: 'warning' },
-							{ label: 'Cancelled', value: data.grns.cancelled, tone: 'negative' },
+							{ label: 'Pending Approval', value: data.grns.submitted, tone: 'info' },
+							{ label: 'Approved', value: data.grns.approved, tone: 'positive' },
+							{ label: 'Rejected', value: data.grns.rejected, tone: 'negative' },
+							{ label: 'Total Qty', value: data.grns.total_qty },
 							{ label: 'Receipt Value', value: formatCurrency(data.grns.total_value) },
 						]}
 					/>
@@ -122,7 +122,7 @@ export default function StoresDashboard() {
 							{ label: 'Negative Stock Items', value: data.stock_position.negative_stock_count, tone: data.stock_position.negative_stock_count > 0 ? 'negative' : 'positive' },
 							{ label: 'Aged 90+ Items', value: data.stock_aging.age_90_plus || 0, tone: (data.stock_aging.age_90_plus || 0) > 0 ? 'negative' : 'positive' },
 							{ label: 'Pending Dispatch Approval', value: data.dispatch.pending_approval, tone: data.dispatch.pending_approval > 0 ? 'warning' : 'positive' },
-							{ label: 'Return Receipts', value: data.grns.return_count, tone: data.grns.return_count > 0 ? 'warning' : 'positive' },
+							{ label: 'GRN Pending Approval', value: data.grns.submitted, tone: data.grns.submitted > 0 ? 'warning' : 'positive' },
 						]}
 					/>
 				</SectionCard>

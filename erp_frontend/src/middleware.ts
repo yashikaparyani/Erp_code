@@ -36,9 +36,9 @@ export function middleware(request: NextRequest) {
   const sid = request.cookies.get('sid')?.value;
 
   if (pathname === LOGIN_PATH) {
-    if (sid) {
-      return NextResponse.redirect(new URL('/', request.url));
-    }
+    // Always allow the login route. A stale `sid` cookie can exist even when
+    // the backend session has expired, and hard-redirecting away from /login
+    // traps the user on a blank shell at `/`.
     return NextResponse.next();
   }
 

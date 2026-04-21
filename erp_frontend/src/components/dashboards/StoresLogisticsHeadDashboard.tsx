@@ -8,9 +8,9 @@ type StoresDashboardData = {
 		total: number;
 		draft: number;
 		submitted: number;
-		completed: number;
-		return_count: number;
-		cancelled: number;
+		approved: number;
+		rejected: number;
+		total_qty: number;
 		total_value: number;
 	};
 	stock_position: {
@@ -38,7 +38,7 @@ type StoresDashboardData = {
 };
 
 const initialData: StoresDashboardData = {
-	grns: { total: 0, draft: 0, submitted: 0, completed: 0, return_count: 0, cancelled: 0, total_value: 0 },
+	grns: { total: 0, draft: 0, submitted: 0, approved: 0, rejected: 0, total_qty: 0, total_value: 0 },
 	stock_position: { item_count: 0, total_qty: 0, total_value: 0, negative_stock_count: 0 },
 	stock_aging: { age_0_30: 0, age_31_60: 0, age_61_90: 0, age_90_plus: 0, unknown: 0 },
 	dispatch: { total: 0, draft: 0, pending_approval: 0, approved: 0, dispatched: 0, cancelled: 0, total_qty: 0 },
@@ -61,7 +61,7 @@ export default function StoresLogisticsHeadDashboard() {
 				<StatCard title="Dispatched Qty" value={formatNumber(data.dispatch.total_qty)} hint={`${data.dispatch.dispatched} challans moved`} icon={Package} tone="blue" />
 				<StatCard title="Aging 90+" value={data.stock_aging.age_90_plus || 0} hint="Old stock requiring liquidation plan" icon={TriangleAlert} tone="red" />
 				<StatCard title="Negative Stock" value={data.stock_position.negative_stock_count} hint="Control exceptions to resolve" icon={ClipboardList} tone="amber" />
-				<StatCard title="GRN Completed" value={data.grns.completed} hint={`${data.grns.total} total GRNs`} icon={Boxes} tone="green" />
+				<StatCard title="GRN Approved" value={data.grns.approved} hint={`${data.grns.total} total GRNs`} icon={Boxes} tone="green" />
 				<StatCard title="Inventory Value" value={formatCurrency(data.stock_position.total_value)} hint={`${data.stock_position.item_count} stocked items`} icon={Warehouse} tone="teal" />
 			</div>
 
@@ -94,9 +94,9 @@ export default function StoresLogisticsHeadDashboard() {
 					<MetricList
 						items={[
 							{ label: 'GRN Draft', value: data.grns.draft, tone: 'warning' },
-							{ label: 'GRN Submitted', value: data.grns.submitted, tone: 'info' },
-							{ label: 'GRN Completed', value: data.grns.completed, tone: 'positive' },
-							{ label: 'Return Receipts', value: data.grns.return_count, tone: data.grns.return_count > 0 ? 'warning' : 'positive' },
+							{ label: 'GRN Pending Approval', value: data.grns.submitted, tone: 'info' },
+							{ label: 'GRN Approved', value: data.grns.approved, tone: 'positive' },
+							{ label: 'GRN Rejected', value: data.grns.rejected, tone: data.grns.rejected > 0 ? 'warning' : 'positive' },
 							{ label: 'Receipt Value', value: formatCurrency(data.grns.total_value) },
 						]}
 					/>

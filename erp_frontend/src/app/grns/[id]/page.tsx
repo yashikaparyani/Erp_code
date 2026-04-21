@@ -103,8 +103,40 @@ export default function GRNDetailPage() {
     finally { setActionBusy(false); }
   };
 
-  const items = grn?.items || [];
-  const totalQty = items.reduce((s, i) => s + (i.qty || 0), 0);
+  const [editItems, setEditItems] = useState<ReceiptItem[]>([]);
+  const [savingItems, setSavingItems] = useState(false);
+  const [itemsError, setItemsError] = useState('');
+
+  useEffect(() => {
+    setEditItems(grn?.items?.map(i => ({ ...i })) || []);
+  }, [grn]);
+
+  const handleAddRow = () =>
+    setEditItems(prev => [...prev, { qty: 1, uom: 'Nos' } as ReceiptItem]);
+
+  const handleRemoveRow = (idx: number) =>
+    setEditItems(prev => prev.filter((_, i) => i !== idx));
+
+  const handleItemChange = (idx: number, field: keyof ReceiptItem, value: string | number) =>
+    setEditItems(prev => prev.map((row, i) => i === idx ? { ...row, [field]: value } : row));
+
+  const handleSaveItems = async () => {
+    setSavingItems(true); setItemsError('');
+    try {
+      const res = await fetch(`/api/grns/${encodeURIComponent(grnName)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update', data: { items: editItems } }),
+      });
+      const p = await res.json();
+      if (!res.ok || !p.success) throw new Error(p.message || 'Save failed');
+      load();
+    } catch (e) { setItemsError(e instanceof Error ? e.message : 'Save failed'); }
+    finally { setSavingItems(false); }
+  };
+
+  const displayItems = grn?.status === 'DRAFT' ? editItems : (grn?.items || []);
+  const totalQty = displayItems.reduce((s, i) => s + (i.qty || 0), 0);
 
   const statusVariant = (s?: string) => {
     if (s === 'APPROVED') return 'success';
@@ -210,7 +242,7 @@ export default function GRNDetailPage() {
       {grn && (
         <div className="grid grid-cols-3 gap-3 mb-4">
           <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-center">
-            <div className="text-2xl font-bold">{items.length}</div>
+            <div className="text-2xl font-bold">{displayItems.length}</div>
             <div className="text-xs text-gray-500">Line Items</div>
           </div>
           <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-center">
@@ -224,50 +256,119 @@ export default function GRNDetailPage() {
         </div>
       )}
 
-      {/* Items table with all new fields */}
+      {/* Items table */}
       <div className="shell-panel overflow-hidden">
-        <div className="px-5 py-3 border-b border-gray-100">
+        <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
           <h3 className="font-semibold text-gray-900">Received Items</h3>
+          {grn?.status === 'DRAFT' && (
+            <div className="flex items-center gap-2">
+              {itemsError && <span className="text-xs text-rose-600">{itemsError}</span>}
+              <button
+                onClick={handleAddRow}
+                className="btn text-xs border border-gray-200 text-gray-700 hover:bg-gray-50 px-3 py-1.5"
+              >
+                + Add Row
+              </button>
+              <button
+                onClick={handleSaveItems}
+                disabled={savingItems}
+                className="btn btn-primary text-xs px-3 py-1.5"
+              >
+                {savingItems ? 'Saving…' : 'Save Items'}
+              </button>
+            </div>
+          )}
         </div>
         <div className="overflow-x-auto">
-          <table className="data-table text-sm min-w-[900px]">
-            <thead>
-              <tr>
-                <th>Item</th>
-                <th>Description</th>
-                <th>Make</th>
-                <th>Model No.</th>
-                <th>HSN</th>
-                <th>Serial Nos.</th>
-                <th className="text-right">Qty</th>
-                <th>UOM</th>
-                <th className="text-right">Cost</th>
-                <th>Invoice No.</th>
-                <th>PO Ref</th>
-                <th>Remark</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0
-                ? <tr><td colSpan={12} className="text-center py-8 text-gray-400">No items</td></tr>
-                : items.map((i, idx) => (
-                  <tr key={i.name || idx}>
-                    <td className="font-medium">{i.item_link || '-'}</td>
-                    <td className="text-gray-600 max-w-[160px] truncate">{i.description || '-'}</td>
-                    <td className="text-gray-600">{i.make || '-'}</td>
-                    <td className="text-gray-600">{i.model_no || '-'}</td>
-                    <td className="text-gray-500 text-xs">{i.hsn_code || '-'}</td>
-                    <td className="text-gray-500 text-xs max-w-[120px] truncate">{i.serial_numbers || '-'}</td>
-                    <td className="text-right">{i.qty ?? '-'}</td>
-                    <td className="text-gray-500">{i.uom || '-'}</td>
-                    <td className="text-right font-medium">{formatCurrency(i.purchase_cost)}</td>
-                    <td className="text-gray-500 text-xs">{i.vendor_invoice_no || '-'}</td>
-                    <td>{i.linked_purchase_order ? <Link href={`/purchase-orders/${encodeURIComponent(i.linked_purchase_order)}`} className="text-blue-600 hover:underline text-xs">{i.linked_purchase_order}</Link> : '-'}</td>
-                    <td className="text-gray-500 text-xs max-w-[120px] truncate">{i.remark || '-'}</td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
+          {grn?.status === 'DRAFT' ? (
+            <table className="data-table text-sm min-w-[1100px]">
+              <thead>
+                <tr>
+                  <th>Item Code *</th>
+                  <th>Description</th>
+                  <th>Make</th>
+                  <th>Model No.</th>
+                  <th>HSN</th>
+                  <th>Serial Nos.</th>
+                  <th className="text-right">Qty *</th>
+                  <th>UOM</th>
+                  <th className="text-right">Cost (₹)</th>
+                  <th>Invoice No.</th>
+                  <th>PO Ref</th>
+                  <th>Remark</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {editItems.length === 0
+                  ? (
+                    <tr>
+                      <td colSpan={13} className="text-center py-6 text-gray-400">
+                        No items yet — click <strong>+ Add Row</strong> to begin
+                      </td>
+                    </tr>
+                  )
+                  : editItems.map((row, idx) => (
+                    <tr key={idx}>
+                      <td><input className="w-full min-w-[100px] border-0 bg-transparent focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 text-xs" placeholder="ITEM-001" value={row.item_link || ''} onChange={e => handleItemChange(idx, 'item_link', e.target.value)} /></td>
+                      <td><input className="w-full min-w-[120px] border-0 bg-transparent focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 text-xs" placeholder="Description" value={row.description || ''} onChange={e => handleItemChange(idx, 'description', e.target.value)} /></td>
+                      <td><input className="w-20 border-0 bg-transparent focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 text-xs" placeholder="Make" value={row.make || ''} onChange={e => handleItemChange(idx, 'make', e.target.value)} /></td>
+                      <td><input className="w-24 border-0 bg-transparent focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 text-xs" placeholder="Model" value={row.model_no || ''} onChange={e => handleItemChange(idx, 'model_no', e.target.value)} /></td>
+                      <td><input className="w-20 border-0 bg-transparent focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 text-xs" placeholder="HSN" value={row.hsn_code || ''} onChange={e => handleItemChange(idx, 'hsn_code', e.target.value)} /></td>
+                      <td><input className="w-28 border-0 bg-transparent focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 text-xs" placeholder="SN1, SN2" value={row.serial_numbers || ''} onChange={e => handleItemChange(idx, 'serial_numbers', e.target.value)} /></td>
+                      <td className="text-right"><input className="w-16 border-0 bg-transparent focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 text-xs text-right" type="number" min={0} value={row.qty ?? ''} onChange={e => handleItemChange(idx, 'qty', parseFloat(e.target.value) || 0)} /></td>
+                      <td><input className="w-14 border-0 bg-transparent focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 text-xs" placeholder="Nos" value={row.uom || ''} onChange={e => handleItemChange(idx, 'uom', e.target.value)} /></td>
+                      <td className="text-right"><input className="w-24 border-0 bg-transparent focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 text-xs text-right" type="number" min={0} step={0.01} value={row.purchase_cost ?? ''} onChange={e => handleItemChange(idx, 'purchase_cost', parseFloat(e.target.value) || 0)} /></td>
+                      <td><input className="w-24 border-0 bg-transparent focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 text-xs" placeholder="Invoice No." value={row.vendor_invoice_no || ''} onChange={e => handleItemChange(idx, 'vendor_invoice_no', e.target.value)} /></td>
+                      <td><input className="w-24 border-0 bg-transparent focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 text-xs" placeholder="PO Ref" value={row.linked_purchase_order || ''} onChange={e => handleItemChange(idx, 'linked_purchase_order', e.target.value)} /></td>
+                      <td><input className="w-24 border-0 bg-transparent focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 text-xs" placeholder="Remark" value={row.remark || ''} onChange={e => handleItemChange(idx, 'remark', e.target.value)} /></td>
+                      <td>
+                        <button onClick={() => handleRemoveRow(idx)} className="text-rose-400 hover:text-rose-600 text-xs font-bold px-1" title="Remove row">✕</button>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          ) : (
+            <table className="data-table text-sm min-w-[900px]">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Description</th>
+                  <th>Make</th>
+                  <th>Model No.</th>
+                  <th>HSN</th>
+                  <th>Serial Nos.</th>
+                  <th className="text-right">Qty</th>
+                  <th>UOM</th>
+                  <th className="text-right">Cost</th>
+                  <th>Invoice No.</th>
+                  <th>PO Ref</th>
+                  <th>Remark</th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayItems.length === 0
+                  ? <tr><td colSpan={12} className="text-center py-8 text-gray-400">No items</td></tr>
+                  : displayItems.map((i, idx) => (
+                    <tr key={i.name || idx}>
+                      <td className="font-medium">{i.item_link || '-'}</td>
+                      <td className="text-gray-600 max-w-[160px] truncate">{i.description || '-'}</td>
+                      <td className="text-gray-600">{i.make || '-'}</td>
+                      <td className="text-gray-600">{i.model_no || '-'}</td>
+                      <td className="text-gray-500 text-xs">{i.hsn_code || '-'}</td>
+                      <td className="text-gray-500 text-xs max-w-[120px] truncate">{i.serial_numbers || '-'}</td>
+                      <td className="text-right">{i.qty ?? '-'}</td>
+                      <td className="text-gray-500">{i.uom || '-'}</td>
+                      <td className="text-right font-medium">{formatCurrency(i.purchase_cost)}</td>
+                      <td className="text-gray-500 text-xs">{i.vendor_invoice_no || '-'}</td>
+                      <td>{i.linked_purchase_order ? <Link href={`/purchase-orders/${encodeURIComponent(i.linked_purchase_order)}`} className="text-blue-600 hover:underline text-xs">{i.linked_purchase_order}</Link> : '-'}</td>
+                      <td className="text-gray-500 text-xs max-w-[120px] truncate">{i.remark || '-'}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 
@@ -281,115 +382,4 @@ export default function GRNDetailPage() {
     </DetailPage>
   );
 }
-
-interface GRNItem { name?: string; item_code?: string; description?: string; item_name?: string; qty?: number; uom?: string; rate?: number; amount?: number; warehouse?: string; received_qty?: number; rejected_qty?: number; purchase_order?: string; }
-interface GRNDetail {
-  name: string; supplier?: string; supplier_name?: string; posting_date?: string; status?: string;
-  project?: string; set_warehouse?: string; grand_total?: number; net_total?: number;
-  per_billed?: number; per_returned?: number; docstatus?: number; items?: GRNItem[];
-  creation?: string; purchase_order?: string; supplier_delivery_note?: string;
-  transporter_name?: string; lr_no?: string; lr_date?: string;
-}
-
-export default function GRNDetailPage() {
-  const params = useParams();
-  const grnName = decodeURIComponent((params?.id as string) || '');
-
-  const [grn, setGrn] = useState<GRNDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  const load = useCallback(async () => {
-    setLoading(true); setError('');
-    try { setGrn(await callOps<GRNDetail>('get_grn', { name: grnName })); }
-    catch (e) { setError(e instanceof Error ? e.message : 'Failed'); }
-    finally { setLoading(false); }
-  }, [grnName]);
-
-  useEffect(() => { load(); }, [load]);
-
-  const items = grn?.items || [];
-  const totalQty = items.reduce((s, i) => s + (i.qty || 0), 0);
-  const totalRejected = items.reduce((s, i) => s + (i.rejected_qty || 0), 0);
-  const linkedPOs = [...new Set(items.map(i => i.purchase_order).filter(Boolean) as string[])];
-
-  return (
-    <DetailPage
-      title={grn?.name || grnName}
-      kicker="Goods Receipt Note"
-      backHref="/grns"
-      backLabel="Back to GRNs"
-      loading={loading} error={error} onRetry={load}
-      status={grn?.status} statusVariant={statusVariant(grn?.status)}
-      identityBlock={grn ? (
-        <dl className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm sm:grid-cols-3">
-          {[['Supplier', grn.supplier_name || grn.supplier], ['Project', grn.project], ['Warehouse', grn.set_warehouse], ['Posting Date', grn.posting_date], ['Grand Total', formatCurrency(grn.grand_total)], ['Transporter', grn.transporter_name], ['LR No.', grn.lr_no], ['LR Date', grn.lr_date], ['Supplier DN', grn.supplier_delivery_note], ['Created', formatDate(grn.creation)]].map(([l, v]) => (
-            <div key={String(l)}><dt className="text-gray-500">{String(l)}</dt><dd className="font-medium text-gray-900">{String(v || '-')}</dd></div>
-          ))}
-        </dl>
-      ) : undefined}
-      sidePanels={grn ? (
-        <>
-          {/* Supply chain links */}
-          <div className="shell-panel p-4 space-y-3">
-            <h3 className="text-sm font-semibold text-gray-900">Supply Chain</h3>
-            {linkedPOs.map(po => <Link key={po} href={`/purchase-orders/${encodeURIComponent(po)}`} className="block text-sm text-blue-600 hover:underline">PO: {po}</Link>)}
-            {grn.project && <Link href={`/projects/${encodeURIComponent(grn.project)}`} className="block text-sm text-blue-600 hover:underline">Project: {grn.project}</Link>}
-          </div>
-          <TraceabilityPanel projectId={grn.project} />
-          <RecordDocumentsPanel referenceDoctype="Purchase Receipt" referenceName={grnName} title="Documents" />
-          <LinkedRecordsPanel links={[{ label: 'Purchase Order', doctype: 'Purchase Order', method: 'frappe.client.get_list', args: { doctype: 'Purchase Order', filters: JSON.stringify({ name: grn.purchase_order || '' }), fields: JSON.stringify(['name', 'supplier', 'status', 'grand_total']), limit_page_length: '5' }, href: (n: string) => `/purchase-orders/${n}` }]} />
-          <div className="shell-panel p-4"><h3 className="text-sm font-semibold text-gray-900 mb-3">Accountability</h3><AccountabilityTimeline subjectDoctype="Purchase Receipt" subjectName={grnName} compact initialLimit={6} /></div>
-        </>
-      ) : undefined}
-    >
-      {/* Summary */}
-      {grn && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 mb-4">
-          <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-center"><div className="text-2xl font-bold">{items.length}</div><div className="text-xs text-gray-500">Line Items</div></div>
-          <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-center"><div className="text-2xl font-bold text-blue-900">{totalQty}</div><div className="text-xs text-blue-600">Qty Received</div></div>
-          <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-center"><div className="text-2xl font-bold text-emerald-900">{formatCurrency(grn.grand_total)}</div><div className="text-xs text-emerald-600">Grand Total</div></div>
-          {totalRejected > 0 && <div className="rounded-xl border border-rose-100 bg-rose-50 p-3 text-center"><div className="text-2xl font-bold text-rose-900">{totalRejected}</div><div className="text-xs text-rose-600">Rejected</div></div>}
-        </div>
-      )}
-
-      {/* Billing progress */}
-      {(grn?.per_billed || 0) > 0 && (
-        <div className="mb-4">
-          <div className="flex items-center justify-between text-xs text-gray-500 mb-1"><span>Billing Progress</span><span>{(grn?.per_billed || 0).toFixed(1)}%</span></div>
-          <div className="h-2 rounded-full bg-gray-200"><div className="h-2 rounded-full bg-blue-500 transition-all" style={{ width: `${Math.min(grn?.per_billed || 0, 100)}%` }} /></div>
-        </div>
-      )}
-
-      {/* Items table */}
-      <div className="shell-panel overflow-hidden">
-        <div className="px-5 py-3 border-b border-gray-100"><h3 className="font-semibold text-gray-900">Received Items</h3></div>
-        <table className="data-table text-sm">
-          <thead><tr><th>Item</th><th>Description</th><th className="text-right">Qty</th><th className="text-right">Rate</th><th className="text-right">Amount</th><th>UOM</th><th>Warehouse</th><th>PO Ref</th></tr></thead>
-          <tbody>
-            {items.length === 0 ? <tr><td colSpan={8} className="text-center py-8 text-gray-400">No items</td></tr> : items.map((i, idx) => (
-              <tr key={i.name || idx}>
-                <td className="font-medium">{i.item_code || '-'}</td>
-                <td className="text-gray-600 max-w-[200px] truncate">{i.description || i.item_name || '-'}</td>
-                <td className="text-right">{i.qty ?? '-'}</td>
-                <td className="text-right">{formatCurrency(i.rate)}</td>
-                <td className="text-right font-medium">{formatCurrency(i.amount)}</td>
-                <td className="text-gray-500">{i.uom || '-'}</td>
-                <td className="text-gray-500">{i.warehouse || '-'}</td>
-                <td>{i.purchase_order ? <Link href={`/purchase-orders/${encodeURIComponent(i.purchase_order)}`} className="text-blue-600 hover:underline text-xs">{i.purchase_order}</Link> : '-'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Next step */}
-      <div className="card border-blue-200 bg-blue-50/50 mt-4">
-        <div className="p-4 flex items-center justify-between">
-          <div><p className="text-xs font-semibold text-blue-700">Next Step</p><p className="text-sm text-gray-600 mt-0.5">GRN → <strong>Project Inventory</strong></p></div>
-          <Link href="/inventory" className="btn btn-primary !text-xs">Go to Inventory →</Link>
-        </div>
-      </div>
-    </DetailPage>
-  );
 }

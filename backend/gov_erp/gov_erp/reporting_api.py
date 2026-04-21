@@ -6,6 +6,7 @@ from gov_erp.inventory_api import (
 	get_dispatch_challan_stats,
 	get_grn_stats,
 	get_indent_stats,
+	get_material_receipt_stats,
 	get_po_stats,
 	get_stock_aging,
 )
@@ -898,7 +899,7 @@ def get_stores_dashboard(warehouse=None):
 	return {
 		"success": True,
 		"data": {
-			"grns": get_grn_stats().get("data", {}),
+			"grns": get_material_receipt_stats().get("data", {}),
 			"stock_position": {
 				"item_count": len(stock_rows),
 				"total_qty": sum(row.actual_qty or 0 for row in stock_rows),
