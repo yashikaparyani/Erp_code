@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import RegisterPage from '@/components/shells/RegisterPage';
 import ActionModal from '@/components/ui/ActionModal';
-import LinkPicker from '@/components/ui/LinkPicker';
 import { badge, DC_BADGES } from '@/components/procurement/proc-helpers';
 
 interface DispatchChallan {
@@ -12,6 +11,16 @@ interface DispatchChallan {
   from_warehouse?: string; to_warehouse?: string; target_site_name?: string;
   linked_project?: string; total_items?: number; total_qty?: number;
   challan_reference?: string; issued_to_name?: string;
+  linked_receipt?: string; receipt_status?: string; receipt_date?: string; fulfilment_status?: string;
+}
+
+function getReceiptBadge(receiptStatus?: string, fulfilmentStatus?: string): { label: string; badgeClass: string } {
+  if (receiptStatus === 'APPROVED') return { label: 'GRN Approved', badgeClass: 'badge-success' };
+  if (receiptStatus === 'SUBMITTED') return { label: 'GRN Pending', badgeClass: 'badge-info' };
+  if (receiptStatus === 'DRAFT') return { label: 'GRN Draft', badgeClass: 'badge-warning' };
+  if (receiptStatus === 'REJECTED') return { label: 'GRN Rejected', badgeClass: 'badge-error' };
+  if (fulfilmentStatus === 'AWAITING_SITE_GRN') return { label: 'Awaiting Site GRN', badgeClass: 'badge-warning' };
+  return { label: 'Not Linked', badgeClass: 'badge-gray' };
 }
 
 export default function DispatchChallansPage() {
@@ -19,7 +28,6 @@ export default function DispatchChallansPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('');
-  const [warehouseFilter, setWarehouseFilter] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<DispatchChallan | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
 
@@ -28,13 +36,12 @@ export default function DispatchChallansPage() {
     try {
       const params = new URLSearchParams();
       if (filter) params.set('status', filter);
-      if (warehouseFilter) params.set('warehouse', warehouseFilter);
       const qs = params.toString() ? `?${params.toString()}` : '';
       const res = await fetch(`/api/dispatch-challans${qs}`).then(r => r.json());
       setItems(res.data || []);
     } catch { setError('Failed to load'); }
     finally { setLoading(false); }
-  }, [filter, warehouseFilter]);
+  }, [filter]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -63,7 +70,7 @@ export default function DispatchChallansPage() {
     <>
     <RegisterPage
       title="Dispatch Challans"
-      description="Track material dispatches from warehouse to project sites."
+      description="Track material dispatches from head office or vendors to project sites, and confirm when the site closes them through GRN."
       loading={loading} error={error} onRetry={load}
       stats={[
         { label: 'Total', value: items.length },
@@ -83,25 +90,38 @@ export default function DispatchChallansPage() {
             <option value="">All Statuses</option>
             {['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'DISPATCHED', 'REJECTED'].map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
           </select>
-          <LinkPicker entity="warehouse" value={warehouseFilter} onChange={setWarehouseFilter} placeholder="Filter by warehouse…" className="w-56" />
         </div>
       }
     >
       <table className="data-table">
-        <thead><tr><th>Challan ID</th><th>Reference</th><th>Date</th><th>Type</th><th>From</th><th>To / Site</th><th>Issued To</th><th>Project</th><th>Items</th><th>Qty</th><th>Status</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Challan ID</th><th>Reference</th><th>Date</th><th>Type</th><th>From</th><th>To / Site</th><th>Issued To</th><th>Project</th><th>Items</th><th>Qty</th><th>Site Receipt</th><th>Status</th><th>Actions</th></tr></thead>
         <tbody>
-          {items.length === 0 ? <tr><td colSpan={12} className="text-center py-8 text-gray-500">No dispatch challans found</td></tr> : items.map(c => (
+          {items.length === 0 ? <tr><td colSpan={13} className="text-center py-8 text-gray-500">No dispatch challans found</td></tr> : items.map(c => {
+            const receipt = getReceiptBadge(c.receipt_status, c.fulfilment_status);
+            return (
             <tr key={c.name}>
               <td><Link href={`/dispatch-challans/${encodeURIComponent(c.name)}`} className="font-medium text-blue-700 hover:underline">{c.name}</Link></td>
               <td className="text-gray-700">{c.challan_reference || '-'}</td>
               <td className="text-gray-700">{c.dispatch_date || '-'}</td>
               <td className="text-gray-700">{c.dispatch_type || '-'}</td>
-              <td className="text-gray-700">{c.from_warehouse || '-'}</td>
+              <td className="text-gray-700">{c.dispatch_type === 'VENDOR_TO_SITE' ? 'Vendor Direct' : c.from_warehouse || 'Head Office'}</td>
               <td className="text-gray-700">{c.target_site_name || c.to_warehouse || '-'}</td>
               <td className="text-gray-700">{c.issued_to_name || '-'}</td>
               <td className="text-gray-700">{c.linked_project || '-'}</td>
               <td className="text-center text-gray-700">{c.total_items ?? '-'}</td>
               <td className="text-center text-gray-700">{c.total_qty ?? '-'}</td>
+              <td>
+                <div className="flex flex-col gap-1">
+                  {c.linked_receipt ? (
+                    <Link href={`/grns/${encodeURIComponent(c.linked_receipt)}`} className={`badge ${receipt.badgeClass}`}>
+                      {receipt.label}
+                    </Link>
+                  ) : (
+                    <span className={`badge ${receipt.badgeClass}`}>{receipt.label}</span>
+                  )}
+                  <span className="text-xs text-gray-500">{c.receipt_date || (c.status === 'DISPATCHED' ? 'GRN not raised yet' : 'Receipt follows dispatch')}</span>
+                </div>
+              </td>
               <td><span className={`badge ${badge(DC_BADGES, c.status)}`}>{c.status || '-'}</span></td>
               <td>
                 <div className="flex flex-wrap gap-2 text-xs">
@@ -114,7 +134,7 @@ export default function DispatchChallansPage() {
                 </div>
               </td>
             </tr>
-          ))}
+          )})}
         </tbody>
       </table>
     </RegisterPage>

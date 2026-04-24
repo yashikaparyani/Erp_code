@@ -814,7 +814,7 @@ def _require_boq_read_access():
 
 
 def _require_boq_write_access():
-	_require_roles(ROLE_PRESALES_HEAD, ROLE_PRESALES_EXECUTIVE)
+	_require_roles(ROLE_PRESALES_HEAD, ROLE_PRESALES_EXECUTIVE, ROLE_ENGINEERING_HEAD)
 
 
 def _require_boq_approval_access():

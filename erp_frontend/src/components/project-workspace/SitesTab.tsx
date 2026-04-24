@@ -2,7 +2,7 @@
 
 import React, { useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Search, ShieldAlert, BookOpen, ArrowUpRight, Lock, Unlock } from 'lucide-react';
+import { Search, ShieldAlert, BookOpen, ArrowUpRight, Lock, Unlock, Eye } from 'lucide-react';
 import { formatPercent } from '../dashboards/shared';
 import { WorkspacePermissions } from '../../context/WorkspacePermissionContext';
 import type { SiteRow, DepartmentConfig } from './workspace-types';
@@ -187,6 +187,12 @@ function SitesTab({ sites, config, projectId, wp }: { sites: SiteRow[]; config: 
                       className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-violet-600 hover:text-violet-700"
                     >
                       <BookOpen className="h-3 w-3" /> Site dossier
+                    </Link>
+                    <Link
+                      href={`/execution/sites/${encodeURIComponent(site.name)}`}
+                      className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 hover:text-blue-700"
+                    >
+                      <Eye className="h-3 w-3" /> Detail
                     </Link>
                   </td>
                   <td className="px-4 py-3">

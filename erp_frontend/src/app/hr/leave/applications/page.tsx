@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import {
-  CalendarDays, Loader2, AlertCircle, Filter, Users, CheckCircle2, Clock, XCircle,
+  Loader2, AlertCircle, Filter, Users, CheckCircle2, Clock, XCircle,
 } from 'lucide-react';
 
 interface LeaveApp {
@@ -14,8 +14,6 @@ interface LeaveApp {
   from_date?: string;
   to_date?: string;
   total_leave_days?: number;
-  linked_project?: string;
-  linked_site?: string;
   reason?: string;
   submitted_by?: string;
   approved_by?: string;
@@ -27,7 +25,7 @@ function formatDate(v?: string) {
 }
 
 function StatusBadge({ status }: { status?: string }) {
-  const s = (status || 'DRAFT').toUpperCase();
+  const s = (status || 'SUBMITTED').toUpperCase();
   const style = s === 'APPROVED' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
     : s === 'SUBMITTED' ? 'bg-amber-50 text-amber-700 border-amber-200'
     : s === 'REJECTED' ? 'bg-rose-50 text-rose-700 border-rose-200'
@@ -60,9 +58,9 @@ export default function LeaveApplicationsPage() {
   useEffect(() => { reload(); }, [reload]);
 
   const total = rows.length;
-  const draft = rows.filter(r => r.leave_status === 'DRAFT').length;
-  const submitted = rows.filter(r => r.leave_status === 'SUBMITTED').length;
+  const pending = rows.filter(r => r.leave_status === 'SUBMITTED').length;
   const approved = rows.filter(r => r.leave_status === 'APPROVED').length;
+  const rejected = rows.filter(r => r.leave_status === 'REJECTED').length;
 
   return (
     <div className="space-y-6">
@@ -76,7 +74,7 @@ export default function LeaveApplicationsPage() {
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
             className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
             <option value="">All statuses</option>
-            {['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'].map(s => <option key={s} value={s}>{s}</option>)}
+            {['SUBMITTED', 'APPROVED', 'REJECTED'].map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
       </div>
@@ -84,8 +82,8 @@ export default function LeaveApplicationsPage() {
       {/* KPI cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="stat-card"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg flex items-center justify-center bg-blue-100 text-blue-600"><Users className="w-5 h-5" /></div><div><div className="stat-value">{total}</div><div className="stat-label">Total</div></div></div></div>
-        <div className="stat-card"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg flex items-center justify-center bg-gray-100 text-gray-600"><Clock className="w-5 h-5" /></div><div><div className="stat-value">{draft}</div><div className="stat-label">Draft</div></div></div></div>
-        <div className="stat-card"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg flex items-center justify-center bg-amber-100 text-amber-600"><CalendarDays className="w-5 h-5" /></div><div><div className="stat-value">{submitted}</div><div className="stat-label">Submitted</div></div></div></div>
+        <div className="stat-card"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg flex items-center justify-center bg-amber-100 text-amber-600"><Clock className="w-5 h-5" /></div><div><div className="stat-value">{pending}</div><div className="stat-label">Pending</div></div></div></div>
+        <div className="stat-card"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg flex items-center justify-center bg-rose-100 text-rose-600"><XCircle className="w-5 h-5" /></div><div><div className="stat-value">{rejected}</div><div className="stat-label">Rejected</div></div></div></div>
         <div className="stat-card"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg flex items-center justify-center bg-emerald-100 text-emerald-600"><CheckCircle2 className="w-5 h-5" /></div><div><div className="stat-value">{approved}</div><div className="stat-label">Approved</div></div></div></div>
       </div>
 

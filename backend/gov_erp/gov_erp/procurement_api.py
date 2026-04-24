@@ -780,3 +780,191 @@ def create_po_from_comparison(name):
 	}
 
 
+
+
+# ── Supplier CRUD ─────────────────────────────────────────────────────────────
+
+def _get_supplier_meta():
+	return frappe.get_meta("Supplier")
+
+
+def _get_supplier_field(meta, *candidates):
+	for fieldname in candidates:
+		if fieldname and meta.has_field(fieldname):
+			return fieldname
+	return None
+
+
+def _get_default_supplier_group():
+	if frappe.db.exists("Supplier Group", "All Supplier Groups"):
+		return "All Supplier Groups"
+	rows = frappe.get_all("Supplier Group", fields=["name"], limit_page_length=1)
+	return rows[0].name if rows else None
+
+
+def _supplier_payload_to_doc(doc, values):
+	meta = _get_supplier_meta()
+	supplier_name = cstr(values.get("party_name") or values.get("supplier_name") or "").strip()
+	if not supplier_name:
+		frappe.throw("Supplier name is required", frappe.ValidationError)
+
+	doc.supplier_name = supplier_name
+
+	if meta.has_field("supplier_group") and not cstr(doc.get("supplier_group") or "").strip():
+		default_group = _get_default_supplier_group()
+		if default_group:
+			doc.supplier_group = default_group
+	if meta.has_field("supplier_type") and not cstr(doc.get("supplier_type") or "").strip():
+		doc.supplier_type = "Company"
+
+	field_map = {
+		_get_supplier_field(meta, "mobile_no", "phone", "phone_no"): values.get("phone"),
+		_get_supplier_field(meta, "email_id", "email"): values.get("email"),
+		_get_supplier_field(meta, "city"): values.get("city"),
+		_get_supplier_field(meta, "state"): values.get("state"),
+		_get_supplier_field(meta, "address", "address_line1"): values.get("address"),
+	}
+	for fieldname, field_value in field_map.items():
+		if fieldname:
+			doc.set(fieldname, cstr(field_value or "").strip())
+
+	disabled_field = _get_supplier_field(meta, "disabled")
+	if disabled_field:
+		active = values.get("active")
+		doc.set(disabled_field, 0 if active in (None, "", 1, "1", True) else 1)
+
+
+def _serialize_supplier_row(row):
+	meta = _get_supplier_meta()
+	phone_field = _get_supplier_field(meta, "mobile_no", "phone", "phone_no")
+	email_field = _get_supplier_field(meta, "email_id", "email")
+	city_field = _get_supplier_field(meta, "city")
+	state_field = _get_supplier_field(meta, "state")
+	address_field = _get_supplier_field(meta, "address", "address_line1")
+	disabled_field = _get_supplier_field(meta, "disabled")
+
+	return {
+		"name": row.get("name"),
+		"party_name": row.get("supplier_name") or row.get("name"),
+		"party_type": "VENDOR",
+		"phone": row.get(phone_field) if phone_field else "",
+		"email": row.get(email_field) if email_field else "",
+		"city": row.get(city_field) if city_field else "",
+		"state": row.get(state_field) if state_field else "",
+		"address": row.get(address_field) if address_field else "",
+		"active": 0 if disabled_field and cint(row.get(disabled_field)) else 1,
+		"creation": row.get("creation"),
+	}
+
+
+def _supplier_reference_summary(doc):
+	values = {cstr(doc.name).strip(), cstr(doc.get("supplier_name") or "").strip()}
+	values.discard("")
+	checks = [
+		("Purchase Order", "supplier", "purchase order(s)"),
+		("Purchase Receipt", "supplier", "GRN(s)"),
+		("GE Vendor Comparison Quote", "supplier", "vendor comparison quote(s)"),
+		("GE Vendor Comparison", "recommended_supplier", "vendor comparison recommendation(s)"),
+		("GE Material Receipt", "supplier_link", "material receipt(s)"),
+	]
+	references = []
+	for doctype, fieldname, label in checks:
+		count = sum(frappe.db.count(doctype, {fieldname: value}) for value in values)
+		if count:
+			references.append(f"{count} {label}")
+	return references
+
+
+@frappe.whitelist()
+def get_suppliers(q=None, limit=50):
+	"""Return suppliers used by procurement workflows."""
+	_require_roles(
+		ROLE_DIRECTOR, ROLE_SYSTEM_MANAGER, ROLE_DEPARTMENT_HEAD,
+		ROLE_PROCUREMENT_MANAGER, ROLE_PURCHASE, ROLE_PROJECT_HEAD,
+		ROLE_ENGINEERING_HEAD, ROLE_ENGINEER,
+	)
+	meta = _get_supplier_meta()
+	fields = ["name", "supplier_name", "creation"]
+	for fieldname in (
+		_get_supplier_field(meta, "mobile_no", "phone", "phone_no"),
+		_get_supplier_field(meta, "email_id", "email"),
+		_get_supplier_field(meta, "city"),
+		_get_supplier_field(meta, "state"),
+		_get_supplier_field(meta, "address", "address_line1"),
+		_get_supplier_field(meta, "disabled"),
+	):
+		if fieldname and fieldname not in fields:
+			fields.append(fieldname)
+
+	filters = {}
+	if q:
+		filters["supplier_name"] = ["like", f"%{q}%"]
+
+	rows = frappe.get_all(
+		"Supplier",
+		filters=filters,
+		fields=fields,
+		order_by="supplier_name asc",
+		limit_page_length=cint(limit) or 50,
+		ignore_permissions=True,
+	)
+	return {"success": True, "data": [_serialize_supplier_row(row) for row in rows]}
+
+
+@frappe.whitelist()
+def get_supplier(name=None):
+	"""Return a single supplier record."""
+	_require_roles(
+		ROLE_DIRECTOR, ROLE_SYSTEM_MANAGER, ROLE_DEPARTMENT_HEAD,
+		ROLE_PROCUREMENT_MANAGER, ROLE_PURCHASE, ROLE_PROJECT_HEAD,
+		ROLE_ENGINEERING_HEAD, ROLE_ENGINEER,
+	)
+	_require_param(name, "name")
+	doc = frappe.get_doc("Supplier", name, ignore_permissions=True)
+	return {"success": True, "data": _serialize_supplier_row(doc.as_dict())}
+
+
+@frappe.whitelist()
+def create_supplier(data):
+	"""Create a supplier record used by procurement workflows."""
+	_require_roles(ROLE_DIRECTOR, ROLE_SYSTEM_MANAGER, ROLE_DEPARTMENT_HEAD, ROLE_PROCUREMENT_MANAGER)
+	values = json.loads(data) if isinstance(data, str) else data
+	doc = frappe.new_doc("Supplier")
+	_supplier_payload_to_doc(doc, values)
+	doc.insert(ignore_permissions=True)
+	frappe.db.commit()
+	return {
+		"success": True,
+		"data": _serialize_supplier_row(doc.as_dict()),
+		"message": f"Supplier '{doc.supplier_name}' created",
+	}
+
+
+@frappe.whitelist()
+def update_supplier(name, data):
+	"""Update an existing supplier."""
+	_require_roles(ROLE_DIRECTOR, ROLE_SYSTEM_MANAGER, ROLE_DEPARTMENT_HEAD, ROLE_PROCUREMENT_MANAGER)
+	_require_param(name, "name")
+	values = json.loads(data) if isinstance(data, str) else data
+	doc = frappe.get_doc("Supplier", name, ignore_permissions=True)
+	_supplier_payload_to_doc(doc, values)
+	doc.save(ignore_permissions=True)
+	frappe.db.commit()
+	return {"success": True, "data": _serialize_supplier_row(doc.as_dict()), "message": "Supplier updated"}
+
+
+@frappe.whitelist()
+def delete_supplier(name):
+	"""Delete a supplier if it is not referenced by procurement records."""
+	_require_roles(ROLE_DIRECTOR, ROLE_SYSTEM_MANAGER, ROLE_PROCUREMENT_MANAGER)
+	_require_param(name, "name")
+	doc = frappe.get_doc("Supplier", name, ignore_permissions=True)
+	references = _supplier_reference_summary(doc)
+	if references:
+		frappe.throw(
+			f"Cannot delete supplier — referenced by {', '.join(references)}",
+			frappe.ValidationError,
+		)
+	frappe.delete_doc("Supplier", name, ignore_permissions=True)
+	frappe.db.commit()
+	return {"success": True, "message": "Supplier deleted"}

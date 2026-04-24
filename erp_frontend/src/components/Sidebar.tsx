@@ -50,6 +50,7 @@ import {
   Send,
   ShieldAlert,
   FileSpreadsheet,
+  Building2,
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -169,6 +170,7 @@ const navLinks: NavLink[] = [
     children: [
       { name: 'Vendor Comparisons', href: '/vendor-comparisons', icon: ClipboardList },
       { name: 'BOQ', href: '/engineering/boq', icon: FileSpreadsheet },
+      { name: 'Suppliers', href: '/procurement/suppliers', icon: Building2 },
       { name: 'Indents', href: '/indents', icon: FileText },
       { name: 'Purchase Orders', href: '/purchase-orders', icon: ShoppingCart },
     ],
@@ -231,6 +233,7 @@ const navLinks: NavLink[] = [
       { name: 'Employees', href: '/hr/employees', icon: Users2 },
       { name: 'Onboarding', href: '/hr/onboarding', icon: Briefcase },
       { name: 'Attendance', href: '/hr/attendance', icon: CalendarCheck2 },
+      { name: 'Payroll', href: '/hr/payroll', icon: Banknote },
       { name: 'Who Is In', href: '/hr/who-is-in', icon: Eye },
       { name: 'Muster', href: '/hr/muster', icon: ClipboardCheck },
       { name: 'Leave Applications', href: '/hr/leave/applications', icon: CalendarCheck2 },

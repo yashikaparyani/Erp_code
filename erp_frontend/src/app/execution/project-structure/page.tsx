@@ -52,11 +52,11 @@ interface StaffingAssignment {
 
 type MemberFormData = {
   linked_project: string;
-  employee: string;
-  employee_name: string;
-  role: string;
-  designation: string;
-  from_date: string;
+  user: string;
+  role_in_project: string;
+  linked_site: string;
+  is_active: boolean;
+  remarks: string;
 };
 
 type AssetFormData = {
@@ -88,11 +88,11 @@ type StaffingFormData = {
 
 const initialMemberForm: MemberFormData = {
   linked_project: '',
-  employee: '',
-  employee_name: '',
-  role: '',
-  designation: '',
-  from_date: '',
+  user: '',
+  role_in_project: '',
+  linked_site: '',
+  is_active: true,
+  remarks: '',
 };
 
 const initialAssetForm: AssetFormData = {
@@ -497,12 +497,11 @@ export default function ProjectStructurePage() {
       {showMemberModal && (
         <Modal title="Add Team Member" onClose={() => setShowMemberModal(false)}>
           <div className="grid grid-cols-1 gap-4 p-6 md:grid-cols-2">
-            <Field label="Project"><input className="input" value={memberForm.linked_project} onChange={(e) => setMemberForm({ ...memberForm, linked_project: e.target.value })} /></Field>
-            <Field label="Employee"><input className="input" value={memberForm.employee} onChange={(e) => setMemberForm({ ...memberForm, employee: e.target.value })} /></Field>
-            <Field label="Employee Name"><input className="input" value={memberForm.employee_name} onChange={(e) => setMemberForm({ ...memberForm, employee_name: e.target.value })} /></Field>
-            <Field label="Role"><input className="input" value={memberForm.role} onChange={(e) => setMemberForm({ ...memberForm, role: e.target.value })} /></Field>
-            <Field label="Designation"><input className="input" value={memberForm.designation} onChange={(e) => setMemberForm({ ...memberForm, designation: e.target.value })} /></Field>
-            <Field label="From Date"><input className="input" type="date" value={memberForm.from_date} onChange={(e) => setMemberForm({ ...memberForm, from_date: e.target.value })} /></Field>
+            <Field label="Project *"><input className="input" value={memberForm.linked_project} onChange={(e) => setMemberForm({ ...memberForm, linked_project: e.target.value })} placeholder="Project name" /></Field>
+            <Field label="User (email) *"><input className="input" value={memberForm.user} onChange={(e) => setMemberForm({ ...memberForm, user: e.target.value })} placeholder="user@example.com" /></Field>
+            <Field label="Role in Project *"><input className="input" value={memberForm.role_in_project} onChange={(e) => setMemberForm({ ...memberForm, role_in_project: e.target.value })} placeholder="e.g. Engineer, Site Lead" /></Field>
+            <Field label="Linked Site"><input className="input" value={memberForm.linked_site} onChange={(e) => setMemberForm({ ...memberForm, linked_site: e.target.value })} placeholder="Site name (optional)" /></Field>
+            <Field label="Remarks"><input className="input" value={memberForm.remarks} onChange={(e) => setMemberForm({ ...memberForm, remarks: e.target.value })} /></Field>
           </div>
           <ModalFooter
             busy={isSubmitting}

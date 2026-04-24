@@ -7,7 +7,7 @@ import ActionModal from '@/components/ui/ActionModal';
 import AccountabilityTimeline from '@/components/accountability/AccountabilityTimeline';
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
 import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
-import { callApi, formatCurrency, formatDate, RETENTION_BADGES, statusVariant, useAuth, hasAnyRole } from '@/components/finance/fin-helpers';
+import { callApi, formatCurrency, formatDate, statusVariant, useAuth, hasAnyRole } from '@/components/finance/fin-helpers';
 
 type Retention = Record<string, any>;
 
@@ -31,11 +31,11 @@ export default function RetentionDetailPage() {
   useEffect(() => { load(); }, [load]);
 
   const d = data || {} as Retention;
-  const held = Number(d.amount || 0);
-  const released = Number(d.released_amount || 0);
+  const held = Number(d.retention_amount || 0);
+  const released = Number(d.release_amount || 0);
   const remaining = held - released;
   const pct = held > 0 ? Math.round((released / held) * 100) : 0;
-  const canRelease = hasAnyRole(currentUser?.roles, 'Finance Admin', 'Finance Officer') && remaining > 0;
+  const canRelease = hasAnyRole(currentUser?.roles, 'Director', 'System Manager', 'Department Head') && remaining > 0;
 
   return (
     <DetailPage
@@ -67,10 +67,10 @@ export default function RetentionDetailPage() {
           <div className="card">
             <div className="card-header"><h3 className="font-semibold">Details</h3></div>
             <div className="card-body grid grid-cols-2 gap-4 text-sm">
-              <div><span className="text-gray-500">Project</span><p>{d.project || '-'}</p></div>
-              <div><span className="text-gray-500">Invoice</span><p>{d.invoice || '-'}</p></div>
-              <div><span className="text-gray-500">Retention %</span><p>{d.retention_pct ?? '-'}%</p></div>
-              <div><span className="text-gray-500">Due Date</span><p>{formatDate(d.due_date)}</p></div>
+              <div><span className="text-gray-500">Project</span><p>{d.linked_project || '-'}</p></div>
+              <div><span className="text-gray-500">Invoice</span><p>{d.linked_invoice || '-'}</p></div>
+              <div><span className="text-gray-500">Retention %</span><p>{d.retention_percent ?? '-'}%</p></div>
+              <div><span className="text-gray-500">Release Due</span><p>{formatDate(d.release_due_date)}</p></div>
               <div><span className="text-gray-500">Customer</span><p>{d.customer || '-'}</p></div>
               <div className="col-span-2"><span className="text-gray-500">Remarks</span><p>{d.remarks || '-'}</p></div>
             </div>
@@ -79,11 +79,11 @@ export default function RetentionDetailPage() {
       }
       sidePanels={
         <>
-          <RecordDocumentsPanel referenceDoctype="Retention" referenceName={id} title="Documents" />
+          <RecordDocumentsPanel referenceDoctype="GE Retention Ledger" referenceName={id} title="Documents" />
           <LinkedRecordsPanel links={[
-            ...(d.invoice ? [{ label: 'Invoice', doctype: 'Sales Invoice', method: 'frappe.client.get_list', args: { doctype: 'Sales Invoice', filters: JSON.stringify({ name: d.invoice }), fields: JSON.stringify(['name','grand_total','status']), limit_page_length: '5' }, href: (n: string) => `/finance/billing/${n}` }] : []),
+            ...(d.linked_invoice ? [{ label: 'Invoice', doctype: 'GE Invoice', method: 'frappe.client.get_list', args: { doctype: 'GE Invoice', filters: JSON.stringify({ name: d.linked_invoice }), fields: JSON.stringify(['name','amount','net_receivable','status']), limit_page_length: '5' }, href: (n: string) => `/finance/billing/${n}` }] : []),
           ]} />
-          <AccountabilityTimeline subjectDoctype="Retention" subjectName={id} />
+          <AccountabilityTimeline subjectDoctype="GE Retention Ledger" subjectName={id} />
         </>
       }
     >
@@ -92,7 +92,6 @@ export default function RetentionDetailPage() {
         confirmLabel="Release" variant="default"
         fields={[
           { name: 'release_amount', label: `Amount to Release (max ${formatCurrency(remaining)})`, type: 'text', required: true },
-          { name: 'remarks', label: 'Remarks', type: 'textarea' },
         ]}
         onConfirm={async (v) => { await callApi(`/api/retention/${encodeURIComponent(id)}/actions`, { method: 'POST', body: { action: 'release', ...v } }); setShowRelease(false); load(); }}
         onCancel={() => setShowRelease(false)}
@@ -113,8 +112,7 @@ export default function RetentionDetailPage() {
         title="Delete Retention"
         confirmLabel="Delete"
         variant="danger"
-        fields={[{ name: 'reason', label: 'Delete Reason', type: 'textarea', required: true }]}
-        onConfirm={async (v) => { await callApi(`/api/retention/${encodeURIComponent(id)}`, { method: 'DELETE' }); setShowDelete(false); load(); }}
+        onConfirm={async () => { await callApi(`/api/retention/${encodeURIComponent(id)}`, { method: 'DELETE' }); setShowDelete(false); load(); }}
         onCancel={() => setShowDelete(false)}
       />
     </DetailPage>

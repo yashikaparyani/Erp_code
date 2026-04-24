@@ -124,7 +124,9 @@ def _get_user_loi_department_links():
             department_link = _resolve_department_link(target["department_key"], target["label"])
             if department_link:
                 links.add(department_link)
-    return links
+    # If no department records matched (setup not complete), allow unrestricted submission
+    # rather than blocking the user entirely.
+    return links if links else None
 
 
 def _get_users_for_role(role_name):

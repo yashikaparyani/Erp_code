@@ -34,6 +34,7 @@ interface GRNDetail {
   received_from?: string;
   supplier_link?: string;
   linked_project?: string;
+  linked_dispatch_challan?: string;
   linked_purchase_order?: string;
   warehouse?: string;
   received_by_user?: string;
@@ -140,9 +141,9 @@ export default function GRNDetailPage() {
 
   const statusVariant = (s?: string) => {
     if (s === 'APPROVED') return 'success';
-    if (s === 'REJECTED' || s === 'CANCELLED') return 'destructive';
+    if (s === 'REJECTED' || s === 'CANCELLED') return 'error';
     if (s === 'SUBMITTED') return 'warning';
-    return 'secondary';
+    return 'default';
   };
 
   return (
@@ -162,6 +163,7 @@ export default function GRNDetailPage() {
             ['Received From', grn.received_from],
             ['Supplier', grn.supplier_link],
             ['Project', grn.linked_project],
+            ['Dispatch Challan', grn.linked_dispatch_challan],
             ['Warehouse', grn.warehouse],
             ['PO Reference', grn.linked_purchase_order],
             ['Invoice Ref', grn.vendor_invoice_reference],
@@ -222,6 +224,11 @@ export default function GRNDetailPage() {
             {grn.linked_project && (
               <Link href={`/projects/${encodeURIComponent(grn.linked_project)}`} className="block text-sm text-blue-600 hover:underline">
                 Project: {grn.linked_project}
+              </Link>
+            )}
+            {grn.linked_dispatch_challan && (
+              <Link href={`/dispatch-challans/${encodeURIComponent(grn.linked_dispatch_challan)}`} className="block text-sm text-blue-600 hover:underline">
+                Dispatch: {grn.linked_dispatch_challan}
               </Link>
             )}
           </div>
@@ -381,5 +388,4 @@ export default function GRNDetailPage() {
       )}
     </DetailPage>
   );
-}
 }

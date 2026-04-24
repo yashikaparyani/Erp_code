@@ -6,7 +6,7 @@ app_email = "dev@technosys.local"
 app_license = "mit"
 
 # Required Apps
-required_apps = ["erpnext"]
+required_apps = ["erpnext", "hrms"]
 
 website_route_rules = [
 	{"from_route": "/api/<path:app_path>", "to_route": "api"},

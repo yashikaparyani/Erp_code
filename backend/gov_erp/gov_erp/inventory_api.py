@@ -84,11 +84,91 @@ def _normalize_dispatch_item_payload(values):
 
 def _normalize_dispatch_challan_payload(values):
 	normalized = _normalize_aliased_payload(values, _DISPATCH_PARENT_ALIAS_MAP)
+	if normalized.get("dispatch_type") == "WAREHOUSE_TO_SITE" and not normalized.get("from_warehouse"):
+		default_company = _get_default_company()
+		default_warehouse = _get_default_warehouse(default_company) if default_company else None
+		if default_warehouse:
+			normalized["from_warehouse"] = default_warehouse
 	if "items" in normalized:
 		normalized["items"] = [_normalize_dispatch_item_payload(item) for item in normalized.get("items") or []]
 	if normalized.get("challan_reference") and not normalized.get("tracking_reference"):
 		normalized["tracking_reference"] = normalized["challan_reference"]
 	return normalized
+
+
+def _material_receipt_supports_dispatch_link():
+	try:
+		return frappe.get_meta("GE Material Receipt").has_field("linked_dispatch_challan")
+	except Exception:
+		return False
+
+
+def _normalize_material_receipt_payload(values):
+	normalized = _parse_payload(values)
+	if not _material_receipt_supports_dispatch_link():
+		normalized.pop("linked_dispatch_challan", None)
+	linked_dispatch_challan = cstr(normalized.get("linked_dispatch_challan") or "").strip()
+	if linked_dispatch_challan and _material_receipt_supports_dispatch_link():
+		normalized["linked_dispatch_challan"] = linked_dispatch_challan
+		dispatch = frappe.db.get_value(
+			"GE Dispatch Challan",
+			linked_dispatch_challan,
+			["name", "linked_project", "target_site_name", "challan_reference"],
+			as_dict=True,
+		)
+		if dispatch:
+			if not normalized.get("linked_project") and dispatch.get("linked_project"):
+				normalized["linked_project"] = dispatch.get("linked_project")
+			if not normalized.get("received_from"):
+				normalized["received_from"] = dispatch.get("target_site_name") or dispatch.get("challan_reference") or dispatch.get("name")
+
+	default_company = _get_default_company()
+	default_warehouse = _get_default_warehouse(default_company) if default_company else None
+	if default_warehouse and not normalized.get("warehouse"):
+		normalized["warehouse"] = default_warehouse
+
+	return normalized
+
+
+def _attach_dispatch_receipt_summary(dispatch_rows):
+	if not dispatch_rows or not _material_receipt_supports_dispatch_link():
+		return dispatch_rows
+
+	dispatch_names = [row.get("name") for row in dispatch_rows if row.get("name")]
+	if not dispatch_names:
+		return dispatch_rows
+
+	receipt_rows = frappe.get_all(
+		"GE Material Receipt",
+		filters={"linked_dispatch_challan": ["in", dispatch_names]},
+		fields=["name", "linked_dispatch_challan", "status", "receipt_date", "modified"],
+		order_by="receipt_date desc, modified desc",
+		ignore_permissions=True,
+	)
+	latest_by_dispatch = {}
+	for receipt in receipt_rows:
+		dispatch_name = receipt.get("linked_dispatch_challan")
+		if dispatch_name and dispatch_name not in latest_by_dispatch:
+			latest_by_dispatch[dispatch_name] = receipt
+
+	for row in dispatch_rows:
+		receipt = latest_by_dispatch.get(row.get("name"))
+		row["linked_receipt"] = receipt.get("name") if receipt else None
+		row["receipt_status"] = receipt.get("status") if receipt else None
+		row["receipt_date"] = receipt.get("receipt_date") if receipt else None
+		if receipt:
+			row["fulfilment_status"] = {
+				"APPROVED": "RECEIVED_AT_SITE",
+				"SUBMITTED": "GRN_PENDING_APPROVAL",
+				"DRAFT": "GRN_DRAFT",
+				"REJECTED": "GRN_REJECTED",
+			}.get(receipt.get("status"), "GRN_LINKED")
+		elif row.get("status") == "DISPATCHED":
+			row["fulfilment_status"] = "AWAITING_SITE_GRN"
+		else:
+			row["fulfilment_status"] = row.get("status")
+
+	return dispatch_rows
 
 
 @frappe.whitelist()
@@ -133,6 +213,7 @@ def get_dispatch_challans(status=None, warehouse=None):
 		],
 		order_by="creation desc",
 	)
+	data = _attach_dispatch_receipt_summary(data)
 	return {"success": True, "data": data}
 
 
@@ -142,7 +223,9 @@ def get_dispatch_challan(name=None):
 	_require_store_read_access()
 	name = _require_param(name, "name")
 	doc = frappe.get_doc("GE Dispatch Challan", name)
-	return {"success": True, "data": doc.as_dict()}
+	data = doc.as_dict()
+	_attach_dispatch_receipt_summary([data])
+	return {"success": True, "data": data}
 
 
 @frappe.whitelist()
@@ -1066,6 +1149,88 @@ def cancel_purchase_order(name=None):
 	return {"success": True, "data": {"name": po.name, "status": po.status}, "message": "Purchase Order cancelled"}
 
 
+@frappe.whitelist()
+def submit_po_to_ph(name=None, remarks=None):
+	"""Send a submitted Purchase Order to the Project Head approval queue."""
+	_require_procurement_write_access()
+	_require_project_head_workflow()
+	name = _require_param(name, "name")
+	po = frappe.get_doc("Purchase Order", name, ignore_permissions=True)
+	if po.docstatus != 1:
+		frappe.throw("Only submitted Purchase Orders can be sent to Project Head")
+
+	existing_name = frappe.db.get_value(
+		"GE PH Approval Item",
+		{
+			"source_type": "PO",
+			"source_name": po.name,
+			"status": ["not in", ["Rejected by PH", "Disbursed / Released"]],
+		},
+		"name",
+	)
+	if existing_name:
+		return {
+			"success": True,
+			"data": frappe.get_doc("GE PH Approval Item", existing_name).as_dict(),
+			"message": f"Purchase Order {po.name} is already in the Project Head approval chain",
+		}
+
+	ph_item = frappe.get_doc({
+		"doctype": "GE PH Approval Item",
+		"source_type": "PO",
+		"source_name": po.name,
+		"source_id": po.name,
+		"originating_module": "Procurement",
+		"project": po.project,
+		"raised_by": frappe.session.user,
+		"raised_on": frappe.utils.now_datetime(),
+		"amount": po.rounded_total or po.grand_total,
+		"status": "Submitted to PH",
+		"linked_record": f"/purchase-orders/{po.name}",
+		"priority": "Medium",
+		"remarks": cstr(remarks).strip() or f"Purchase Order {po.name} from supplier {po.supplier}",
+	})
+	ph_item.insert()
+	frappe.db.commit()
+
+	try:
+		from gov_erp.alert_dispatcher import emit_alert
+		emit_alert(
+			"approval_assigned",
+			f"Purchase Order {po.name} submitted for Project Head approval",
+			project=po.project,
+			reference_doctype="GE PH Approval Item",
+			reference_name=ph_item.name,
+			route_path=f"/projects/{po.project}?tab=approvals" if po.project else "/approvals",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Alert: submit_po_to_ph")
+
+	try:
+		from gov_erp.accountability import record_and_log, EventType
+		record_and_log(
+			subject_doctype="Purchase Order",
+			subject_name=po.name,
+			event_type=EventType.SUBMITTED,
+			linked_project=po.project,
+			from_status="Submitted",
+			to_status="Submitted to PH",
+			current_status="Submitted to PH",
+			current_owner_user=frappe.session.user,
+			current_owner_role=ROLE_PROCUREMENT_MANAGER,
+			assigned_to_role=ROLE_PROJECT_HEAD,
+			source_route=f"/purchase-orders/{po.name}",
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Accountability: submit_po_to_ph")
+
+	return {
+		"success": True,
+		"data": ph_item.as_dict(),
+		"message": f"Purchase Order {po.name} submitted to Project Head",
+	}
+
+
 # ── PO Payment Terms ─────────────────────────────────────────
 
 
@@ -1580,15 +1745,19 @@ def get_material_receipts(
 	if receipt_type:
 		filters["receipt_type"] = receipt_type
 
+	fields = [
+		"name", "receipt_date", "receipt_type", "status",
+		"received_from", "linked_project", "warehouse",
+		"total_items", "total_qty", "total_value",
+		"vendor_invoice_reference", "creation", "modified",
+	]
+	if _material_receipt_supports_dispatch_link():
+		fields.append("linked_dispatch_challan")
+
 	data = frappe.get_all(
 		"GE Material Receipt",
 		filters=filters,
-		fields=[
-			"name", "receipt_date", "receipt_type", "status",
-			"received_from", "linked_project", "warehouse",
-			"total_items", "total_qty", "total_value",
-			"vendor_invoice_reference", "creation", "modified",
-		],
+		fields=fields,
 		order_by="receipt_date desc, creation desc",
 		start=int(limit_start),
 		page_length=int(limit_page_length),
@@ -1611,7 +1780,7 @@ def get_material_receipt(name=None):
 def create_material_receipt(data):
 	"""Create a new GE Material Receipt (inward GRN)."""
 	_require_store_write_access()
-	values = _parse_payload(data)
+	values = _normalize_material_receipt_payload(data)
 	items = []
 	for raw_item in values.pop("items", []):
 		items.append(_normalize_receipt_item_payload(raw_item))
@@ -1628,7 +1797,7 @@ def update_material_receipt(name=None, data=None):
 	"""Update a DRAFT GE Material Receipt."""
 	_require_store_write_access()
 	name = _require_param(name, "name")
-	values = _parse_payload(data)
+	values = _normalize_material_receipt_payload(data)
 	doc = frappe.get_doc("GE Material Receipt", name, ignore_permissions=True)
 	if doc.status != "DRAFT":
 		frappe.throw("Only DRAFT receipts can be edited")
@@ -1947,15 +2116,19 @@ def get_material_receipts(
 	if receipt_type:
 		filters["receipt_type"] = receipt_type
 
+	fields = [
+		"name", "receipt_date", "receipt_type", "status",
+		"received_from", "linked_project", "warehouse",
+		"total_items", "total_qty", "total_value",
+		"vendor_invoice_reference", "creation", "modified",
+	]
+	if _material_receipt_supports_dispatch_link():
+		fields.append("linked_dispatch_challan")
+
 	data = frappe.get_all(
 		"GE Material Receipt",
 		filters=filters,
-		fields=[
-			"name", "receipt_date", "receipt_type", "status",
-			"received_from", "linked_project", "warehouse",
-			"total_items", "total_qty", "total_value",
-			"vendor_invoice_reference", "creation", "modified",
-		],
+		fields=fields,
 		order_by="receipt_date desc, creation desc",
 		start=int(limit_start),
 		page_length=int(limit_page_length),
@@ -1978,7 +2151,7 @@ def get_material_receipt(name=None):
 def create_material_receipt(data):
 	"""Create a new GE Material Receipt (inward GRN)."""
 	_require_store_write_access()
-	values = _parse_payload(data)
+	values = _normalize_material_receipt_payload(data)
 	items = []
 	for raw_item in values.pop("items", []):
 		items.append(_normalize_receipt_item_payload(raw_item))
@@ -1995,7 +2168,7 @@ def update_material_receipt(name=None, data=None):
 	"""Update a DRAFT GE Material Receipt."""
 	_require_store_write_access()
 	name = _require_param(name, "name")
-	values = _parse_payload(data)
+	values = _normalize_material_receipt_payload(data)
 	doc = frappe.get_doc("GE Material Receipt", name, ignore_permissions=True)
 	if doc.status != "DRAFT":
 		frappe.throw("Only DRAFT receipts can be edited")

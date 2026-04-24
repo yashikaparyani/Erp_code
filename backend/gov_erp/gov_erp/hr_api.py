@@ -399,17 +399,23 @@ def get_attendance_logs(employee=None, attendance_date=None, status=None):
 	if attendance_date:
 		filters["attendance_date"] = attendance_date
 	if status:
-		filters["attendance_status"] = status
+		# Accept both GE-style (PRESENT) and native (Present)
+		filters["status"] = _GE_TO_NATIVE_ATTENDANCE_STATUS.get(status, status)
 	data = frappe.get_all(
-		"GE Attendance Log",
+		"Attendance",
 		filters=filters,
 		fields=[
-			"name", "employee", "attendance_date", "attendance_status",
-			"linked_project", "linked_site", "check_in_time", "check_out_time",
-			"creation", "modified",
+			"name", "employee", "attendance_date", "status",
+			"in_time", "out_time", "creation", "modified",
 		],
 		order_by="attendance_date desc, creation desc",
+		ignore_permissions=True,
 	)
+	# Normalise to GE field names so frontend stays unchanged
+	for row in data:
+		row["attendance_status"] = _NATIVE_TO_GE_ATTENDANCE_STATUS.get(row.get("status"), row.get("status"))
+		row["check_in_time"] = row.pop("in_time", None)
+		row["check_out_time"] = row.pop("out_time", None)
 	return {"success": True, "data": data}
 
 
@@ -418,7 +424,7 @@ def get_attendance_log(name=None):
 	"""Return one attendance log."""
 	_require_hr_read_access()
 	name = _require_param(name, "name")
-	doc = frappe.get_doc("GE Attendance Log", name)
+	doc = frappe.get_doc("Attendance", name, ignore_permissions=True)
 	return {"success": True, "data": doc.as_dict()}
 
 
@@ -427,8 +433,18 @@ def create_attendance_log(data):
 	"""Create an attendance log."""
 	_require_hr_write_access()
 	values = json.loads(data) if isinstance(data, str) else data
-	doc = frappe.get_doc({"doctype": "GE Attendance Log", **values})
-	doc.insert()
+	# Map GE field names to native Attendance fields
+	ge_status = values.pop("attendance_status", values.pop("status", "PRESENT"))
+	values["status"] = _GE_TO_NATIVE_ATTENDANCE_STATUS.get(ge_status, "Present")
+	values["company"] = values.get("company") or _get_default_company()
+	if "check_in_time" in values:
+		values["in_time"] = values.pop("check_in_time")
+	if "check_out_time" in values:
+		values["out_time"] = values.pop("check_out_time")
+	values.pop("linked_project", None)
+	values.pop("linked_site", None)
+	doc = frappe.get_doc({"doctype": "Attendance", **values})
+	doc.insert(ignore_permissions=True)
 	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": "Attendance log created"}
 
@@ -438,9 +454,16 @@ def update_attendance_log(name, data):
 	"""Update an attendance log."""
 	_require_hr_write_access()
 	values = json.loads(data) if isinstance(data, str) else data
-	doc = frappe.get_doc("GE Attendance Log", name)
+	if "attendance_status" in values:
+		ge_status = values.pop("attendance_status")
+		values["status"] = _GE_TO_NATIVE_ATTENDANCE_STATUS.get(ge_status, "Present")
+	if "check_in_time" in values:
+		values["in_time"] = values.pop("check_in_time")
+	if "check_out_time" in values:
+		values["out_time"] = values.pop("check_out_time")
+	doc = frappe.get_doc("Attendance", name, ignore_permissions=True)
 	doc.update(values)
-	doc.save()
+	doc.save(ignore_permissions=True)
 	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": "Attendance log updated"}
 
@@ -449,7 +472,7 @@ def update_attendance_log(name, data):
 def delete_attendance_log(name):
 	"""Delete an attendance log."""
 	_require_hr_write_access()
-	frappe.delete_doc("GE Attendance Log", name)
+	frappe.delete_doc("Attendance", name, ignore_permissions=True)
 	frappe.db.commit()
 	return {"success": True, "message": "Attendance log deleted"}
 
@@ -458,18 +481,86 @@ def delete_attendance_log(name):
 def get_attendance_stats():
 	"""Aggregate attendance counts for dashboard use."""
 	_require_hr_read_access()
-	rows = frappe.get_all("GE Attendance Log", fields=["attendance_status"])
+	rows = frappe.get_all("Attendance", fields=["status"], ignore_permissions=True)
 	return {
 		"success": True,
 		"data": {
 			"total": len(rows),
-			"present": sum(1 for row in rows if row.attendance_status == "PRESENT"),
-			"absent": sum(1 for row in rows if row.attendance_status == "ABSENT"),
-			"half_day": sum(1 for row in rows if row.attendance_status == "HALF_DAY"),
-			"on_duty": sum(1 for row in rows if row.attendance_status == "ON_DUTY"),
-			"week_off": sum(1 for row in rows if row.attendance_status == "WEEK_OFF"),
+			"present": sum(1 for row in rows if row.status == "Present"),
+			"absent": sum(1 for row in rows if row.status == "Absent"),
+			"half_day": sum(1 for row in rows if row.status == "Half Day"),
+			"on_duty": sum(1 for row in rows if row.status == "Work From Home"),
+			"week_off": sum(1 for row in rows if row.status == "Work From Home"),
 		},
 	}
+
+
+def _get_default_company():
+	"""Return the default ERPNext company for HR records."""
+	company = frappe.db.get_single_value("Global Defaults", "default_company")
+	if not company:
+		companies = frappe.get_all("Company", limit=1, pluck="name")
+		company = companies[0] if companies else ""
+	return company
+
+
+_GE_TO_NATIVE_ATTENDANCE_STATUS = {
+	"PRESENT": "Present",
+	"ABSENT": "Absent",
+	"HALF_DAY": "Half Day",
+	"ON_DUTY": "Work From Home",
+	"WEEK_OFF": "Work From Home",
+}
+_NATIVE_TO_GE_ATTENDANCE_STATUS = {v: k for k, v in _GE_TO_NATIVE_ATTENDANCE_STATUS.items()}
+
+
+_GE_TO_NATIVE_LEAVE_STATUS = {
+	"DRAFT": "Open",
+	"SUBMITTED": "Open",
+	"APPROVED": "Approved",
+	"REJECTED": "Rejected",
+}
+_NATIVE_TO_GE_LEAVE_STATUS = {
+	"Open": "SUBMITTED",
+	"Approved": "APPROVED",
+	"Rejected": "REJECTED",
+	"Cancelled": "REJECTED",
+}
+
+
+_LEAVE_REJECTION_COMMENT_PREFIX = "Rejection Reason:"
+
+
+def _normalize_leave_application_dict(row):
+	"""Return one leave application row in GE-compatible shape."""
+	if not row:
+		return row
+	data = dict(row)
+	data["leave_status"] = _NATIVE_TO_GE_LEAVE_STATUS.get(data.get("status"), data.get("status"))
+	if "description" in data and "reason" not in data:
+		data["reason"] = data.get("description")
+	return data
+
+
+def _get_leave_rejection_reason(name):
+	"""Return the latest stored rejection reason comment for a leave application."""
+	comments = frappe.get_all(
+		"Comment",
+		filters={
+			"reference_doctype": "Leave Application",
+			"reference_name": name,
+			"comment_type": "Comment",
+		},
+		fields=["content", "creation"],
+		order_by="creation desc",
+		limit=20,
+		ignore_permissions=True,
+	)
+	for comment in comments:
+		content = cstr(comment.get("content") or "").strip()
+		if content.startswith(_LEAVE_REJECTION_COMMENT_PREFIX):
+			return content[len(_LEAVE_REJECTION_COMMENT_PREFIX):].strip()
+	return None
 
 
 def _get_cycle_bounds(from_date=None, to_date=None):
@@ -494,26 +585,29 @@ def _overlap_days(range_start, range_end, cycle_start, cycle_end):
 def _calculate_leave_balances(employee=None, from_date=None, to_date=None, exclude_application=None):
 	cycle_start, cycle_end = _get_cycle_bounds(from_date, to_date)
 	allocation_filters = {}
-	application_filters = {"leave_status": "APPROVED"}
+	application_filters = {"status": "Approved"}
 	if employee:
 		allocation_filters["employee"] = employee
 		application_filters["employee"] = employee
 
 	allocations = frappe.get_all(
-		"GE Leave Allocation",
+		"Leave Allocation",
 		filters=allocation_filters,
-		fields=["name", "employee", "leave_type", "allocation_days", "from_date", "to_date"],
+		fields=["name", "employee", "leave_type", "new_leaves_allocated", "from_date", "to_date"],
+		ignore_permissions=True,
 	)
 	applications = frappe.get_all(
-		"GE Leave Application",
+		"Leave Application",
 		filters=application_filters,
 		fields=["name", "employee", "leave_type", "from_date", "to_date", "total_leave_days"],
+		ignore_permissions=True,
 	)
 	leave_types = {
 		row.name: row
 		for row in frappe.get_all(
-			"GE Leave Type",
-			fields=["name", "leave_type_name", "color", "annual_allocation", "is_paid_leave", "is_active"],
+			"Leave Type",
+			fields=["name", "leave_type_name", "max_leaves_allowed"],
+			ignore_permissions=True,
 		)
 	}
 
@@ -539,9 +633,9 @@ def _calculate_leave_balances(employee=None, from_date=None, to_date=None, exclu
 		entry["employee"] = allocation.employee
 		entry["leave_type"] = allocation.leave_type
 		entry["leave_type_label"] = leave_type_meta.leave_type_name if leave_type_meta else allocation.leave_type
-		entry["allocated"] += flt(allocation.allocation_days)
-		entry["color"] = leave_type_meta.color if leave_type_meta and leave_type_meta.color else entry["color"]
-		entry["is_paid_leave"] = leave_type_meta.is_paid_leave if leave_type_meta else entry["is_paid_leave"]
+		entry["allocated"] += flt(allocation.new_leaves_allocated)
+		entry["color"] = entry["color"]
+		entry["is_paid_leave"] = entry["is_paid_leave"]
 
 	for application in applications:
 		if exclude_application and application.name == exclude_application:
@@ -558,8 +652,8 @@ def _calculate_leave_balances(employee=None, from_date=None, to_date=None, exclu
 		entry["leave_type"] = application.leave_type
 		entry["leave_type_label"] = leave_type_meta.leave_type_name if leave_type_meta else application.leave_type
 		entry["consumed"] += flt(overlap)
-		entry["color"] = leave_type_meta.color if leave_type_meta and leave_type_meta.color else entry["color"]
-		entry["is_paid_leave"] = leave_type_meta.is_paid_leave if leave_type_meta else entry["is_paid_leave"]
+		entry["color"] = entry["color"]
+		entry["is_paid_leave"] = entry["is_paid_leave"]
 
 	for entry in balance_map.values():
 		entry["remaining"] = flt(entry["allocated"] - entry["consumed"])
@@ -575,15 +669,19 @@ def _calculate_leave_balances(employee=None, from_date=None, to_date=None, exclu
 def get_leave_types(active_only=None):
 	"""Return leave type setup rows."""
 	_require_hr_read_access()
-	filters = {}
-	if cint(active_only):
-		filters["is_active"] = 1
 	data = frappe.get_all(
-		"GE Leave Type",
-		filters=filters,
-		fields=["name", "leave_type_name", "annual_allocation", "is_paid_leave", "is_active", "color", "description"],
+		"Leave Type",
+		fields=["name", "leave_type_name", "max_leaves_allowed", "is_lwp"],
 		order_by="leave_type_name asc",
+		ignore_permissions=True,
 	)
+	# Normalise to GE field names for frontend compatibility
+	for row in data:
+		row["annual_allocation"] = row.pop("max_leaves_allowed", 0)
+		row["is_paid_leave"] = 0 if row.pop("is_lwp", 0) else 1
+		row["is_active"] = 1
+		row["color"] = None
+		row["description"] = None
 	return {"success": True, "data": data}
 
 
@@ -592,8 +690,14 @@ def create_leave_type(data):
 	"""Create a leave type."""
 	_require_leave_manage_access()
 	values = json.loads(data) if isinstance(data, str) else data
-	doc = frappe.get_doc({"doctype": "GE Leave Type", **values})
-	doc.insert()
+	# Map GE fields to native Leave Type fields
+	native = {
+		"leave_type_name": values.get("leave_type_name", ""),
+		"max_leaves_allowed": flt(values.get("annual_allocation", 0)),
+		"is_lwp": 0 if cint(values.get("is_paid_leave", 1)) else 1,
+	}
+	doc = frappe.get_doc({"doctype": "Leave Type", **native})
+	doc.insert(ignore_permissions=True)
 	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": "Leave type created"}
 
@@ -603,9 +707,14 @@ def update_leave_type(name, data):
 	"""Update a leave type."""
 	_require_leave_manage_access()
 	values = json.loads(data) if isinstance(data, str) else data
-	doc = frappe.get_doc("GE Leave Type", name)
-	doc.update(values)
-	doc.save()
+	doc = frappe.get_doc("Leave Type", name, ignore_permissions=True)
+	if "leave_type_name" in values:
+		doc.leave_type_name = values["leave_type_name"]
+	if "annual_allocation" in values:
+		doc.max_leaves_allowed = flt(values["annual_allocation"])
+	if "is_paid_leave" in values:
+		doc.is_lwp = 0 if cint(values["is_paid_leave"]) else 1
+	doc.save(ignore_permissions=True)
 	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": "Leave type updated"}
 
@@ -614,7 +723,7 @@ def update_leave_type(name, data):
 def delete_leave_type(name):
 	"""Delete a leave type."""
 	_require_leave_manage_access()
-	frappe.delete_doc("GE Leave Type", name)
+	frappe.delete_doc("Leave Type", name, ignore_permissions=True)
 	frappe.db.commit()
 	return {"success": True, "message": "Leave type deleted"}
 
@@ -629,11 +738,15 @@ def get_leave_allocations(employee=None, leave_type=None):
 	if leave_type:
 		filters["leave_type"] = leave_type
 	data = frappe.get_all(
-		"GE Leave Allocation",
+		"Leave Allocation",
 		filters=filters,
-		fields=["name", "employee", "leave_type", "allocation_days", "from_date", "to_date", "notes", "creation", "modified"],
+		fields=["name", "employee", "leave_type", "new_leaves_allocated", "from_date", "to_date", "description", "creation", "modified"],
 		order_by="from_date desc, creation desc",
+		ignore_permissions=True,
 	)
+	for row in data:
+		row["allocation_days"] = row.get("new_leaves_allocated")
+		row["notes"] = row.pop("description", None)
 	return {"success": True, "data": data}
 
 
@@ -642,8 +755,19 @@ def create_leave_allocation(data):
 	"""Create a leave allocation."""
 	_require_leave_manage_access()
 	values = json.loads(data) if isinstance(data, str) else data
-	doc = frappe.get_doc({"doctype": "GE Leave Allocation", **values})
-	doc.insert()
+	alloc_days = flt(values.get("allocation_days", values.get("new_leaves_allocated", 0)))
+	native = {
+		"employee": values.get("employee"),
+		"leave_type": values.get("leave_type"),
+		"from_date": values.get("from_date"),
+		"to_date": values.get("to_date"),
+		"new_leaves_allocated": alloc_days,
+		"total_leaves_allocated": alloc_days,
+		"company": values.get("company") or _get_default_company(),
+		"description": values.get("notes") or values.get("description") or "",
+	}
+	doc = frappe.get_doc({"doctype": "Leave Allocation", **native})
+	doc.insert(ignore_permissions=True)
 	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": "Leave allocation created"}
 
@@ -653,9 +777,18 @@ def update_leave_allocation(name, data):
 	"""Update a leave allocation."""
 	_require_leave_manage_access()
 	values = json.loads(data) if isinstance(data, str) else data
-	doc = frappe.get_doc("GE Leave Allocation", name)
-	doc.update(values)
-	doc.save()
+	doc = frappe.get_doc("Leave Allocation", name, ignore_permissions=True)
+	if "allocation_days" in values or "new_leaves_allocated" in values:
+		alloc_days = flt(values.get("allocation_days", values.get("new_leaves_allocated", doc.new_leaves_allocated)))
+		doc.new_leaves_allocated = alloc_days
+		doc.total_leaves_allocated = alloc_days
+	if "from_date" in values:
+		doc.from_date = values["from_date"]
+	if "to_date" in values:
+		doc.to_date = values["to_date"]
+	if "notes" in values or "description" in values:
+		doc.description = values.get("notes") or values.get("description") or ""
+	doc.save(ignore_permissions=True)
 	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": "Leave allocation updated"}
 
@@ -664,7 +797,7 @@ def update_leave_allocation(name, data):
 def delete_leave_allocation(name):
 	"""Delete a leave allocation."""
 	_require_leave_manage_access()
-	frappe.delete_doc("GE Leave Allocation", name)
+	frappe.delete_doc("Leave Allocation", name, ignore_permissions=True)
 	frappe.db.commit()
 	return {"success": True, "message": "Leave allocation deleted"}
 
@@ -677,19 +810,19 @@ def get_leave_applications(employee=None, status=None, leave_type=None, from_dat
 	if employee:
 		filters["employee"] = employee
 	if status:
-		filters["leave_status"] = status
+		# Accept both GE-style (APPROVED) and native (Approved)
+		filters["status"] = _GE_TO_NATIVE_LEAVE_STATUS.get(status, status)
 	if leave_type:
 		filters["leave_type"] = leave_type
 	data = frappe.get_all(
-		"GE Leave Application",
+		"Leave Application",
 		filters=filters,
 		fields=[
-			"name", "employee", "leave_type", "leave_status", "from_date", "to_date",
-			"total_leave_days", "linked_project", "linked_site", "reason",
-			"submitted_by", "approved_by", "approved_at", "rejected_by", "rejection_reason",
-			"creation", "modified",
+			"name", "employee", "leave_type", "status", "from_date", "to_date",
+			"total_leave_days", "description", "creation", "modified",
 		],
 		order_by="from_date desc, creation desc",
+		ignore_permissions=True,
 	)
 	if from_date or to_date:
 		cycle_start, cycle_end = _get_cycle_bounds(from_date, to_date)
@@ -697,6 +830,10 @@ def get_leave_applications(employee=None, status=None, leave_type=None, from_dat
 			row for row in data
 			if row.from_date and row.to_date and _date_ranges_overlap(row.from_date, row.to_date, cycle_start, cycle_end)
 		]
+	# Normalise to GE field names for frontend compatibility
+	for row in data:
+		row["leave_status"] = _NATIVE_TO_GE_LEAVE_STATUS.get(row.get("status"), row.get("status"))
+		row["reason"] = row.pop("description", None)
 	return {"success": True, "data": data}
 
 
@@ -705,8 +842,10 @@ def get_leave_application(name=None):
 	"""Return one leave application."""
 	_require_hr_read_access()
 	name = _require_param(name, "name")
-	doc = frappe.get_doc("GE Leave Application", name)
-	return {"success": True, "data": doc.as_dict()}
+	doc = frappe.get_doc("Leave Application", name, ignore_permissions=True)
+	data = _normalize_leave_application_dict(doc.as_dict())
+	data["rejection_reason"] = _get_leave_rejection_reason(name)
+	return {"success": True, "data": data}
 
 
 @frappe.whitelist()
@@ -714,8 +853,20 @@ def create_leave_application(data):
 	"""Create a leave application."""
 	_require_leave_manage_access()
 	values = json.loads(data) if isinstance(data, str) else data
-	doc = frappe.get_doc({"doctype": "GE Leave Application", **values})
-	doc.insert()
+	ge_status = values.get("leave_status", values.get("status", "DRAFT"))
+	native = {
+		"employee": values.get("employee"),
+		"leave_type": values.get("leave_type"),
+		"from_date": values.get("from_date"),
+		"to_date": values.get("to_date"),
+		"total_leave_days": flt(values.get("total_leave_days", 1)),
+		"description": values.get("reason") or values.get("description") or "",
+		"status": _GE_TO_NATIVE_LEAVE_STATUS.get(ge_status, "Open"),
+		"posting_date": values.get("posting_date") or today(),
+		"company": values.get("company") or _get_default_company(),
+	}
+	doc = frappe.get_doc({"doctype": "Leave Application", **native})
+	doc.insert(ignore_permissions=True)
 	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": "Leave application created"}
 
@@ -725,9 +876,17 @@ def update_leave_application(name, data):
 	"""Update a leave application."""
 	_require_leave_manage_access()
 	values = json.loads(data) if isinstance(data, str) else data
-	doc = frappe.get_doc("GE Leave Application", name)
-	doc.update(values)
-	doc.save()
+	doc = frappe.get_doc("Leave Application", name, ignore_permissions=True)
+	if "reason" in values or "description" in values:
+		doc.description = values.get("reason") or values.get("description") or ""
+	if "leave_status" in values:
+		doc.status = _GE_TO_NATIVE_LEAVE_STATUS.get(values["leave_status"], values["leave_status"])
+	elif "status" in values:
+		doc.status = values["status"]
+	for field in ("from_date", "to_date", "total_leave_days", "leave_type"):
+		if field in values:
+			setattr(doc, field, values[field])
+	doc.save(ignore_permissions=True)
 	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": "Leave application updated"}
 
@@ -736,22 +895,20 @@ def update_leave_application(name, data):
 def delete_leave_application(name):
 	"""Delete a leave application."""
 	_require_leave_manage_access()
-	frappe.delete_doc("GE Leave Application", name)
+	frappe.delete_doc("Leave Application", name, ignore_permissions=True)
 	frappe.db.commit()
 	return {"success": True, "message": "Leave application deleted"}
 
 
 @frappe.whitelist()
 def submit_leave_application(name):
-	"""Move leave application from DRAFT to SUBMITTED."""
+	"""Move leave application from DRAFT/Open to Open (submitted)."""
 	_require_leave_manage_access()
-	doc = frappe.get_doc("GE Leave Application", name)
-	if doc.leave_status != "DRAFT":
-		return {"success": False, "message": f"Leave application is in {doc.leave_status} status, must be DRAFT to submit"}
-	doc.leave_status = "SUBMITTED"
-	if not doc.submitted_by:
-		doc.submitted_by = frappe.session.user
-	doc.save()
+	doc = frappe.get_doc("Leave Application", name, ignore_permissions=True)
+	if doc.status not in {"Open"}:
+		return {"success": False, "message": f"Leave application is already in '{doc.status}' status"}
+	# In native Leave Application, Open = submitted
+	doc.save(ignore_permissions=True)
 	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": "Leave application submitted"}
 
@@ -760,18 +917,16 @@ def submit_leave_application(name):
 def approve_leave_application(name):
 	"""Approve a submitted leave application if balance is available."""
 	_require_hr_approval_access()
-	doc = frappe.get_doc("GE Leave Application", name)
-	if doc.leave_status != "SUBMITTED":
-		return {"success": False, "message": f"Leave application is in {doc.leave_status} status, must be SUBMITTED to approve"}
+	doc = frappe.get_doc("Leave Application", name, ignore_permissions=True)
+	if doc.status != "Open":
+		return {"success": False, "message": f"Leave application is in '{doc.status}' status, must be Open to approve"}
 	balance = _calculate_leave_balances(doc.employee, doc.from_date, doc.to_date, exclude_application=doc.name)
 	balance_row = next((row for row in balance["rows"] if row["employee"] == doc.employee and row["leave_type"] == doc.leave_type), None)
 	remaining = flt(balance_row["remaining"]) if balance_row else 0
 	if remaining < flt(doc.total_leave_days):
 		return {"success": False, "message": f"Insufficient leave balance. Remaining: {remaining}"}
-	doc.leave_status = "APPROVED"
-	doc.approved_by = frappe.session.user
-	doc.approved_at = frappe.utils.now()
-	doc.save()
+	doc.status = "Approved"
+	doc.save(ignore_permissions=True)
 	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": "Leave application approved"}
 
@@ -780,29 +935,37 @@ def approve_leave_application(name):
 def reject_leave_application(name, reason=None):
 	"""Reject a submitted leave application."""
 	_require_hr_approval_access()
-	doc = frappe.get_doc("GE Leave Application", name)
-	if doc.leave_status != "SUBMITTED":
-		return {"success": False, "message": f"Leave application is in {doc.leave_status} status, must be SUBMITTED to reject"}
-	doc.leave_status = "REJECTED"
-	doc.rejected_by = frappe.session.user
-	if reason:
-		doc.rejection_reason = reason
-	doc.save()
+	doc = frappe.get_doc("Leave Application", name, ignore_permissions=True)
+	if doc.status != "Open":
+		return {"success": False, "message": f"Leave application is in '{doc.status}' status, must be Open to reject"}
+	doc.status = "Rejected"
+	doc.save(ignore_permissions=True)
+	if (reason or "").strip():
+		comment = frappe.get_doc(
+			{
+				"doctype": "Comment",
+				"comment_type": "Comment",
+				"reference_doctype": "Leave Application",
+				"reference_name": name,
+				"content": f"{_LEAVE_REJECTION_COMMENT_PREFIX} {reason.strip()}",
+			}
+		)
+		comment.insert(ignore_permissions=True)
 	frappe.db.commit()
 	return {"success": True, "data": doc.as_dict(), "message": "Leave application rejected"}
 
 
 @frappe.whitelist()
 def reopen_leave_application(name):
-	"""Move a rejected or submitted leave application back to draft."""
+	"""Move a rejected leave application back to Open."""
 	_require_leave_manage_access()
-	doc = frappe.get_doc("GE Leave Application", name)
-	if doc.leave_status not in {"REJECTED", "SUBMITTED"}:
-		return {"success": False, "message": f"Leave application is in {doc.leave_status} status, cannot move it to DRAFT"}
-	doc.leave_status = "DRAFT"
-	doc.save()
+	doc = frappe.get_doc("Leave Application", name, ignore_permissions=True)
+	if doc.status not in {"Rejected"}:
+		return {"success": False, "message": f"Leave application is in '{doc.status}' status, cannot reopen"}
+	doc.status = "Open"
+	doc.save(ignore_permissions=True)
 	frappe.db.commit()
-	return {"success": True, "data": doc.as_dict(), "message": "Leave application moved back to draft"}
+	return {"success": True, "data": doc.as_dict(), "message": "Leave application reopened"}
 
 
 @frappe.whitelist()
@@ -848,13 +1011,14 @@ def get_leave_calendar(from_date=None, to_date=None, employee=None):
 	"""Return leave and holiday events for calendar views."""
 	_require_hr_read_access()
 	cycle_start, cycle_end = _get_cycle_bounds(from_date or today(), to_date or add_days(today(), 30))
-	leave_filters = {"leave_status": "APPROVED"}
+	leave_filters = {"status": "Approved"}
 	if employee:
 		leave_filters["employee"] = employee
 	leave_rows = frappe.get_all(
-		"GE Leave Application",
+		"Leave Application",
 		filters=leave_filters,
 		fields=["name", "employee", "leave_type", "from_date", "to_date", "total_leave_days"],
+		ignore_permissions=True,
 	)
 	leaves = [
 		{
@@ -914,15 +1078,17 @@ def get_who_is_in(attendance_date=None, department=None):
 	attendance_rows = {
 		row.employee: row
 		for row in frappe.get_all(
-			"GE Attendance Log",
+			"Attendance",
 			filters={"attendance_date": str(target_date)},
-			fields=["employee", "attendance_status", "linked_site", "linked_project", "check_in_time", "check_out_time"],
+			fields=["employee", "status", "in_time", "out_time"],
+			ignore_permissions=True,
 		)
 	}
 	leave_rows = frappe.get_all(
-		"GE Leave Application",
-		filters={"leave_status": "APPROVED"},
+		"Leave Application",
+		filters={"status": "Approved"},
 		fields=["employee", "leave_type", "from_date", "to_date"],
+		ignore_permissions=True,
 	)
 	leaves_by_employee = {}
 	for row in leave_rows:
@@ -934,12 +1100,15 @@ def get_who_is_in(attendance_date=None, department=None):
 		attendance_row = attendance_rows.get(employee_row.name)
 		leave_row = leaves_by_employee.get(employee_row.name)
 		state = "Unmarked"
+		ge_att_status = None
 		if attendance_row:
-			if attendance_row.attendance_status in {"PRESENT", "HALF_DAY", "ON_DUTY"}:
+			native_status = attendance_row.status
+			ge_att_status = _NATIVE_TO_GE_ATTENDANCE_STATUS.get(native_status, native_status)
+			if native_status in {"Present", "Half Day", "Work From Home"}:
 				state = "In"
-			elif attendance_row.attendance_status == "ABSENT":
+			elif native_status == "Absent":
 				state = "Absent"
-			elif attendance_row.attendance_status == "WEEK_OFF":
+			else:
 				state = "Week Off"
 		elif leave_row:
 			state = "On Leave"
@@ -950,10 +1119,10 @@ def get_who_is_in(attendance_date=None, department=None):
 			"department": employee_row.department,
 			"branch": employee_row.branch,
 			"state": state,
-			"attendance_status": attendance_row.attendance_status if attendance_row else None,
+			"attendance_status": ge_att_status,
 			"leave_type": leave_row.leave_type if leave_row else None,
-			"linked_site": attendance_row.linked_site if attendance_row else None,
-			"linked_project": attendance_row.linked_project if attendance_row else None,
+			"linked_site": None,
+			"linked_project": None,
 		})
 
 	return {
@@ -1096,27 +1265,29 @@ def approve_attendance_regularization(name):
 		return {"success": False, "message": f"Regularization is in {doc.regularization_status} status, must be SUBMITTED to approve"}
 
 	attendance_name = doc.linked_attendance_log or frappe.db.get_value(
-		"GE Attendance Log",
+		"Attendance",
 		{"employee": doc.employee, "attendance_date": doc.regularization_date},
 		"name",
 	)
 	if attendance_name:
-		attendance_doc = frappe.get_doc("GE Attendance Log", attendance_name)
+		attendance_doc = frappe.get_doc("Attendance", attendance_name, ignore_permissions=True)
 	else:
 		attendance_doc = frappe.get_doc({
-			"doctype": "GE Attendance Log",
+			"doctype": "Attendance",
 			"employee": doc.employee,
 			"attendance_date": doc.regularization_date,
+			"status": "Present",
+			"company": _get_default_company(),
 		})
-		attendance_doc.insert()
+		attendance_doc.insert(ignore_permissions=True)
 
 	if doc.requested_status:
-		attendance_doc.attendance_status = doc.requested_status
+		attendance_doc.status = _GE_TO_NATIVE_ATTENDANCE_STATUS.get(doc.requested_status, doc.requested_status)
 	if doc.requested_check_in:
-		attendance_doc.check_in_time = doc.requested_check_in
+		attendance_doc.in_time = doc.requested_check_in
 	if doc.requested_check_out:
-		attendance_doc.check_out_time = doc.requested_check_out
-	attendance_doc.save()
+		attendance_doc.out_time = doc.requested_check_out
+	attendance_doc.save(ignore_permissions=True)
 
 	doc.linked_attendance_log = attendance_doc.name
 	doc.regularization_status = "APPROVED"
@@ -1279,16 +1450,16 @@ def get_hr_approval_inbox(view=None, request_type=None):
 			)
 
 	if include("leave"):
-		leave_statuses = ["SUBMITTED"] if view == "pending" else ["APPROVED", "REJECTED"]
+		leave_statuses = ["Open"] if view == "pending" else ["Approved", "Rejected"]
 		leave_rows = frappe.get_all(
-			"GE Leave Application",
-			filters={"leave_status": ["in", leave_statuses]},
+			"Leave Application",
+			filters={"status": ["in", leave_statuses]},
 			fields=[
-				"name", "employee", "leave_type", "leave_status", "from_date", "to_date",
-				"reason", "submitted_by", "approved_by", "approved_at", "rejected_by",
-				"rejection_reason", "creation", "modified",
+				"name", "employee", "leave_type", "status", "from_date", "to_date",
+				"description", "creation", "modified",
 			],
 			order_by="creation asc" if view == "pending" else "modified desc",
+			ignore_permissions=True,
 		)
 		for row in leave_rows:
 			register(
@@ -1297,18 +1468,18 @@ def get_hr_approval_inbox(view=None, request_type=None):
 					"leave",
 					"Leave",
 					row,
-					row.leave_status,
+					_NATIVE_TO_GE_LEAVE_STATUS.get(row.status, row.status),
 					row.employee or row.name,
 					f"{row.leave_type} | {row.from_date} to {row.to_date}",
-					row.submitted_by,
-					row.approved_by or row.rejected_by or "HR Approver",
+					row.employee,
+					"HR Approver",
 					row.creation,
-					row.approved_at or row.modified,
+					row.modified,
 					view,
 					["approve", "reject"] if view == "pending" else [],
 					"/hr/attendance",
 					request_date=row.from_date,
-					remarks=row.reason if view == "pending" else row.rejection_reason,
+					remarks=row.description if view == "pending" else None,
 				),
 			)
 
@@ -2151,6 +2322,73 @@ def get_employee_stats():
 			"male": male,
 			"female": female,
 			"departments": len(departments),
+			},
+		}
+
+
+@frappe.whitelist()
+def get_salary_slips(employee=None, status=None, from_date=None, to_date=None, search=None):
+	"""Return payroll salary slips backed by HRMS Salary Slip."""
+	_require_hr_read_access()
+	filters = {}
+	or_filters = []
+	if employee:
+		filters["employee"] = employee
+	if status:
+		filters["status"] = status
+	if search:
+		search_text = f"%{search.strip()}%"
+		or_filters = [
+			["name", "like", search_text],
+			["employee", "like", search_text],
+			["employee_name", "like", search_text],
+			["company", "like", search_text],
+		]
+
+	rows = frappe.get_all(
+		"Salary Slip",
+		filters=filters,
+		or_filters=or_filters,
+		fields=[
+			"name", "employee", "employee_name", "posting_date", "start_date", "end_date",
+			"status", "gross_pay", "net_pay", "currency", "company", "docstatus",
+			"creation", "modified",
+		],
+		order_by="posting_date desc, modified desc",
+		ignore_permissions=True,
+	)
+
+	if from_date:
+		rows = [row for row in rows if row.posting_date and getdate(row.posting_date) >= getdate(from_date)]
+	if to_date:
+		rows = [row for row in rows if row.posting_date and getdate(row.posting_date) <= getdate(to_date)]
+
+	return {"success": True, "data": rows}
+
+
+@frappe.whitelist()
+def get_salary_slip(name=None):
+	"""Return a single HRMS salary slip."""
+	_require_hr_read_access()
+	name = _require_param(name, "name")
+	doc = frappe.get_doc("Salary Slip", name, ignore_permissions=True)
+	return {"success": True, "data": doc.as_dict()}
+
+
+@frappe.whitelist()
+def get_salary_slip_stats(employee=None, from_date=None, to_date=None):
+	"""Return payroll summary counts and totals."""
+	_require_hr_read_access()
+	rows = get_salary_slips(employee=employee, from_date=from_date, to_date=to_date)["data"]
+	return {
+		"success": True,
+		"data": {
+			"total": len(rows),
+			"draft": sum(1 for row in rows if row.status == "Draft"),
+			"submitted": sum(1 for row in rows if row.status == "Submitted"),
+			"cancelled": sum(1 for row in rows if row.status == "Cancelled"),
+			"gross_pay": sum(flt(row.gross_pay) for row in rows),
+			"net_pay": sum(flt(row.net_pay) for row in rows),
 		},
 	}
 

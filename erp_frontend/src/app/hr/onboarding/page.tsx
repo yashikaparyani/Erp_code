@@ -122,6 +122,10 @@ type OnboardingStats = {
   mapped_to_employee: number;
 };
 
+function normalizeMaritalStatus(value?: string) {
+  return value === 'Unmarried' ? 'Single' : (value || '');
+}
+
 type MappingPreview = {
   employee_preview: Record<string, string | number | null | undefined>;
   readiness: {
@@ -254,6 +258,7 @@ function mapDetailToForm(detail: OnboardingDetail): OnboardingDetail {
   return {
     ...createEmptyDetail(),
     ...detail,
+    marital_status: normalizeMaritalStatus(detail.marital_status),
     education: (detail.education || []).map((row) => ({ ...row })),
     experience: (detail.experience || []).map((row) => ({ ...row })),
     documents: (detail.documents || []).map((row) => ({ ...row })),
@@ -264,6 +269,7 @@ function buildPayload(form: OnboardingDetail) {
   return {
     employee_name: form.employee_name || '',
     company: form.company || '',
+    onboarding_status: form.onboarding_status || 'DRAFT',
     designation: form.designation || '',
     date_of_joining: form.date_of_joining || '',
     form_source: form.form_source || 'Manual',
@@ -274,7 +280,7 @@ function buildPayload(form: OnboardingDetail) {
     gender: form.gender || '',
     date_of_birth: form.date_of_birth || '',
     blood_group: form.blood_group || '',
-    marital_status: form.marital_status || '',
+    marital_status: normalizeMaritalStatus(form.marital_status),
     spouse_name: form.spouse_name || '',
     father_name: form.father_name || '',
     mother_name: form.mother_name || '',
@@ -529,6 +535,10 @@ export default function HrOnboardingPage() {
     setPreview(null);
     setForm(createEmptyDetail());
     setFlash(null);
+    // Scroll the main content into view so the form is visible
+    setTimeout(() => {
+      document.getElementById('onboarding-main')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
   }
 
   function startEdit() {
@@ -872,7 +882,7 @@ export default function HrOnboardingPage() {
           </div>
         </aside>
 
-        <main className="space-y-4">
+        <main id="onboarding-main" className="space-y-4">
           {(mode === 'create' || mode === 'edit') ? (
             <div className="space-y-4">
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Search } from 'lucide-react';
 import RegisterPage from '@/components/shells/RegisterPage';
-import { formatCurrency } from '@/components/finance/fin-helpers';
+import { formatCurrency, formatDate } from '@/components/finance/fin-helpers';
 import LinkPicker from '@/components/ui/LinkPicker';
 
 type Entry = { date?: string; type?: string; reference?: string; debit?: number; credit?: number; balance?: number };
@@ -35,10 +35,9 @@ export default function CustomerStatementPage() {
       title="Customer Statement" description="Invoice-to-payment exposure with running balance"
       loading={false} empty={false}
       stats={data ? [
-        { label: 'Invoice Value', value: Number(s.invoice_value || 0).toLocaleString('en-IN') },
-        { label: 'Receipts', value: Number(s.receipts_total || 0).toLocaleString('en-IN'), variant: 'success' },
-        { label: 'Credit Notes', value: Number(s.credit_note_total || 0).toLocaleString('en-IN') },
-        { label: 'Closing Balance', value: Number(s.closing_balance || 0).toLocaleString('en-IN'), variant: 'warning' },
+        { label: 'Invoice Value', value: formatCurrency(Number(s.invoice_value || 0)), variant: 'info' as const },
+        { label: 'Receipts', value: formatCurrency(Number(s.receipts_total || 0)), variant: 'success' as const },
+        { label: 'Closing Balance', value: formatCurrency(Number(s.closing_balance || 0)), variant: (s.closing_balance || 0) > 0 ? 'warning' as const : 'success' as const },
       ] : undefined}
     >
       <div className="card mb-6">
@@ -62,10 +61,10 @@ export default function CustomerStatementPage() {
           <div className="card-header"><h3 className="font-semibold text-gray-900">{data.customer}</h3></div>
           <div className="overflow-x-auto">
             <table className="data-table">
-              <thead><tr><th>Date</th><th>Type</th><th>Reference</th><th>Debit</th><th>Credit</th><th>Balance</th></tr></thead>
+              <thead><tr><th>Date</th><th>Type</th><th>Reference</th><th className="text-right">Debit</th><th className="text-right">Credit</th><th className="text-right">Balance</th></tr></thead>
               <tbody>
                 {!data.entries?.length ? <tr><td colSpan={6} className="py-8 text-center text-gray-500">No entries</td></tr>
-                  : data.entries.map((r, i) => <tr key={`${r.reference}-${i}`}><td>{r.date||'-'}</td><td>{r.type||'-'}</td><td>{r.reference||'-'}</td><td>{r.debit||0}</td><td>{r.credit||0}</td><td>{r.balance||0}</td></tr>)}
+                  : data.entries.map((r, i) => <tr key={`${r.reference}-${i}`}><td>{formatDate(r.date)}</td><td>{r.type||'-'}</td><td>{r.reference||'-'}</td><td className="text-right">{r.debit ? formatCurrency(r.debit) : '-'}</td><td className="text-right text-green-700">{r.credit ? formatCurrency(r.credit) : '-'}</td><td className="text-right font-semibold">{formatCurrency(r.balance||0)}</td></tr>)}
               </tbody>
             </table>
           </div>

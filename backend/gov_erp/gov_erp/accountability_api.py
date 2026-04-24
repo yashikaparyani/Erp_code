@@ -55,8 +55,8 @@ def get_open_accountability_items(
 	_require_authenticated_user()
 	_require_roles(
 		"Director", "Project Head", "Department Head",
-		"Project Manager", "Engineering Head", "Procurement Head",
-		"Procurement Manager", "Store Manager", "System Manager",
+		"Project Manager", "Engineering Head", "Engineer", "Procurement Head",
+		"Procurement Manager", "Store Manager", "HR Manager", "System Manager",
 	)
 	project = _enforce_accountability_project_scope(project, require_project_for_pm=True)
 
@@ -78,7 +78,7 @@ def get_open_accountability_items(
 def get_overdue_accountability_items(project=None, site=None, limit=50):
 	"""Return accountability records where due_date is in the past and status is open."""
 	_require_authenticated_user()
-	_require_roles("Director", "Project Head", "Department Head", "System Manager")
+	_require_roles("Director", "Project Head", "Department Head", "Engineering Head", "Procurement Manager", "HR Manager", "System Manager")
 	project = _enforce_accountability_project_scope(project, require_project_for_pm=True)
 
 	filters = {
@@ -111,7 +111,7 @@ def get_overdue_accountability_items(project=None, site=None, limit=50):
 def get_blocked_accountability_items(project=None, site=None, limit=50):
 	"""Return accountability records that are currently blocked."""
 	_require_authenticated_user()
-	_require_roles("Director", "Project Head", "Department Head", "System Manager")
+	_require_roles("Director", "Project Head", "Department Head", "Engineering Head", "Procurement Manager", "HR Manager", "System Manager")
 	project = _enforce_accountability_project_scope(project, require_project_for_pm=True)
 
 	filters = {
@@ -178,7 +178,7 @@ def get_accountability_dashboard_summary(project=None, site=None, department=Non
 	plus an event-type heatmap for pattern analysis.
 	"""
 	_require_authenticated_user()
-	_require_roles("Director", "Project Head", "Department Head", "System Manager")
+	_require_roles("Director", "Project Head", "Department Head", "Engineering Head", "Procurement Manager", "HR Manager", "System Manager")
 	project = _enforce_accountability_project_scope(project, require_project_for_pm=True)
 
 	closed_statuses = ("COMPLETED", "CANCELLED", "CLOSED")

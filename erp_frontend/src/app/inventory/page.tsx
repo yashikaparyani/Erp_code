@@ -11,10 +11,57 @@ import ActionModal from '@/components/ui/ActionModal';
 import { badge, DC_BADGES } from '@/components/procurement/proc-helpers';
 import { useAuth } from '@/context/AuthContext';
 
-interface DC { name: string; dispatch_date?: string; dispatch_type?: string; status?: string; from_warehouse?: string; to_warehouse?: string; target_site_name?: string; linked_project?: string; total_items?: number; total_qty?: number; challan_reference?: string; issued_to_name?: string; }
+interface DC { name: string; dispatch_date?: string; dispatch_type?: string; status?: string; from_warehouse?: string; to_warehouse?: string; target_site_name?: string; linked_project?: string; total_items?: number; total_qty?: number; challan_reference?: string; issued_to_name?: string; linked_receipt?: string; receipt_status?: string; receipt_date?: string; fulfilment_status?: string; }
 interface DCStats { total?: number; draft?: number; pending_approval?: number; dispatched?: number; total_qty?: number; }
 interface StockBin { warehouse?: string; item_code?: string; actual_qty?: number; reserved_qty?: number; ordered_qty?: number; projected_qty?: number; }
 interface DCItem { item_link: string; description: string; qty: number; make?: string; model_no?: string; serial_numbers?: string; uom?: string; remarks?: string; }
+
+function formatNumber(value?: number) {
+  return new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 }).format(value ?? 0);
+}
+
+function getStockHealth(actualQty?: number): { label: string; badgeClass: 'badge-error' | 'badge-warning' | 'badge-success'; note: string } {
+  if ((actualQty ?? 0) < 0) {
+    return {
+      label: 'Control Breach',
+      badgeClass: 'badge-error',
+      note: 'Negative stock is not allowed. Reconcile the missing receipt or posting before further movement.',
+    };
+  }
+
+  if ((actualQty ?? 0) === 0) {
+    return {
+      label: 'Zero Stock',
+      badgeClass: 'badge-warning',
+      note: 'No usable quantity is currently available in this warehouse.',
+    };
+  }
+
+  return {
+    label: 'Available',
+    badgeClass: 'badge-success',
+    note: 'Live quantity is supported by posted GRN and challan movement.',
+  };
+}
+
+function getReceiptBadge(receiptStatus?: string, fulfilmentStatus?: string): { label: string; badgeClass: 'badge-error' | 'badge-warning' | 'badge-success' | 'badge-gray' | 'badge-info' } {
+  if (receiptStatus === 'APPROVED') {
+    return { label: 'GRN Approved', badgeClass: 'badge-success' };
+  }
+  if (receiptStatus === 'SUBMITTED') {
+    return { label: 'GRN Pending', badgeClass: 'badge-info' };
+  }
+  if (receiptStatus === 'DRAFT') {
+    return { label: 'GRN Draft', badgeClass: 'badge-warning' };
+  }
+  if (receiptStatus === 'REJECTED') {
+    return { label: 'GRN Rejected', badgeClass: 'badge-error' };
+  }
+  if (fulfilmentStatus === 'AWAITING_SITE_GRN') {
+    return { label: 'Awaiting Site GRN', badgeClass: 'badge-warning' };
+  }
+  return { label: 'Not Dispatched Yet', badgeClass: 'badge-gray' };
+}
 
 export default function InventoryPage() {
   const { currentUser } = useAuth();
@@ -140,7 +187,7 @@ export default function InventoryPage() {
       }
     >
       <div className="mb-6 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
-        Dispatch challans now follow the richer workbook-style <span className="font-semibold">OUT</span> schema. Use this screen to capture challan reference, issued-to, make/model, serials, and item-level remarks instead of treating dispatch like a minimal stub.
+        Dispatch challans now follow the richer workbook-style <span className="font-semibold">OUT</span> schema. This prototype supports head-office dispatch to site and vendor-to-site delivery only. Site receipt must be closed through a GRN so challan follow-through stays auditable.
       </div>
 
       {/* Dispatch Challans table */}
@@ -148,20 +195,34 @@ export default function InventoryPage() {
         <div className="px-5 py-3 border-b border-gray-100"><h3 className="font-semibold text-gray-900">Dispatch Challans</h3></div>
         <div className="overflow-x-auto">
         <table className="data-table text-sm">
-          <thead><tr><th>Challan</th><th>Ref</th><th>Date</th><th>Type</th><th>From</th><th>To</th><th>Issued To</th><th>Project</th><th>Items</th><th>Qty</th><th>Status</th><th>Action</th></tr></thead>
+          <thead><tr><th>Challan</th><th>Ref</th><th>Date</th><th>Type</th><th>From</th><th>To</th><th>Issued To</th><th>Project</th><th>Items</th><th>Qty</th><th>Site Receipt</th><th>Status</th><th>Action</th></tr></thead>
           <tbody>
-            {filtered.length === 0 ? <tr><td colSpan={12} className="text-center py-8 text-gray-500">{projectFilter ? 'No challans match the selected project.' : 'No dispatch challans have been created yet.'}</td></tr> : filtered.map(c => (
+            {filtered.length === 0 ? <tr><td colSpan={13} className="text-center py-8 text-gray-500">{projectFilter ? 'No challans match the selected project.' : 'No dispatch challans have been created yet.'}</td></tr> : filtered.map(c => {
+              const receipt = getReceiptBadge(c.receipt_status, c.fulfilment_status);
+              return (
               <tr key={c.name}>
                 <td className="font-medium">{c.name}</td>
                 <td className="text-gray-600">{c.challan_reference || '-'}</td>
                 <td className="text-gray-600">{c.dispatch_date || '-'}</td>
-                <td><span className="badge badge-blue">{c.dispatch_type || '-'}</span></td>
-                <td className="text-gray-700">{c.from_warehouse || '-'}</td>
+                <td><span className="badge badge-info">{c.dispatch_type || '-'}</span></td>
+                <td className="text-gray-700">{c.dispatch_type === 'VENDOR_TO_SITE' ? 'Vendor Direct' : c.from_warehouse || 'Head Office'}</td>
                 <td className="text-gray-700">{c.to_warehouse || c.target_site_name || '-'}</td>
                 <td className="text-gray-700">{c.issued_to_name || '-'}</td>
                 <td>{c.linked_project ? <Link href={`/projects/${encodeURIComponent(c.linked_project)}?tab=ops`} className="text-blue-600 hover:underline text-sm">{c.linked_project}</Link> : '-'}</td>
                 <td className="text-gray-600">{c.total_items ?? 0}</td>
                 <td className="text-gray-600">{c.total_qty ?? 0}</td>
+                <td>
+                  <div className="flex flex-col gap-1">
+                    {c.linked_receipt ? (
+                      <Link href={`/grns/${encodeURIComponent(c.linked_receipt)}`} className={`badge ${receipt.badgeClass}`}>
+                        {receipt.label}
+                      </Link>
+                    ) : (
+                      <span className={`badge ${receipt.badgeClass}`}>{receipt.label}</span>
+                    )}
+                    <span className="text-xs text-gray-500">{c.receipt_date || (c.status === 'DISPATCHED' ? 'GRN not raised yet' : 'Receipt follows dispatch')}</span>
+                  </div>
+                </td>
                 <td><span className={`badge ${badge(DC_BADGES, c.status)}`}>{c.status}</span></td>
                 <td>
                   <div className="flex flex-wrap gap-2 items-center">
@@ -172,7 +233,7 @@ export default function InventoryPage() {
                   </div>
                 </td>
               </tr>
-            ))}
+            )})}
           </tbody>
         </table>
         </div>
@@ -180,18 +241,33 @@ export default function InventoryPage() {
 
       {/* Stock snapshot */}
       <div className="shell-panel overflow-hidden">
-        <div className="px-5 py-3 border-b border-gray-100"><h3 className="font-semibold text-gray-900">Stock Snapshot</h3></div>
+        <div className="px-5 py-3 border-b border-gray-100">
+          <h3 className="font-semibold text-gray-900">Live Stock from GRNs and Challans</h3>
+          <p className="mt-1 text-sm text-gray-500">
+            This prototype tracks operational stock only. Planning fields are hidden, and any below-zero quantity is treated as a control breach, not a valid stock state.
+          </p>
+        </div>
         <div className="overflow-x-auto">
         <table className="data-table text-sm">
-          <thead><tr><th>Item Code</th><th>Warehouse</th><th className="text-right">Actual Qty</th><th className="text-right">Reserved</th><th className="text-right">Ordered</th><th className="text-right">Projected</th></tr></thead>
+          <thead><tr><th>Item Code</th><th>Warehouse</th><th className="text-right">Live Qty</th><th>Status</th></tr></thead>
           <tbody>
-            {stockBins.length === 0 ? <tr><td colSpan={6} className="text-center py-8 text-gray-500">No live stock snapshot is available yet.</td></tr> : stockBins.map((b, i) => (
-              <tr key={i}>
-                <td className="font-medium">{b.item_code}</td><td className="text-gray-600">{b.warehouse}</td>
-                <td className="text-right">{b.actual_qty ?? 0}</td><td className="text-right text-gray-600">{b.reserved_qty ?? 0}</td>
-                <td className="text-right text-gray-600">{b.ordered_qty ?? 0}</td><td className="text-right font-semibold">{b.projected_qty ?? 0}</td>
-              </tr>
-            ))}
+            {stockBins.length === 0 ? <tr><td colSpan={4} className="text-center py-8 text-gray-500">No GRN or challan-backed stock movement is available yet.</td></tr> : stockBins.map((b, i) => {
+              const stockHealth = getStockHealth(b.actual_qty);
+
+              return (
+                <tr key={i}>
+                  <td className="font-medium">{b.item_code || '-'}</td>
+                  <td className="text-gray-600">{b.warehouse || '-'}</td>
+                  <td className="text-right font-semibold">{formatNumber(b.actual_qty)}</td>
+                  <td>
+                    <div className="flex flex-col gap-1">
+                      <span className={`badge ${stockHealth.badgeClass}`}>{stockHealth.label}</span>
+                      <span className="text-xs text-gray-500">{stockHealth.note}</span>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
         </div>
@@ -213,7 +289,6 @@ export default function InventoryPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Dispatch Type</label>
               <select className="input" value={dcForm.dispatch_type} onChange={e => setDcForm(f => ({ ...f, dispatch_type: e.target.value }))}>
-                <option value="WAREHOUSE_TO_WAREHOUSE">Warehouse to Warehouse</option>
                 <option value="WAREHOUSE_TO_SITE">Warehouse to Site</option>
                 <option value="VENDOR_TO_SITE">Vendor to Site</option>
               </select>
@@ -226,14 +301,17 @@ export default function InventoryPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Challan Reference</label>
               <input className="input" placeholder="e.g. DC-2026-001" value={dcForm.challan_reference} onChange={e => setDcForm(f => ({ ...f, challan_reference: e.target.value }))} />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">From Warehouse</label>
-              <LinkPicker entity="warehouse" value={dcForm.from_warehouse} onChange={v => setDcForm(f => ({ ...f, from_warehouse: v }))} placeholder="Search warehouses…" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">To Warehouse</label>
-              <LinkPicker entity="warehouse" value={dcForm.to_warehouse} onChange={v => setDcForm(f => ({ ...f, to_warehouse: v }))} placeholder="Search warehouses…" />
-            </div>
+            {dcForm.dispatch_type === 'WAREHOUSE_TO_SITE' ? (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Head Office Source</label>
+                <LinkPicker entity="warehouse" value={dcForm.from_warehouse} onChange={v => setDcForm(f => ({ ...f, from_warehouse: v, to_warehouse: '' }))} placeholder="Leave blank to use the default HO warehouse…" />
+                <p className="mt-1 text-xs text-gray-500">Only the head-office warehouse is used for internal dispatch in this prototype.</p>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-600">
+                Vendor-to-site dispatch skips warehouse handling and ships directly to the selected site.
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Target Site</label>
               <LinkPicker entity="site" value={dcForm.target_site_name} onChange={v => setDcForm(f => ({ ...f, target_site_name: v }))} placeholder="Search sites…" filters={dcForm.linked_project ? { project: dcForm.linked_project } : undefined} />

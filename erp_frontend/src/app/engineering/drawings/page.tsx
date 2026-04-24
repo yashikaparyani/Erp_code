@@ -46,6 +46,7 @@ export default function DrawingsPage() {
     revision: 'R0',
   });
   const [createFile, setCreateFile] = useState<File | null>(null);
+  const [createError, setCreateError] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -90,7 +91,7 @@ export default function DrawingsPage() {
       return;
     }
     setBusy(true);
-    setError('');
+    setCreateError('');
     try {
       const body = new FormData();
       body.append('data', JSON.stringify({
@@ -109,8 +110,8 @@ export default function DrawingsPage() {
       setCreateValues({ linked_project: '', linked_site: '', title: '', revision: 'R0' });
       setCreateFile(null);
       await load();
-    } catch (createError) {
-      setError(createError instanceof Error ? createError.message : 'Failed to create drawing');
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : 'Failed to create drawing');
     } finally {
       setBusy(false);
     }
@@ -257,7 +258,7 @@ export default function DrawingsPage() {
       <ModalFrame
         open={showCreate}
         title="Create Drawing"
-        onClose={() => !busy && setShowCreate(false)}
+        onClose={() => { if (!busy) { setShowCreate(false); setCreateError(''); } }}
         footer={(
           <>
             <button type="button" className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50" onClick={() => setShowCreate(false)} disabled={busy}>Cancel</button>
@@ -268,6 +269,9 @@ export default function DrawingsPage() {
         )}
       >
         <div className="space-y-4">
+          {createError && (
+            <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{createError}</div>
+          )}
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700">Project *</label>
             <LinkPicker entity="project" value={createValues.linked_project} onChange={(value) => setCreateValues((current) => ({ ...current, linked_project: value, linked_site: '' }))} placeholder="Search project…" />

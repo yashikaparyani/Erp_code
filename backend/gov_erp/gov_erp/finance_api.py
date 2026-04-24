@@ -1856,12 +1856,17 @@ def get_project_receiving_summary(project=None):
 	_require_project_inventory_read_access()
 	project = _ensure_project_manager_project_scope(project) if _get_project_manager_assigned_projects() else _require_param(project, "project")
 	grns = frappe.get_all(
-		"Purchase Receipt",
-		filters={"project": project},
-		fields=["name", "supplier", "posting_date", "status", "set_warehouse", "grand_total"],
-		order_by="posting_date desc, creation desc",
+		"GE Material Receipt",
+		filters={"linked_project": project},
+		fields=["name", "received_from", "receipt_date", "status", "warehouse", "total_value"],
+		order_by="receipt_date desc, creation desc",
 		page_length=25,
 	)
+	receipt_link_supported = False
+	try:
+		receipt_link_supported = frappe.get_meta("GE Material Receipt").has_field("linked_dispatch_challan")
+	except Exception:
+		receipt_link_supported = False
 	dispatches = frappe.get_all(
 		"GE Dispatch Challan",
 		filters={"linked_project": project},
@@ -1869,6 +1874,27 @@ def get_project_receiving_summary(project=None):
 		order_by="dispatch_date desc, creation desc",
 		page_length=25,
 	)
+	if receipt_link_supported and dispatches:
+		linked_receipts = frappe.get_all(
+			"GE Material Receipt",
+			filters={
+				"linked_project": project,
+				"linked_dispatch_challan": ["in", [row.name for row in dispatches]],
+			},
+			fields=["name", "linked_dispatch_challan", "status", "receipt_date", "modified"],
+			order_by="receipt_date desc, modified desc",
+			ignore_permissions=True,
+		)
+		latest_by_dispatch = {}
+		for receipt in linked_receipts:
+			dispatch_name = receipt.get("linked_dispatch_challan")
+			if dispatch_name and dispatch_name not in latest_by_dispatch:
+				latest_by_dispatch[dispatch_name] = receipt
+		for row in dispatches:
+			receipt = latest_by_dispatch.get(row.name)
+			row.linked_receipt = receipt.get("name") if receipt else None
+			row.receipt_status = receipt.get("status") if receipt else None
+			row.receipt_date = receipt.get("receipt_date") if receipt else None
 	return {"success": True, "data": {"project": project, "grns": grns, "dispatches": dispatches}}
 
 

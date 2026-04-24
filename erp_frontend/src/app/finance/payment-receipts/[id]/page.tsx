@@ -8,7 +8,7 @@ import AccountabilityTimeline from '@/components/accountability/AccountabilityTi
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
 import TraceabilityPanel from '@/components/ui/TraceabilityPanel';
 import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
-import { formatCurrency, formatDate, RECEIPT_BADGES, statusVariant } from '@/components/finance/fin-helpers';
+import { formatCurrency, formatDate } from '@/components/finance/fin-helpers';
 
 type Receipt = Record<string, any>;
 
@@ -40,7 +40,6 @@ export default function PaymentReceiptDetailPage() {
       title={d.name || id} kicker="Payment Receipt"
       backHref="/finance/payment-receipts" backLabel="Receipts"
       loading={loading} error={error} onRetry={load}
-      status={d.status} statusVariant={statusVariant(d.status)}
       headerActions={
         <div className="flex gap-2">
           <button className="btn btn-secondary" onClick={() => setAction('update')}>Update</button>
@@ -52,28 +51,26 @@ export default function PaymentReceiptDetailPage() {
           <div className="card-header"><h3 className="font-semibold">Receipt Details</h3></div>
           <div className="card-body grid grid-cols-2 gap-4 text-sm">
             <div><span className="text-gray-500">Customer</span><p>{d.customer || '-'}</p></div>
-            <div><span className="text-gray-500">Project</span><p>{d.project || '-'}</p></div>
-            <div><span className="text-gray-500">Invoice</span><p>{d.invoice || '-'}</p></div>
-            <div><span className="text-gray-500">Receipt Date</span><p>{formatDate(d.receipt_date)}</p></div>
+            <div><span className="text-gray-500">Project</span><p>{d.linked_project || '-'}</p></div>
+            <div><span className="text-gray-500">Invoice</span><p>{d.linked_invoice || '-'}</p></div>
+            <div><span className="text-gray-500">Receipt Date</span><p>{formatDate(d.received_date)}</p></div>
             <div><span className="text-gray-500">Payment Mode</span><p>{d.payment_mode || '-'}</p></div>
-            <div><span className="text-gray-500">Reference No.</span><p>{d.reference_no || '-'}</p></div>
-            <div><span className="text-gray-500">Bank</span><p>{d.bank || '-'}</p></div>
-            <div><span className="text-gray-500">Bank Account</span><p>{d.bank_account || '-'}</p></div>
-            <div><span className="text-gray-500">Cheque No.</span><p>{d.cheque_no || '-'}</p></div>
-            <div><span className="text-gray-500">Cheque Date</span><p>{formatDate(d.cheque_date)}</p></div>
-            <div><span className="text-gray-500">Received By</span><p>{d.received_by || '-'}</p></div>
+            <div><span className="text-gray-500">Payment Reference</span><p>{d.payment_reference || '-'}</p></div>
+            <div><span className="text-gray-500">Advance Reference</span><p>{d.advance_reference || '-'}</p></div>
+            <div><span className="text-gray-500">Linked Payment Entry</span><p>{d.linked_payment_entry || '-'}</p></div>
+            <div><span className="text-gray-500">TDS Remarks</span><p>{d.tds_remarks || '-'}</p></div>
             <div><span className="text-gray-500">Remarks</span><p>{d.remarks || '-'}</p></div>
           </div>
         </div>
       }
       sidePanels={
         <>
-          <TraceabilityPanel projectId={d.project || null} siteId={null} />
-          <RecordDocumentsPanel referenceDoctype="Payment Receipt" referenceName={id} title="Documents" />
-          <LinkedRecordsPanel links={d.invoice ? [
-            { label: 'Invoice', doctype: 'Sales Invoice', method: 'frappe.client.get_list', args: { doctype: 'Sales Invoice', filters: JSON.stringify({ name: d.invoice }), fields: JSON.stringify(['name','grand_total','status']), limit_page_length: '5' }, href: (n: string) => `/finance/billing/${n}` },
+          <TraceabilityPanel projectId={d.linked_project || null} siteId={null} />
+          <RecordDocumentsPanel referenceDoctype="GE Payment Receipt" referenceName={id} title="Documents" />
+          <LinkedRecordsPanel links={d.linked_invoice ? [
+            { label: 'Invoice', doctype: 'GE Invoice', method: 'frappe.client.get_list', args: { doctype: 'GE Invoice', filters: JSON.stringify({ name: d.linked_invoice }), fields: JSON.stringify(['name','amount','net_receivable','status']), limit_page_length: '5' }, href: (n: string) => `/finance/billing/${n}` },
           ] : []} />
-          <AccountabilityTimeline subjectDoctype="Payment Receipt" subjectName={id} />
+          <AccountabilityTimeline subjectDoctype="GE Payment Receipt" subjectName={id} />
         </>
       }
     >
@@ -81,10 +78,10 @@ export default function PaymentReceiptDetailPage() {
       <div className="card">
         <div className="card-header"><h3 className="font-semibold">Amount Summary</h3></div>
         <div className="card-body space-y-2 text-sm">
-          <div className="flex justify-between"><span>Amount Received</span><span className="font-semibold">{formatCurrency(d.amount)}</span></div>
+          <div className="flex justify-between"><span>Amount Received</span><span className="font-semibold">{formatCurrency(d.amount_received)}</span></div>
           <div className="flex justify-between"><span>Adjusted Against Invoice</span><span>{formatCurrency(d.adjusted_amount)}</span></div>
           <div className="flex justify-between"><span>TDS Deducted</span><span>{formatCurrency(d.tds_amount)}</span></div>
-          <div className="flex justify-between font-semibold border-t pt-2"><span>Unadjusted Balance</span><span className="text-orange-600">{formatCurrency(d.unadjusted_amount)}</span></div>
+          <div className="flex justify-between font-semibold border-t pt-2"><span>Unadjusted Balance</span><span className="text-orange-600">{formatCurrency((d.amount_received || 0) - (d.adjusted_amount || 0) - (d.tds_amount || 0))}</span></div>
         </div>
       </div>
 
@@ -100,7 +97,7 @@ export default function PaymentReceiptDetailPage() {
           if (action === 'delete') {
             await fetch(`/api/payment-receipts/${encodeURIComponent(id)}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(v) });
           } else {
-            await fetch(`/api/payment-receipts/${encodeURIComponent(id)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(v) });
+            await fetch(`/api/payment-receipts/${encodeURIComponent(id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(v) });
           }
           setAction(null);
           load();

@@ -77,12 +77,6 @@ export const DC_BADGES: Record<string, string> = {
   CANCELLED: 'badge-gray',
 };
 
-export const GRN_BADGES: Record<string, string> = {
-  Draft: 'badge-yellow',
-  Completed: 'badge-green',
-  Cancelled: 'badge-red',
-  Return: 'badge-yellow',
-};
 
 export const VC_BADGES: Record<string, string> = {
   DRAFT: 'badge-gray',

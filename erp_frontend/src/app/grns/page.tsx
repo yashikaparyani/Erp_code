@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import RegisterPage from '@/components/shells/RegisterPage';
 import FormModal from '@/components/shells/FormModal';
 import { formatCurrency, formatDate } from '@/components/procurement/proc-helpers';
@@ -16,6 +17,7 @@ interface GRN {
   status?: ReceiptStatus;
   received_from?: string;
   linked_project?: string;
+  linked_dispatch_challan?: string;
   warehouse?: string;
   total_items?: number;
   total_qty?: number;
@@ -42,6 +44,7 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 export default function GRNsPage() {
+  const searchParams = useSearchParams();
   const [items, setItems] = useState<GRN[]>([]);
   const [stats, setStats] = useState<GRNStats>({});
   const [loading, setLoading] = useState(true);
@@ -78,8 +81,8 @@ export default function GRNsPage() {
           received_from: v.received_from || '',
           supplier_link: v.supplier_link || '',
           linked_project: v.linked_project || '',
+          linked_dispatch_challan: v.linked_dispatch_challan || '',
           linked_purchase_order: v.linked_purchase_order || '',
-          warehouse: v.warehouse || '',
           vendor_invoice_reference: v.vendor_invoice_reference || '',
           remarks: v.remarks || '',
         }),
@@ -97,7 +100,7 @@ export default function GRNsPage() {
   return (
     <RegisterPage
       title="Material Receipts (GRN)"
-      description="Track inward material receipts — vendor deliveries, project returns, warranty replacements and more."
+      description="Track inward material receipts and close the loop on dispatched material reaching the site."
       loading={loading} error={error} onRetry={() => load()}
       stats={[
         { label: 'Total', value: stats.total ?? items.length },
@@ -128,7 +131,7 @@ export default function GRNsPage() {
             <th>Type</th>
             <th>Received From</th>
             <th>Project</th>
-            <th>Warehouse</th>
+            <th>Dispatch</th>
             <th>Invoice Ref</th>
             <th className="text-right">Items</th>
             <th className="text-right">Qty</th>
@@ -146,7 +149,7 @@ export default function GRNsPage() {
                 <td className="text-gray-600 text-xs">{TYPE_LABEL[g.receipt_type || ''] || g.receipt_type || '-'}</td>
                 <td className="text-gray-900">{g.received_from || '-'}</td>
                 <td className="text-gray-700">{g.linked_project || '-'}</td>
-                <td className="text-gray-700">{g.warehouse || '-'}</td>
+                <td className="text-gray-700">{g.linked_dispatch_challan ? <Link href={`/dispatch-challans/${encodeURIComponent(g.linked_dispatch_challan)}`} className="text-blue-700 hover:underline">{g.linked_dispatch_challan}</Link> : '-'}</td>
                 <td className="text-gray-500 text-xs">{g.vendor_invoice_reference || '-'}</td>
                 <td className="text-right text-gray-700">{g.total_items ?? '-'}</td>
                 <td className="text-right text-gray-700">{g.total_qty ?? '-'}</td>
@@ -176,11 +179,11 @@ export default function GRNsPage() {
             { value: 'INTERNAL_TRANSFER', label: 'Internal Transfer' },
             { value: 'OTHER', label: 'Other' },
           ]},
-          { name: 'received_from', label: 'Received From (Vendor / Site)', type: 'text' as const },
+          { name: 'received_from', label: 'Received From (Vendor / Site)', type: 'text' as const, defaultValue: searchParams?.get('received_from') || '' },
           { name: 'supplier_link', label: 'Supplier', type: 'link' as const, linkEntity: 'vendor' as const },
-          { name: 'linked_project', label: 'Project', type: 'link' as const, linkEntity: 'project' as const },
+          { name: 'linked_project', label: 'Project', type: 'link' as const, linkEntity: 'project' as const, defaultValue: searchParams?.get('linked_project') || '' },
+          { name: 'linked_dispatch_challan', label: 'Dispatch Challan', type: 'text' as const, defaultValue: searchParams?.get('linked_dispatch_challan') || '', hint: 'Link the site GRN back to the dispatch challan that delivered this material.' },
           { name: 'linked_purchase_order', label: 'Purchase Order', type: 'link' as const, linkEntity: 'purchase_order' as const },
-          { name: 'warehouse', label: 'Warehouse', type: 'link' as const, linkEntity: 'warehouse' as const },
           { name: 'vendor_invoice_reference', label: 'Vendor Invoice No.', type: 'text' as const },
           { name: 'remarks', label: 'Remarks', type: 'textarea' as const },
         ]}

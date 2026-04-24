@@ -109,6 +109,10 @@ type ExperienceRow = {
   total_experience?: string;
 };
 
+function normalizeMaritalStatus(value?: string) {
+  return value === 'Unmarried' ? 'Single' : (value || '');
+}
+
 /* ─── Tabs ─────────────────────────────────────────────────── */
 
 const TABS = [
@@ -196,7 +200,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
       personal_email: emp.personal_email || '',
       current_address: emp.current_address || '',
       permanent_address: emp.permanent_address || '',
-      marital_status: emp.marital_status || '',
+      marital_status: normalizeMaritalStatus(emp.marital_status),
       blood_group: emp.blood_group || '',
       person_to_be_contacted: emp.person_to_be_contacted || '',
       emergency_phone_number: emp.emergency_phone_number || '',
@@ -310,7 +314,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <EditField label="Phone" value={editForm.cell_number} onChange={v => setEditForm(f => ({ ...f, cell_number: v }))} />
                   <EditField label="Personal Email" value={editForm.personal_email} onChange={v => setEditForm(f => ({ ...f, personal_email: v }))} />
-                  <EditField label="Marital Status" value={editForm.marital_status} onChange={v => setEditForm(f => ({ ...f, marital_status: v }))} />
+                  <EditField label="Marital Status" value={editForm.marital_status} onChange={v => setEditForm(f => ({ ...f, marital_status: v }))} options={['', 'Single', 'Married', 'Divorced', 'Widowed']} />
                   <EditField label="Blood Group" value={editForm.blood_group} onChange={v => setEditForm(f => ({ ...f, blood_group: v }))} />
                   <EditField label="Passport No." value={editForm.passport_number} onChange={v => setEditForm(f => ({ ...f, passport_number: v }))} />
                 </div>
@@ -557,11 +561,13 @@ function EditField({
   value,
   onChange,
   textarea,
+  options,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   textarea?: boolean;
+  options?: string[];
 }) {
   const cls = "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1e6b87]";
   return (
@@ -569,6 +575,10 @@ function EditField({
       <label className="mb-1 block text-xs font-medium text-gray-500">{label}</label>
       {textarea ? (
         <textarea value={value} onChange={e => onChange(e.target.value)} rows={3} className={cls} />
+      ) : options ? (
+        <select value={value} onChange={e => onChange(e.target.value)} className={cls}>
+          {options.map(o => <option key={o} value={o}>{o || '—'}</option>)}
+        </select>
       ) : (
         <input type="text" value={value} onChange={e => onChange(e.target.value)} className={cls} />
       )}

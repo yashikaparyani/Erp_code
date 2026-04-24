@@ -32,7 +32,17 @@ interface ChallanDetail {
   total_qty?: number; approved_by?: string; approved_at?: string;
   challan_reference?: string; issued_to_name?: string; vehicle_number?: string;
   transporter_name?: string; rejection_reason?: string; remarks?: string;
+  linked_receipt?: string; receipt_status?: string; receipt_date?: string; fulfilment_status?: string;
   items?: ChallanItem[]; creation?: string;
+}
+
+function getReceiptBadge(receiptStatus?: string, fulfilmentStatus?: string): { label: string; badgeClass: string } {
+  if (receiptStatus === 'APPROVED') return { label: 'GRN Approved', badgeClass: 'badge-success' };
+  if (receiptStatus === 'SUBMITTED') return { label: 'GRN Pending Approval', badgeClass: 'badge-info' };
+  if (receiptStatus === 'DRAFT') return { label: 'GRN Draft', badgeClass: 'badge-warning' };
+  if (receiptStatus === 'REJECTED') return { label: 'GRN Rejected', badgeClass: 'badge-error' };
+  if (fulfilmentStatus === 'AWAITING_SITE_GRN') return { label: 'Awaiting Site GRN', badgeClass: 'badge-warning' };
+  return { label: 'Not Linked Yet', badgeClass: 'badge-gray' };
 }
 
 export default function DispatchChallanDetailPage() {
@@ -90,6 +100,8 @@ export default function DispatchChallanDetailPage() {
     </div>
   ) : undefined;
 
+  const receiptBadge = getReceiptBadge(dc?.receipt_status, dc?.fulfilment_status);
+
   return (
     <DetailPage
       title={dc?.name || challanName}
@@ -101,7 +113,7 @@ export default function DispatchChallanDetailPage() {
       headerActions={actions}
       identityBlock={dc ? (
         <dl className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm sm:grid-cols-3">
-          {[['Date', formatDate(dc.dispatch_date)], ['Reference', dc.challan_reference], ['Type', dc.dispatch_type], ['From', dc.from_warehouse], ['To', dc.to_warehouse || dc.target_site_name], ['Issued To', dc.issued_to_name], ['Vehicle', dc.vehicle_number], ['Transporter', dc.transporter_name], ['Project', dc.linked_project], ['Items', dc.total_items], ['Qty', dc.total_qty], ['Approved By', dc.approved_by ? `${dc.approved_by}${dc.approved_at ? ` on ${formatDate(dc.approved_at)}` : ''}` : undefined], ['Stock Entry', dc.linked_stock_entry], ['Created', formatDate(dc.creation)]].map(([l, v]) => (
+          {[['Date', formatDate(dc.dispatch_date)], ['Reference', dc.challan_reference], ['Type', dc.dispatch_type], ['From', dc.dispatch_type === 'VENDOR_TO_SITE' ? 'Vendor Direct' : dc.from_warehouse], ['To', dc.to_warehouse || dc.target_site_name], ['Issued To', dc.issued_to_name], ['Vehicle', dc.vehicle_number], ['Transporter', dc.transporter_name], ['Project', dc.linked_project], ['Items', dc.total_items], ['Qty', dc.total_qty], ['Approved By', dc.approved_by ? `${dc.approved_by}${dc.approved_at ? ` on ${formatDate(dc.approved_at)}` : ''}` : undefined], ['Stock Entry', dc.linked_stock_entry], ['Created', formatDate(dc.creation)]].map(([l, v]) => (
             <div key={String(l)}><dt className="text-gray-500">{String(l)}</dt><dd className="font-medium text-gray-900">{String(v || '-')}</dd></div>
           ))}
         </dl>
@@ -117,6 +129,15 @@ export default function DispatchChallanDetailPage() {
       {success && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700 mb-4">{success}</div>}
       {dc?.status === 'REJECTED' && dc.rejection_reason && <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 mb-4"><strong>Rejection Reason:</strong> {dc.rejection_reason}</div>}
       {dc?.remarks && <div className="rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-700 mb-4"><strong>Remarks:</strong> {dc.remarks}</div>}
+      {dc && (
+        <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 mb-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className={`badge ${receiptBadge.badgeClass}`}>{receiptBadge.label}</span>
+            {dc.linked_receipt ? <Link href={`/grns/${encodeURIComponent(dc.linked_receipt)}`} className="text-blue-700 hover:underline font-medium">{dc.linked_receipt}</Link> : null}
+            <span>{dc.receipt_date ? `Receipt dated ${formatDate(dc.receipt_date)}` : 'Site must raise a GRN to close this dispatch.'}</span>
+          </div>
+        </div>
+      )}
 
       {/* Items */}
       <div className="shell-panel overflow-hidden">
@@ -151,8 +172,8 @@ export default function DispatchChallanDetailPage() {
       {/* Next step */}
       <div className="card border-blue-200 bg-blue-50/50 mt-4">
         <div className="p-4 flex items-center justify-between">
-          <div><p className="text-xs font-semibold text-blue-700">Next Step</p><p className="text-sm text-gray-600 mt-0.5">Dispatch Challan → <strong>GRN</strong> → Project Inventory</p></div>
-          <Link href="/grns" className="btn btn-primary !text-xs">Go to GRNs →</Link>
+          <div><p className="text-xs font-semibold text-blue-700">Next Step</p><p className="text-sm text-gray-600 mt-0.5">Dispatch Challan → <strong>Site GRN</strong> → Project Inventory</p></div>
+          <Link href={`/grns?linked_dispatch_challan=${encodeURIComponent(challanName)}${dc?.linked_project ? `&linked_project=${encodeURIComponent(dc.linked_project)}` : ''}`} className="btn btn-primary !text-xs">Raise / View GRN →</Link>
         </div>
       </div>
 

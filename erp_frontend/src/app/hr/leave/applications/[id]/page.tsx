@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft, Loader2, AlertCircle, Calendar, User, Clock, Send,
-  CheckCircle2, XCircle, RotateCcw, FileText, MapPin, Building2,
+  CheckCircle2, XCircle, RotateCcw, FileText,
 } from 'lucide-react';
 import ActionModal from '@/components/ui/ActionModal';
 import { AccountabilityTimeline } from '@/components/accountability/AccountabilityTimeline';
@@ -22,8 +22,6 @@ interface LeaveDetail {
   from_date?: string;
   to_date?: string;
   total_leave_days?: number;
-  linked_project?: string;
-  linked_site?: string;
   reason?: string;
   submitted_by?: string;
   approved_by?: string;
@@ -41,7 +39,7 @@ function formatDate(v?: string) {
 }
 
 function StatusBadge({ status }: { status?: string }) {
-  const s = (status || 'DRAFT').toUpperCase();
+  const s = (status || 'SUBMITTED').toUpperCase();
   const style = s === 'APPROVED' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
     : s === 'SUBMITTED' ? 'bg-amber-50 text-amber-700 border-amber-200'
     : s === 'REJECTED' ? 'bg-rose-50 text-rose-700 border-rose-200'
@@ -65,7 +63,6 @@ export default function LeaveApplicationDetailPage() {
     const set = new Set(currentUser?.roles || []);
     return roles.some(r => set.has(r));
   };
-  const canSubmit = hasRole('HR Manager', 'System Manager', 'Director');
   const canApprove = hasRole('HR Manager', 'Department Head', 'Director', 'System Manager');
   const canReopen = hasRole('HR Manager', 'System Manager', 'Director');
 
@@ -117,7 +114,8 @@ export default function LeaveApplicationDetailPage() {
   );
 
   const d = data;
-  const st = (d.leave_status || 'DRAFT').toUpperCase();
+  const st = (d.leave_status || (typeof (d as LeaveDetail & { status?: string }).status === 'string' ? (d as LeaveDetail & { status?: string }).status : 'SUBMITTED')).toUpperCase();
+  const displayReason = d.reason || (d as LeaveDetail & { description?: string }).description || '';
 
   return (
     <div className="space-y-6">
@@ -133,12 +131,6 @@ export default function LeaveApplicationDetailPage() {
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={st} />
 
-          {st === 'DRAFT' && canSubmit && (
-            <button onClick={() => runAction('submit')} disabled={!!actionBusy}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50">
-              <Send className="h-3.5 w-3.5" />{actionBusy === 'submit' ? 'Submitting...' : 'Submit'}
-            </button>
-          )}
           {st === 'SUBMITTED' && canApprove && (
             <>
               <button onClick={() => runAction('approve')} disabled={!!actionBusy}
@@ -151,7 +143,7 @@ export default function LeaveApplicationDetailPage() {
               </button>
             </>
           )}
-          {(st === 'SUBMITTED' || st === 'REJECTED') && canReopen && (
+          {st === 'REJECTED' && canReopen && (
             <button onClick={() => runAction('reopen')} disabled={!!actionBusy}
               className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50">
               <RotateCcw className="h-3.5 w-3.5" />Reopen
@@ -184,20 +176,14 @@ export default function LeaveApplicationDetailPage() {
         <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
           <div className="flex items-start gap-3"><User className="h-4 w-4 text-gray-400 mt-0.5" /><div><div className="text-gray-500 text-xs">Employee</div><div className="font-medium text-gray-900">{d.employee || '-'}{d.employee_name ? ` — ${d.employee_name}` : ''}</div></div></div>
           <div className="flex items-start gap-3"><FileText className="h-4 w-4 text-gray-400 mt-0.5" /><div><div className="text-gray-500 text-xs">Leave Type</div><div className="font-medium text-gray-900">{d.leave_type || '-'}</div></div></div>
-          {d.linked_project && (
-            <div className="flex items-start gap-3"><Building2 className="h-4 w-4 text-gray-400 mt-0.5" /><div><div className="text-gray-500 text-xs">Linked Project</div><Link href={`/projects/${encodeURIComponent(d.linked_project)}`} className="font-medium text-blue-700 hover:underline">{d.linked_project}</Link></div></div>
-          )}
-          {d.linked_site && (
-            <div className="flex items-start gap-3"><MapPin className="h-4 w-4 text-gray-400 mt-0.5" /><div><div className="text-gray-500 text-xs">Linked Site</div><div className="font-medium text-gray-900">{d.linked_site}</div></div></div>
-          )}
           {d.submitted_by && (
             <div className="flex items-start gap-3"><Send className="h-4 w-4 text-gray-400 mt-0.5" /><div><div className="text-gray-500 text-xs">Submitted By</div><div className="font-medium text-gray-900">{d.submitted_by}</div></div></div>
           )}
           {d.approved_by && (
             <div className="flex items-start gap-3"><CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5" /><div><div className="text-gray-500 text-xs">Approved By</div><div className="font-medium text-gray-900">{d.approved_by}</div></div></div>
           )}
-          {d.reason && (
-            <div className="sm:col-span-2 flex items-start gap-3"><FileText className="h-4 w-4 text-gray-400 mt-0.5" /><div><div className="text-gray-500 text-xs">Reason</div><div className="font-medium text-gray-900 whitespace-pre-wrap">{d.reason}</div></div></div>
+          {displayReason && (
+            <div className="sm:col-span-2 flex items-start gap-3"><FileText className="h-4 w-4 text-gray-400 mt-0.5" /><div><div className="text-gray-500 text-xs">Reason</div><div className="font-medium text-gray-900 whitespace-pre-wrap">{displayReason}</div></div></div>
           )}
         </div>
       </div>
@@ -205,24 +191,12 @@ export default function LeaveApplicationDetailPage() {
       {/* linked records */}
       <LinkedRecordsPanel
         links={[
-          ...(d.linked_project ? [{
-            label: 'Project',
-            doctype: 'GE Project',
-            method: 'frappe.client.get_list',
-            args: {
-              doctype: 'GE Project',
-              filters: JSON.stringify({ name: d.linked_project }),
-              fields: JSON.stringify(['name', 'project_name', 'status']),
-              limit_page_length: '5',
-            },
-            href: (name: string) => `/projects/${name}`,
-          }] : []),
           ...(d.employee ? [{
             label: 'Employee',
-            doctype: 'GE Employee',
+            doctype: 'Employee',
             method: 'frappe.client.get_list',
             args: {
-              doctype: 'GE Employee',
+              doctype: 'Employee',
               filters: JSON.stringify({ name: d.employee }),
               fields: JSON.stringify(['name', 'employee_name', 'department']),
               limit_page_length: '5',
@@ -232,11 +206,11 @@ export default function LeaveApplicationDetailPage() {
         ]}
       />
 
-      <RecordDocumentsPanel referenceDoctype="GE Leave Application" referenceName={leaveName} title="Leave Documents" />
+      <RecordDocumentsPanel referenceDoctype="Leave Application" referenceName={leaveName} title="Leave Documents" />
       <section>
         <details open>
           <summary className="cursor-pointer text-sm font-semibold text-gray-700 mb-3">Accountability Trail</summary>
-          <AccountabilityTimeline subjectDoctype="GE Leave Application" subjectName={leaveName} />
+          <AccountabilityTimeline subjectDoctype="Leave Application" subjectName={leaveName} />
         </details>
       </section>
 

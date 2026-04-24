@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -194,6 +194,9 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
     return config.tabs[0] || 'overview';
   }, [config.tabs, searchParams]);
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
+  // Ref so the URL-sync effect can read the current activeTab without being a dep
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
 
   /* ── Favorite state ── */
   const [isFavorite, setIsFavorite] = useState(false);
@@ -493,14 +496,15 @@ export default function WorkspaceShell({ projectId, config }: { projectId: strin
 
   useEffect(() => {
     const requestedTab = searchParams?.get('tab') as TabKey | null;
-    if (requestedTab && visibleTabs.includes(requestedTab) && requestedTab !== activeTab) {
+    if (requestedTab && visibleTabs.includes(requestedTab) && requestedTab !== activeTabRef.current) {
       setActiveTab(requestedTab);
       return;
     }
-    if (!requestedTab && activeTab !== (config.tabs[0] || 'overview')) {
+    if (!requestedTab && activeTabRef.current !== (config.tabs[0] || 'overview')) {
       setActiveTab(config.tabs[0] || 'overview');
     }
-  }, [activeTab, config.tabs, searchParams, visibleTabs]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.tabs, searchParams, visibleTabs]);
 
   const buildWorkspaceHref = useCallback((tab: TabKey) => {
     const params = new URLSearchParams(searchParams?.toString() || '');

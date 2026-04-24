@@ -46,12 +46,10 @@ type LeaveApplication = {
   name: string;
   employee: string;
   leave_type: string;
-  leave_status: 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED';
+  leave_status: 'SUBMITTED' | 'APPROVED' | 'REJECTED';
   from_date: string;
   to_date: string;
   total_leave_days: number;
-  linked_project?: string;
-  linked_site?: string;
   reason?: string;
   approved_by?: string;
   approved_at?: string;
@@ -180,8 +178,6 @@ const INITIAL_LEAVE_FORM = {
   from_date: '',
   to_date: '',
   total_leave_days: 1,
-  linked_project: '',
-  linked_site: '',
   reason: '',
   contact_during_leave: '',
 };
@@ -190,7 +186,6 @@ const INITIAL_TYPE_FORM = {
   leave_type_name: '',
   annual_allocation: 0,
   is_paid_leave: true,
-  is_active: true,
   color: '#1e6b87',
   description: '',
 };
@@ -420,7 +415,7 @@ export default function HrAttendancePage() {
       const json = await res.json();
       if (!res.ok || json.success === false) throw new Error(json.message || 'Failed to create leave application');
       setLeaveForm(INITIAL_LEAVE_FORM);
-      setFlash({ tone: 'success', message: 'Leave application draft created.' });
+      setFlash({ tone: 'success', message: 'Leave application submitted.' });
       await refreshWorkspace();
     } catch (error) {
       setFlash({ tone: 'error', message: error instanceof Error ? error.message : 'Failed to create leave application' });
@@ -469,7 +464,7 @@ export default function HrAttendancePage() {
     }
   }
 
-  async function runLeaveAction(id: string, action: 'submit' | 'approve' | 'reject' | 'reopen', extra?: Record<string, string>) {
+  async function runLeaveAction(id: string, action: 'approve' | 'reject' | 'reopen', extra?: Record<string, string>) {
     setWorking(`leave-${id}-${action}`);
     try {
       const reason = action === 'reject' ? extra?.reason : undefined;
@@ -627,7 +622,7 @@ export default function HrAttendancePage() {
 
       {tab === 'leaves' ? (
         <div className="grid gap-4 xl:grid-cols-[420px_minmax(0,1fr)]">
-          <SectionCard title="Create Leave Request" subtitle="Draft, submit, approve, reject, and reopen leave applications.">
+          <SectionCard title="Create Leave Request" subtitle="Submit, approve, reject, and reopen leave applications.">
             <div className="grid gap-4">
               <Field label="Employee"><Select value={leaveForm.employee} onChange={(event) => setLeaveForm((current) => ({ ...current, employee: event.target.value }))}><option value="">Select employee</option>{employeeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</Select></Field>
               <Field label="Leave Type"><Select value={leaveForm.leave_type} onChange={(event) => setLeaveForm((current) => ({ ...current, leave_type: event.target.value }))}><option value="">Select leave type</option>{leaveTypes.filter((item) => item.is_active).map((item) => <option key={item.name} value={item.name}>{item.leave_type_name}</option>)}</Select></Field>
@@ -639,12 +634,8 @@ export default function HrAttendancePage() {
                 <Field label="Total Days"><Input type="number" min="0.5" step="0.5" value={leaveForm.total_leave_days} onChange={(event) => setLeaveForm((current) => ({ ...current, total_leave_days: Number(event.target.value) }))} /></Field>
                 <Field label="Contact During Leave"><Input value={leaveForm.contact_during_leave} onChange={(event) => setLeaveForm((current) => ({ ...current, contact_during_leave: event.target.value }))} /></Field>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <Field label="Linked Project"><Input value={leaveForm.linked_project} onChange={(event) => setLeaveForm((current) => ({ ...current, linked_project: event.target.value }))} /></Field>
-                <Field label="Linked Site"><Input value={leaveForm.linked_site} onChange={(event) => setLeaveForm((current) => ({ ...current, linked_site: event.target.value }))} /></Field>
-              </div>
               <Field label="Reason"><Textarea value={leaveForm.reason} onChange={(event) => setLeaveForm((current) => ({ ...current, reason: event.target.value }))} /></Field>
-              <button onClick={() => void submitLeaveApplication()} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1e6b87] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#185a73] disabled:opacity-60" disabled={working === 'leave-create'}>{working === 'leave-create' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}Create Draft</button>
+              <button onClick={() => void submitLeaveApplication()} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1e6b87] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#185a73] disabled:opacity-60" disabled={working === 'leave-create'}>{working === 'leave-create' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}Submit Leave Request</button>
             </div>
           </SectionCard>
 
@@ -671,10 +662,9 @@ export default function HrAttendancePage() {
                       <td className="py-3 pr-4 text-slate-600">{item.total_leave_days}</td>
                       <td className="py-3">
                         <div className="flex flex-wrap gap-2">
-                          {item.leave_status === 'DRAFT' ? <button onClick={() => void runLeaveAction(item.name, 'submit')} className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-700">Submit</button> : null}
                           {item.leave_status === 'SUBMITTED' ? <button onClick={() => void runLeaveAction(item.name, 'approve')} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700">Approve</button> : null}
                           {item.leave_status === 'SUBMITTED' ? <button onClick={() => setRejectTarget({ id: item.name, type: 'leave' })} className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-700">Reject</button> : null}
-                          {(item.leave_status === 'SUBMITTED' || item.leave_status === 'REJECTED') ? <button onClick={() => void runLeaveAction(item.name, 'reopen')} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">Back To Draft</button> : null}
+                          {item.leave_status === 'REJECTED' ? <button onClick={() => void runLeaveAction(item.name, 'reopen')} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">Reopen</button> : null}
                         </div>
                       </td>
                     </tr>
@@ -696,7 +686,6 @@ export default function HrAttendancePage() {
                 <Field label="Color"><Input type="color" value={typeForm.color} onChange={(event) => setTypeForm((current) => ({ ...current, color: event.target.value }))} /></Field>
               </div>
               <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={typeForm.is_paid_leave} onChange={(event) => setTypeForm((current) => ({ ...current, is_paid_leave: event.target.checked }))} /> Paid leave</label>
-              <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={typeForm.is_active} onChange={(event) => setTypeForm((current) => ({ ...current, is_active: event.target.checked }))} /> Active</label>
               <Field label="Description"><Textarea value={typeForm.description} onChange={(event) => setTypeForm((current) => ({ ...current, description: event.target.value }))} /></Field>
               <button onClick={() => void createLeaveType()} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1e6b87] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#185a73]">Create Leave Type</button>
             </div>

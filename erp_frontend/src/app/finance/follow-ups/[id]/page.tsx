@@ -7,7 +7,7 @@ import ActionModal from '@/components/ui/ActionModal';
 import AccountabilityTimeline from '@/components/accountability/AccountabilityTimeline';
 import RecordDocumentsPanel from '@/components/ui/RecordDocumentsPanel';
 import LinkedRecordsPanel from '@/components/ui/LinkedRecordsPanel';
-import { callApi, formatCurrency, formatDate, FOLLOW_UP_BADGES, statusVariant, useAuth, hasAnyRole } from '@/components/finance/fin-helpers';
+import { callApi, formatCurrency, formatDate, statusVariant, useAuth, hasAnyRole } from '@/components/finance/fin-helpers';
 
 type FollowUp = Record<string, any>;
 
@@ -22,8 +22,7 @@ export default function FollowUpDetailPage() {
   const load = useCallback(async () => {
     setLoading(true); setError('');
     try {
-      const res = await callApi<{ success: boolean; data: FollowUp }>(`/api/finance/follow-ups/${id}`);
-      setData(res?.data || null);
+      setData(await callApi<FollowUp>(`/api/finance/follow-ups/${id}`));
     }
     catch (e) { setError(e instanceof Error ? e.message : 'Failed'); }
     setLoading(false);
@@ -32,8 +31,8 @@ export default function FollowUpDetailPage() {
   useEffect(() => { load(); }, [load]);
 
   const d = data || {} as FollowUp;
-  const canAct = hasAnyRole(currentUser?.roles, 'Finance Officer', 'Finance Admin', 'Collections Executive');
-  const isOpen = d.status === 'Open' || d.status === 'Escalated';
+  const canAct = hasAnyRole(currentUser?.roles, 'Director', 'System Manager', 'Accounts', 'Department Head');
+  const isOpen = d.status === 'OPEN' || d.status === 'ESCALATED';
 
   return (
     <DetailPage
@@ -53,9 +52,9 @@ export default function FollowUpDetailPage() {
         <>
           {/* KPI Cards */}
           <div className="grid grid-cols-2 gap-3 mb-4">
-            <div className="stat-card"><span className="text-gray-500 text-xs">Promised Amount</span><p className="font-semibold text-lg">{formatCurrency(d.promised_amount)}</p></div>
-            <div className="stat-card"><span className="text-gray-500 text-xs">Promised Date</span><p className="font-semibold text-lg">{formatDate(d.promised_date)}</p></div>
-            <div className="stat-card"><span className="text-gray-500 text-xs">Next Follow-Up</span><p className="font-semibold text-lg">{formatDate(d.next_follow_up)}</p></div>
+            <div className="stat-card"><span className="text-gray-500 text-xs">Promised Amount</span><p className="font-semibold text-lg">{formatCurrency(d.promised_payment_amount)}</p></div>
+            <div className="stat-card"><span className="text-gray-500 text-xs">Promised Date</span><p className="font-semibold text-lg">{formatDate(d.promised_payment_date)}</p></div>
+            <div className="stat-card"><span className="text-gray-500 text-xs">Next Follow-Up</span><p className="font-semibold text-lg">{formatDate(d.next_follow_up_on)}</p></div>
             <div className="stat-card"><span className="text-gray-500 text-xs">Escalation Level</span><p className="font-semibold text-lg">{d.escalation_level || 0}</p></div>
           </div>
           {/* Detail Card */}
@@ -63,22 +62,23 @@ export default function FollowUpDetailPage() {
             <div className="card-header"><h3 className="font-semibold">Details</h3></div>
             <div className="card-body grid grid-cols-2 gap-4 text-sm">
               <div><span className="text-gray-500">Customer</span><p>{d.customer || '-'}</p></div>
-              <div><span className="text-gray-500">Project</span><p>{d.project || '-'}</p></div>
-              <div><span className="text-gray-500">Invoice</span><p>{d.invoice || '-'}</p></div>
+              <div><span className="text-gray-500">Project</span><p>{d.linked_project || '-'}</p></div>
+              <div><span className="text-gray-500">Invoice</span><p>{d.linked_invoice || '-'}</p></div>
               <div><span className="text-gray-500">Contact Person</span><p>{d.contact_person || '-'}</p></div>
               <div><span className="text-gray-500">Assigned To</span><p>{d.assigned_to || '-'}</p></div>
-              <div className="col-span-2"><span className="text-gray-500">Notes</span><p>{d.notes || '-'}</p></div>
+              <div className="col-span-2"><span className="text-gray-500">Summary</span><p>{d.summary || '-'}</p></div>
+              <div className="col-span-2"><span className="text-gray-500">Remarks</span><p>{d.remarks || '-'}</p></div>
             </div>
           </div>
         </>
       }
       sidePanels={
         <>
-          <RecordDocumentsPanel referenceDoctype="Follow Up" referenceName={id} title="Documents" />
+          <RecordDocumentsPanel referenceDoctype="GE Payment Follow Up" referenceName={id} title="Documents" />
           <LinkedRecordsPanel links={[
-            ...(d.invoice ? [{ label: 'Invoice', doctype: 'Sales Invoice', method: 'frappe.client.get_list', args: { doctype: 'Sales Invoice', filters: JSON.stringify({ name: d.invoice }), fields: JSON.stringify(['name','grand_total','status']), limit_page_length: '5' }, href: (n: string) => `/finance/billing/${n}` }] : []),
+            ...(d.linked_invoice ? [{ label: 'Invoice', doctype: 'GE Invoice', method: 'frappe.client.get_list', args: { doctype: 'GE Invoice', filters: JSON.stringify({ name: d.linked_invoice }), fields: JSON.stringify(['name','amount','net_receivable','status']), limit_page_length: '5' }, href: (n: string) => `/finance/billing/${n}` }] : []),
           ]} />
-          <AccountabilityTimeline subjectDoctype="Follow Up" subjectName={id} />
+          <AccountabilityTimeline subjectDoctype="GE Payment Follow Up" subjectName={id} />
         </>
       }
     >

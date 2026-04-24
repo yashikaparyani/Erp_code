@@ -49,7 +49,7 @@ MODULE_ROUTE_MAP = {
     "project":     ["/projects", "/milestones", "/project-manager", "/project-head", "/comm-logs"],
     "presales":    ["/pre-sales", "/survey"],
     "engineering": ["/engineering", "/survey", "/drawings", "/change-requests"],
-    "procurement": ["/procurement", "/indents", "/purchase-orders", "/petty-cash", "/vendor-comparisons"],
+    "procurement": ["/procurement", "/indents", "/purchase-orders", "/petty-cash", "/vendor-comparisons", "/procurement/suppliers"],
     "execution":   ["/execution", "/manpower", "/technician-visits", "/dispatch-challans", "/sites"],
     "inventory":   ["/inventory", "/grns", "/stock-position", "/stock-aging"],
     "finance":     ["/finance", "/payment-receipts", "/retention", "/penalties"],
@@ -74,6 +74,9 @@ PUBLIC_ROUTES = {
 _ALL_GATED_PREFIXES: set[str] | None = None
 
 ROLE_ROUTE_DENY_MAP = {
+    "Presales Executive": [
+        "/pre-sales/approvals",
+    ],
     "Project Manager": [
         "/projects",
         "/procurement",
@@ -608,14 +611,15 @@ class PermissionEngine:
             return list(self.ALL_TAB_KEYS)
 
         tab_caps = {
-            "overview":   ["project.summary.view", "project.workspace.access"],
-            "sites":      ["project.site.view", "engineering.site.view",
-                          "procurement.site.view", "execution.site.view"],
-            "board":      ["project.board.view"],
-            "milestones": ["project.milestone.view"],
-            "files":      ["dms.file.view", "engineering.file.view",
-                          "procurement.file.view", "execution.file.view"],
-            "activity":   ["project.activity.view"],
+            "overview":      ["project.summary.view", "project.workspace.access"],
+            "sites":         ["project.site.view", "engineering.site.view",
+                             "procurement.site.view", "execution.site.view"],
+            "board":         ["project.board.view"],
+            "milestones":    ["project.milestone.view"],
+            "files":         ["dms.file.view", "engineering.file.view",
+                             "procurement.file.view", "execution.file.view"],
+            "activity":      ["project.activity.view"],
+            "accountability": ["reports.module.access"],
         }
         visible = []
         for tab, caps in tab_caps.items():

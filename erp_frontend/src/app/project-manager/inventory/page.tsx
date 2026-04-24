@@ -44,8 +44,8 @@ interface ConsumptionReport {
 }
 
 interface ReceivingSummary {
-  grns: Array<{ name: string; supplier?: string; posting_date?: string; status?: string; grand_total?: number }>;
-  dispatches: Array<{ name: string; dispatch_date?: string; dispatch_type?: string; status?: string; target_site_name?: string }>;
+  grns: Array<{ name: string; received_from?: string; receipt_date?: string; status?: string; total_value?: number; linked_dispatch_challan?: string }>;
+  dispatches: Array<{ name: string; dispatch_date?: string; dispatch_type?: string; status?: string; target_site_name?: string; linked_receipt?: string; receipt_status?: string; receipt_date?: string }>;
 }
 
 interface ProjectIndent {
@@ -71,7 +71,6 @@ export default function ProjectManagerInventoryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const [showReceipt, setShowReceipt] = useState(false);
   const [showConsumption, setShowConsumption] = useState(false);
   const [showIndent, setShowIndent] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -122,17 +121,6 @@ export default function ProjectManagerInventoryPage() {
 
   /* ── Save handlers ──────────────────────────────────────────────── */
 
-  const handleReceipt = async (v: Record<string, string>) => {
-    if (!v.item_code?.trim() || !(Number(v.received_qty) > 0)) { setError('Item code and qty required.'); return; }
-    setSaving(true); setError('');
-    try {
-      await projectInventoryApi.recordReceipt({
-        data: JSON.stringify({ linked_project: selectedProject, linked_site: v.linked_site || undefined, item_code: v.item_code.trim(), item_name: v.item_name?.trim() || undefined, unit: v.unit?.trim() || undefined, received_qty: Number(v.received_qty), last_grn_ref: v.last_grn_ref?.trim() || undefined, last_receipt_note: v.last_receipt_note?.trim() || undefined, hsn_code: v.hsn_code?.trim() || undefined, make: v.make?.trim() || undefined, model_no: v.model_no?.trim() || undefined, serial_no: v.serial_no?.trim() || undefined, source_reference: v.source_reference?.trim() || undefined, invoice_no: v.invoice_no?.trim() || undefined, purchase_order: v.purchase_order?.trim() || undefined, purchase_cost: v.purchase_cost ? Number(v.purchase_cost) : undefined, last_received_on: v.last_received_on || undefined }),
-      });
-      setShowReceipt(false); await loadData(selectedProject);
-    } catch (err) { setError(err instanceof Error ? err.message : 'Failed'); } finally { setSaving(false); }
-  };
-
   const handleConsumption = async (v: Record<string, string>) => {
     if (!v.item_code?.trim() || !(Number(v.consumed_qty) > 0)) { setError('Item code and qty required.'); return; }
     setSaving(true); setError('');
@@ -149,7 +137,7 @@ export default function ProjectManagerInventoryPage() {
     setSaving(true); setError('');
     try {
       await projectInventoryApi.createIndent({
-        data: JSON.stringify({ project: selectedProject, linked_site: v.linked_site || undefined, item_code: v.item_code.trim(), qty: Number(v.qty), uom: v.uom?.trim() || undefined, warehouse: v.warehouse?.trim() || undefined, schedule_date: v.schedule_date || undefined, remarks: v.remarks?.trim() || undefined }),
+        data: JSON.stringify({ project: selectedProject, linked_site: v.linked_site || undefined, item_code: v.item_code.trim(), qty: Number(v.qty), uom: v.uom?.trim() || undefined, schedule_date: v.schedule_date || undefined, remarks: v.remarks?.trim() || undefined }),
       });
       setShowIndent(false); await loadData(selectedProject);
     } catch (err) { setError(err instanceof Error ? err.message : 'Failed'); } finally { setSaving(false); }
@@ -163,7 +151,7 @@ export default function ProjectManagerInventoryPage() {
     <>
       <RegisterPage
         title="Project Inventory"
-        description="Project-only receiving, GRN follow-through, and material consumption."
+        description="Project-side GRN follow-through and material consumption."
         loading={loading}
         error={error}
         onRetry={() => void loadData(selectedProject)}
@@ -180,7 +168,7 @@ export default function ProjectManagerInventoryPage() {
         }
         headerActions={
           <>
-            <button className="btn btn-secondary" onClick={() => setShowReceipt(true)}><Plus className="h-4 w-4" /> Update Receipt</button>
+            <Link href={`/grns?linked_project=${encodeURIComponent(selectedProject)}`} className="btn btn-secondary"><Plus className="h-4 w-4" /> Raise Site GRN</Link>
             <button className="btn btn-secondary" onClick={() => setShowIndent(true)}><ReceiptText className="h-4 w-4" /> Raise Indent</button>
             <button className="btn btn-primary" onClick={() => setShowConsumption(true)}><ClipboardList className="h-4 w-4" /> Material Consumption</button>
           </>
@@ -188,32 +176,32 @@ export default function ProjectManagerInventoryPage() {
       >
         <div className="space-y-6 p-4">
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
-            This workspace is aligned to the workbook-style <span className="font-semibold">IN</span> receipt model. Use receipt updates to preserve HSN, make/model, serial, invoice, PO, and GRN context so balance changes stay traceable.
+            Site receipt should be raised through a GRN against the dispatched material. This workspace stays read-through on dispatch and GRN history so project inventory remains tied to approved receipt records.
           </div>
 
           {/* Receiving Context */}
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
             <div className="card">
-              <div className="card-header"><h3 className="font-semibold text-gray-900">Receiving Context</h3><p className="text-xs text-gray-500 mt-1">Read-only GRNs and dispatches.</p></div>
+              <div className="card-header"><h3 className="font-semibold text-gray-900">Receiving Context</h3><p className="text-xs text-gray-500 mt-1">Read-only GRNs and dispatches linked to this project.</p></div>
               <div className="card-body space-y-5">
                 <div>
                   <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-900"><ReceiptText className="h-4 w-4 text-blue-600" />GRNs</div>
-                  <div className="overflow-x-auto"><table className="data-table"><thead><tr><th>ID</th><th>Supplier</th><th>Date</th><th>Status</th><th>Total</th></tr></thead><tbody>
+                  <div className="overflow-x-auto"><table className="data-table"><thead><tr><th>ID</th><th>Received From</th><th>Date</th><th>Status</th><th>Total</th></tr></thead><tbody>
                     {(receiving.grns || []).length === 0 ? <tr><td colSpan={5} className="py-6 text-center text-sm text-gray-500">No GRNs found.</td></tr> : receiving.grns.map((r) => (
                       <tr key={r.name} className="cursor-pointer hover:bg-blue-50/50">
                         <td><Link href={`/grns/${encodeURIComponent(r.name)}`} className="font-medium text-blue-700 hover:underline">{r.name}</Link></td>
-                        <td>{r.supplier || '-'}</td><td>{r.posting_date || '-'}</td><td>{r.status || '-'}</td><td>{formatCurrency(r.grand_total)}</td>
+                        <td>{r.received_from || '-'}</td><td>{r.receipt_date || '-'}</td><td>{r.status || '-'}</td><td>{formatCurrency(r.total_value)}</td>
                       </tr>
                     ))}
                   </tbody></table></div>
                 </div>
                 <div>
                   <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-900"><Truck className="h-4 w-4 text-emerald-600" />Dispatches</div>
-                  <div className="overflow-x-auto"><table className="data-table"><thead><tr><th>ID</th><th>Date</th><th>Type</th><th>Site</th><th>Status</th></tr></thead><tbody>
-                    {(receiving.dispatches || []).length === 0 ? <tr><td colSpan={5} className="py-6 text-center text-sm text-gray-500">No dispatches found.</td></tr> : receiving.dispatches.map((r) => (
+                  <div className="overflow-x-auto"><table className="data-table"><thead><tr><th>ID</th><th>Date</th><th>Type</th><th>Site</th><th>Site GRN</th><th>Status</th></tr></thead><tbody>
+                    {(receiving.dispatches || []).length === 0 ? <tr><td colSpan={6} className="py-6 text-center text-sm text-gray-500">No dispatches found.</td></tr> : receiving.dispatches.map((r) => (
                       <tr key={r.name} className="cursor-pointer hover:bg-emerald-50/50">
                         <td><Link href={`/dispatch-challans/${encodeURIComponent(r.name)}`} className="font-medium text-emerald-700 hover:underline">{r.name}</Link></td>
-                        <td>{r.dispatch_date || '-'}</td><td>{r.dispatch_type || '-'}</td><td>{r.target_site_name || '-'}</td><td>{r.status || '-'}</td>
+                        <td>{r.dispatch_date || '-'}</td><td>{r.dispatch_type || '-'}</td><td>{r.target_site_name || '-'}</td><td>{r.linked_receipt ? <Link href={`/grns/${encodeURIComponent(r.linked_receipt)}`} className="text-blue-700 hover:underline">{r.receipt_status || 'Linked'}</Link> : (r.status === 'DISPATCHED' ? 'Awaiting GRN' : '-')}</td><td>{r.status || '-'}</td>
                       </tr>
                     ))}
                   </tbody></table></div>
@@ -273,26 +261,6 @@ export default function ProjectManagerInventoryPage() {
         </div>
       </RegisterPage>
 
-      {/* Receipt Modal */}
-      <FormModal open={showReceipt} title="Project Receipt Update" size="lg" busy={saving} confirmLabel="Save Receipt" onConfirm={handleReceipt} onCancel={() => setShowReceipt(false)} fields={[
-        { name: 'item_code', label: h(2, 'Item Code'), type: 'link', linkEntity: 'item', required: true, placeholder: 'Search items…' },
-        { name: 'item_name', label: 'Item Name', type: 'text' },
-        { name: 'hsn_code', label: h(1, 'HSN Code'), type: 'text' },
-        { name: 'make', label: h(3, 'Make'), type: 'text' },
-        { name: 'model_no', label: h(4, 'Model No.'), type: 'text' },
-        { name: 'serial_no', label: h(5, 'Serial No.'), type: 'text' },
-        { name: 'unit', label: h(7, 'Unit / UOM'), type: 'text' },
-        { name: 'received_qty', label: h(6, 'Received Qty'), type: 'number', required: true },
-        { name: 'linked_site', label: 'Site', type: 'select', options: siteOptions },
-        { name: 'last_received_on', label: h(0, 'Received Date'), type: 'date' },
-        { name: 'source_reference', label: h(8, 'Source / Vendor'), type: 'link', linkEntity: 'vendor', placeholder: 'Search vendors…', hint: 'Vendor name or project the material came from' },
-        { name: 'invoice_no', label: h(9, 'Invoice No.'), type: 'text' },
-        { name: 'purchase_order', label: h(10, 'Purchase Order'), type: 'text' },
-        { name: 'purchase_cost', label: h(11, 'Purchase Cost'), type: 'number' },
-        { name: 'last_grn_ref', label: 'GRN Ref', type: 'text' },
-        { name: 'last_receipt_note', label: h(12, 'Receipt Note / Remark'), type: 'textarea' },
-      ]} />
-
       {/* Consumption Modal */}
       <FormModal open={showConsumption} title="Material Consumption Report" size="lg" busy={saving} confirmLabel="Submit Report" onConfirm={handleConsumption} onCancel={() => setShowConsumption(false)} fields={[
         { name: 'report_date', label: 'Report Date', type: 'date' },
@@ -311,7 +279,6 @@ export default function ProjectManagerInventoryPage() {
         { name: 'uom', label: 'Unit', type: 'text' },
         { name: 'schedule_date', label: 'Required By', type: 'date' },
         { name: 'linked_site', label: 'Site', type: 'select', options: siteOptions },
-        { name: 'warehouse', label: 'Warehouse', type: 'link', linkEntity: 'warehouse', placeholder: 'Search warehouses…' },
         { name: 'remarks', label: 'Justification / Note', type: 'textarea' },
       ]} />
 

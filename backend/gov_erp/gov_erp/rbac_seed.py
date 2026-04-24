@@ -446,6 +446,7 @@ ROLE_PACK_MAPPINGS = [
 	("Project Manager",         "reports",           "assigned_project", "read"),
 
 	# Department Head
+	("Department Head",         "project_command",  "department",       "read"),
 	("Department Head",         "presales",         "department",       "read"),
 	("Department Head",         "engineering",      "department",       "action"),
 	("Department Head",         "procurement",      "department",       "action"),
@@ -469,10 +470,11 @@ ROLE_PACK_MAPPINGS = [
 
 	# Engineering Head
 	("Engineering Head",        "engineering",      "department",       "action"),
-	("Engineering Head",        "execution_ic",     "department",       "read"),
+	("Engineering Head",        "execution_ic",     "department",       "action"),
 	("Engineering Head",        "dms",              "department",       "action"),
 	("Engineering Head",        "reports",           "department",       "read"),
 	("Engineering Head",        "approval",         "department",       "approve"),
+	("Engineering Head",        "inventory",        "department",       "read"),
 
 	# Engineer
 	("Engineer",                "engineering",      "assigned_project", "action"),
@@ -511,6 +513,7 @@ ROLE_PACK_MAPPINGS = [
 	("HR Manager",              "hr_manpower",      "department",       "action"),
 	("HR Manager",              "reports",           "department",       "read"),
 	("HR Manager",              "dms",              "department",       "read"),
+	("HR Manager",              "approval",         "department",       "approve"),
 
 	# Field Technician
 	("Field Technician",        "execution_ic",     "assigned_site",    "action"),
