@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, ArrowRight, Briefcase, CalendarCheck2, Clock3, Plane, ShieldCheck, Wrench } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Briefcase, CalendarCheck2, Plane, ShieldCheck, Wrench } from 'lucide-react';
 import { DashboardShell, MetricList, SectionCard, StatCard, formatCurrency, useApiData } from './shared';
 
 type DashboardData = {
@@ -8,7 +8,6 @@ type DashboardData = {
     onboarding?: Record<string, number>;
     attendance?: Record<string, number>;
     travel?: Record<string, number>;
-    overtime?: Record<string, number>;
     statutory?: Record<string, number>;
     visits?: Record<string, number>;
   };
@@ -16,7 +15,6 @@ type DashboardData = {
     onboardings: Array<{ name: string; employee_name?: string; onboarding_status?: string }>;
     attendance: Array<{ name: string; employee?: string; attendance_status?: string; linked_site?: string }>;
     travel: Array<{ name: string; employee?: string; travel_status?: string; expense_amount?: number }>;
-    overtime: Array<{ name: string; employee?: string; overtime_status?: string; overtime_hours?: number }>;
     statutory: Array<{ name: string; employee?: string; payment_status?: string; ledger_type?: string }>;
     visits: Array<{ name: string; employee?: string; visit_status?: string; linked_site?: string; customer_location?: string }>;
   };
@@ -28,7 +26,6 @@ const initialData: DashboardData = {
     onboardings: [],
     attendance: [],
     travel: [],
-    overtime: [],
     statutory: [],
     visits: [],
   },
@@ -44,11 +41,10 @@ export default function HROverviewDashboard() {
   const onboarding = data.stats.onboarding || {};
   const attendance = data.stats.attendance || {};
   const travel = data.stats.travel || {};
-  const overtime = data.stats.overtime || {};
   const statutory = data.stats.statutory || {};
   const visits = data.stats.visits || {};
 
-  const pendingApprovals = getPendingCount(onboarding) + getPendingCount(travel) + getPendingCount(overtime);
+  const pendingApprovals = getPendingCount(onboarding) + getPendingCount(travel);
   const complianceRisk = Number(statutory.pending || 0);
   const fieldAttention = Number(visits.in_progress || 0) + Number(visits.scheduled || 0);
 
@@ -79,7 +75,7 @@ export default function HROverviewDashboard() {
             <div className="rounded-xl bg-white/10 p-4">
               <div className="text-xs uppercase tracking-[0.18em] text-white/70">Pending approvals</div>
               <div className="mt-2 text-3xl font-semibold">{pendingApprovals}</div>
-              <div className="mt-1 text-sm text-white/75">Onboarding, travel, overtime</div>
+              <div className="mt-1 text-sm text-white/75">Onboarding and travel</div>
             </div>
             <div className="rounded-xl bg-white/10 p-4">
               <div className="text-xs uppercase tracking-[0.18em] text-white/70">Compliance risk</div>
@@ -100,7 +96,6 @@ export default function HROverviewDashboard() {
               { label: 'Present employees', value: attendance.present ?? 0, tone: 'positive' },
               { label: 'Absent employees', value: attendance.absent ?? 0, tone: attendance.absent ? 'negative' : 'default' },
               { label: 'Approved travel spend', value: formatCurrency(travel.total_expense_amount), tone: 'info' },
-              { label: 'Approved overtime hours', value: overtime.total_hours ?? 0, tone: 'warning' },
               { label: 'Employees mapped after onboarding', value: onboarding.mapped_to_employee ?? 0, tone: 'positive' },
             ]}
           />
@@ -130,13 +125,6 @@ export default function HROverviewDashboard() {
           tone="amber"
         />
         <StatCard
-          title="Overtime Desk"
-          value={overtime.total ?? 0}
-          hint={`${overtime.pending ?? 0} waiting approval`}
-          icon={Clock3}
-          tone="purple"
-        />
-        <StatCard
           title="Compliance Ledger"
           value={statutory.total ?? 0}
           hint={`${statutory.pending ?? 0} payment items pending`}
@@ -158,7 +146,6 @@ export default function HROverviewDashboard() {
             items={[
               { label: 'Onboarding approvals pending', value: onboarding.pending ?? 0, tone: (onboarding.pending ?? 0) > 0 ? 'warning' : 'positive' },
               { label: 'Travel approvals pending', value: travel.pending ?? 0, tone: (travel.pending ?? 0) > 0 ? 'warning' : 'positive' },
-              { label: 'Overtime approvals pending', value: overtime.pending ?? 0, tone: (overtime.pending ?? 0) > 0 ? 'warning' : 'positive' },
               { label: 'Statutory payments pending', value: statutory.pending ?? 0, tone: (statutory.pending ?? 0) > 0 ? 'negative' : 'positive' },
             ]}
           />
@@ -173,11 +160,6 @@ export default function HROverviewDashboard() {
                 tone: 'info',
               },
               {
-                label: data.recent.overtime[0]?.employee || 'Latest overtime entry',
-                value: data.recent.overtime[0] ? `${data.recent.overtime[0].overtime_hours ?? 0} hrs` : 'No overtime entries',
-                tone: 'warning',
-              },
-              {
                 label: data.recent.visits[0]?.employee || 'Latest technician visit',
                 value: data.recent.visits[0]?.visit_status || 'No visit logs',
                 tone: 'default',
@@ -190,7 +172,7 @@ export default function HROverviewDashboard() {
           <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-4">
             <div className="text-sm font-semibold text-gray-900">Open HR Operations tab</div>
             <p className="mt-2 text-sm text-gray-600">
-              There you can review full tables for onboarding, attendance, travel, overtime, statutory ledgers, and technician visits.
+              There you can review full tables for onboarding, attendance, travel, statutory ledgers, and technician visits.
             </p>
             <div className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-[#1e6b87]">
               Detailed workspace

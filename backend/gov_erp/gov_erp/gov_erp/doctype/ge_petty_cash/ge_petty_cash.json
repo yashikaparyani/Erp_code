@@ -22,7 +22,8 @@
   "cb_amounts",
   "approved_by",
   "approved_on",
-  "rejection_reason"
+  "rejection_reason",
+  "linked_journal_entry"
  ],
  "fields": [
   {
@@ -124,6 +125,13 @@
    "fieldname": "rejection_reason",
    "fieldtype": "Small Text",
    "label": "Rejection Reason"
+  },
+  {
+   "fieldname": "linked_journal_entry",
+   "fieldtype": "Link",
+   "label": "Linked Journal Entry",
+   "options": "Journal Entry",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,

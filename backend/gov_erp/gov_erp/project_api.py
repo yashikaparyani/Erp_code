@@ -1329,13 +1329,29 @@ def update_project_task(name, data):
 def delete_project_task(name):
 	"""Delete a project task and its subtasks."""
 	_require_spine_write_access()
-	# delete subtasks first
-	subtasks = frappe.get_all("GE Project Task", filters={"parent_task": name}, pluck="name", ignore_permissions=True)
-	for st in subtasks:
-		frappe.delete_doc("GE Project Task", st, force=True, ignore_permissions=True)
-	frappe.delete_doc("GE Project Task", name, force=True, ignore_permissions=True)
+	_delete_project_task_tree(name)
 	frappe.db.commit()
 	return {"success": True}
+
+
+def _delete_project_task_tree(name, deleted=None):
+	"""Delete a task plus all descendants without leaving orphaned subtasks."""
+	deleted = deleted or set()
+	if not name or name in deleted or not frappe.db.exists("GE Project Task", name):
+		return deleted
+
+	subtasks = frappe.get_all(
+		"GE Project Task",
+		filters={"parent_task": name},
+		pluck="name",
+		ignore_permissions=True,
+	)
+	for child_name in subtasks:
+		_delete_project_task_tree(child_name, deleted)
+
+	frappe.delete_doc("GE Project Task", name, force=True, ignore_permissions=True)
+	deleted.add(name)
+	return deleted
 
 
 @frappe.whitelist()
@@ -1403,7 +1419,66 @@ def clone_project(source_project, new_project_name, copy_tasks=1, copy_milestone
 	if frappe.db.exists("Project", new_project_name):
 		frappe.throw("A project with this name already exists")
 
-	result = {"project": new_project_name, "tasks_copied": 0, "milestones_copied": 0, "notes_copied": 0}
+	source_doc = frappe.get_doc("Project", source_project, ignore_permissions=True)
+	project_values = _normalize_project_payload(
+		{
+			"project_name": new_project_name,
+			"status": source_doc.status,
+			"customer": source_doc.customer,
+			"company": source_doc.company,
+			"expected_start_date": source_doc.expected_start_date,
+			"expected_end_date": source_doc.expected_end_date,
+			"percent_complete": 0,
+			"estimated_costing": getattr(source_doc, "estimated_costing", None),
+			"notes": source_doc.notes,
+			"linked_tender": getattr(source_doc, "linked_tender", None),
+			"project_head": getattr(source_doc, "project_head", None),
+			"project_manager_user": getattr(source_doc, "project_manager_user", None),
+			"current_project_stage": getattr(source_doc, "current_project_stage", None) or "SURVEY",
+			"spine_blocked": 0,
+			"blocker_summary": None,
+		}
+	)
+	new_project = frappe.get_doc({"doctype": "Project", **project_values})
+	_sync_project_workflow_fields(new_project, reset_submission=True)
+	_append_project_workflow_event(
+		new_project,
+		"PROJECT_CLONED",
+		new_project.current_project_stage,
+		remarks=f"Cloned from {source_project}",
+		metadata={"source_project": source_project},
+	)
+	new_project.insert(ignore_permissions=True)
+
+	result = {"project": new_project.name, "tasks_copied": 0, "milestones_copied": 0, "notes_copied": 0}
+	milestone_id_map = {}
+
+	if copy_milestones:
+		old_milestones = frappe.get_all(
+			"GE Milestone",
+			filters={"linked_project": source_project},
+			fields=[
+				"name", "milestone_name", "status", "planned_start_date", "planned_end_date",
+				"planned_date", "actual_start_date", "actual_end_date", "actual_date",
+				"assigned_role", "assigned_team", "progress_pct", "owner_user", "remarks",
+			],
+			ignore_permissions=True,
+			order_by="creation asc",
+		)
+		for milestone in old_milestones:
+			new_milestone = frappe.new_doc("GE Milestone")
+			for fieldname in [
+				"milestone_name", "status", "planned_start_date", "planned_end_date",
+				"planned_date", "actual_start_date", "actual_end_date", "actual_date",
+				"assigned_role", "assigned_team", "progress_pct", "owner_user", "remarks",
+			]:
+				new_milestone.set(fieldname, milestone.get(fieldname))
+			new_milestone.linked_project = new_project.name
+			# Project clone does not create site rows, so keep cloned milestones project-scoped.
+			new_milestone.linked_site = None
+			new_milestone.insert(ignore_permissions=True)
+			milestone_id_map[milestone.name] = new_milestone.name
+		result["milestones_copied"] = len(milestone_id_map)
 
 	# Clone tasks with parent-child ID mapping (RISE pattern)
 	if copy_tasks:
@@ -1418,7 +1493,11 @@ def clone_project(source_project, new_project_name, copy_tasks=1, copy_milestone
 			          "start_date", "deadline", "description", "milestone_id",
 			          "points", "labels", "sort_order", "linked_site"]:
 				new_task.set(f, t.get(f))
-			new_task.linked_project = new_project_name
+			new_task.linked_project = new_project.name
+			if new_task.milestone_id in milestone_id_map:
+				new_task.milestone_id = milestone_id_map[new_task.milestone_id]
+			if getattr(new_task, "linked_site", None):
+				new_task.linked_site = None
 			new_task.parent_task = ""
 			new_task.insert(ignore_permissions=True)
 			task_id_map[old_name] = new_task.name
@@ -1436,7 +1515,7 @@ def clone_project(source_project, new_project_name, copy_tasks=1, copy_milestone
 			fields=["title", "content", "is_private"], ignore_permissions=True)
 		for n in old_notes:
 			new_note = frappe.new_doc("GE Project Note")
-			new_note.linked_project = new_project_name
+			new_note.linked_project = new_project.name
 			new_note.title = n.title
 			new_note.content = n.content
 			new_note.is_private = n.is_private

@@ -185,6 +185,354 @@ def submit_invoice(name):
 	return {"success": True, "data": doc.as_dict(), "message": "Invoice submitted"}
 
 
+# ── Sales Invoice GL Bridge ───────────────────────────────────────────────────
+# Strategy: GE Invoice remains the approval + workflow surface.
+# When approved, a Sales Invoice is auto-created and submitted so ERPNext GL
+# (P&L, Balance Sheet, Receivable Aging) is populated automatically.
+# The link field GE Invoice.linked_sales_invoice stores the created SI name.
+# When GE Invoice is cancelled, the linked Sales Invoice is also cancelled.
+
+def _get_invoice_company(ge_invoice_doc):
+	"""Derive the ERPNext company for GL posting from the GE Invoice's project."""
+	if ge_invoice_doc.linked_project:
+		company = frappe.db.get_value("Project", ge_invoice_doc.linked_project, "company")
+		if company:
+			return company
+	return _get_default_company()
+
+
+def _get_or_create_si_service_item(company):
+	"""Return the EPC-SERVICE item, creating it if it does not exist."""
+	item_code = "EPC-SERVICE"
+	if frappe.db.exists("Item", item_code):
+		return item_code
+
+	abbr = frappe.db.get_value("Company", company, "abbr") or "TISPL"
+	income_account = f"Service - {abbr}"
+	if not frappe.db.exists("Account", income_account):
+		income_account = frappe.db.get_value("Company", company, "default_income_account")
+
+	item = frappe.get_doc({
+		"doctype": "Item",
+		"item_code": item_code,
+		"item_name": "EPC Professional Services",
+		"item_group": "Services",
+		"stock_uom": "Nos",
+		"is_stock_item": 0,
+		"include_item_in_manufacturing": 0,
+		"description": "EPC professional services line item for GL posting.",
+		"item_defaults": [{
+			"company": company,
+			"income_account": income_account,
+		}],
+	})
+	item.insert(ignore_permissions=True)
+	frappe.db.commit()
+	return item_code
+
+
+def _post_to_sales_invoice(ge_invoice_doc):
+	"""Auto-create and submit a Sales Invoice in ERPNext when a GE Invoice is approved.
+
+	Idempotent — does nothing if linked_sales_invoice is already set.
+	Failure is logged but never raises, so the GE approval is never rolled back by a GL error.
+	"""
+	if ge_invoice_doc.linked_sales_invoice:
+		return  # Already posted — skip.
+
+	try:
+		company = _get_invoice_company(ge_invoice_doc)
+		if not company:
+			frappe.log_error("No company resolved for GE Invoice GL posting", "SIBridge: _post_to_sales_invoice")
+			return
+
+		# Resolve ERPNext Customer from GE Party
+		ge_party_name = ge_invoice_doc.customer
+		if ge_party_name and frappe.db.exists("GE Party", ge_party_name):
+			party_name = frappe.db.get_value("GE Party", ge_party_name, "party_name") or ge_party_name
+		else:
+			party_name = ge_party_name
+		if not party_name:
+			frappe.log_error(
+				f"GE Invoice {ge_invoice_doc.name} has no customer — cannot post to GL",
+				"SIBridge: _post_to_sales_invoice",
+			)
+			return
+		customer_name = _ensure_customer_exists(party_name)
+
+		item_code = _get_or_create_si_service_item(company)
+		abbr = frappe.db.get_value("Company", company, "abbr") or "TISPL"
+		cost_center = f"Main - {abbr}"
+
+		posting_date = ge_invoice_doc.invoice_date or frappe.utils.today()
+
+		si = frappe.get_doc({
+			"doctype": "Sales Invoice",
+			"customer": customer_name,
+			"company": company,
+			"posting_date": posting_date,
+			"due_date": posting_date,
+			"project": ge_invoice_doc.linked_project or None,
+			"remarks": (
+				f"Auto-posted from GE Invoice {ge_invoice_doc.name}"
+				f" | Type: {ge_invoice_doc.invoice_type or ''}"
+				f" | GST: {ge_invoice_doc.gst_percent or 0}%"
+				f" | TDS: {ge_invoice_doc.tds_percent or 0}%"
+			),
+			"items": [{
+				"item_code": item_code,
+				"qty": 1,
+				"rate": flt(ge_invoice_doc.amount) or 0,
+				"description": (
+					f"Invoice {ge_invoice_doc.name}"
+					+ (f" — {ge_invoice_doc.invoice_type}" if ge_invoice_doc.invoice_type else "")
+				),
+				"cost_center": cost_center,
+			}],
+		})
+		si.insert(ignore_permissions=True)
+		si.submit()
+
+		# Store the link back on GE Invoice (already saved earlier — just set the field and save again)
+		frappe.db.set_value("GE Invoice", ge_invoice_doc.name, "linked_sales_invoice", si.name)
+		ge_invoice_doc.linked_sales_invoice = si.name
+		frappe.db.commit()
+
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "SIBridge: _post_to_sales_invoice")
+
+
+def _cancel_linked_sales_invoice(ge_invoice_doc):
+	"""Cancel the linked Sales Invoice when a GE Invoice is cancelled.
+
+	Failure is logged but never raises, so GE cancellation is never blocked by GL errors.
+	"""
+	si_name = ge_invoice_doc.linked_sales_invoice
+	if not si_name:
+		return
+	if not frappe.db.exists("Sales Invoice", si_name):
+		return
+	try:
+		si = frappe.get_doc("Sales Invoice", si_name)
+		if si.docstatus == 1:  # Submitted — can be cancelled
+			si.cancel()
+			frappe.db.commit()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "SIBridge: _cancel_linked_sales_invoice")
+
+
+def _get_paid_to_account(company):
+	"""Return the first Bank account for a company, falling back to Cash."""
+	bank = frappe.db.get_value(
+		"Account",
+		{"company": company, "account_type": "Bank", "is_group": 0},
+		"name",
+		order_by="creation asc",
+	)
+	if bank:
+		return bank
+	return frappe.db.get_value(
+		"Account",
+		{"company": company, "account_type": "Cash", "is_group": 0},
+		"name",
+		order_by="creation asc",
+	)
+
+
+def _post_payment_entry(ge_invoice_doc):
+	"""Auto-create and submit a Payment Entry in ERPNext when a GE Invoice is marked paid.
+
+	Links the PE back to the Sales Invoice so outstanding_amount is zeroed in ERPNext GL.
+	Also writes linked_payment_entry onto the first matching GE Payment Receipt if one exists.
+	Idempotent relative to the linked Sales Invoice — reuses an existing Payment Entry if one is already linked.
+	Failure is logged but never raises, so the PAYMENT_RECEIVED status is never rolled back.
+	"""
+	si_name = ge_invoice_doc.linked_sales_invoice
+	if not si_name or not frappe.db.exists("Sales Invoice", si_name):
+		return  # No GL Sales Invoice to reconcile against.
+
+	try:
+		existing_references = frappe.get_all(
+			"Payment Entry Reference",
+			filters={"reference_doctype": "Sales Invoice", "reference_name": si_name},
+			fields=["parent"],
+			limit=1,
+		)
+		if existing_references:
+			existing_pe = existing_references[0].parent
+			receipts = frappe.get_all(
+				"GE Payment Receipt",
+				filters={"linked_invoice": ge_invoice_doc.name, "linked_payment_entry": ["in", ["", None]]},
+				pluck="name",
+				limit=1,
+			)
+			if receipts:
+				frappe.db.set_value("GE Payment Receipt", receipts[0], "linked_payment_entry", existing_pe)
+				frappe.db.commit()
+			return
+
+		company = frappe.db.get_value("Sales Invoice", si_name, "company")
+		if not company:
+			company = _get_default_company()
+
+		abbr = frappe.db.get_value("Company", company, "abbr") or "TISPL"
+
+		# Receivable (paid_from) and bank/cash (paid_to)
+		paid_from = (
+			frappe.db.get_value("Company", company, "default_receivable_account")
+			or f"Debtors - {abbr}"
+		)
+		paid_to = _get_paid_to_account(company)
+		if not paid_to:
+			frappe.log_error(
+				f"No Bank/Cash account found for company {company} — cannot create Payment Entry",
+				"SIBridge: _post_payment_entry",
+			)
+			return
+
+		# ERPNext Customer is stored on the Sales Invoice, not the GE Party link
+		customer = frappe.db.get_value("Sales Invoice", si_name, "customer")
+		if not customer:
+			frappe.log_error(
+				f"No customer on Sales Invoice {si_name} — cannot create Payment Entry",
+				"SIBridge: _post_payment_entry",
+			)
+			return
+
+		amount = flt(ge_invoice_doc.net_receivable) or flt(ge_invoice_doc.amount) or 0
+
+		pe = frappe.get_doc({
+			"doctype": "Payment Entry",
+			"payment_type": "Receive",
+			"company": company,
+			"posting_date": today(),
+			"party_type": "Customer",
+			"party": customer,
+			"paid_from": paid_from,
+			"paid_to": paid_to,
+			"paid_amount": amount,
+			"received_amount": amount,
+			"references": [{
+				"reference_doctype": "Sales Invoice",
+				"reference_name": si_name,
+				"allocated_amount": amount,
+			}],
+			"remarks": (
+				f"Auto-posted from GE Invoice {ge_invoice_doc.name}"
+				+ (f" | Ref: {ge_invoice_doc.get('payment_reference')}" if ge_invoice_doc.get("payment_reference") else "")
+			),
+		})
+		pe.insert(ignore_permissions=True)
+		pe.submit()
+		frappe.db.commit()
+
+		# Back-link onto GE Payment Receipt if one exists for this invoice
+		receipts = frappe.get_all(
+			"GE Payment Receipt",
+			filters={"linked_invoice": ge_invoice_doc.name},
+			pluck="name",
+			limit=1,
+		)
+		if receipts:
+			frappe.db.set_value("GE Payment Receipt", receipts[0], "linked_payment_entry", pe.name)
+			frappe.db.commit()
+
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "SIBridge: _post_payment_entry")
+
+
+def _post_partial_payment_entry(receipt_doc):
+	"""Create a Payment Entry in ERPNext when a GE Payment Receipt is recorded against an invoice.
+
+	Only fires for AGAINST_INVOICE receipts where the linked GE Invoice has a linked_sales_invoice.
+	The PE amount is receipt_doc.amount_received — this handles partial payments correctly.
+	The receipt_doc.linked_payment_entry field is set after PE submission.
+	Failure is logged but never raises, so receipt creation is never blocked by GL errors.
+	"""
+	if receipt_doc.receipt_type != "AGAINST_INVOICE":
+		return  # Advance/Adjustment receipts handled separately (future).
+
+	ge_invoice_name = receipt_doc.linked_invoice
+	if not ge_invoice_name:
+		return
+
+	si_name = frappe.db.get_value("GE Invoice", ge_invoice_name, "linked_sales_invoice")
+	if not si_name or not frappe.db.exists("Sales Invoice", si_name):
+		return  # GE Invoice not yet posted to GL — skip.
+
+	if receipt_doc.linked_payment_entry:
+		return  # Already linked — idempotent guard.
+
+	try:
+		company = frappe.db.get_value("Sales Invoice", si_name, "company")
+		if not company:
+			company = _get_default_company()
+
+		abbr = frappe.db.get_value("Company", company, "abbr") or "TISPL"
+		paid_from = (
+			frappe.db.get_value("Company", company, "default_receivable_account")
+			or f"Debtors - {abbr}"
+		)
+		paid_to = _get_paid_to_account(company)
+		if not paid_to:
+			frappe.log_error(
+				f"No Bank/Cash account found for company {company} — cannot create partial Payment Entry",
+				"SIBridge: _post_partial_payment_entry",
+			)
+			return
+
+		customer = frappe.db.get_value("Sales Invoice", si_name, "customer")
+		if not customer:
+			return
+
+		amount = flt(receipt_doc.amount_received) or 0
+		if amount <= 0:
+			return
+
+		# Cap allocated_amount to the SI outstanding balance to avoid over-allocation
+		outstanding = flt(frappe.db.get_value("Sales Invoice", si_name, "outstanding_amount") or 0)
+		allocated = min(amount, outstanding) if outstanding > 0 else amount
+		if allocated <= 0:
+			return
+
+		posting_date = getattr(receipt_doc, "received_date", None) or today()
+
+		pe = frappe.get_doc({
+			"doctype": "Payment Entry",
+			"payment_type": "Receive",
+			"company": company,
+			"posting_date": posting_date,
+			"party_type": "Customer",
+			"party": customer,
+			"paid_from": paid_from,
+			"paid_to": paid_to,
+			"paid_amount": amount,
+			"received_amount": amount,
+			"references": [{
+				"reference_doctype": "Sales Invoice",
+				"reference_name": si_name,
+				"allocated_amount": allocated,
+			}],
+			"remarks": (
+				f"Partial payment — GE Receipt {receipt_doc.name}"
+				+ (f" | Ref: {receipt_doc.payment_reference}" if getattr(receipt_doc, "payment_reference", None) else "")
+				+ (f" | Mode: {receipt_doc.payment_mode}" if getattr(receipt_doc, "payment_mode", None) else "")
+			),
+		})
+		pe.insert(ignore_permissions=True)
+		pe.submit()
+
+		# Back-link onto the receipt doc
+		frappe.db.set_value("GE Payment Receipt", receipt_doc.name, "linked_payment_entry", pe.name)
+		receipt_doc.linked_payment_entry = pe.name
+		frappe.db.commit()
+
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "SIBridge: _post_partial_payment_entry")
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+
 @frappe.whitelist()
 def approve_invoice(name):
 	"""Approve a submitted invoice."""
@@ -197,6 +545,9 @@ def approve_invoice(name):
 	doc.approved_at = frappe.utils.now_datetime()
 	doc.save()
 	frappe.db.commit()
+
+	# ── GL Bridge — post to Sales Invoice ────────────────────────────────
+	_post_to_sales_invoice(doc)
 
 	# ── Accountability ledger ─────────────────────────────────────────────
 	try:
@@ -261,30 +612,40 @@ def mark_invoice_paid(name):
 	"""Mark an approved invoice as payment received."""
 	_require_billing_write_access()
 	doc = frappe.get_doc("GE Invoice", name)
-	if doc.status != "APPROVED":
-		return {"success": False, "message": f"Invoice must be APPROVED to mark as paid (current: {doc.status})"}
-	doc.status = "PAYMENT_RECEIVED"
-	doc.save()
-	frappe.db.commit()
+	if doc.status not in ("APPROVED", "PAYMENT_RECEIVED"):
+		return {"success": False, "message": f"Invoice must be APPROVED or PAYMENT_RECEIVED to reconcile payment (current: {doc.status})"}
+	status_changed = doc.status == "APPROVED"
+	if status_changed:
+		doc.status = "PAYMENT_RECEIVED"
+		doc.save()
+		frappe.db.commit()
+
+	# ── GL Bridge — reconcile against Sales Invoice via Payment Entry ─────
+	_post_payment_entry(doc)
 
 	# ── Accountability ledger ─────────────────────────────────────────────
-	try:
-		from gov_erp.accountability import record_and_log, EventType
-		record_and_log(
-			subject_doctype="GE Invoice",
-			subject_name=name,
-			event_type=EventType.COMPLETED,
-			linked_project=doc.get("linked_project"),
-			from_status="APPROVED",
-			to_status="PAYMENT_RECEIVED",
-			current_status="PAYMENT_RECEIVED",
-			current_owner_role=_detect_primary_role(),
-			source_route=f"/projects/{doc.get('linked_project')}/billing" if doc.get("linked_project") else "/finance/billing",
-		)
-	except Exception:
-		frappe.log_error(frappe.get_traceback(), "Accountability: mark_invoice_paid")
+	if status_changed:
+		try:
+			from gov_erp.accountability import record_and_log, EventType
+			record_and_log(
+				subject_doctype="GE Invoice",
+				subject_name=name,
+				event_type=EventType.COMPLETED,
+				linked_project=doc.get("linked_project"),
+				from_status="APPROVED",
+				to_status="PAYMENT_RECEIVED",
+				current_status="PAYMENT_RECEIVED",
+				current_owner_role=_detect_primary_role(),
+				source_route=f"/projects/{doc.get('linked_project')}/billing" if doc.get("linked_project") else "/finance/billing",
+			)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "Accountability: mark_invoice_paid")
 
-	return {"success": True, "data": doc.as_dict(), "message": "Invoice marked as payment received"}
+	return {
+		"success": True,
+		"data": doc.as_dict(),
+		"message": "Invoice marked as payment received" if status_changed else "Payment reconciliation retried",
+	}
 
 
 @frappe.whitelist()
@@ -298,6 +659,9 @@ def cancel_invoice(name, reason):
 	doc.rejection_reason = reason
 	doc.save()
 	frappe.db.commit()
+
+	# ── GL Bridge — cancel linked Sales Invoice ───────────────────────────
+	_cancel_linked_sales_invoice(doc)
 
 	# ── Accountability ledger ─────────────────────────────────────────────
 	try:
@@ -391,6 +755,9 @@ def create_payment_receipt(data):
 	doc.insert()
 	frappe.db.commit()
 
+	# ── GL Bridge — create partial Payment Entry if SI exists ─────────────
+	_post_partial_payment_entry(doc)
+
 	# ── Accountability ledger ─────────────────────────────────────────────
 	try:
 		from gov_erp.accountability import record_and_log, EventType
@@ -419,6 +786,11 @@ def update_payment_receipt(name, data):
 	doc.update(values)
 	doc.save()
 	frappe.db.commit()
+
+	# ── GL Bridge — retry partial Payment Entry if still unlinked ─────────
+	if not doc.linked_payment_entry:
+		_post_partial_payment_entry(doc)
+
 	return {"success": True, "data": doc.as_dict(), "message": "Payment receipt updated"}
 
 
@@ -863,6 +1235,113 @@ def get_penalty_stats(project=None):
 
 # ── Petty Cash APIs ──────────────────────────────────────────
 
+# ── Petty Cash GL Bridge ──────────────────────────────────────────────────────
+# Strategy: GE Petty Cash stays as the approval and project-scoped surface.
+# When approved, a Journal Entry is posted to ERPNext GL:
+#   Dr: Miscellaneous Expenses - {abbr}   (catch-all; category-specific accounts can be added later)
+#   Cr: Cash - {abbr}
+# This gives P&L impact and cash outflow visibility in ERPNext Books.
+# A Journal Entry is used (not Payment Entry) because paid_to is free text
+# with no ERPNext party record — a PE would require a Supplier/Employee party.
+
+def _post_petty_cash_to_gl(petty_doc):
+	"""Post a Journal Entry to ERPNext GL when a GE Petty Cash entry is approved.
+
+	Idempotent — skips if linked_journal_entry is already set.
+	Failure is logged but never raises, so the approval is never rolled back.
+	"""
+	if petty_doc.linked_journal_entry:
+		return  # Already posted — skip.
+
+	try:
+		company = (
+			frappe.db.get_value("Project", petty_doc.linked_project, "company")
+			if petty_doc.linked_project
+			else None
+		) or _get_default_company()
+
+		if not company:
+			frappe.log_error(
+				f"No company resolved for GE Petty Cash {petty_doc.name} — cannot post to GL",
+				"PCBridge: _post_petty_cash_to_gl",
+			)
+			return
+
+		abbr = frappe.db.get_value("Company", company, "abbr") or "TISPL"
+		expense_account = f"Miscellaneous Expenses - {abbr}"
+		cash_account = f"Cash - {abbr}"
+		cost_center = f"Main - {abbr}"
+
+		# Verify both accounts exist; fall back gracefully
+		if not frappe.db.exists("Account", expense_account):
+			expense_account = frappe.db.get_value(
+				"Account",
+				{"root_type": "Expense", "company": company, "is_group": 0},
+				"name",
+				order_by="creation asc",
+			)
+		if not frappe.db.exists("Account", cash_account):
+			cash_account = frappe.db.get_value(
+				"Account",
+				{"account_type": "Cash", "company": company, "is_group": 0},
+				"name",
+				order_by="creation asc",
+			)
+
+		if not expense_account or not cash_account:
+			frappe.log_error(
+				f"Missing expense or cash account for company {company} — cannot post petty cash GL",
+				"PCBridge: _post_petty_cash_to_gl",
+			)
+			return
+
+		amount = flt(petty_doc.amount) or 0
+		if amount <= 0:
+			return
+
+		posting_date = petty_doc.entry_date or today()
+		description = petty_doc.description or petty_doc.category or petty_doc.name
+		paid_to_note = f" | Paid to: {petty_doc.paid_to}" if getattr(petty_doc, "paid_to", None) else ""
+		voucher_note = f" | Ref: {petty_doc.voucher_ref}" if getattr(petty_doc, "voucher_ref", None) else ""
+
+		je = frappe.get_doc({
+			"doctype": "Journal Entry",
+			"voucher_type": "Journal Entry",
+			"company": company,
+			"posting_date": posting_date,
+			"user_remark": (
+				f"Petty cash — {description}{paid_to_note}{voucher_note}"
+				f" | GE Petty Cash: {petty_doc.name}"
+			),
+			"accounts": [
+				{
+					"account": expense_account,
+					"debit_in_account_currency": amount,
+					"credit_in_account_currency": 0,
+					"cost_center": cost_center,
+					"project": petty_doc.linked_project or None,
+					"user_remark": description,
+				},
+				{
+					"account": cash_account,
+					"debit_in_account_currency": 0,
+					"credit_in_account_currency": amount,
+					"cost_center": cost_center,
+				},
+			],
+		})
+		je.insert(ignore_permissions=True)
+		je.submit()
+
+		frappe.db.set_value("GE Petty Cash", petty_doc.name, "linked_journal_entry", je.name)
+		frappe.db.commit()
+
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "PCBridge: _post_petty_cash_to_gl")
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+
 def _require_petty_cash_read_access():
 	_require_roles(
 		ROLE_PROJECT_HEAD, ROLE_PROJECT_MANAGER, ROLE_ACCOUNTS,
@@ -968,6 +1447,9 @@ def approve_petty_cash_entry(name):
 	doc.approved_on = frappe.utils.today()
 	doc.save()
 	frappe.db.commit()
+
+	# ── GL Bridge — post Journal Entry to ERPNext Books ───────────────────
+	_post_petty_cash_to_gl(doc)
 
 	# ── Accountability ledger ─────────────────────────────────────────────
 	try:

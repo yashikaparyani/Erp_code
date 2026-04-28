@@ -74,12 +74,11 @@ export async function GET(request: NextRequest) {
     const status = params.get('status') || undefined;
     const attendanceDate = params.get('attendanceDate') || todayIso();
 
-    const [allEmployees, filteredEmployees, leaveBalances, attendanceMuster, overtimeEntries, travelLogs, onboardings, statutoryLedgers] = await Promise.all([
+    const [allEmployees, filteredEmployees, leaveBalances, attendanceMuster, travelLogs, onboardings, statutoryLedgers] = await Promise.all([
       callFrappeMethod('get_employees', {}, request),
       callFrappeMethod('get_employees', { department, branch, status }, request),
       callFrappeMethod('get_leave_balances', {}, request),
       callFrappeMethod('get_attendance_muster', { attendance_date: attendanceDate, department }, request),
-      callFrappeMethod('get_overtime_entries', {}, request),
       callFrappeMethod('get_travel_logs', {}, request),
       callFrappeMethod('get_onboardings', {}, request),
       callFrappeMethod('get_statutory_ledgers', {}, request),
@@ -114,15 +113,6 @@ export async function GET(request: NextRequest) {
         linked_project: String(row.linked_project || ''),
       };
     });
-
-    const overtimeRows = filterRowsByEmployees((overtimeEntries.data || []) as Array<Record<string, any>>, contextFiltersApplied ? employeeContext : new Set(), 'employee').map((row) => ({
-      employee: String(row.employee || ''),
-      overtime_date: String(row.overtime_date || ''),
-      overtime_hours: Number(row.overtime_hours || 0),
-      status: String(row.overtime_status || ''),
-      linked_project: String(row.linked_project || ''),
-      linked_site: String(row.linked_site || ''),
-    }));
 
     const travelRows = filterRowsByEmployees((travelLogs.data || []) as Array<Record<string, any>>, contextFiltersApplied ? employeeContext : new Set(), 'employee').map((row) => ({
       employee: String(row.employee || ''),
@@ -229,20 +219,6 @@ export async function GET(request: NextRequest) {
         [
           `${musterRows.filter((row) => String(row.state) === 'Absent').length} absent`,
           `${musterRows.filter((row) => String(row.state) === 'On Leave').length} on leave`,
-        ],
-      ),
-      buildReport(
-        'overtime-summary',
-        'Overtime Summary',
-        'Field Operations',
-        'Overtime entries with hours, status, and operational site/project context.',
-        ['employee', 'overtime_date', 'overtime_hours', 'status', 'linked_project', 'linked_site'],
-        overtimeRows,
-        `${overtimeRows.reduce((sum, row) => sum + Number(row.overtime_hours || 0), 0)} total overtime hours`,
-        '/hr/overtime',
-        [
-          `${overtimeRows.filter((row) => String(row.status) === 'APPROVED').length} approved entries`,
-          `${overtimeRows.filter((row) => String(row.status) === 'SUBMITTED').length} pending approvals`,
         ],
       ),
       buildReport(

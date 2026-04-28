@@ -77,7 +77,7 @@ export default function PenaltyDetailPage() {
           <TraceabilityPanel projectId={d.project || null} siteId={null} />
           <RecordDocumentsPanel referenceDoctype="Penalty" referenceName={id} title="Documents" />
           <LinkedRecordsPanel links={d.applied_to_invoice ? [
-            { label: 'Invoice', doctype: 'Sales Invoice', method: 'frappe.client.get_list', args: { doctype: 'Sales Invoice', filters: JSON.stringify({ name: d.applied_to_invoice }), fields: JSON.stringify(['name','grand_total','status']), limit_page_length: '5' }, href: (n: string) => `/finance/billing/${n}` },
+            { label: 'Invoice', doctype: 'GE Invoice', method: 'frappe.client.get_list', args: { doctype: 'GE Invoice', filters: JSON.stringify({ name: d.applied_to_invoice }), fields: JSON.stringify(['name','amount','status']), limit_page_length: '5' }, href: (n: string) => `/finance/billing/${n}` },
           ] : []} />
           <AccountabilityTimeline subjectDoctype="Penalty" subjectName={id} />
         </>

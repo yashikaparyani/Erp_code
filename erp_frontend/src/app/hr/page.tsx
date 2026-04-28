@@ -7,7 +7,6 @@ import {
   Briefcase,
   CalendarCheck2,
   Plane,
-  Clock3,
   HardHat,
   ShieldCheck,
   Wrench,
@@ -48,15 +47,6 @@ type TravelRow = {
   linked_site?: string;
 };
 
-type OvertimeRow = {
-  name: string;
-  employee?: string;
-  overtime_date?: string;
-  overtime_hours?: number;
-  overtime_status?: string;
-  linked_project?: string;
-};
-
 type StatutoryRow = {
   name: string;
   employee?: string;
@@ -81,7 +71,6 @@ type DashboardData = {
     onboarding?: Record<string, number>;
     attendance?: Record<string, number>;
     travel?: Record<string, number>;
-    overtime?: Record<string, number>;
     statutory?: Record<string, number>;
     visits?: Record<string, number>;
   };
@@ -89,7 +78,6 @@ type DashboardData = {
     onboardings: OnboardingRow[];
     attendance: AttendanceRow[];
     travel: TravelRow[];
-    overtime: OvertimeRow[];
     statutory: StatutoryRow[];
     visits: VisitRow[];
   };
@@ -178,7 +166,6 @@ export default function HRPage() {
       onboardings: [],
       attendance: [],
       travel: [],
-      overtime: [],
       statutory: [],
       visits: [],
     },
@@ -192,9 +179,6 @@ export default function HRPage() {
 
   const [showTravelModal, setShowTravelModal] = useState(false);
   const [travelForm, setTravelForm] = useState({ employee: '', travel_date: '', from_location: '', to_location: '', expense_amount: '', linked_project: '', linked_site: '' });
-
-  const [showOtModal, setShowOtModal] = useState(false);
-  const [otForm, setOtForm] = useState({ employee: '', overtime_date: '', overtime_hours: '', linked_project: '', linked_site: '' });
   const requestIdRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -273,13 +257,6 @@ export default function HRPage() {
     });
   }
 
-  function handleCreateOvertime() {
-    handleCreateDedicated('/api/overtime', { ...otForm, overtime_hours: Number(otForm.overtime_hours) || 0 }, () => {
-      setShowOtModal(false);
-      setOtForm({ employee: '', overtime_date: '', overtime_hours: '', linked_project: '', linked_site: '' });
-    });
-  }
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -302,7 +279,6 @@ export default function HRPage() {
   const onboardingStats = data.stats.onboarding || {};
   const attendanceStats = data.stats.attendance || {};
   const travelStats = data.stats.travel || {};
-  const overtimeStats = data.stats.overtime || {};
   const statutoryStats = data.stats.statutory || {};
   const visitStats = data.stats.visits || {};
 
@@ -311,7 +287,7 @@ export default function HRPage() {
       <div className="mb-4 sm:mb-6">
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900">HR Operations</h1>
         <p className="text-xs sm:text-sm text-gray-500 mt-1">
-		  Employee onboarding, leave and attendance, movement, overtime, statutory ledgers, and field visit tracking.
+		  Employee onboarding, leave and attendance, movement, statutory ledgers, and field visit tracking.
         </p>
       </div>
 
@@ -332,7 +308,7 @@ export default function HRPage() {
           <div className="rounded-lg bg-amber-500 p-2.5 text-white"><ShieldCheck className="h-5 w-5" /></div>
           <div>
             <div className="text-sm font-semibold text-gray-900">Approval Inbox</div>
-            <div className="text-xs text-gray-500">One queue for onboarding, leave, travel, overtime, and regularization approvals</div>
+            <div className="text-xs text-gray-500">One queue for onboarding, leave, travel, and regularization approvals</div>
           </div>
         </div>
         <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-amber-700 transition-colors" />
@@ -343,7 +319,7 @@ export default function HRPage() {
           <div className="rounded-lg bg-sky-600 p-2.5 text-white"><BarChart3 className="h-5 w-5" /></div>
           <div>
             <div className="text-sm font-semibold text-gray-900">Reports Gallery</div>
-            <div className="text-xs text-gray-500">Employee master, PF and ESI, leave, muster, overtime, travel, and onboarding exports</div>
+            <div className="text-xs text-gray-500">Employee master, PF and ESI, leave, muster, travel, and onboarding exports</div>
           </div>
         </div>
         <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-sky-700 transition-colors" />
@@ -403,13 +379,6 @@ export default function HRPage() {
           hint={`${travelStats.approved ?? 0} approved • ${formatCurrency(travelStats.total_expense_amount)}`}
           icon={Plane}
           tone="amber"
-        />
-        <StatCard
-          title="Overtime"
-          value={overtimeStats.total ?? 0}
-          hint={`${overtimeStats.approved ?? 0} approved • ${overtimeStats.total_hours ?? 0} hours`}
-          icon={Clock3}
-          tone="violet"
         />
         <StatCard
           title="Statutory"
@@ -500,57 +469,30 @@ export default function HRPage() {
           </div>
         </Section>
 
-        <Section title="Travel and Overtime" subtitle="Recent movement approvals and extra hours"
+        <Section title="Travel Logs" subtitle="Recent movement approvals and expense context"
           action={
             <div className="flex items-center gap-3">
               <SectionLink href="/hr/travel-logs" label="Travel register" />
-              <SectionLink href="/hr/overtime" label="Overtime register" />
               <button className="btn-primary text-xs flex items-center gap-1" onClick={() => setShowTravelModal(true)}><Plus className="w-3 h-3" /> Travel</button>
-              <button className="btn-primary text-xs flex items-center gap-1" onClick={() => setShowOtModal(true)}><Plus className="w-3 h-3" /> Overtime</button>
             </div>
           }
         >
-          <div className="space-y-4">
-            <div>
-              <h4 className="text-sm font-semibold text-gray-900 mb-2">Travel Logs</h4>
-              <div className="space-y-2">
-                {data.recent.travel.length === 0 ? (
-                  <p className="text-sm text-gray-500">No travel logs</p>
-                ) : data.recent.travel.map((row) => (
-                  <div key={row.name} className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 px-3 py-2">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">{row.employee || row.name}</div>
-                      <div className="text-xs text-gray-500">{row.from_location || '-'} to {row.to_location || '-'}</div>
-                      {row.linked_project && <div><Link href={`/projects/${encodeURIComponent(row.linked_project)}`} className="text-[10px] font-medium text-blue-600 hover:text-blue-800">{row.linked_project}</Link><span className="ml-1"><Link href={`/projects/${encodeURIComponent(row.linked_project)}?tab=accountability`} className="text-[10px] text-amber-600 hover:underline">Acct</Link></span></div>}
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm text-gray-900">{formatCurrency(row.expense_amount)}</div>
-                      <div className="text-xs text-gray-500">{row.travel_status || '-'}</div>
-                    </div>
-                  </div>
-                ))}
+          <div className="space-y-2">
+            {data.recent.travel.length === 0 ? (
+              <p className="text-sm text-gray-500">No travel logs</p>
+            ) : data.recent.travel.map((row) => (
+              <div key={row.name} className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 px-3 py-2">
+                <div>
+                  <div className="text-sm font-medium text-gray-900">{row.employee || row.name}</div>
+                  <div className="text-xs text-gray-500">{row.from_location || '-'} to {row.to_location || '-'}</div>
+                  {row.linked_project && <div><Link href={`/projects/${encodeURIComponent(row.linked_project)}`} className="text-[10px] font-medium text-blue-600 hover:text-blue-800">{row.linked_project}</Link><span className="ml-1"><Link href={`/projects/${encodeURIComponent(row.linked_project)}?tab=accountability`} className="text-[10px] text-amber-600 hover:underline">Acct</Link></span></div>}
+                </div>
+                <div className="text-right">
+                  <div className="text-sm text-gray-900">{formatCurrency(row.expense_amount)}</div>
+                  <div className="text-xs text-gray-500">{row.travel_status || '-'}</div>
+                </div>
               </div>
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold text-gray-900 mb-2">Overtime Entries</h4>
-              <div className="space-y-2">
-                {data.recent.overtime.length === 0 ? (
-                  <p className="text-sm text-gray-500">No overtime entries</p>
-                ) : data.recent.overtime.map((row) => (
-                  <div key={row.name} className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 px-3 py-2">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">{row.employee || row.name}</div>
-                      <div className="text-xs text-gray-500">{row.overtime_date || '-'}</div>
-                      {row.linked_project && <div><Link href={`/projects/${encodeURIComponent(row.linked_project)}`} className="text-[10px] font-medium text-blue-600 hover:text-blue-800">{row.linked_project}</Link><span className="ml-1"><Link href={`/projects/${encodeURIComponent(row.linked_project)}?tab=accountability`} className="text-[10px] text-amber-600 hover:underline">Acct</Link></span></div>}
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm text-gray-900">{row.overtime_hours ?? 0} hrs</div>
-                      <div className="text-xs text-gray-500">{row.overtime_status || '-'}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            ))}
           </div>
         </Section>
 
@@ -674,33 +616,6 @@ export default function HRPage() {
         </div>
       )}
 
-      {/* Overtime Modal */}
-      {showOtModal && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-            <div className="flex items-center justify-between px-5 py-4 border-b">
-              <h3 className="font-semibold text-gray-900">Log Overtime</h3>
-              <button onClick={() => setShowOtModal(false)}><X className="w-5 h-5 text-gray-400" /></button>
-            </div>
-            <div className="p-5 space-y-3">
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Employee *</label>
-                <LinkPicker entity="employee" value={otForm.employee} onChange={value => setOtForm({ ...otForm, employee: value })} placeholder="Search employee…" /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
-                <input type="date" className="input w-full" value={otForm.overtime_date} onChange={e => setOtForm({ ...otForm, overtime_date: e.target.value })} /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Hours *</label>
-                <input type="number" step="0.5" className="input w-full" value={otForm.overtime_hours} onChange={e => setOtForm({ ...otForm, overtime_hours: e.target.value })} /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Linked Project</label>
-                <LinkPicker entity="project" value={otForm.linked_project} onChange={value => setOtForm({ ...otForm, linked_project: value, linked_site: '' })} placeholder="Search project…" /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Linked Site</label>
-                <LinkPicker entity="site" value={otForm.linked_site} onChange={value => setOtForm({ ...otForm, linked_site: value })} placeholder="Search site…" filters={otForm.linked_project ? { project: otForm.linked_project } : undefined} /></div>
-            </div>
-            <div className="flex justify-end gap-2 px-5 py-4 border-t">
-              <button className="btn-secondary" onClick={() => setShowOtModal(false)}>Cancel</button>
-              <button className="btn-primary" disabled={busy || !otForm.employee || !otForm.overtime_date || !otForm.overtime_hours} onClick={handleCreateOvertime}>{busy ? 'Saving…' : 'Save'}</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

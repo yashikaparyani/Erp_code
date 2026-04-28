@@ -36,7 +36,6 @@ type ProjectStaffingRow = {
   active_assignments: number;
   attendance_marked: number;
   present_today: number;
-  overtime_hours: number;
   travel_expense: number;
   technician_visits: number;
   expiring_documents: number;
@@ -52,7 +51,6 @@ type SiteAttendanceRow = {
   present_count: number;
   absent_count: number;
   total_attendance: number;
-  overtime_hours: number;
   active_technicians: number;
   documents: number;
 };
@@ -75,15 +73,6 @@ type TravelLinkRow = {
   linked_project?: string;
   linked_site?: string;
   expense_amount?: number;
-};
-
-type OvertimeLinkRow = {
-  employee?: string;
-  overtime_date?: string;
-  overtime_status?: string;
-  overtime_hours?: number;
-  linked_project?: string;
-  linked_site?: string;
 };
 
 type GovernanceRow = {
@@ -131,7 +120,6 @@ type OperationsData = {
   site_attendance: SiteAttendanceRow[];
   technician_deployments: TechnicianDeploymentRow[];
   travel_links: TravelLinkRow[];
-  overtime_links: OvertimeLinkRow[];
   document_governance: GovernanceRow[];
   expiring_documents: ExpiringDocumentRow[];
   compliance: {
@@ -192,7 +180,6 @@ export default function HrOperationsPage() {
     site_attendance: [],
     technician_deployments: [],
     travel_links: [],
-    overtime_links: [],
     document_governance: [],
     expiring_documents: [],
     compliance: { summary: { total_records: 0, pending: 0, hold: 0, paid: 0, employee_contribution: 0, employer_contribution: 0 }, rows: [] },
@@ -270,7 +257,6 @@ export default function HrOperationsPage() {
                     <th className="px-3 py-3 font-medium">Sites</th>
                     <th className="px-3 py-3 font-medium">Assignments</th>
                     <th className="px-3 py-3 font-medium">Present</th>
-                    <th className="px-3 py-3 font-medium">OT Hours</th>
                     <th className="px-3 py-3 font-medium">Travel</th>
                     <th className="px-3 py-3 font-medium">Docs</th>
                     <th className="px-3 py-3 font-medium"></th>
@@ -284,7 +270,6 @@ export default function HrOperationsPage() {
                       <td className="px-3 py-3 text-slate-600">{row.sites}</td>
                       <td className="px-3 py-3 text-slate-600">{row.active_assignments}</td>
                       <td className="px-3 py-3 text-slate-600">{row.present_today} / {row.attendance_marked}</td>
-                      <td className="px-3 py-3 text-slate-600">{row.overtime_hours}</td>
                       <td className="px-3 py-3 text-slate-600">{formatCurrency(row.travel_expense)}</td>
                       <td className="px-3 py-3 text-slate-600">{row.document_count} total / {row.expiring_documents} expiring</td>
                       <td className="px-3 py-3"><Link href={`/hr/projects/${encodeURIComponent(row.project_id)}`} className="text-sm font-medium text-sky-700 hover:text-sky-800">Project workspace</Link></td>
@@ -296,7 +281,7 @@ export default function HrOperationsPage() {
           </SectionCard>
 
           <div className="grid gap-6 xl:grid-cols-2">
-            <SectionCard title="Site-Linked Attendance Analysis" subtitle="Attendance, overtime, technician activity, and document footprint by site.">
+            <SectionCard title="Site-Linked Attendance Analysis" subtitle="Attendance, technician activity, and document footprint by site.">
               <div className="overflow-x-auto">
                 <table className="min-w-full text-left text-sm">
                   <thead className="border-b border-slate-200 text-slate-400">
@@ -305,7 +290,6 @@ export default function HrOperationsPage() {
                       <th className="px-3 py-3 font-medium">Project</th>
                       <th className="px-3 py-3 font-medium">Present</th>
                       <th className="px-3 py-3 font-medium">Absent</th>
-                      <th className="px-3 py-3 font-medium">OT</th>
                       <th className="px-3 py-3 font-medium">Techs</th>
                     </tr>
                   </thead>
@@ -316,7 +300,6 @@ export default function HrOperationsPage() {
                         <td className="px-3 py-3 text-slate-600">{row.project}</td>
                         <td className="px-3 py-3 text-slate-600">{row.present_count}</td>
                         <td className="px-3 py-3 text-slate-600">{row.absent_count}</td>
-                        <td className="px-3 py-3 text-slate-600">{row.overtime_hours}</td>
                         <td className="px-3 py-3 text-slate-600">{row.active_technicians}</td>
                       </tr>
                     ))}
@@ -347,7 +330,7 @@ export default function HrOperationsPage() {
             </SectionCard>
           </div>
 
-          <div className="grid gap-6 xl:grid-cols-2">
+          <div className="grid gap-6">
             <SectionCard title="Travel Linked To Project And Site" subtitle="Travel remains operational, not just reimbursement-only.">
               <div className="overflow-x-auto">
                 <table className="min-w-full text-left text-sm">
@@ -374,34 +357,6 @@ export default function HrOperationsPage() {
                 </table>
               </div>
               <div className="mt-4"><Link href="/hr/travel-logs" className="text-sm font-medium text-sky-700 hover:text-sky-800">Open travel workspace</Link></div>
-            </SectionCard>
-
-            <SectionCard title="Overtime Linked To Project And Site" subtitle="Extra hours stay visible in the same project and site context.">
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-left text-sm">
-                  <thead className="border-b border-slate-200 text-slate-400">
-                    <tr>
-                      <th className="px-3 py-3 font-medium">Employee</th>
-                      <th className="px-3 py-3 font-medium">Date</th>
-                      <th className="px-3 py-3 font-medium">Hours</th>
-                      <th className="px-3 py-3 font-medium">Status</th>
-                      <th className="px-3 py-3 font-medium">Project / Site</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {data.overtime_links.map((row, index) => (
-                      <tr key={`${row.employee || 'ot'}-${index}`}>
-                        <td className="px-3 py-3 text-slate-700">{row.employee || '-'}</td>
-                        <td className="px-3 py-3 text-slate-600">{formatDate(row.overtime_date)}</td>
-                        <td className="px-3 py-3 text-slate-600">{row.overtime_hours || 0}</td>
-                        <td className="px-3 py-3 text-slate-600">{row.overtime_status || '-'}</td>
-                        <td className="px-3 py-3 text-slate-600">{row.linked_project || '-'} / {row.linked_site || '-'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="mt-4"><Link href="/hr/overtime" className="text-sm font-medium text-sky-700 hover:text-sky-800">Open overtime workspace</Link></div>
             </SectionCard>
           </div>
 

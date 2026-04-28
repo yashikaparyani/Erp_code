@@ -10,9 +10,16 @@
   "linked_project",
   "cb_rma_item",
   "item_link",
+  "item_description",
+  "item_make",
+  "item_model",
   "asset_serial_number",
   "qty",
   "faulty_date",
+  "source_location_name",
+  "received_from_field_date",
+  "inbound_dc_challan_no",
+  "problem_description",
   "sb_fault_analysis",
   "failure_reason",
   "field_rca",
@@ -38,10 +45,12 @@
   "repair_invoice_no",
   "repair_invoice_amount",
   "repairing_status",
+  "return_received_dc_challan_no",
   "return_courier_name",
   "return_docket_no",
   "return_dispatch_date",
   "return_dc_challan_no",
+  "return_dispatch_location_name",
   "received_at_location_date",
   "aging_days",
   "sb_rma_status",
@@ -104,6 +113,21 @@
    "options": "Item"
   },
   {
+   "fieldname": "item_description",
+   "fieldtype": "Data",
+   "label": "Item Description"
+  },
+  {
+   "fieldname": "item_make",
+   "fieldtype": "Data",
+   "label": "Make / Brand"
+  },
+  {
+   "fieldname": "item_model",
+   "fieldtype": "Data",
+   "label": "Model"
+  },
+  {
    "fieldname": "asset_serial_number",
    "fieldtype": "Data",
    "label": "Asset Serial Number",
@@ -119,6 +143,26 @@
    "fieldname": "faulty_date",
    "fieldtype": "Date",
    "label": "Faulty Date"
+  },
+  {
+   "fieldname": "source_location_name",
+   "fieldtype": "Data",
+   "label": "Source Location Name"
+  },
+  {
+   "fieldname": "received_from_field_date",
+   "fieldtype": "Date",
+   "label": "Received From Field Date"
+  },
+  {
+   "fieldname": "inbound_dc_challan_no",
+   "fieldtype": "Data",
+   "label": "Inbound DC Challan No"
+  },
+  {
+   "fieldname": "problem_description",
+   "fieldtype": "Small Text",
+   "label": "Problem Description"
   },
   {
    "fieldname": "sb_fault_analysis",
@@ -248,6 +292,11 @@
    "options": "\nREPAIRED\nUNREPAIRED\nSERVICE_PENDING\nSCRAP"
   },
   {
+   "fieldname": "return_received_dc_challan_no",
+   "fieldtype": "Data",
+   "label": "Received DC Challan No (From Service)"
+  },
+  {
    "fieldname": "return_courier_name",
    "fieldtype": "Data",
    "label": "Return Courier Name"
@@ -266,6 +315,11 @@
    "fieldname": "return_dc_challan_no",
    "fieldtype": "Data",
    "label": "Return DC Challan No"
+  },
+  {
+   "fieldname": "return_dispatch_location_name",
+   "fieldtype": "Data",
+   "label": "Return Dispatch Location Name"
   },
   {
    "fieldname": "received_at_location_date",

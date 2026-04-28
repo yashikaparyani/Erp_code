@@ -5,7 +5,6 @@ import {
   Briefcase,
   CalendarCheck2,
   Plane,
-  Clock3,
   ShieldCheck,
   Wrench,
 } from 'lucide-react';
@@ -37,14 +36,6 @@ type TravelRow = {
   expense_amount?: number;
 };
 
-type OvertimeRow = {
-  name: string;
-  employee?: string;
-  overtime_date?: string;
-  overtime_hours?: number;
-  overtime_status?: string;
-};
-
 type StatutoryRow = {
   name: string;
   employee?: string;
@@ -68,7 +59,6 @@ type DashboardData = {
     onboarding?: Record<string, number>;
     attendance?: Record<string, number>;
     travel?: Record<string, number>;
-    overtime?: Record<string, number>;
     statutory?: Record<string, number>;
     visits?: Record<string, number>;
   };
@@ -76,7 +66,6 @@ type DashboardData = {
     onboardings: OnboardingRow[];
     attendance: AttendanceRow[];
     travel: TravelRow[];
-    overtime: OvertimeRow[];
     statutory: StatutoryRow[];
     visits: VisitRow[];
   };
@@ -88,7 +77,6 @@ const initialData: DashboardData = {
     onboardings: [],
     attendance: [],
     travel: [],
-    overtime: [],
     statutory: [],
     visits: [],
   },
@@ -199,7 +187,6 @@ export default function HRDashboard() {
   const onboardingStats = data.stats.onboarding || {};
   const attendanceStats = data.stats.attendance || {};
   const travelStats = data.stats.travel || {};
-  const overtimeStats = data.stats.overtime || {};
   const statutoryStats = data.stats.statutory || {};
   const visitStats = data.stats.visits || {};
 
@@ -233,13 +220,6 @@ export default function HRDashboard() {
           hint={`${travelStats.approved ?? 0} approved | ${formatCurrency(travelStats.total_expense_amount)}`}
           icon={Plane}
           tone="amber"
-        />
-        <StatCard
-          title="Overtime"
-          value={overtimeStats.total ?? 0}
-          hint={`${overtimeStats.approved ?? 0} approved | ${overtimeStats.total_hours ?? 0} hours`}
-          icon={Clock3}
-          tone="violet"
         />
         <StatCard
           title="Statutory"
@@ -319,46 +299,22 @@ export default function HRDashboard() {
           </div>
         </Section>
 
-        <Section title="Travel and Overtime" subtitle="Recent movement approvals and extra hours">
-          <div className="space-y-4">
-            <div>
-              <h4 className="mb-2 text-sm font-semibold text-gray-900">Travel Logs</h4>
-              <div className="space-y-2">
-                {data.recent.travel.length === 0 ? (
-                  <p className="text-sm text-gray-500">No travel logs</p>
-                ) : data.recent.travel.map((row) => (
-                  <div key={row.name} className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 px-3 py-2">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">{row.employee || row.name}</div>
-                      <div className="text-xs text-gray-500">{row.from_location || '-'} to {row.to_location || '-'}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm text-gray-900">{formatCurrency(row.expense_amount)}</div>
-                      <div className="text-xs text-gray-500">{row.travel_status || '-'}</div>
-                    </div>
-                  </div>
-                ))}
+        <Section title="Travel Logs" subtitle="Recent movement approvals and expense context">
+          <div className="space-y-2">
+            {data.recent.travel.length === 0 ? (
+              <p className="text-sm text-gray-500">No travel logs</p>
+            ) : data.recent.travel.map((row) => (
+              <div key={row.name} className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 px-3 py-2">
+                <div>
+                  <div className="text-sm font-medium text-gray-900">{row.employee || row.name}</div>
+                  <div className="text-xs text-gray-500">{row.from_location || '-'} to {row.to_location || '-'}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm text-gray-900">{formatCurrency(row.expense_amount)}</div>
+                  <div className="text-xs text-gray-500">{row.travel_status || '-'}</div>
+                </div>
               </div>
-            </div>
-            <div>
-              <h4 className="mb-2 text-sm font-semibold text-gray-900">Overtime Entries</h4>
-              <div className="space-y-2">
-                {data.recent.overtime.length === 0 ? (
-                  <p className="text-sm text-gray-500">No overtime entries</p>
-                ) : data.recent.overtime.map((row) => (
-                  <div key={row.name} className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 px-3 py-2">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">{row.employee || row.name}</div>
-                      <div className="text-xs text-gray-500">{row.overtime_date || '-'}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm text-gray-900">{row.overtime_hours ?? 0} hrs</div>
-                      <div className="text-xs text-gray-500">{row.overtime_status || '-'}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            ))}
           </div>
         </Section>
 

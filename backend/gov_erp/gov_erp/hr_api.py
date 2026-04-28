@@ -1385,7 +1385,7 @@ def _build_hr_inbox_item(
 
 @frappe.whitelist()
 def get_hr_approval_inbox(view=None, request_type=None):
-	"""Return a unified HR approval inbox across onboarding, leave, travel, overtime, and regularization."""
+	"""Return a unified HR approval inbox across onboarding, leave, travel, and regularization."""
 	_require_hr_approval_access()
 	view = cstr(view or "pending").strip().lower()
 	request_type = cstr(request_type or "all").strip().lower()
@@ -1398,7 +1398,6 @@ def get_hr_approval_inbox(view=None, request_type=None):
 		"onboarding": 0,
 		"leave": 0,
 		"travel": 0,
-		"overtime": 0,
 		"regularization": 0,
 	}
 
@@ -1518,40 +1517,6 @@ def get_hr_approval_inbox(view=None, request_type=None):
 				),
 			)
 
-	if include("overtime"):
-		overtime_statuses = ["SUBMITTED"] if view == "pending" else ["APPROVED", "REJECTED"]
-		overtime_rows = frappe.get_all(
-			"GE Overtime Entry",
-			filters={"overtime_status": ["in", overtime_statuses]},
-			fields=[
-				"name", "employee", "overtime_date", "overtime_hours", "overtime_status",
-				"submitted_by", "approved_by", "approved_at", "rejected_by",
-				"rejection_reason", "creation", "modified",
-			],
-			order_by="creation asc" if view == "pending" else "modified desc",
-		)
-		for row in overtime_rows:
-			register(
-				"overtime",
-				_build_hr_inbox_item(
-					"overtime",
-					"Overtime",
-					row,
-					row.overtime_status,
-					row.employee or row.name,
-					f"{flt(row.overtime_hours)} hours overtime",
-					row.submitted_by,
-					row.approved_by or row.rejected_by or "HR Approver",
-					row.creation,
-					row.approved_at or row.modified,
-					view,
-					["approve", "reject"] if view == "pending" else [],
-					"/hr/overtime",
-					request_date=row.overtime_date,
-					remarks=row.rejection_reason,
-				),
-			)
-
 	if include("regularization"):
 		regularization_statuses = ["SUBMITTED"] if view == "pending" else ["APPROVED", "REJECTED"]
 		regularization_rows = frappe.get_all(
@@ -1625,10 +1590,6 @@ def act_on_hr_approval(request_type, name, action, remarks=None):
 		"travel": {
 			"approve": approve_travel_log,
 			"reject": lambda doc_name: reject_travel_log(doc_name, reason=remarks),
-		},
-		"overtime": {
-			"approve": approve_overtime_entry,
-			"reject": lambda doc_name: reject_overtime_entry(doc_name, reason=remarks),
 		},
 		"regularization": {
 			"approve": approve_attendance_regularization,
@@ -1813,172 +1774,74 @@ def get_travel_log_stats():
 	}
 
 
+def _overtime_feature_disabled():
+	return {
+		"success": False,
+		"message": "Overtime tracking has been removed from the active HR workspace.",
+	}
+
+
 @frappe.whitelist()
 def get_overtime_entries(employee=None, status=None):
-	"""Return overtime entries."""
+	"""Overtime tracking has been removed from the active HR workspace."""
 	_require_hr_read_access()
-	filters = {}
-	if employee:
-		filters["employee"] = employee
-	if status:
-		filters["overtime_status"] = status
-	data = frappe.get_all(
-		"GE Overtime Entry",
-		filters=filters,
-		fields=[
-			"name", "employee", "overtime_date", "overtime_hours", "overtime_status",
-			"linked_project", "linked_site", "submitted_by", "approved_by",
-			"approved_at", "creation", "modified",
-		],
-		order_by="overtime_date desc, creation desc",
-	)
-	return {"success": True, "data": data}
+	return _overtime_feature_disabled()
 
 
 @frappe.whitelist()
 def get_overtime_entry(name=None):
-	"""Return one overtime entry."""
+	"""Overtime tracking has been removed from the active HR workspace."""
 	_require_hr_read_access()
-	name = _require_param(name, "name")
-	doc = frappe.get_doc("GE Overtime Entry", name)
-	return {"success": True, "data": doc.as_dict()}
+	return _overtime_feature_disabled()
 
 
 @frappe.whitelist()
 def create_overtime_entry(data):
-	"""Create an overtime entry draft."""
+	"""Overtime tracking has been removed from the active HR workspace."""
 	_require_hr_write_access()
-	values = json.loads(data) if isinstance(data, str) else data
-	doc = frappe.get_doc({"doctype": "GE Overtime Entry", **values})
-	doc.insert()
-	frappe.db.commit()
-	return {"success": True, "data": doc.as_dict(), "message": "Overtime entry created"}
+	return _overtime_feature_disabled()
 
 
 @frappe.whitelist()
 def update_overtime_entry(name, data):
-	"""Update an overtime entry."""
+	"""Overtime tracking has been removed from the active HR workspace."""
 	_require_hr_write_access()
-	values = json.loads(data) if isinstance(data, str) else data
-	doc = frappe.get_doc("GE Overtime Entry", name)
-	doc.update(values)
-	doc.save()
-	frappe.db.commit()
-	return {"success": True, "data": doc.as_dict(), "message": "Overtime entry updated"}
+	return _overtime_feature_disabled()
 
 
 @frappe.whitelist()
 def delete_overtime_entry(name):
-	"""Delete an overtime entry unless approved."""
+	"""Overtime tracking has been removed from the active HR workspace."""
 	_require_hr_write_access()
-	doc = frappe.get_doc("GE Overtime Entry", name)
-	if doc.overtime_status == "APPROVED":
-		return {"success": False, "message": "Cannot delete an approved overtime entry"}
-	frappe.delete_doc("GE Overtime Entry", name)
-	frappe.db.commit()
-	return {"success": True, "message": "Overtime entry deleted"}
+	return _overtime_feature_disabled()
 
 
 @frappe.whitelist()
 def submit_overtime_entry(name):
-	"""Move overtime entry to submitted state."""
+	"""Overtime tracking has been removed from the active HR workspace."""
 	_require_hr_write_access()
-	doc = frappe.get_doc("GE Overtime Entry", name)
-	if doc.overtime_status != "DRAFT":
-		return {"success": False, "message": f"Overtime entry is in {doc.overtime_status} status, must be DRAFT to submit"}
-	doc.overtime_status = "SUBMITTED"
-	doc.save()
-	frappe.db.commit()
-	return {"success": True, "data": doc.as_dict(), "message": "Overtime entry submitted"}
+	return _overtime_feature_disabled()
 
 
 @frappe.whitelist()
 def approve_overtime_entry(name):
-	"""Approve a submitted overtime entry."""
+	"""Overtime tracking has been removed from the active HR workspace."""
 	_require_hr_approval_access()
-	doc = frappe.get_doc("GE Overtime Entry", name)
-	if doc.overtime_status != "SUBMITTED":
-		return {"success": False, "message": f"Overtime entry is in {doc.overtime_status} status, must be SUBMITTED to approve"}
-	doc.overtime_status = "APPROVED"
-	doc.save()
-	frappe.db.commit()
-
-	# ── Accountability ledger ─────────────────────────────────────────────
-	try:
-		from gov_erp.accountability import record_and_log, EventType
-		record_and_log(
-			subject_doctype="GE Overtime Entry",
-			subject_name=name,
-			event_type=EventType.APPROVED,
-			linked_project=doc.get("linked_project"),
-			linked_site=doc.get("linked_site"),
-			from_status="SUBMITTED",
-			to_status="APPROVED",
-			current_status="APPROVED",
-			approved_by=frappe.session.user,
-			approved_on=now_datetime(),
-			current_owner_role=_detect_primary_role(),
-			source_route="/hr/overtime",
-		)
-	except Exception:
-		frappe.log_error(frappe.get_traceback(), "Accountability: approve_overtime_entry")
-
-	return {"success": True, "data": doc.as_dict(), "message": "Overtime entry approved"}
+	return _overtime_feature_disabled()
 
 
 @frappe.whitelist()
 def reject_overtime_entry(name, reason=None):
-	"""Reject a submitted overtime entry."""
+	"""Overtime tracking has been removed from the active HR workspace."""
 	_require_hr_approval_access()
-	if not (reason or "").strip():
-		frappe.throw("A rejection reason is required. Please provide remarks.")
-	doc = frappe.get_doc("GE Overtime Entry", name)
-	if doc.overtime_status != "SUBMITTED":
-		return {"success": False, "message": f"Overtime entry is in {doc.overtime_status} status, must be SUBMITTED to reject"}
-	doc.overtime_status = "REJECTED"
-	doc.rejected_by = frappe.session.user
-	doc.rejection_reason = reason
-	doc.save()
-	frappe.db.commit()
-
-	# ── Accountability ledger ─────────────────────────────────────────────
-	try:
-		from gov_erp.accountability import record_and_log, EventType
-		record_and_log(
-			subject_doctype="GE Overtime Entry",
-			subject_name=name,
-			event_type=EventType.REJECTED,
-			linked_project=doc.get("linked_project"),
-			linked_site=doc.get("linked_site"),
-			from_status="SUBMITTED",
-			to_status="REJECTED",
-			current_status="REJECTED",
-			current_owner_role=_detect_primary_role(),
-			remarks=reason,
-			source_route="/hr/overtime",
-		)
-	except Exception:
-		frappe.log_error(frappe.get_traceback(), "Accountability: reject_overtime_entry")
-
-	return {"success": True, "data": doc.as_dict(), "message": "Overtime entry rejected"}
+	return _overtime_feature_disabled()
 
 
 @frappe.whitelist()
 def get_overtime_stats():
-	"""Aggregate overtime status counts and hours."""
+	"""Overtime tracking has been removed from the active HR workspace."""
 	_require_hr_read_access()
-	rows = frappe.get_all("GE Overtime Entry", fields=["overtime_status", "overtime_hours"])
-	return {
-		"success": True,
-		"data": {
-			"total": len(rows),
-			"draft": sum(1 for row in rows if row.overtime_status == "DRAFT"),
-			"submitted": sum(1 for row in rows if row.overtime_status == "SUBMITTED"),
-			"approved": sum(1 for row in rows if row.overtime_status == "APPROVED"),
-			"rejected": sum(1 for row in rows if row.overtime_status == "REJECTED"),
-			"total_hours": sum(row.overtime_hours or 0 for row in rows),
-		},
-	}
+	return _overtime_feature_disabled()
 
 
 @frappe.whitelist()

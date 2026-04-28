@@ -36,15 +36,6 @@ type AttendanceRow = {
   linked_site?: string;
 };
 
-type OvertimeRow = {
-  employee?: string;
-  overtime_date?: string;
-  overtime_hours?: number;
-  overtime_status?: string;
-  linked_project?: string;
-  linked_site?: string;
-};
-
 type TravelRow = {
   employee?: string;
   travel_date?: string;
@@ -107,12 +98,11 @@ export async function GET(request: NextRequest) {
     const project = params.get('project') || undefined;
     const attendanceDate = params.get('attendanceDate') || todayIso();
 
-    const [projectsRes, sitesRes, teamMembersRes, attendanceRes, overtimeRes, travelRes, technicianRes, documentsRes, expiringRes, statutoryRes] = await Promise.all([
+    const [projectsRes, sitesRes, teamMembersRes, attendanceRes, travelRes, technicianRes, documentsRes, expiringRes, statutoryRes] = await Promise.all([
       callFrappeMethod('get_project_spine_list', {}, request),
       callFrappeMethod('get_sites', project ? { project } : {}, request),
       callFrappeMethod('get_project_team_members', { ...(project ? { project } : {}), active: 1 }, request),
       callFrappeMethod('get_attendance_logs', { attendance_date: attendanceDate }, request),
-      callFrappeMethod('get_overtime_entries', {}, request),
       callFrappeMethod('get_travel_logs', project ? { project } : {}, request),
       callFrappeMethod('get_technician_visit_logs', {}, request),
       callFrappeMethod('get_project_documents', project ? { project } : {}, request),
@@ -128,7 +118,6 @@ export async function GET(request: NextRequest) {
 
     const teamMembers = ((teamMembersRes.data || []) as TeamMemberRow[]).filter(matchesProject);
     const attendanceRows = ((attendanceRes.data || []) as AttendanceRow[]).filter(matchesProject);
-    const overtimeRows = ((overtimeRes.data || []) as OvertimeRow[]).filter(matchesProject);
     const travelRows = ((travelRes.data || []) as TravelRow[]).filter(matchesProject);
     const technicianRows = ((technicianRes.data || []) as VisitRow[]).filter(matchesProject);
     const documentRows = ((documentsRes.data || []) as DocumentRow[]).filter(matchesProject);
@@ -137,7 +126,6 @@ export async function GET(request: NextRequest) {
 
     const siteAttendanceRows = sites.map((site) => {
       const attendanceForSite = attendanceRows.filter((row) => row.linked_site === site.name);
-      const overtimeForSite = overtimeRows.filter((row) => row.linked_site === site.name);
       const techniciansForSite = technicianRows.filter((row) => row.linked_site === site.name);
       const documentsForSite = documentRows.filter((row) => row.linked_site === site.name);
       return {
@@ -148,7 +136,6 @@ export async function GET(request: NextRequest) {
         present_count: attendanceForSite.filter((row) => isPresentStatus(row.attendance_status)).length,
         absent_count: attendanceForSite.filter((row) => String(row.attendance_status || '').toUpperCase() === 'ABSENT').length,
         total_attendance: attendanceForSite.length,
-        overtime_hours: Number(overtimeForSite.reduce((sum, row) => sum + Number(row.overtime_hours || 0), 0).toFixed(2)),
         active_technicians: techniciansForSite.filter((row) => ['PLANNED', 'IN_PROGRESS'].includes(String(row.visit_status || '').toUpperCase())).length,
         documents: documentsForSite.length,
       };
@@ -157,7 +144,6 @@ export async function GET(request: NextRequest) {
     const projectStaffingRows = projects.map((projectRow) => {
       const projectSites = sites.filter((row) => row.linked_project === projectRow.name);
       const attendanceForProject = attendanceRows.filter((row) => matchesProject(row) && ((row.linked_project || '') === projectRow.name || projectSites.some((site) => site.name === row.linked_site)));
-      const overtimeForProject = overtimeRows.filter((row) => matchesProject(row) && ((row.linked_project || '') === projectRow.name || projectSites.some((site) => site.name === row.linked_site)));
       const travelForProject = travelRows.filter((row) => matchesProject(row) && ((row.linked_project || '') === projectRow.name || projectSites.some((site) => site.name === row.linked_site)));
       const techniciansForProject = technicianRows.filter((row) => matchesProject(row) && ((row.linked_project || '') === projectRow.name || projectSites.some((site) => site.name === row.linked_site)));
       const documentsForProject = documentRows.filter((row) => row.linked_project === projectRow.name);
@@ -171,7 +157,6 @@ export async function GET(request: NextRequest) {
         active_assignments: teamForProject.length,
         attendance_marked: attendanceForProject.length,
         present_today: attendanceForProject.filter((row) => isPresentStatus(row.attendance_status)).length,
-        overtime_hours: Number(overtimeForProject.reduce((sum, row) => sum + Number(row.overtime_hours || 0), 0).toFixed(2)),
         travel_expense: Number(travelForProject.reduce((sum, row) => sum + Number(row.expense_amount || 0), 0).toFixed(2)),
         technician_visits: techniciansForProject.length,
         expiring_documents: expiringForProject.length,
@@ -237,7 +222,6 @@ export async function GET(request: NextRequest) {
         site_attendance: siteAttendanceRows,
         technician_deployments: technicianRows.slice(0, 12),
         travel_links: travelRows.slice(0, 20),
-        overtime_links: overtimeRows.slice(0, 20),
         document_governance: governanceRows,
         expiring_documents: expiringDocuments.slice(0, 12),
         compliance: {
@@ -264,7 +248,6 @@ export async function GET(request: NextRequest) {
         site_attendance: [],
         technician_deployments: [],
         travel_links: [],
-        overtime_links: [],
         document_governance: [],
         expiring_documents: [],
         compliance: { summary: { total_records: 0, pending: 0, hold: 0, paid: 0, employee_contribution: 0, employer_contribution: 0 }, rows: [] },

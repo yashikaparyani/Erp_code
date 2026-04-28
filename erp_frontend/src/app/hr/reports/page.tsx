@@ -188,7 +188,7 @@ export default function HrReportsPage() {
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">Phase 5 <span className="h-1 w-1 rounded-full bg-amber-500" /> Reports Gallery</div>
             <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">HR Reports Gallery</h1>
-            <p className="mt-2 max-w-3xl text-sm text-slate-600">Discoverable HR reporting for employee master, statutory summaries, leave balances, attendance muster, overtime, travel, and onboarding status.</p>
+            <p className="mt-2 max-w-3xl text-sm text-slate-600">Discoverable HR reporting for employee master, statutory summaries, leave balances, attendance muster, travel, and onboarding status.</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <Link href="/hr" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">HR Dashboard</Link>

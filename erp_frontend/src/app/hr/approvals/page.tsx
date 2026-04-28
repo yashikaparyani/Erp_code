@@ -5,7 +5,6 @@ import { useCallback, useEffect, useMemo, useState, type ComponentType } from 'r
 import {
   CheckCircle2,
   ChevronRight,
-  Clock3,
   Filter,
   Inbox,
   Loader2,
@@ -17,7 +16,7 @@ import {
 import ActionModal from '@/components/ui/ActionModal';
 
 type InboxView = 'pending' | 'completed';
-type RequestType = 'all' | 'onboarding' | 'leave' | 'travel' | 'overtime' | 'regularization';
+type RequestType = 'all' | 'onboarding' | 'leave' | 'travel' | 'regularization';
 
 type ApprovalItem = {
   workflow_type: Exclude<RequestType, 'all'>;
@@ -52,7 +51,6 @@ const REQUEST_TYPES: Array<{ value: RequestType; label: string }> = [
   { value: 'onboarding', label: 'Onboarding' },
   { value: 'leave', label: 'Leave' },
   { value: 'travel', label: 'Travel' },
-  { value: 'overtime', label: 'Overtime' },
   { value: 'regularization', label: 'Regularization' },
 ];
 
@@ -80,8 +78,6 @@ function workflowTone(type: ApprovalItem['workflow_type']) {
       return 'bg-emerald-50 text-emerald-700';
     case 'travel':
       return 'bg-amber-50 text-amber-700';
-    case 'overtime':
-      return 'bg-violet-50 text-violet-700';
     case 'regularization':
       return 'bg-slate-100 text-slate-700';
     default:
@@ -115,7 +111,7 @@ export default function HrApprovalsPage() {
   const [inbox, setInbox] = useState<InboxData>({
     view: 'pending',
     request_type: 'all',
-    summary: { onboarding: 0, leave: 0, travel: 0, overtime: 0, regularization: 0, total: 0 },
+    summary: { onboarding: 0, leave: 0, travel: 0, regularization: 0, total: 0 },
     items: [],
   });
 
@@ -196,7 +192,7 @@ export default function HrApprovalsPage() {
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-[#1e6b87]/15 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#1e6b87]">Phase 4 <span className="h-1 w-1 rounded-full bg-[#1e6b87]" /> Workflow Inbox</div>
             <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">HR Approval Inbox</h1>
-            <p className="mt-2 max-w-3xl text-sm text-slate-600">Pending and completed HR approvals across onboarding, leave, travel, overtime, and attendance regularization.</p>
+            <p className="mt-2 max-w-3xl text-sm text-slate-600">Pending and completed HR approvals across onboarding, leave, travel, and attendance regularization.</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <Link href="/hr" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">HR Dashboard</Link>
@@ -216,7 +212,6 @@ export default function HrApprovalsPage() {
         <SummaryCard label="Onboarding" value={inbox.summary.onboarding || 0} icon={UserCheck} />
         <SummaryCard label="Leave" value={inbox.summary.leave || 0} icon={ShieldCheck} />
         <SummaryCard label="Travel" value={inbox.summary.travel || 0} icon={ChevronRight} />
-        <SummaryCard label="Overtime" value={inbox.summary.overtime || 0} icon={Clock3} />
         <SummaryCard label="Regularization" value={inbox.summary.regularization || 0} icon={CheckCircle2} />
       </div>
 

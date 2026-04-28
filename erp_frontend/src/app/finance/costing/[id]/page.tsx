@@ -72,8 +72,8 @@ export default function CostingDetailPage() {
           <TraceabilityPanel projectId={d.project || null} siteId={null} />
           <RecordDocumentsPanel referenceDoctype="Cost Sheet" referenceName={id} title="Documents" />
           <LinkedRecordsPanel links={[
-            { label: 'Invoices', doctype: 'Sales Invoice', method: 'frappe.client.get_list', args: { doctype: 'Sales Invoice', filters: JSON.stringify({ cost_sheet: id }), fields: JSON.stringify(['name','grand_total','status']), limit_page_length: '10' }, href: (n: string) => `/finance/billing/${n}` },
-            { label: 'Estimates', doctype: 'Estimate', method: 'frappe.client.get_list', args: { doctype: 'Estimate', filters: JSON.stringify({ cost_sheet: id }), fields: JSON.stringify(['name','grand_total','status']), limit_page_length: '10' }, href: (n: string) => `/finance/estimates/${n}` },
+            { label: 'Invoices', doctype: 'GE Invoice', method: 'frappe.client.get_list', args: { doctype: 'GE Invoice', filters: JSON.stringify({ cost_sheet: id }), fields: JSON.stringify(['name','amount','status']), limit_page_length: '10' }, href: (n: string) => `/finance/billing/${n}` },
+            { label: 'Estimates', doctype: 'GE Estimate', method: 'frappe.client.get_list', args: { doctype: 'GE Estimate', filters: JSON.stringify({ cost_sheet: id }), fields: JSON.stringify(['name','net_amount','status']), limit_page_length: '10' }, href: (n: string) => `/finance/estimates/${n}` },
           ]} />
           <AccountabilityTimeline subjectDoctype="Cost Sheet" subjectName={id} />
         </>

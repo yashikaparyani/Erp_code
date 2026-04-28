@@ -71,6 +71,46 @@ def test_project_workspace_mutations_require_spine_write_access():
 		assert re.search(pattern, project_api, re.S), f"{func_name} must require spine write access"
 
 
+def test_workspace_tab_visibility_keeps_tasks_and_comms_available():
+	engine_text = (APP_ROOT / "permission_engine.py").read_text()
+
+	for snippet in [
+		'"comms":         ["project.workspace.access"]',
+		'"tasks":         ["project.workspace.access"]',
+		'"notes":         ["project.workspace.access"]',
+		'"requests":      ["project.workspace.access"]',
+	]:
+		assert snippet in engine_text
+
+
+def test_delete_project_task_uses_recursive_descendant_cleanup():
+	project_api = (APP_ROOT / "project_api.py").read_text()
+
+	assert "def _delete_project_task_tree(name, deleted=None):" in project_api
+	assert "_delete_project_task_tree(child_name, deleted)" in project_api
+	assert re.search(
+		r"def delete_project_task\(name\):.*?_delete_project_task_tree\(name\).*?frappe\.db\.commit\(\)",
+		project_api,
+		re.S,
+	)
+
+
+def test_clone_project_creates_parent_project_and_remaps_cloned_children():
+	project_api = (APP_ROOT / "project_api.py").read_text()
+
+	for snippet in [
+		'source_doc = frappe.get_doc("Project", source_project, ignore_permissions=True)',
+		'new_project = frappe.get_doc({"doctype": "Project", **project_values})',
+		"new_project.insert(ignore_permissions=True)",
+		"milestone_id_map = {}",
+		'new_milestone.linked_project = new_project.name',
+		"result[\"milestones_copied\"] = len(milestone_id_map)",
+		"if new_task.milestone_id in milestone_id_map:",
+		"new_task.milestone_id = milestone_id_map[new_task.milestone_id]",
+	]:
+		assert snippet in project_api
+
+
 def test_scheduler_endpoints_require_scheduler_admin_access():
 	system_api = (APP_ROOT / "system_api.py").read_text()
 

@@ -84,8 +84,8 @@ export default function ProformaDetailPage() {
           <TraceabilityPanel projectId={d.project || null} siteId={null} />
           <RecordDocumentsPanel referenceDoctype="Proforma Invoice" referenceName={id} title="Documents" />
           <LinkedRecordsPanel links={[
-            ...(d.linked_estimate ? [{ label: 'Estimate', doctype: 'Estimate', method: 'frappe.client.get_list', args: { doctype: 'Estimate', filters: JSON.stringify({ name: d.linked_estimate }), fields: JSON.stringify(['name','grand_total','status']), limit_page_length: '5' }, href: (n: string) => `/finance/estimates/${n}` }] : []),
-            { label: 'Invoices', doctype: 'Sales Invoice', method: 'frappe.client.get_list', args: { doctype: 'Sales Invoice', filters: JSON.stringify({ proforma: id }), fields: JSON.stringify(['name','grand_total','status']), limit_page_length: '10' }, href: (n: string) => `/finance/billing/${n}` },
+            ...(d.linked_estimate ? [{ label: 'Estimate', doctype: 'GE Estimate', method: 'frappe.client.get_list', args: { doctype: 'GE Estimate', filters: JSON.stringify({ name: d.linked_estimate }), fields: JSON.stringify(['name','net_amount','status']), limit_page_length: '5' }, href: (n: string) => `/finance/estimates/${n}` }] : []),
+            { label: 'Invoices', doctype: 'GE Invoice', method: 'frappe.client.get_list', args: { doctype: 'GE Invoice', filters: JSON.stringify({ proforma: id }), fields: JSON.stringify(['name','amount','status']), limit_page_length: '10' }, href: (n: string) => `/finance/billing/${n}` },
           ]} />
           <AccountabilityTimeline subjectDoctype="Proforma Invoice" subjectName={id} />
         </>

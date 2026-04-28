@@ -18,9 +18,16 @@ interface RMADetail {
   linked_ticket?: string;
   linked_project?: string;
   item_link?: string;
+  item_description?: string;
+  item_make?: string;
+  item_model?: string;
   asset_serial_number?: string;
   qty?: number;
   faulty_date?: string;
+  source_location_name?: string;
+  received_from_field_date?: string;
+  inbound_dc_challan_no?: string;
+  problem_description?: string;
   dispatch_destination?: string;
   service_partner_name?: string;
   warranty_status?: string;
@@ -29,6 +36,8 @@ interface RMADetail {
   approval_status?: string;
   rma_purchase_order_no?: string;
   repairing_status?: string;
+  return_received_dc_challan_no?: string;
+  return_dispatch_location_name?: string;
   aging_days?: number;
   rma_status?: string;
   repair_cost?: number;
@@ -131,12 +140,22 @@ export default function RMADetailPage() {
                   <dl className="space-y-2 text-sm">
                     {([
                       ['RMA ID', d.name], ['Linked Ticket', d.linked_ticket], ['Project', d.linked_project],
-                      ['Item', d.item_link], ['Asset Serial', d.asset_serial_number], ['Quantity', String(d.qty ?? '-')],
-                      ['Faulty Date', formatDate(d.faulty_date)], ['Dispatch To', d.dispatch_destination?.replace(/_/g, ' ')],
+                      ['Item', d.item_link], ['Item Description', d.item_description],
+                      ['Make / Brand', d.item_make], ['Model', d.item_model],
+                      ['Asset Serial', d.asset_serial_number], ['Quantity', String(d.qty ?? '-')],
+                      ['Faulty Date', formatDate(d.faulty_date)],
+                      ['Problem', d.problem_description],
+                      ['Source Location', d.source_location_name],
+                      ['Rcvd From Field', formatDate(d.received_from_field_date)],
+                      ['Inbound Challan', d.inbound_dc_challan_no],
+                      ['Dispatch To', d.dispatch_destination?.replace(/_/g, ' ')],
                       ['Service Partner', d.service_partner_name], ['Warranty', d.warranty_status?.replace(/_/g, ' ')],
                       ['Repairability', d.repairability_status?.replace(/_/g, ' ')], ['Reference No', d.rma_reference_no],
                       ['Approval', d.approval_status], ['PO Number', d.rma_purchase_order_no],
-                      ['Repair Status', d.repairing_status], ['Aging Days', String(d.aging_days ?? '-')],
+                      ['Repair Status', d.repairing_status],
+                      ['Rcvd Svc Challan', d.return_received_dc_challan_no],
+                      ['Return Location', d.return_dispatch_location_name],
+                      ['Aging Days', String(d.aging_days ?? '-')],
                       ['Repair Cost', formatCurrency(d.repair_cost)], ['Created By', d.owner], ['Created', formatDate(d.creation)],
                     ] as [string, string | undefined][]).map(([label, value]) => (
                       <div key={label} className="flex gap-2">
@@ -161,6 +180,10 @@ export default function RMADetailPage() {
           <div className="card">
             <div className="card-header"><h3 className="font-semibold text-gray-900">Failure & RCA</h3></div>
             <div className="card-body space-y-4">
+              <div>
+                <h4 className="text-sm font-medium text-gray-700 mb-1">Problem Description</h4>
+                {d.problem_description ? <p className="text-sm text-gray-700 whitespace-pre-wrap">{d.problem_description}</p> : <p className="text-sm text-gray-400 italic">Not specified</p>}
+              </div>
               <div>
                 <h4 className="text-sm font-medium text-gray-700 mb-1">Failure Reason</h4>
                 {d.failure_reason ? <p className="text-sm text-gray-700 whitespace-pre-wrap">{d.failure_reason}</p> : <p className="text-sm text-gray-400 italic">Not specified</p>}

@@ -16,9 +16,16 @@ interface RMATracker {
   linked_ticket?: string;
   linked_project?: string;
   item_link?: string;
+  item_description?: string;
+  item_make?: string;
+  item_model?: string;
   asset_serial_number?: string;
   qty?: number;
   faulty_date?: string;
+  source_location_name?: string;
+  received_from_field_date?: string;
+  inbound_dc_challan_no?: string;
+  problem_description?: string;
   dispatch_destination?: string;
   service_partner_name?: string;
   warranty_status?: string;
@@ -27,6 +34,8 @@ interface RMATracker {
   approval_status?: string;
   rma_purchase_order_no?: string;
   repairing_status?: string;
+  return_received_dc_challan_no?: string;
+  return_dispatch_location_name?: string;
   aging_days?: number;
   rma_status?: string;
   repair_cost?: number;
@@ -150,12 +159,14 @@ export default function RMAPage() {
                       <div className="text-xs text-gray-500">{item.linked_ticket || '-'}</div>
                     </td>
                     <td>
-                      <div className="text-sm">{item.item_link || '-'}</div>
-                      <div className="text-xs text-gray-500">{item.asset_serial_number || '-'}</div>
+                      <div className="text-sm">{item.item_description || item.item_link || '-'}</div>
+                      <div className="text-xs text-gray-500">{[item.item_make, item.item_model].filter(Boolean).join(' · ') || item.asset_serial_number || '-'}</div>
+                      {item.asset_serial_number && (item.item_make || item.item_model) && <div className="text-xs text-gray-400">{item.asset_serial_number}</div>}
                     </td>
                     <td>
                       <div className="text-sm">{item.dispatch_destination || '-'}</div>
                       <div className="text-xs text-gray-500">{item.service_partner_name || '-'}</div>
+                      {item.source_location_name && <div className="text-xs text-gray-400">From: {item.source_location_name}</div>}
                     </td>
                     <td><span className={`badge ${badge(WARRANTY_BADGES, item.warranty_status)}`}>{(item.warranty_status || '-').replace(/_/g, ' ')}</span></td>
                     <td>
@@ -197,23 +208,30 @@ export default function RMAPage() {
         fields={[
           { name: 'linked_ticket', label: 'Linked Ticket', type: 'select', options: tickets.map(t => ({ value: t.name, label: `${t.name} - ${t.title || 'Untitled'}` })) },
           { name: 'linked_project', label: 'Project', type: 'link', linkEntity: 'project' as const, placeholder: 'Search project…' },
-          { name: 'item_link', label: 'Item', type: 'link', linkEntity: 'item' as const, placeholder: 'Search item…' },
-          { name: 'asset_serial_number', label: 'Asset Serial', type: 'text' },
+          { name: 'item_description', label: 'Item Description', type: 'text', placeholder: 'e.g. RLVD Camera, Bullet Camera, NVR…' },
+          { name: 'item_make', label: 'Make / Brand', type: 'text', placeholder: 'e.g. INFINOVA, CP Plus, Hikvision…' },
+          { name: 'item_model', label: 'Model', type: 'text', placeholder: 'e.g. VT211-A50B-A0, CP-UNC-TC41ZL6C…' },
+          { name: 'item_link', label: 'Item (ERP Link)', type: 'link', linkEntity: 'item' as const, placeholder: 'Search item…' },
+          { name: 'asset_serial_number', label: 'Serial No', type: 'text' },
           { name: 'qty', label: 'Quantity', type: 'number', defaultValue: '1' },
+          { name: 'source_location_name', label: 'Source Location Name', type: 'text', placeholder: 'Site / location from which item was received' },
+          { name: 'received_from_field_date', label: 'Received From Field Date', type: 'date' },
+          { name: 'inbound_dc_challan_no', label: 'Inbound DC Challan No', type: 'text' },
           { name: 'faulty_date', label: 'Faulty Date', type: 'date' },
+          { name: 'problem_description', label: 'Problem Description', type: 'textarea', placeholder: 'e.g. POWER ISSUE, CAMERA NOT WORKING, NO VIDEO OUTPUT…' },
           { name: 'dispatch_destination', label: 'Dispatch Destination', type: 'select', defaultValue: 'OEM', options: [
             { value: 'OEM', label: 'OEM' }, { value: 'VENDOR', label: 'Vendor' },
             { value: 'HEAD_OFFICE', label: 'Head Office' }, { value: 'CENTRAL_TEAM', label: 'Central Team' },
             { value: 'THIRD_PARTY_REPAIR', label: 'Third Party Repair' },
           ]},
-          { name: 'service_partner_name', label: 'Partner Name', type: 'text' },
+          { name: 'service_partner_name', label: 'OEM / Vendor Name', type: 'text' },
           { name: 'warranty_status', label: 'Warranty Status', type: 'select', defaultValue: 'UNDER_WARRANTY', options: [
             { value: 'UNDER_WARRANTY', label: 'Under Warranty' }, { value: 'NON_WARRANTY', label: 'Non Warranty' },
           ]},
           { name: 'repairability_status', label: 'Repairability', type: 'select', defaultValue: 'REPAIRABLE', options: [
             { value: 'REPAIRABLE', label: 'Repairable' }, { value: 'NON_REPAIRABLE', label: 'Non Repairable' },
           ]},
-          { name: 'failure_reason', label: 'Failure Reason', type: 'textarea' },
+          { name: 'failure_reason', label: 'Detailed Failure Notes', type: 'textarea' },
           { name: 'field_rca', label: 'Field RCA', type: 'textarea' },
         ]}
         onConfirm={async (values) => {

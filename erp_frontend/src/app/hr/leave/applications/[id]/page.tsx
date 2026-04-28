@@ -114,7 +114,10 @@ export default function LeaveApplicationDetailPage() {
   );
 
   const d = data;
-  const st = (d.leave_status || (typeof (d as LeaveDetail & { status?: string }).status === 'string' ? (d as LeaveDetail & { status?: string }).status : 'SUBMITTED')).toUpperCase();
+  const nativeStatus = typeof (d as LeaveDetail & { status?: string }).status === 'string'
+    ? (d as LeaveDetail & { status?: string }).status
+    : undefined;
+  const st = (d.leave_status || nativeStatus || 'SUBMITTED').toUpperCase();
   const displayReason = d.reason || (d as LeaveDetail & { description?: string }).description || '';
 
   return (

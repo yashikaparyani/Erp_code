@@ -239,7 +239,6 @@ const navLinks: NavLink[] = [
       { name: 'Leave Applications', href: '/hr/leave/applications', icon: CalendarCheck2 },
       { name: 'Regularizations', href: '/hr/regularizations', icon: CheckSquare },
       { name: 'Travel Logs', href: '/hr/travel-logs', icon: Plane },
-      { name: 'Overtime', href: '/hr/overtime', icon: Clock },
       { name: 'Statutory Ledger', href: '/hr/statutory', icon: ShieldCheck },
       { name: 'Technician Visits', href: '/hr/technician-visits', icon: Wrench },
       { name: 'Operations', href: '/hr/operations', icon: Cog },
