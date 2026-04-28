@@ -1,9 +1,27 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer } from 'react';
 import { Plus, Search, Building2, Pencil, Trash2 } from 'lucide-react';
 import RegisterPage from '@/components/shells/RegisterPage';
 import ActionModal from '@/components/ui/ActionModal';
+
+// --- Types ---
+type ModalState =
+  | { type: 'create' }
+  | { type: 'edit'; target: Supplier }
+  | { type: 'delete'; target: Supplier }
+  | null;
+
+type FormValues = {
+  party_name: string;
+  phone: string;
+  email: string;
+  city: string;
+  state: string;
+  address: string;
+};
+
+const BLANK_FORM: FormValues = { party_name: '', phone: '', email: '', city: '', state: '', address: '' };
 
 type Supplier = {
   name: string;
@@ -18,15 +36,59 @@ type Supplier = {
   creation?: string;
 };
 
+type State = {
+  rows: Supplier[];
+  loading: boolean;
+  error: string;
+  query: string;
+  busy: boolean;
+  modal: ModalState;
+  formValues: FormValues;
+  formError: string;
+};
+
+type Action =
+  | { type: 'LOAD_START' }
+  | { type: 'LOAD_SUCCESS'; payload: Supplier[] }
+  | { type: 'LOAD_ERROR'; payload: string }
+  | { type: 'SET_QUERY'; payload: string }
+  | { type: 'SET_BUSY'; payload: boolean }
+  | { type: 'OPEN_MODAL'; payload: ModalState }
+  | { type: 'CLOSE_MODAL' }
+  | { type: 'SET_FORM_VALUES'; payload: FormValues }
+  | { type: 'UPDATE_FORM_VALUE'; payload: { key: keyof FormValues; value: string } }
+  | { type: 'SET_FORM_ERROR'; payload: string };
+
+const initialState: State = {
+  rows: [],
+  loading: true,
+  error: '',
+  query: '',
+  busy: false,
+  modal: null,
+  formValues: BLANK_FORM,
+  formError: '',
+};
+
+function reducer(state: State, action: Action): State {
+  switch (action.type) {
+    case 'LOAD_START': return { ...state, loading: true, error: '' };
+    case 'LOAD_SUCCESS': return { ...state, loading: false, rows: action.payload };
+    case 'LOAD_ERROR': return { ...state, loading: false, error: action.payload };
+    case 'SET_QUERY': return { ...state, query: action.payload };
+    case 'SET_BUSY': return { ...state, busy: action.payload };
+    case 'OPEN_MODAL': return { ...state, modal: action.payload, formError: '' };
+    case 'CLOSE_MODAL': return { ...state, modal: null, formValues: BLANK_FORM, formError: '' };
+    case 'SET_FORM_VALUES': return { ...state, formValues: action.payload };
+    case 'UPDATE_FORM_VALUE': return { ...state, formValues: { ...state.formValues, [action.payload.key]: action.payload.value } };
+    case 'SET_FORM_ERROR': return { ...state, formError: action.payload };
+    default: return state;
+  }
+}
+
 const inputCls = 'w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]';
 
-function SupplierForm({
-  values,
-  onChange,
-}: {
-  values: Record<string, string>;
-  onChange: (key: string, value: string) => void;
-}) {
+function SupplierForm({ values, onChange }: { values: FormValues; onChange: (key: keyof FormValues, value: string) => void; }) {
   return (
     <div className="space-y-4">
       <div>
@@ -62,37 +124,18 @@ function SupplierForm({
 }
 
 export default function SuppliersPage() {
-  const [rows, setRows] = useState<Supplier[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [query, setQuery] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  // Create
-  const [showCreate, setShowCreate] = useState(false);
-  const [createValues, setCreateValues] = useState<Record<string, string>>({});
-  const [createError, setCreateError] = useState('');
-
-  // Edit
-  const [editTarget, setEditTarget] = useState<Supplier | null>(null);
-  const [editValues, setEditValues] = useState<Record<string, string>>({});
-  const [editError, setEditError] = useState('');
-
-  // Delete
-  const [deleteTarget, setDeleteTarget] = useState<Supplier | null>(null);
+  const [state, dispatch] = useReducer(reducer, initialState);
+  const { rows, loading, error, query, busy, modal, formValues, formError } = state;
 
   const load = useCallback(async () => {
-    setLoading(true);
-    setError('');
+    dispatch({ type: 'LOAD_START' });
     try {
       const res = await fetch('/api/suppliers', { cache: 'no-store' });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok || payload.success === false) throw new Error(payload.message || 'Failed to load suppliers');
-      setRows(Array.isArray(payload.data) ? payload.data : []);
+      dispatch({ type: 'LOAD_SUCCESS', payload: Array.isArray(payload.data) ? payload.data : [] });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load suppliers');
-    } finally {
-      setLoading(false);
+      dispatch({ type: 'LOAD_ERROR', payload: e instanceof Error ? e.message : 'Failed to load suppliers' });
     }
   }, []);
 
@@ -107,44 +150,44 @@ export default function SuppliersPage() {
   }, [rows, query]);
 
   const handleCreate = async () => {
-    if (!createValues.party_name?.trim()) { setCreateError('Supplier name is required'); return; }
-    setBusy(true); setCreateError('');
+    if (!formValues.party_name?.trim()) { dispatch({ type: 'SET_FORM_ERROR', payload: 'Supplier name is required' }); return; }
+    dispatch({ type: 'SET_BUSY', payload: true }); dispatch({ type: 'SET_FORM_ERROR', payload: '' });
     try {
-      const res = await fetch('/api/suppliers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(createValues) });
+      const res = await fetch('/api/suppliers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formValues) });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok || payload.success === false) throw new Error(payload.message || 'Failed to create supplier');
-      setShowCreate(false);
-      setCreateValues({});
+      dispatch({ type: 'CLOSE_MODAL' });
       await load();
-    } catch (e) { setCreateError(e instanceof Error ? e.message : 'Failed to create supplier'); }
-    finally { setBusy(false); }
+    } catch (e) { dispatch({ type: 'SET_FORM_ERROR', payload: e instanceof Error ? e.message : 'Failed to create supplier' }); }
+    finally { dispatch({ type: 'SET_BUSY', payload: false }); }
   };
 
   const handleEdit = async () => {
-    if (!editTarget) return;
-    if (!editValues.party_name?.trim()) { setEditError('Supplier name is required'); return; }
-    setBusy(true); setEditError('');
+    if (modal?.type !== 'edit') return;
+    if (!formValues.party_name?.trim()) { dispatch({ type: 'SET_FORM_ERROR', payload: 'Supplier name is required' }); return; }
+    dispatch({ type: 'SET_BUSY', payload: true }); dispatch({ type: 'SET_FORM_ERROR', payload: '' });
     try {
-      const res = await fetch('/api/suppliers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'update', name: editTarget.name, ...editValues }) });
+      const res = await fetch('/api/suppliers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'update', name: modal.target.name, ...formValues }) });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok || payload.success === false) throw new Error(payload.message || 'Failed to update supplier');
-      setEditTarget(null);
+      dispatch({ type: 'CLOSE_MODAL' });
       await load();
-    } catch (e) { setEditError(e instanceof Error ? e.message : 'Failed to update supplier'); }
-    finally { setBusy(false); }
+    } catch (e) { dispatch({ type: 'SET_FORM_ERROR', payload: e instanceof Error ? e.message : 'Failed to update supplier' }); }
+    finally { dispatch({ type: 'SET_BUSY', payload: false }); }
   };
 
   const handleDelete = async () => {
-    if (!deleteTarget) return;
-    setBusy(true);
+    if (modal?.type !== 'delete') return;
+    dispatch({ type: 'SET_BUSY', payload: true });
+    dispatch({ type: 'SET_FORM_ERROR', payload: '' });
     try {
-      const res = await fetch('/api/suppliers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete', name: deleteTarget.name }) });
+      const res = await fetch('/api/suppliers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete', name: modal.target.name }) });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok || payload.success === false) throw new Error(payload.message || 'Failed to delete supplier');
-      setDeleteTarget(null);
+      dispatch({ type: 'CLOSE_MODAL' });
       await load();
-    } catch (e) { setError(e instanceof Error ? e.message : 'Failed to delete supplier'); }
-    finally { setBusy(false); }
+    } catch (e) { dispatch({ type: 'SET_FORM_ERROR', payload: e instanceof Error ? e.message : 'Failed to delete supplier' }); }
+    finally { dispatch({ type: 'SET_BUSY', payload: false }); }
   };
 
   return (
@@ -164,14 +207,14 @@ export default function SuppliersPage() {
           { label: 'Filtered', value: filtered.length, variant: query ? 'default' : undefined },
         ]}
         headerActions={
-          <button className="btn btn-primary" onClick={() => { setCreateValues({}); setCreateError(''); setShowCreate(true); }}>
+          <button className="btn btn-primary" onClick={() => dispatch({ type: 'OPEN_MODAL', payload: { type: 'create' } })}>
             <Plus className="w-4 h-4" /> Add Supplier
           </button>
         }
         filterBar={
           <div className="relative min-w-[240px]">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
-            <input className="input pl-9" type="text" value={query} onChange={e => setQuery(e.target.value)} placeholder="Search supplier, city…" />
+            <input className="input pl-9" type="text" value={query} onChange={e => dispatch({ type: 'SET_QUERY', payload: e.target.value })} placeholder="Search supplier, city…" />
           </div>
         }
       >
@@ -211,13 +254,16 @@ export default function SuppliersPage() {
                     <div className="flex justify-end gap-2">
                       <button
                         className="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                        onClick={() => { setEditTarget(r); setEditValues({ party_name: r.party_name, phone: r.phone || '', email: r.email || '', city: r.city || '', state: r.state || '', address: r.address || '' }); setEditError(''); }}
+                        onClick={() => {
+                          dispatch({ type: 'OPEN_MODAL', payload: { type: 'edit', target: r } });
+                          dispatch({ type: 'SET_FORM_VALUES', payload: { party_name: r.party_name, phone: r.phone || '', email: r.email || '', city: r.city || '', state: r.state || '', address: r.address || '' } });
+                        }}
                       >
                         <Pencil className="h-3.5 w-3.5" /> Edit
                       </button>
                       <button
                         className="text-sm font-medium text-rose-600 hover:text-rose-800 flex items-center gap-1"
-                        onClick={() => setDeleteTarget(r)}
+                        onClick={() => dispatch({ type: 'OPEN_MODAL', payload: { type: 'delete', target: r } })}
                       >
                         <Trash2 className="h-3.5 w-3.5" /> Delete
                       </button>
@@ -231,14 +277,14 @@ export default function SuppliersPage() {
       </RegisterPage>
 
       {/* Create modal */}
-      {showCreate && (
+      {modal?.type === 'create' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-4">
             <h2 className="text-lg font-bold text-gray-900">Add Supplier</h2>
-            {createError && <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{createError}</div>}
-            <SupplierForm values={createValues} onChange={(k, v) => setCreateValues(prev => ({ ...prev, [k]: v }))} />
+            {formError && <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{formError}</div>}
+            <SupplierForm values={formValues} onChange={(k, v) => dispatch({ type: 'UPDATE_FORM_VALUE', payload: { key: k, value: v } })} />
             <div className="flex justify-end gap-3 pt-2">
-              <button className="btn" onClick={() => setShowCreate(false)} disabled={busy}>Cancel</button>
+              <button className="btn" onClick={() => dispatch({ type: 'CLOSE_MODAL' })} disabled={busy}>Cancel</button>
               <button className="btn btn-primary" onClick={() => void handleCreate()} disabled={busy}>{busy ? 'Creating…' : 'Create Supplier'}</button>
             </div>
           </div>
@@ -246,14 +292,14 @@ export default function SuppliersPage() {
       )}
 
       {/* Edit modal */}
-      {editTarget && (
+      {modal?.type === 'edit' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-4">
             <h2 className="text-lg font-bold text-gray-900">Edit Supplier</h2>
-            {editError && <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{editError}</div>}
-            <SupplierForm values={editValues} onChange={(k, v) => setEditValues(prev => ({ ...prev, [k]: v }))} />
+            {formError && <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{formError}</div>}
+            <SupplierForm values={formValues} onChange={(k, v) => dispatch({ type: 'UPDATE_FORM_VALUE', payload: { key: k, value: v } })} />
             <div className="flex justify-end gap-3 pt-2">
-              <button className="btn" onClick={() => setEditTarget(null)} disabled={busy}>Cancel</button>
+              <button className="btn" onClick={() => dispatch({ type: 'CLOSE_MODAL' })} disabled={busy}>Cancel</button>
               <button className="btn btn-primary" onClick={() => void handleEdit()} disabled={busy}>{busy ? 'Saving…' : 'Save Changes'}</button>
             </div>
           </div>
@@ -262,15 +308,17 @@ export default function SuppliersPage() {
 
       {/* Delete modal */}
       <ActionModal
-        open={Boolean(deleteTarget)}
-        title={`Delete ${deleteTarget?.party_name || 'Supplier'}`}
+        open={modal?.type === 'delete'}
+        title={`Delete ${modal?.type === 'delete' ? modal.target.party_name : 'Supplier'}`}
         description="This will permanently remove the supplier. This cannot be undone."
         confirmLabel="Delete"
         variant="danger"
         busy={busy}
         onConfirm={() => void handleDelete()}
-        onCancel={() => setDeleteTarget(null)}
-      />
+        onCancel={() => dispatch({ type: 'CLOSE_MODAL' })}
+      >
+        {formError && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{formError}</div>}
+      </ActionModal>
     </>
   );
 }
